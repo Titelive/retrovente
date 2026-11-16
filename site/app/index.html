@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Mes jeux · RetroRevente</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Silkscreen&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--fond:#FBF7EF;--carte:#fff;--encre:#1B1A2E;--gris:#615E73;--trait:#E9E2D3;--rouge:#E8443A;--jaune:#FFC93C;--bleu:#3A5BE8;--vert:#2E9E5B;--creme:#F3ECDD;--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--texte:"Inter",ui-sans-serif,system-ui,sans-serif;--pixel:"Silkscreen",ui-monospace,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fond:#12111D;--carte:#1C1B2B;--encre:#F4F1EA;--gris:#A9A6B8;--trait:#2D2B40;--creme:#232236;--bleu:#7D95FF;--vert:#4CC27E;color-scheme:dark}}
+:root[data-theme="dark"]{--fond:#12111D;--carte:#1C1B2B;--encre:#F4F1EA;--gris:#A9A6B8;--trait:#2D2B40;--creme:#232236;--bleu:#7D95FF;--vert:#4CC27E;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--fond);color:var(--encre);font:400 16px/1.5 var(--texte);min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--bleu);outline-offset:2px;border-radius:6px}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.03em;line-height:1.05;margin:0}
+h1{font-size:clamp(30px,5vw,44px);font-weight:800}
+h2{font-size:24px;font-weight:800}
+h3{font-size:18px;font-weight:700;letter-spacing:-.015em}
+p{margin:0}
+.wrap{width:min(1080px,100% - 32px);margin-inline:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:600 15px/1 var(--texte);text-decoration:none;border-radius:12px;padding:13px 18px;border:2px solid var(--encre);background:var(--rouge);color:#fff;box-shadow:3px 3px 0 var(--encre);cursor:pointer;transition:transform .12s,box-shadow .12s;white-space:nowrap}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--encre)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--encre)}
+.btn.clair{background:var(--carte);color:var(--encre)}
+.btn.jaune{background:var(--jaune);color:#1B1A2E}
+.btn.petit{padding:9px 12px;font-size:14px;box-shadow:2px 2px 0 var(--encre)}
+.btn:disabled{opacity:.55;cursor:default;transform:none}
+.btn.busy::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:t .8s linear infinite}
+@keyframes t{to{transform:rotate(360deg)}}
+.lien{background:none;border:0;padding:0;color:var(--gris);text-decoration:underline;cursor:pointer;font-size:14px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--gris);min-width:0}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=url],select,textarea{width:100%;border:2px solid var(--trait);background:var(--carte);border-radius:12px;padding:11px 12px;font-size:16px;font-weight:400;color:var(--encre);outline:0}
+input:focus,select:focus,textarea:focus{border-color:var(--encre)}
+textarea{resize:vertical;min-height:120px;line-height:1.45}
+.err{color:var(--rouge);font-size:14px;font-weight:600;min-height:1em}
+.pixel{font:400 11px/1 var(--pixel);text-transform:uppercase;letter-spacing:.08em;color:var(--rouge)}
+.carte{background:var(--carte);border:2px solid var(--encre);border-radius:18px;padding:20px}
+
+/* barre */
+.barre{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--fond) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--trait)}
+.barre .wrap{display:flex;align-items:center;gap:12px;height:60px}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;font:800 19px/1 var(--display);letter-spacing:-.03em;margin-right:auto}
+.logo img{width:28px;height:28px}
+.pill{font-size:13px;font-weight:600;padding:7px 11px;border-radius:999px;background:var(--creme);border:1px solid var(--trait);white-space:nowrap}
+.pill.plein{background:#FDE3E1;color:#9B231B;border-color:#F5B7B2}
+@media(max-width:520px){.logo span{display:none}}
+
+/* connexion */
+#auth{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:32px 16px}
+#auth .carte{width:min(420px,100%);display:flex;flex-direction:column;gap:14px;box-shadow:6px 6px 0 var(--encre)}
+.onglets{display:flex;border:2px solid var(--encre);border-radius:12px;overflow:hidden}
+.onglets button{flex:1;border:0;background:transparent;padding:11px;font-weight:600;cursor:pointer}
+.onglets button[aria-selected="true"]{background:var(--encre);color:var(--fond)}
+.case{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--gris)}
+.case input{width:18px;height:18px;margin-top:2px;flex:none}
+
+/* tableau de bord */
+main.app{padding:28px 0 100px;display:flex;flex-direction:column;gap:26px}
+.tete{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.ajout{display:flex;gap:10px;flex-wrap:wrap}
+.chiffres{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.chiffres div{background:var(--carte);border:2px solid var(--encre);border-radius:14px;padding:14px 16px}
+.chiffres small{display:block;font-size:12px;color:var(--gris);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.chiffres b{font:800 28px/1.1 var(--display);letter-spacing:-.03em}
+.chiffres .tps{background:var(--jaune);color:#1B1A2E}
+.chiffres .tps small{color:#4B4630}
+@media(max-width:760px){.chiffres{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fisc{display:flex;flex-direction:column;gap:10px}
+.jauges{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.jauges{grid-template-columns:1fr}}
+.jauge small{font-size:13px;color:var(--gris)}
+.jauge .b{height:12px;border-radius:6px;background:var(--creme);overflow:hidden;margin-top:6px;border:1px solid var(--trait)}
+.jauge .b i{display:block;height:100%;background:var(--vert)}
+.jauge.alerte .b i{background:var(--jaune)}.jauge.depasse .b i{background:var(--rouge)}
+.filtres{display:flex;gap:8px;flex-wrap:wrap}
+.filtres button{border:2px solid var(--encre);background:var(--carte);border-radius:999px;padding:7px 13px;font-size:14px;font-weight:600;cursor:pointer}
+.filtres button[aria-pressed="true"]{background:var(--encre);color:var(--fond)}
+.liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.jeu{background:var(--carte);border:2px solid var(--encre);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;text-align:left;padding:0;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.jeu:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--encre)}
+.jeu .im{aspect-ratio:4/3;background:var(--creme);display:grid;place-items:center;overflow:hidden;border-bottom:2px solid var(--encre)}
+.jeu .im img{width:100%;height:100%;object-fit:cover}
+.jeu .im span{font:400 12px/1 var(--pixel);color:var(--gris)}
+.jeu .tx{padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.jeu b{font-weight:600;line-height:1.3}
+.jeu .ln{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--gris)}
+.jeu .px{font:800 20px/1 var(--display);color:var(--encre)}
+.st{font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px;background:var(--creme);white-space:nowrap}
+.st.vendu,.st.envoye{background:#DCF3E4;color:#1D6B3D}.st.reserve{background:#FFF0C7;color:#7A5A00}.st.retire{color:var(--gris)}
+.vide{padding:40px 20px;text-align:center;color:var(--gris);border:2px dashed var(--trait);border-radius:18px;display:flex;flex-direction:column;gap:14px;align-items:center}
+
+/* fiche */
+#fiche{position:fixed;inset:0;z-index:40;background:var(--fond);overflow-y:auto;overscroll-behavior:contain}
+#fiche .haut{position:sticky;top:0;z-index:2;background:var(--fond);border-bottom:1px solid var(--trait)}
+#fiche .haut .wrap{display:flex;align-items:center;gap:10px;height:60px}
+#fiche .haut h2{font-size:20px;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grille{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-template-areas:"photo champs" "lbc champs" ". champs";grid-template-rows:auto auto 1fr;gap:24px;padding:24px 0 120px;align-items:start}
+.grille>.g-photo{grid-area:photo}.grille>.g-champs{grid-area:champs}.grille>.g-lbc{grid-area:lbc}
+@media(max-width:860px){.grille{grid-template-columns:minmax(0,1fr);grid-template-areas:"photo" "champs" "lbc";grid-template-rows:auto}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.photo{position:relative;aspect-ratio:1;background:var(--creme);border:2px solid var(--encre);border-radius:18px;overflow:hidden;display:grid;place-items:center}
+.photo img{width:100%;height:100%;object-fit:contain}
+.photo .attente{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--fond) 70%,transparent);font-weight:600;text-align:center;padding:20px}
+.photo .attente span{display:inline-flex;gap:10px;align-items:center;background:var(--carte);border:2px solid var(--encre);border-radius:12px;padding:12px 16px}
+.photo .attente span::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--encre);border-right-color:transparent;animation:t .8s linear infinite}
+.rangee{display:flex;gap:8px;flex-wrap:wrap}
+.champs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.champs .l2{grid-column:1/-1}
+@media(max-width:480px){.champs{grid-template-columns:minmax(0,1fr)}}
+.bloc{display:flex;flex-direction:column;gap:12px}
+.bloc>header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cote{background:var(--creme);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.cote .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cote .h b{font:800 26px/1 var(--display);letter-spacing:-.03em}
+.cote .h small,.cote p,.cote .src{font-size:13px;color:var(--gris)}
+.cote .src a{color:var(--gris)}
+.lbc{background:var(--jaune);color:#1B1A2E;border:2px solid var(--encre);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:5px 5px 0 var(--encre)}
+.lbc p{font-size:14px}
+.lbc .btn.clair{background:#fff;color:#1B1A2E}
+.pied{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--carte);border-top:2px solid var(--encre);padding:12px 0 calc(12px + env(safe-area-inset-bottom))}
+.pied .wrap{display:flex;gap:10px;align-items:center}
+.pied .btn:first-child{margin-right:auto}
+
+/* compte */
+#compte .offres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:820px){#compte .offres{grid-template-columns:minmax(0,1fr)}}
+.offre{background:var(--carte);border:2px solid var(--encre);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.offre .p{font:800 30px/1 var(--display);letter-spacing:-.03em}
+.offre .p small{font:500 14px var(--texte);color:var(--gris)}
+.offre ul{margin:0;padding-left:18px;font-size:14px;color:var(--gris);flex:1}
+.offre.actuelle{box-shadow:5px 5px 0 var(--vert)}
+.bascule{display:inline-flex;border:2px solid var(--encre);border-radius:12px;overflow:hidden}
+.bascule button{border:0;background:transparent;padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer}
+.bascule button[aria-pressed="true"]{background:var(--encre);color:var(--fond)}
+.zone{display:flex;flex-direction:column;gap:12px}
+
+/* fenêtre */
+dialog{border:2px solid var(--encre);border-radius:18px;padding:22px;max-width:min(460px,calc(100% - 32px));background:var(--carte);color:var(--encre);box-shadow:8px 8px 0 var(--encre)}
+dialog::backdrop{background:rgba(20,18,35,.45)}
+dialog form{display:flex;flex-direction:column;gap:14px}
+#toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,160%);background:var(--encre);color:var(--fond);padding:12px 18px;border-radius:12px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .3s;box-shadow:4px 4px 0 var(--rouge)}
+#toast.on{transform:translate(-50%,0);visibility:visible}
+#toast.ok{box-shadow:4px 4px 0 var(--vert)}
+body.fiche-ouverte #toast{bottom:96px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="barre"><div class="wrap">
+  <a class="logo" href="/app/"><img src="/favicon.svg" alt=""><span>RetroRevente</span></a>
+  <span class="pill" id="quota" hidden></span>
+  <button class="btn clair petit" id="bCompte" type="button" hidden>Mon compte</button>
+</div></header>
+
+<!-- ========== Connexion ========== -->
+<section id="auth" hidden>
+  <div class="carte">
+    <div class="onglets" role="tablist">
+      <button type="button" role="tab" id="tCx" aria-selected="true">Connexion</button>
+      <button type="button" role="tab" id="tIns" aria-selected="false">Créer un compte</button>
+    </div>
+    <form id="fAuth" class="zone" novalidate>
+      <h1 id="aTitre" style="font-size:30px">Content de te revoir</h1>
+      <p id="aSous" style="color:var(--gris)">Connecte-toi pour retrouver tes jeux.</p>
+      <label class="f" id="lEmail">E-mail<input type="email" id="aEmail" autocomplete="email" required></label>
+      <label class="f" id="lMdp">Mot de passe<input type="password" id="aMdp" autocomplete="current-password" minlength="8" required></label>
+      <label class="case" id="lCgv" hidden><input type="checkbox" id="aCgv"><span>J'accepte les <a href="/cgv/" target="_blank">conditions générales</a> et la <a href="/confidentialite/" target="_blank">politique de confidentialité</a>.</span></label>
+      <p class="err" id="aErr" role="alert"></p>
+      <button class="btn" id="aGo" type="submit">Me connecter</button>
+      <button class="lien" id="aOubli" type="button">Mot de passe oublié ?</button>
+    </form>
+  </div>
+</section>
+
+<!-- ========== Mes jeux ========== -->
+<main class="app wrap" id="accueil" hidden>
+  <div class="tete">
+    <div><p class="pixel">Mes jeux</p><h1 style="margin-top:8px">Qu'est-ce qu'on vend aujourd'hui ?</h1></div>
+    <div class="ajout">
+      <label class="btn" for="photoIn">📷 Ajouter un jeu en photo</label>
+      <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
+      <input type="file" id="photoIn" accept="image/*" hidden>
+    </div>
+  </div>
+  <div class="chiffres">
+    <div class="tps"><small>Temps gagné</small><b id="cTemps">0 min</b></div>
+    <div><small>En vente</small><b id="cVente">0</b></div>
+    <div><small>Vendus</small><b id="cVendus">0</b></div>
+    <div><small>Encaissé</small><b id="cEnc">0 €</b></div>
+  </div>
+  <section class="carte fisc" id="fisc" aria-labelledby="tFisc">
+    <header style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 id="tFisc">Seuil fiscal <span id="fAn"></span></h3><small style="color:var(--gris)">Les plateformes déclarent aux impôts les vendeurs au-delà de 30 ventes ou 2 000 € par an.</small></header>
+    <div class="jauges" id="fJauges"></div>
+    <p id="fMsg" style="font-size:14px"></p>
+  </section>
+  <div class="filtres" id="filtres" role="group" aria-label="Filtrer">
+    <button type="button" data-f="tout" aria-pressed="true">Tous</button>
+    <button type="button" data-f="en_vente" aria-pressed="false">En vente</button>
+    <button type="button" data-f="reserve" aria-pressed="false">Réservés</button>
+    <button type="button" data-f="vendu" aria-pressed="false">Vendus</button>
+    <button type="button" data-f="retire" aria-pressed="false">Retirés</button>
+  </div>
+  <div class="liste" id="liste"></div>
+</main>
+
+<!-- ========== Fiche d'un jeu ========== -->
+<section id="fiche" hidden aria-labelledby="fTitre">
+  <div class="haut"><div class="wrap"><button class="btn clair petit" type="button" id="fFermer">← Mes jeux</button><h2 id="fTitre">Nouveau jeu</h2></div></div>
+  <div class="wrap grille">
+    <div class="col g-photo">
+      <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span></div></div>
+      <div class="rangee">
+        <label class="btn clair petit" for="fPhotoIn">Changer la photo</label><input type="file" id="fPhotoIn" accept="image/*" hidden>
+        <button class="btn clair petit" type="button" id="fIa">Remplir depuis la photo</button>
+        <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer la photo</button>
+      </div>
+
+    </div>
+    <div class="g-lbc">
+      <section class="lbc" aria-labelledby="tLbc">
+        <h3 id="tLbc">Publier sur Le Bon Coin</h3>
+        <p>On copie le titre, le texte et le prix, et on ouvre la page de dépôt. Tu colles, tu ajoutes la photo, c'est en ligne.</p>
+        <div class="rangee"><button class="btn" type="button" id="fLbc">Copier et ouvrir Le Bon Coin</button><button class="btn clair petit" type="button" id="fCopie">Copier seulement</button></div>
+      </section>
+    </div>
+    <div class="col g-champs">
+      <section class="carte bloc">
+        <h3>Le jeu</h3>
+        <div class="champs">
+          <label class="f l2">Nom du jeu<input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
+          <label class="f">Console<input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
+          <label class="f">Région<input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
+          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="autres">Autre</option></select></label>
+          <label class="f">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet (boîte et notice)</option></select></label>
+          <label class="f">État<select id="f_etat"><option value="">—</option><option value="neuf">Neuf</option><option value="tres_bon">Très bon état</option><option value="bon">Bon état</option><option value="correct">État correct</option><option value="pieces">Pour pièces</option></select></label>
+          <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
+        </div>
+      </section>
+      <section class="carte bloc">
+        <header><h3>Prix</h3><button class="btn clair petit" type="button" id="fCote">Trouver le bon prix</button></header>
+        <div class="cote" id="fCoteBox" hidden></div>
+        <label class="f">Prix affiché sur l'annonce (€)<input type="number" id="f_prixDemande" min="0" step="1" inputmode="decimal"></label>
+      </section>
+      <section class="carte bloc">
+        <h3>L'annonce</h3>
+        <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
+        <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
+        <label class="f">Lien de l'annonce une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
+      </section>
+      <section class="carte bloc">
+        <h3>Suivi</h3>
+        <div class="champs">
+          <label class="f">Statut<select id="f_statut"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></label>
+          <label class="f">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
+          <label class="f vte">Vendu à (€)<input type="number" id="f_prixVente" min="0" step="0.01" inputmode="decimal"></label>
+          <label class="f vte">Vendu le<input type="date" id="f_dateVente"></label>
+          <label class="f vte">Frais (envoi, commission)<input type="number" id="f_frais" min="0" step="0.01" inputmode="decimal"></label>
+          <label class="f vte">Remise<select id="f_remise"><option value="">—</option><option value="main_propre">En main propre</option><option value="envoi">Envoi</option></select></label>
+          <label class="f l2">Notes perso<textarea id="f_notes" maxlength="1000" style="min-height:70px"></textarea></label>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button><button class="btn" type="button" id="fSave">Enregistrer</button></div></div>
+</section>
+
+<!-- ========== Compte ========== -->
+<main class="app wrap" id="compte" hidden>
+  <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div><button class="btn clair" type="button" id="cRetour">← Mes jeux</button></div>
+  <section class="carte zone">
+    <h2>Ta formule : <span id="cFormule"></span></h2>
+    <p id="cFormuleTx" style="color:var(--gris)"></p>
+    <div class="rangee"><button class="btn clair" type="button" id="cPortail" hidden>Gérer mon abonnement et mes factures</button></div>
+  </section>
+  <section class="zone">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Changer de formule</h2>
+      <div class="bascule" role="group" aria-label="Période"><button type="button" data-p="mois" aria-pressed="true">Au mois</button><button type="button" data-p="an" aria-pressed="false">À l'année (−35 %)</button></div></div>
+    <div class="offres">
+      <article class="offre" data-o="vendeur"><h3>Vendeur</h3><p class="p" data-mois="4,99 €<small> /mois</small>" data-an="39 €<small> /an</small>">4,99 €<small> /mois</small></p><ul><li>30 jeux par mois</li><li>Annonce, prix et photo automatiques</li><li>Suivi des ventes et temps gagné</li></ul><button class="btn" type="button">Choisir Vendeur</button></article>
+      <article class="offre" data-o="collectionneur"><h3>Collectionneur</h3><p class="p" data-mois="9,99 €<small> /mois</small>" data-an="79 €<small> /an</small>">9,99 €<small> /mois</small></p><ul><li>Jeux illimités</li><li>Alerte de seuil fiscal</li><li>Export de tes ventes (tableur)</li></ul><button class="btn" type="button">Choisir Collectionneur</button></article>
+      <article class="offre" data-o="pass"><h3>Pass Grand ménage</h3><p class="p">9,90 €<small> une fois</small></p><ul><li>Illimité pendant 30 jours</li><li>Tout Collectionneur inclus</li><li>Sans abonnement</li></ul><button class="btn" type="button">Prendre le pass</button></article>
+    </div>
+    <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Sans engagement : tu résilies en un clic depuis cette page.</p>
+  </section>
+  <section class="carte zone">
+    <h2>Mes données</h2>
+    <div class="rangee"><a class="btn clair" id="cExport" href="/api/export.csv">Exporter mes ventes (tableur)</a></div>
+    <p id="cExportTx" style="font-size:14px;color:var(--gris)"></p>
+  </section>
+  <section class="carte zone">
+    <h2>Sécurité</h2>
+    <div class="rangee"><button class="btn clair" type="button" id="cMdp">Changer mon mot de passe</button><button class="btn clair" type="button" id="cSortir">Me déconnecter</button></div>
+    <button class="lien" type="button" id="cSuppr" style="align-self:flex-start">Supprimer mon compte et toutes mes données</button>
+  </section>
+</main>
+
+<dialog id="dQuota"><form method="dialog">
+  <h2>Tu as bien vendu ce mois-ci !</h2>
+  <p id="dQuotaTx" style="color:var(--gris)"></p>
+  <button class="btn" value="pass" type="button" data-o="pass">Pass Grand ménage, 9,90 € pour 30 jours</button>
+  <button class="btn clair" value="vendeur" type="button" data-o="vendeur">Vendeur, 4,99 € par mois (30 jeux)</button>
+  <button class="lien" value="x">Plus tard</button>
+</form></dialog>
+<dialog id="dMdp"><form method="dialog" id="fMdp">
+  <h2 id="dMdpT">Nouveau mot de passe</h2>
+  <label class="f" id="lAncien">Mot de passe actuel<input type="password" id="mAncien" autocomplete="current-password"></label>
+  <label class="f">Nouveau mot de passe (8 caractères minimum)<input type="password" id="mNouveau" autocomplete="new-password" minlength="8"></label>
+  <p class="err" id="mErr"></p>
+  <div class="rangee"><button class="btn" type="button" id="mGo">Enregistrer</button><button class="btn clair" value="x">Annuler</button></div>
+</form></dialog>
+<dialog id="dSuppr"><form method="dialog">
+  <h2>Supprimer ton compte ?</h2>
+  <p style="color:var(--gris)">Tous tes jeux, photos et statistiques seront effacés définitivement.</p>
+  <label class="f">Ton mot de passe pour confirmer<input type="password" id="sMdp" autocomplete="current-password"></label>
+  <p class="err" id="sErr"></p>
+  <div class="rangee"><button class="btn" type="button" id="sGo">Tout supprimer</button><button class="btn clair" value="x">Annuler</button></div>
+</form></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,COTE=null,PER="mois",IA_FAITE=false;
+var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
+var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
+var CON={seul:"Loose",boite:"En boîte",complet:"Complet"};
+var F=["titre","plateforme","region","categorie","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes"];
+/* Temps gagné par rapport à la même tâche faite à la main (minutes). */
+var TEMPS={identifier:6,cote:10,lbc:2,suivi:2,bilan:3};
+var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function eur(n){n=n||0;return n.toLocaleString("fr-FR",{maximumFractionDigits:Math.round(n)===n?0:2})+" €"}
+function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+String(r).padStart(2,"0"):"")}
+function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dfr(s){if(!s)return"";var d=new Date(s);return d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
+var tt;function toast(t,k){var e=$("toast");e.textContent=t;e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"?6500:3500)}
+function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null)b.textContent=t}
+
+function api(method,path,body){
+  return fetch(path,{method:method,credentials:"same-origin",cache:"no-store",headers:body?{"content-type":"application/json"}:{},body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.quota=j.quota;throw e}return j})});
+}
+function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}toast(e.message||def,"bad")}
+
+/* ===== Vues ===== */
+function montrer(v){["auth","accueil","compte"].forEach(function(x){$(x).hidden=x!==v});$("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";window.scrollTo(0,0)}
+function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();
+  var q=new URLSearchParams(location.search);
+  if(q.has("compte")){compte()}else montrer("accueil");
+  if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}
+  if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
+  .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
+function entete(){var q=ME.quota,p=$("quota");
+  p.textContent=q.max==null?"Illimité · "+ME.formule.nom:q.utilise+" / "+q.max+" jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0)}
+function tempsGagne(){var u=ME.usage||{},n=0;n+=(u.identifier||0)*TEMPS.identifier+(u.cote||0)*TEMPS.cote+(u.lbc||0)*TEMPS.lbc+OBJ.length*TEMPS.suivi+OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length*TEMPS.bilan;return n}
+function dessiner(){
+  var vendus=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
+  $("cTemps").textContent=hm(tempsGagne());
+  $("cVente").textContent=OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length;
+  $("cVendus").textContent=vendus.length;
+  $("cEnc").textContent=eur(vendus.reduce(function(a,o){return a+(o.prixVente||0)},0));
+  // seuil fiscal (année civile)
+  var an=String(new Date().getFullYear()),va=vendus.filter(function(o){return (o.dateVente||"").indexOf(an)===0}),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0);
+  $("fAn").textContent=an;
+  if(ME.formule.fiscal){
+    var j=function(lib,v,max,fmt){var r=v/max,c=r>=1?"depasse":r>=.8?"alerte":"";return '<div class="jauge '+c+'"><small>'+lib+' : <b>'+fmt(v)+'</b> sur '+fmt(max)+'</small><div class="b"><i style="width:'+Math.min(100,r*100)+'%"></i></div></div>'};
+    $("fJauges").innerHTML=j("Ventes",va.length,30,String)+j("Montant",mt,2000,eur);
+    var r=Math.max(va.length/30,mt/2000);
+    $("fMsg").textContent=r>=1?"Tu as dépassé un seuil : la plateforme transmettra tes ventes aux impôts. Ce n'est pas un impôt, garde simplement trace de tes prix d'achat.":r>=.8?"Tu approches d'un seuil. Pas de panique : vendre tes propres affaires n'est en principe pas imposable.":"Tu es loin des seuils, tout va bien.";
+  }else{
+    $("fJauges").innerHTML="";$("fMsg").innerHTML="Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre ces seuils. <button class='lien' type='button' id='fUp'>Voir les formules</button>";
+    $("fUp").onclick=compte;
+  }
+  var l=OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")});
+  if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><b style="font-size:18px;color:var(--encre)">Aucun jeu pour l\'instant</b><span>Prends ton premier jeu en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn">📷 Ajouter un jeu en photo</label></div>';return}
+  if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun jeu dans cette catégorie.</p>';return}
+  $("liste").innerHTML=l.map(function(o){
+    var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
+    return '<button type="button" class="jeu" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc([o.plateforme,CON[o.contenu]].filter(Boolean).join(" · "))+'</span></div>'+
+      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}).join("");
+}
+$("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
+$("filtres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;FILTRE=b.dataset.f;[].forEach.call($("filtres").children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});dessiner()});
+
+/* ===== Connexion ===== */
+var MODE="cx";
+function auth(){montrer("auth");var q=new URLSearchParams(location.search);if(q.get("reinitialiser")){modeAuth("reset")}else modeAuth(q.has("inscription")?"ins":"cx")}
+function modeAuth(m){MODE=m;$("aErr").textContent="";
+  $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
+  $("lCgv").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
+  $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
+  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes jeux.","Me connecter"],ins:["Crée ton compte","5 jeux offerts chaque mois, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
+  $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
+  (m==="reset"?$("aMdp"):$("aEmail")).focus()}
+$("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};
+$("fAuth").onsubmit=function(e){e.preventDefault();var b=$("aGo"),t=b.textContent,email=$("aEmail").value.trim(),mdp=$("aMdp").value,p;
+  if(MODE==="cx")p=api("POST","/api/connexion",{email:email,motdepasse:mdp});
+  else if(MODE==="ins")p=api("POST","/api/inscription",{email:email,motdepasse:mdp,cgv:$("aCgv").checked});
+  else if(MODE==="oubli")p=api("POST","/api/oubli",{email:email}).then(function(){toast("Si un compte existe avec cette adresse, le lien vient de partir.","ok");modeAuth("cx");return "stop"});
+  else p=api("POST","/api/reinitialiser",{jeton:new URLSearchParams(location.search).get("reinitialiser"),motdepasse:mdp}).then(function(){history.replaceState(null,"","/app/")});
+  busy(b,true);
+  p.then(function(r){if(r!=="stop"){$("aMdp").value="";var o=new URLSearchParams(location.search).get("offre");history.replaceState(null,"","/app/"+(o?"?compte":""));return charger()}})
+   .catch(function(e){$("aErr").textContent=e.message||"Erreur."}).then(function(){busy(b,false,t)})};
+
+/* ===== Photos ===== */
+function ouvrirImage(f){return new Promise(function(ok,ko){var img=new Image(),u=URL.createObjectURL(f);
+  img.onload=function(){URL.revokeObjectURL(u);ok(img)};img.onerror=function(){URL.revokeObjectURL(u);ko(new Error("Cette photo ne s'ouvre pas. Essaie en JPEG (réglage « Le plus compatible » de l'appareil photo de l'iPhone)."))};img.src=u})}
+/* Recadrage carré autour de l'objet (format des vignettes Le Bon Coin), réduction et JPEG. */
+function versData(img,cadre,max){var W=img.naturalWidth,H=img.naturalHeight,sx=0,sy=0,sw=W,sh=H;
+  if(cadre&&cadre.w>0&&cadre.h>0){var cx=(cadre.x+cadre.w/2)*W,cy=(cadre.y+cadre.h/2)*H,side=Math.min(Math.max(cadre.w*W,cadre.h*H)*1.15,W,H);sw=sh=Math.round(side);sx=Math.round(Math.max(0,Math.min(W-sw,cx-sw/2)));sy=Math.round(Math.max(0,Math.min(H-sh,cy-sh/2)))}
+  var k=Math.min(1,max/Math.max(sw,sh)),c=document.createElement("canvas");c.width=Math.round(sw*k);c.height=Math.round(sh*k);
+  var g=c.getContext("2d");g.imageSmoothingQuality="high";g.filter="contrast(1.04) saturate(1.06)";g.drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
+  var q=.85,d=c.toDataURL("image/jpeg",q);while(d.length>650000&&q>.4){q-=.1;d=c.toDataURL("image/jpeg",q)}return d}
+function setPhoto(d){PHOTO=d;var b=$("fPhoto");[].forEach.call(b.querySelectorAll("img,.pixel"),function(x){x.remove()});
+  if(d){var i=new Image();i.alt="Photo du jeu";i.src=d;b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}}
+function attente(t){$("fAttente").hidden=!t;if(t)$("fAttenteTx").textContent=t}
+
+$("photoIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;
+  if(ME.quota.reste===0){quotaPlein();return}
+  ouvrirFiche(null);analyser(f)};
+$("fPhotoIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;
+  ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,1000));PHOTO_CHANGEE=true;
+    attente("Je recadre la photo…");return api("POST","/api/ia/cadrer",{photo:versData(img,null,1000)}).then(function(j){if(j.cadre){setPhoto(versData(img,j.cadre,1000));toast("Photo recadrée.","ok")}})})
+   .catch(function(e){erreur(e,"Recadrage impossible.")}).then(function(){attente(null)})};
+function analyser(f){
+  attente("Je regarde la photo…");
+  ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,1000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
+    .then(function(j){var o=j.objet;IA_FAITE=true;
+      if(o.cadre)setPhoto(versData(IMG,o.cadre,1000));
+      $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
+      if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
+      if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description)$("f_texteAnnonce").value=o.description;
+      if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
+      $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
+      attente(null);toast("Reconnu : "+o.titre+". Je cherche le bon prix…","ok");return estimer()})
+    .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null)})}
+$("fIa").onclick=function(){if(!IMG&&!PHOTO){$("fPhotoIn").click();return}
+  if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
+function analyserImg(){attente("Je regarde la photo…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
+  ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
+  if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description)$("f_texteAnnonce").value=o.description;ME.usage.identifier=(ME.usage.identifier||0)+1;toast("Fiche remplie.","ok")})
+  .catch(function(e){erreur(e,"Reconnaissance impossible.")}).then(function(){attente(null)})}
+$("fPhotoDl").onclick=function(){if(!PHOTO){toast("Pas encore de photo.","bad");return}
+  fetch(PHOTO).then(function(r){return r.blob()}).then(function(b){var nom=($("f_titre").value||"jeu").replace(/[^\wÀ-ÿ -]/g,"").slice(0,50)+".jpg",file=new File([b],nom,{type:"image/jpeg"});
+    if(navigator.canShare&&navigator.canShare({files:[file]}))return navigator.share({files:[file]}).catch(function(){});
+    var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nom;document.body.appendChild(a);a.click();a.remove()})};
+
+/* ===== Cote ===== */
+function objetCote(){return{titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value}}
+function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast("Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
+  busy(b,true,"Recherche des prix (jusqu'à 1 min)…");
+  return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
+    .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){busy(b,false,"Trouver le bon prix")})}
+function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.innerHTML="";return}
+  var fx=c.bas!=null&&c.haut!=null?eur(c.bas)+" à "+eur(c.haut):eur(c.conseille);
+  e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+esc(c.resume)+'</p>':"")+
+    '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
+    (c.sources&&c.sources.length?'<div class="src">Sources : '+c.sources.map(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(h)+'</a>'}).join(" · ")+'</div>':"");
+  e.hidden=false}
+$("fCote").onclick=estimer;
+$("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data-px]");if(b){$("f_prixDemande").value=b.dataset.px;toast("Prix : "+eur(+b.dataset.px)+".","ok")}});
+
+/* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
+function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
+  if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Cartouche ou disque seul.",boite:"En boîte, sans notice.",complet:"Complet : boîte et notice."}[$("f_contenu").value]||"","Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
+function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
+$("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Annonce copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
+$("fLbc").onclick=function(){if(!$("f_titre").value.trim()){toast("Indique d'abord le nom du jeu.","bad");return}
+  var w=window.open(LBC_URL,"_blank","noopener");
+  copier(texteLbc()).then(function(){toast("Annonce copiée : colle-la sur Le Bon Coin.","ok")},function(){toast("Page ouverte. Copie le texte avec « Copier seulement ».","bad")});
+  api("POST","/api/compter",{quoi:"lbc"}).then(function(){ME.usage.lbc=(ME.usage.lbc||0)+1}).catch(function(){});
+  if(!w)location.href=LBC_URL};
+
+/* ===== Fiche ===== */
+function majVente(){var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
+  if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value}
+$("f_statut").onchange=majVente;
+function ouvrirFiche(o){ED=o;IMG=null;PHOTO_CHANGEE=false;IA_FAITE=false;
+  F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});
+  if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
+  $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
+  montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
+  if(o&&o.photo){fetch("/api/photo/"+o.id,{credentials:"same-origin"}).then(function(r){return r.ok?r.blob():null}).then(function(b){if(!b||ED!==o)return;var fr=new FileReader();fr.onload=function(){setPhoto(fr.result)};fr.readAsDataURL(b)})}
+  $("fiche").hidden=false;$("fiche").scrollTop=0;document.body.classList.add("fiche-ouverte");document.body.style.overflow="hidden"}
+function fermerFiche(){$("fiche").hidden=true;document.body.classList.remove("fiche-ouverte");document.body.style.overflow="";ED=null}
+$("fFermer").onclick=fermerFiche;
+$("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvrirFiche(null);$("f_titre").focus()};
+$("fSave").onclick=function(){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
+  if(!o.titre.trim()){toast("Indique le nom du jeu.","bad");$("f_titre").focus();return}
+  var corps={objet:o};if(PHOTO_CHANGEE&&PHOTO)corps.photo=PHOTO;
+  busy(b,true,"Enregistrement…");
+  (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){
+      var i=OBJ.map(function(x){return x.id}).indexOf(j.objet.id);if(i>=0)OBJ[i]=j.objet;else OBJ.unshift(j.objet);
+      if(!ED){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
+      fermerFiche();dessiner();toast("Enregistré.","ok")})
+    .catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer")})};
+var confirmeSuppr=0;
+$("fSuppr").onclick=function(){var b=$("fSuppr");if(Date.now()-confirmeSuppr>4000){confirmeSuppr=Date.now();b.textContent="Sûr ? Re-clique";setTimeout(function(){b.textContent="Supprimer"},4000);return}
+  api("DELETE","/api/objets/"+ED.id).then(function(){OBJ=OBJ.filter(function(x){return x.id!==ED.id});fermerFiche();dessiner();toast("Jeu supprimé.","ok")}).catch(function(e){erreur(e,"Suppression impossible.")})};
+
+/* ===== Formules et compte ===== */
+function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.max+" jeux de ce mois avec la formule "+ME.formule.nom+". Continue tout de suite avec une autre formule, ou attends le mois prochain.";$("dQuota").showModal()}
+$("dQuota").addEventListener("click",function(e){var b=e.target.closest("[data-o]");if(b){$("dQuota").close();payer(b.dataset.o,"mois",b)}});
+function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arrive très bientôt.","bad");return}var t=b&&b.textContent;if(b)busy(b,true,"Redirection…");
+  api("POST","/api/paiement",{offre:offre,periode:periode}).then(function(j){location.href=j.url}).catch(function(e){erreur(e,"Paiement indisponible.");if(b)busy(b,false,t)})}
+function compte(){var f=ME.formule;montrer("compte");$("cEmail").textContent=ME.email;$("cFormule").textContent=f.nom;
+  var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" jeux":" jeu")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
+    f.id==="pass"?"Illimité jusqu'au "+dfr(f.pass)+". Aucun renouvellement automatique.":
+    (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
+  $("cFormuleTx").textContent=tx;$("cPortail").hidden=!ME.client;
+  [].forEach.call(document.querySelectorAll("#compte .offre"),function(a){a.classList.toggle("actuelle",a.dataset.o===f.id)});
+  $("cExport").hidden=!f.export;$("cExportTx").textContent=f.export?"Fichier compatible Excel, Numbers et Google Sheets.":"L'export de tes ventes (pour ta compta ou un tableur) est inclus dans la formule Collectionneur."}
+$("bCompte").onclick=compte;$("cRetour").onclick=function(){montrer("accueil")};
+document.querySelector("#compte .bascule").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;PER=b.dataset.p;
+  [].forEach.call(b.parentNode.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
+  [].forEach.call(document.querySelectorAll("#compte [data-mois]"),function(el){el.innerHTML=el.dataset[PER]})});
+document.querySelector("#compte .offres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var o=b.closest(".offre").dataset.o;payer(o,o==="pass"?"mois":PER,b)});
+$("cPortail").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Ouverture…");api("POST","/api/portail").then(function(j){location.href=j.url}).catch(function(e){erreur(e,"Indisponible.");busy(b,false,t)})};
+$("cSortir").onclick=function(){api("POST","/api/deconnexion").then(function(){ME=null;OBJ=[];auth()})};
+$("cMdp").onclick=function(){$("mErr").textContent="";$("mAncien").value=$("mNouveau").value="";$("dMdp").showModal()};
+$("mGo").onclick=function(){api("POST","/api/compte/motdepasse",{ancien:$("mAncien").value,nouveau:$("mNouveau").value}).then(function(){$("dMdp").close();toast("Mot de passe changé.","ok")}).catch(function(e){$("mErr").textContent=e.message})};
+$("cSuppr").onclick=function(){$("sErr").textContent="";$("sMdp").value="";$("dSuppr").showModal()};
+$("sGo").onclick=function(){api("POST","/api/compte/supprimer",{motdepasse:$("sMdp").value}).then(function(){location.href="/"}).catch(function(e){$("sErr").textContent=e.message})};
+
+charger();
+})();
+</script>
+</body>
+</html>

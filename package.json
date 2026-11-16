@@ -1,0 +1,12 @@
+{
+  "name": "retrorevente",
+  "private": true,
+  "description": "RetroRevente : revendre ses jeux vidéo sur Le Bon Coin en 2 minutes",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --no-warnings server/server.mjs",
+    "dev": "IA_FAKE=1 COOKIE_INSECURE=1 DATA_DIR=./data node --no-warnings server/server.mjs",
+    "test": "node --no-warnings --test test/*.test.mjs"
+  }
+}

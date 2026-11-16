@@ -1,0 +1,29 @@
+name: Mise en ligne
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: deploy
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm test
+  deploy:
+    needs: tests
+    if: ${{ github.event_name != 'pull_request' && vars.IONOS_DEPLOY == 'on' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Envoyer le site et le mettre en ligne via SSH
+        env:
+          KEY: ${{ secrets.IONOS_SSH_KEY }}
+          HOST: ${{ secrets.IONOS_HOST }}
+        run: |
+          install -m 600 /dev/null ~/key && printf '%s\n' "$KEY" > ~/key
+          tar czf - --exclude=.git --exclude=test . | ssh -i ~/key -o StrictHostKeyChecking=accept-new root@"$HOST" \
+            'set -e; rm -rf /srv/incoming/retrorevente; mkdir -p /srv/incoming/retrorevente; tar xzf - -C /srv/incoming/retrorevente; bash /srv/incoming/retrorevente/deploy/deploy.sh /srv/incoming/retrorevente'
