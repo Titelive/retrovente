@@ -1,0 +1,84 @@
+/* RetroRevente : charte « Manette éclair ». Vert anis #D4F57A, noir doux #1A1A1A, blanc.
+   Titres : Rubik (arrondi, comme le lettrage du logo). Texte : Figtree (géométrique, proche d'Avenir Next).
+   Touches rétro : Silkscreen (pixel), à petites doses. */
+:root{
+  --anis:#D4F57A;--anis-f:#BFE54C;--anis-p:#F1FCD0;
+  --nuit:#1A1A1A;--nuit-2:#121212;--nuit-3:#262626;--nuit-4:#333;
+  --blanc:#fff;--papier:#F6F6F1;--carte:#fff;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;
+  --titre:"Rubik",ui-rounded,"Arial Rounded MT Bold",system-ui,sans-serif;
+  --texte:"Figtree","Avenir Next",ui-sans-serif,system-ui,sans-serif;
+  --pixel:"Silkscreen",ui-monospace,monospace;
+  --r:22px;--ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--papier:#141414;--carte:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--anis-p:#232B12;color-scheme:dark}}
+:root[data-theme="dark"]{--papier:#141414;--carte:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--anis-p:#232B12;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--papier);color:var(--encre);font:400 17px/1.6 var(--texte);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit}
+img,svg{max-width:100%;display:block}
+p{margin:0}
+h1,h2,h3{font-family:var(--titre);margin:0;letter-spacing:-.035em;line-height:1;font-weight:700}
+::selection{background:var(--anis);color:var(--nuit)}
+:focus-visible{outline:3px solid var(--anis);outline-offset:3px;border-radius:8px}
+.wrap{width:min(1180px,100% - 32px);margin-inline:auto}
+.pixel{font:400 11px/1 var(--pixel);text-transform:uppercase;letter-spacing:.12em}
+
+/* boutons */
+.btn{--bg:var(--anis);--fg:var(--nuit);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 16px/1 var(--texte);text-decoration:none;border:0;border-radius:999px;padding:17px 26px;background:var(--bg);color:var(--fg);cursor:pointer;white-space:nowrap;transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px rgba(150,200,40,.75)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn .fl{transition:transform .25s var(--ease)}
+.btn:hover .fl{transform:translateX(3px)}
+.btn.noir{--bg:var(--nuit);--fg:#fff}
+.btn.noir:hover{box-shadow:0 14px 30px -12px rgba(0,0,0,.55)}
+.btn.verre{--bg:rgba(255,255,255,.08);--fg:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);backdrop-filter:blur(8px)}
+.btn.verre:hover{--bg:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+.btn.contour{--bg:transparent;--fg:var(--encre);box-shadow:inset 0 0 0 1.5px var(--encre)}
+.btn.contour:hover{--bg:var(--encre);--fg:var(--papier);box-shadow:inset 0 0 0 1.5px var(--encre)}
+.btn.petit{padding:11px 16px;font-size:14px}
+
+/* pages éditoriales (guides, légal) */
+.ed-menu{background:var(--nuit);color:#fff}
+.ed-menu .wrap{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
+.ed-menu .logo img{height:30px;width:auto}
+article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
+.ed .fil{font-size:14px;color:var(--gris);margin:0 0 22px}
+.ed .fil a{color:var(--gris);text-decoration:none}.ed .fil a:hover{color:var(--encre)}
+.ed .etq{display:inline-block;background:var(--anis);color:var(--nuit);padding:7px 10px;border-radius:8px}
+.ed h1{font-size:clamp(38px,6vw,62px);font-weight:800;margin:18px 0 20px;line-height:.98;letter-spacing:-.045em}
+.ed h2{font-size:30px;margin:56px 0 14px;font-weight:700}
+.ed h3{font-size:21px;margin:30px 0 8px;letter-spacing:-.02em;line-height:1.2}
+.ed p,.ed li{font-size:18px;line-height:1.7}
+.ed p+p{margin-top:14px}
+.ed .chapo{font-size:21px;color:var(--gris);line-height:1.55}
+.ed .maj{font-size:14px;color:var(--gris);margin-top:16px}
+.ed ul,.ed ol{padding-left:22px}.ed li{margin:7px 0}
+.ed li::marker{color:var(--gris-c)}
+.ed table{width:100%;border-collapse:collapse;font-size:16px;margin:20px 0;background:var(--carte);border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--trait)}
+.ed th,.ed td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--trait);vertical-align:top}
+.ed th{font-weight:700;background:var(--anis-p)}
+.ed tr:last-child td{border-bottom:0}
+.ed .astuce{background:var(--anis-p);border-radius:16px;padding:18px 22px;margin:26px 0;font-size:17px}
+.ed .astuce strong{font-family:var(--titre)}
+.ed .cta{margin:56px 0 0;padding:34px;border-radius:28px;background:var(--nuit);color:#fff;display:flex;flex-direction:column;gap:16px;align-items:flex-start;position:relative;overflow:hidden;isolation:isolate}
+.ed .cta::after{content:"";position:absolute;right:-80px;top:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(closest-side,rgba(212,245,122,.45),transparent);z-index:-1}
+.ed .cta strong{font:700 27px/1.1 var(--titre);letter-spacing:-.03em}
+.ed .cta p{color:#C9C9C2;font-size:17px}
+.liste-g{list-style:none;padding:0!important;display:flex;flex-direction:column;gap:14px}
+.liste-g a{display:flex;flex-direction:column;gap:6px;text-decoration:none;background:var(--carte);border-radius:20px;padding:24px 26px;box-shadow:0 0 0 1px var(--trait);transition:transform .25s var(--ease),box-shadow .25s}
+.liste-g a:hover{transform:translateY(-3px);box-shadow:0 0 0 1px var(--trait),0 22px 40px -24px rgba(0,0,0,.35)}
+.liste-g b{font:700 22px/1.2 var(--titre);letter-spacing:-.025em}
+.liste-g span{color:var(--gris);font-size:16px}
+
+/* pied de page */
+.pied-site{background:var(--nuit);color:#B8B8B0;padding:56px 0 44px;font-size:14px}
+.pied-site .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;align-items:start}
+.pied-site img{height:28px;width:auto;margin-bottom:14px}
+.pied-site nav{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:flex-end}
+.pied-site a{text-decoration:none;color:#E6E6DF}.pied-site a:hover{color:var(--anis)}
+.pied-site p{max-width:52ch}
+@media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}.pied-site nav{justify-content:flex-start}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
