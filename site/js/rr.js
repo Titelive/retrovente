@@ -174,13 +174,14 @@
     });
     /* inclinaison 3D légère */
     d.querySelectorAll(".incline").forEach(function (c) {
-      var base = "";
-      c.addEventListener("pointerenter", function () { base = getComputedStyle(c).transform; base = base === "none" ? "" : base; c.style.transition = "transform .15s ease-out"; });
+      // le cadre est mesuré une seule fois à l'entrée : la carte inclinée ne doit pas « fuir » sous la souris (sinon le survol clignote)
+      var r = null, raf = 0, px = 0, py = 0;
+      c.addEventListener("pointerenter", function () { c.style.transform = ""; r = c.getBoundingClientRect(); c.style.transition = "transform .25s ease-out"; });
       c.addEventListener("pointermove", function (e) {
-        var r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-        c.style.transform = "perspective(900px) rotateX(" + (-y * 6) + "deg) rotateY(" + (x * 8) + "deg) translateY(-4px)";
+        if (!r) r = c.getBoundingClientRect(); px = (e.clientX - r.left) / r.width - .5; py = (e.clientY - r.top) / r.height - .5;
+        if (!raf) raf = requestAnimationFrame(function () { raf = 0; c.style.transform = "perspective(1200px) rotateX(" + (-py * 3) + "deg) rotateY(" + (px * 4) + "deg)"; });
       });
-      c.addEventListener("pointerleave", function () { c.style.transition = "transform .6s cubic-bezier(.2,.8,.2,1)"; c.style.transform = ""; });
+      c.addEventListener("pointerleave", function () { r = null; if (raf) { cancelAnimationFrame(raf); raf = 0; } c.style.transition = "transform .6s cubic-bezier(.2,.8,.2,1)"; c.style.transform = ""; });
     });
     /* boutons aimantés */
     d.querySelectorAll(".aimant").forEach(function (bt) {

@@ -27,7 +27,7 @@ h1,h2,h3{font-family:var(--titre);margin:0;letter-spacing:-.035em;line-height:1;
 .pixel{font:400 11px/1 var(--pixel);text-transform:uppercase;letter-spacing:.12em}
 
 /* boutons */
-.btn{--bg:var(--anis);--fg:var(--nuit);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 16px/1 var(--texte);text-decoration:none;border:0;border-radius:999px;padding:17px 26px;background:var(--bg);color:var(--fg);cursor:pointer;white-space:nowrap;transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s}
+.btn{--bg:var(--anis);--fg:var(--nuit);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 16px/1 var(--texte);text-decoration:none;border:0;border-radius:999px;padding:17px 26px;background:var(--bg);color:var(--fg);cursor:pointer;white-space:nowrap;transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s,color .2s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px rgba(150,200,40,.75)}
 .btn:active{transform:translateY(0) scale(.98)}
 .btn .fl{transition:transform .25s var(--ease)}
