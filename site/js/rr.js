@@ -1,6 +1,6 @@
 /* RetroRevente : thème clair/sombre, barre de lecture, retour en haut, apparitions et micro-interactions. */
 (function () {
-  var d = document, html = d.documentElement, calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var d = document, html = d.documentElement, calme = matchMedia("(prefers-reduced-motion: reduce)").matches || html.classList.contains("sans-anim");
   var sys = matchMedia("(prefers-color-scheme: dark)");
   function lu() { try { return localStorage.getItem("rr-theme"); } catch (e) { return null; } }
   function applique(t) { html.setAttribute("data-theme", t); var m = d.querySelector('meta[name="theme-color"]'); if (m) m.content = t === "dark" ? "#141414" : "#1A1A1A"; }
@@ -37,6 +37,63 @@
       addEventListener("resize", function () { if (innerWidth > 1020) ferme(); });
       if (nav.classList.contains("flottant")) { var colle = function () { nav.classList.toggle("colle", scrollY > 20); }; colle(); addEventListener("scroll", colle, { passive: true }); }
     }
+
+    /* connecté : le lien « Connexion » devient le pseudo (et l'avatar) */
+    var lienCx = d.querySelector('.nav-liens a[href="/app/"]');
+    if (lienCx) lienCx.classList.add("nav-compte");
+    window.rrMoi = function (m) {
+      if (!lienCx || !m) return;
+      var nom = m.nom || "Mon compte", av = d.createElement("span");
+      av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
+      if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase();
+      lienCx.innerHTML = ""; lienCx.appendChild(av); var t = d.createElement("span"); t.textContent = nom; lienCx.appendChild(t);
+      lienCx.classList.add("nav-moi"); lienCx.href = "/app/?compte"; lienCx.title = "Mon compte";
+      var cta = d.querySelectorAll(".nav-cta, .nav-cta-court");
+      cta.forEach(function (c) { c.href = "/app/"; var s = c.querySelector("span"); if (s) s.textContent = "Mes jeux"; else c.lastChild.textContent = "Mes jeux"; });
+    };
+    if (/(?:^|;\s*)rr_co=1/.test(d.cookie) && !d.getElementById("app-rr")) {
+      fetch("/api/moi", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(window.rrMoi).catch(function () {});
+    }
+
+    /* listes déroulantes au design du site (la liste native reste en dessous pour la valeur et les événements) */
+    var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+    var VAL = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value"), IDX = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "selectedIndex");
+    function habille(sel) {
+      if (sel.dataset.habille || sel.multiple) return; sel.dataset.habille = "1";
+      var w = d.createElement("div"); w.className = "choix"; sel.parentNode.insertBefore(w, sel); w.appendChild(sel); sel.classList.add("choix-natif"); sel.tabIndex = -1;
+      var lab = sel.closest("label"), nom = lab ? lab.firstChild.textContent.trim() : (sel.getAttribute("aria-label") || "Choisir");
+      var b = d.createElement("button"); b.type = "button"; b.className = "choix-bt"; b.setAttribute("aria-haspopup", "listbox"); b.setAttribute("aria-expanded", "false");
+      var ul = d.createElement("ul"); ul.className = "choix-liste"; ul.setAttribute("role", "listbox"); ul.setAttribute("aria-label", nom); ul.tabIndex = -1;
+      w.appendChild(b); w.appendChild(ul);
+      function lib() { var o = sel.options[IDX.get.call(sel)]; b.innerHTML = '<span>' + esc(o ? o.text : "") + '</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'; b.setAttribute("aria-label", nom + " : " + (o ? o.text : "")); }
+      function items() { return [].slice.call(ul.children); }
+      function ouvre() {
+        var cur = IDX.get.call(sel);
+        ul.innerHTML = [].map.call(sel.options, function (o, i) { return '<li role="option" tabindex="-1" data-i="' + i + '" aria-selected="' + (i === cur) + '">' + esc(o.text) + '</li>'; }).join("");
+        var r = b.getBoundingClientRect(); w.classList.toggle("haut", innerHeight - r.bottom < 280 && r.top > innerHeight - r.bottom);
+        w.classList.add("ouvert"); b.setAttribute("aria-expanded", "true");
+        var li = ul.children[Math.max(0, cur)]; li && li.focus({ preventScroll: true }); li && li.scrollIntoView({ block: "nearest" });
+      }
+      function ferme(f) { w.classList.remove("ouvert"); b.setAttribute("aria-expanded", "false"); if (f) b.focus(); }
+      function choisit(i) { if (IDX.get.call(sel) !== i) { IDX.set.call(sel, i); sel.dispatchEvent(new Event("input", { bubbles: true })); sel.dispatchEvent(new Event("change", { bubbles: true })); } lib(); ferme(true); }
+      b.addEventListener("click", function () { w.classList.contains("ouvert") ? ferme(false) : ouvre(); });
+      b.addEventListener("keydown", function (e) { if (["ArrowDown", "ArrowUp", "Enter", " "].indexOf(e.key) >= 0) { e.preventDefault(); ouvre(); } });
+      ul.addEventListener("click", function (e) { var li = e.target.closest("li"); if (li) choisit(+li.dataset.i); });
+      ul.addEventListener("keydown", function (e) {
+        var l = items(), i = l.indexOf(d.activeElement);
+        if (e.key === "ArrowDown") { e.preventDefault(); (l[i + 1] || l[i]).focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); (l[i - 1] || l[i]).focus(); }
+        else if (e.key === "Home") { e.preventDefault(); l[0].focus(); } else if (e.key === "End") { e.preventDefault(); l[l.length - 1].focus(); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (i >= 0) choisit(i); }
+        else if (e.key === "Escape") { e.preventDefault(); ferme(true); } else if (e.key === "Tab") ferme(false);
+        else if (e.key.length === 1) { var k = e.key.toLowerCase(), t = l.filter(function (x) { return x.textContent.trim().toLowerCase().indexOf(k) === 0; })[0]; t && t.focus(); }
+      });
+      d.addEventListener("pointerdown", function (e) { if (!w.contains(e.target)) ferme(false); });
+      Object.defineProperty(sel, "value", { configurable: true, get: function () { return VAL.get.call(sel); }, set: function (v) { VAL.set.call(sel, v); lib(); } });
+      Object.defineProperty(sel, "selectedIndex", { configurable: true, get: function () { return IDX.get.call(sel); }, set: function (v) { IDX.set.call(sel, v); lib(); } });
+      lib();
+    }
+    d.querySelectorAll("select").forEach(habille);
 
     /* barre de lecture + retour en haut */
     var barre = d.createElement("div"); barre.className = "lecture"; barre.setAttribute("aria-hidden", "true"); b.appendChild(barre);

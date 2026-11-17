@@ -11,9 +11,9 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=2">
-<script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=2" defer></script>
+<link rel="stylesheet" href="/css/rr.css?v=3">
+<script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
+<script src="/js/rr.js?v=3" defer></script>
 <style>
 [hidden]{display:none!important}
 body{min-height:100vh;font-size:16px;line-height:1.5}
@@ -106,11 +106,8 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .vide .ico{width:84px;height:84px}
 
 /* fiche */
-#fiche{position:fixed;inset:0;z-index:40;background:var(--papier);overflow-y:auto;overscroll-behavior:contain}
-#fiche .haut{position:sticky;top:0;z-index:2;background:var(--nuit);color:#fff}
-#fiche .haut .wrap{display:flex;align-items:center;gap:14px;height:64px}
-#fiche .haut h2{font-size:19px;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#fiche .haut .btn.clair{--bg:rgba(255,255,255,.08);--fg:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+#fiche .haut .wrap{display:flex;align-items:center;gap:14px;padding-top:26px}
+#fiche .haut h2{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.045em;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.1}
 .grille{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-template-areas:"photo champs" "lbc champs" ". champs";grid-template-rows:auto auto 1fr;gap:20px;padding:24px 0 130px;align-items:start}
 .grille>.g-photo{grid-area:photo}.grille>.g-champs{grid-area:champs}.grille>.g-lbc{grid-area:lbc}
 @media(max-width:860px){.grille{grid-template-columns:minmax(0,1fr);grid-template-areas:"photo" "champs" "lbc";grid-template-rows:auto}}
@@ -181,21 +178,109 @@ body.fiche-ouverte #toast{bottom:100px}
 @media(max-width:480px){.barre-lien[href="/guides/"]{display:none}}
 .retour{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;color:var(--gris);font-size:14px;font-weight:600;text-decoration:none;margin:-4px 0 4px;transition:color .2s,gap .25s var(--ease)}
 .retour svg{width:16px;height:16px}.retour:hover{color:var(--encre);gap:12px}
+
+/* sous-barre : fil d'Ariane + quota + compte */
+.sous-barre{background:var(--carte);box-shadow:0 1px 0 var(--trait);position:relative;z-index:5}
+.sous-barre .wrap{display:flex;align-items:center;gap:10px;min-height:54px;padding:6px 0}
+.sous-barre nav{margin-right:auto;min-width:0}
+.sous-barre .pill{background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait)}
+.sous-barre .pill b{color:var(--anis-t)}
+.sous-barre .btn.clair{gap:8px;padding:6px 14px 6px 6px}
+@media(max-width:560px){.sous-barre #bNom{display:none}.sous-barre .btn.clair{padding:4px}.sous-barre .pill{font-size:12px;padding:7px 10px}}
+#auth{min-height:calc(100vh - 126px)}
+
+/* transitions entre les vues */
+.vue.entre{animation:vue-in .55s var(--ease) both}
+@keyframes vue-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.jeu{animation:carte-in .6s var(--ease) both;animation-delay:calc(var(--i,0) * 55ms)}
+@keyframes carte-in{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+.jeu .im img{transition:transform .6s var(--ease)}
+.jeu:hover .im img{transform:scale(1.06)}
+.chiffres>div{animation:carte-in .6s var(--ease) both}
+.chiffres>div:nth-child(2){animation-delay:.06s}.chiffres>div:nth-child(3){animation-delay:.12s}.chiffres>div:nth-child(4){animation-delay:.18s}
+.chiffres>div{transition:transform .3s var(--ease),box-shadow .3s}
+.chiffres>div:hover{transform:translateY(-3px)}
+.filtres button{transition:background-color .25s,color .25s,transform .2s var(--ease)}
+.filtres button:active{transform:scale(.94)}
+.carte{transition:box-shadow .3s}
+.photo.flash::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(212,245,122,.55) 50%,transparent 70%);background-size:250% 100%;animation:balaye 1s var(--ease) forwards;pointer-events:none}
+@keyframes balaye{from{background-position:120% 0}to{background-position:-60% 0}}
+.btn .i{width:18px;height:18px;flex:none}
+
+/* Le Bon Coin guidé */
+.lbc .btn{align-self:flex-start}
+.lbc p strong{color:#fff}
+.lbc-etapes{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lbc-etapes li{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:16px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);transition:background-color .3s,box-shadow .3s}
+.lbc-etapes li.fait{box-shadow:inset 0 0 0 1.5px var(--anis);background:rgba(212,245,122,.07)}
+.lbc-etapes li.vide{opacity:.6}
+.lbc-etapes .n{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font:400 11px/1 var(--pixel);background:rgba(255,255,255,.1);color:#fff;transition:background-color .3s,color .3s}
+.lbc-etapes li.fait .n{background:var(--anis);color:var(--nuit);font:700 14px/1 var(--texte)}
+.lbc-etapes .c{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lbc-etapes b{font-size:14px}
+.lbc-etapes b small{font-weight:500;color:#8A8A82;font-size:12px;margin-left:4px}
+.lbc-etapes .v{font-size:13px;color:#B8B8B0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbc-etapes .btn{flex:none;padding:9px 14px}
+.lbc .btn.clair.petit{--bg:rgba(255,255,255,.08);--fg:#fff}
+.lbc-bas{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:#A8A8A0}
+.lbc-bas .lien{color:#C9C9C2}
+
+/* icône copier dans les champs */
+.copiable{position:relative;display:block}
+.copiable input{padding-right:46px}.copiable textarea{padding-right:46px}
+.copie-bt{position:absolute;right:7px;top:7px;width:34px;height:34px;border:0;border-radius:10px;cursor:pointer;display:grid;place-items:center;background:transparent;color:var(--gris);transition:background-color .2s,color .2s,transform .2s var(--ease)}
+.copie-bt:hover{background:var(--anis);color:var(--nuit);transform:scale(1.06)}
+.copie-bt svg{width:18px;height:18px}
+.copie-bt span{position:absolute;right:calc(100% + 6px);top:50%;transform:translateY(-50%) scale(.8);opacity:0;pointer-events:none;white-space:nowrap;font:700 12px/1 var(--texte);background:var(--nuit);color:var(--anis);padding:7px 9px;border-radius:999px;transition:opacity .2s,transform .25s var(--ease)}
+.copie-bt.ok{background:var(--anis);color:var(--nuit)}
+.copie-bt.ok span{opacity:1;transform:translateY(-50%) scale(1)}
+
+/* profil */
+.profil-g{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.avatar-zone{display:flex;flex-direction:column;align-items:center;gap:10px}
+.avatar{position:relative;width:112px;height:112px;border-radius:50%;cursor:pointer;display:block}
+.avatar>span{position:absolute;inset:0;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:grid;place-items:center;font:800 44px/1 var(--titre);box-shadow:0 0 0 4px var(--carte),0 0 0 6px var(--anis);transition:transform .35s var(--ease)}
+.avatar i{position:absolute;right:0;bottom:0;width:36px;height:36px;border-radius:50%;background:var(--nuit);color:var(--anis);display:grid;place-items:center;box-shadow:0 0 0 3px var(--carte);transition:transform .35s var(--ease)}
+.avatar i svg{width:18px;height:18px}
+.avatar:hover>span{transform:scale(1.04) rotate(-3deg)}.avatar:hover i{transform:scale(1.12) rotate(8deg)}
+.note{font-size:13.5px;color:var(--gris)}
+.interrupteur{display:flex;gap:14px;align-items:flex-start;cursor:pointer;padding:6px 0}
+.interrupteur input{position:absolute;opacity:0;width:1px;height:1px}
+.interrupteur .piste{flex:none;position:relative;width:50px;height:30px;border-radius:999px;background:var(--trait);transition:background-color .3s;margin-top:2px}
+.interrupteur .piste::after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .35s var(--ease)}
+.interrupteur input:checked+.piste{background:var(--nuit)}
+:root[data-theme="dark"] .interrupteur input:checked+.piste{background:var(--anis)}
+.interrupteur input:checked+.piste::after{transform:translateX(20px)}
+.interrupteur input:focus-visible+.piste{outline:3px solid var(--anis);outline-offset:3px}
+.interrupteur b{display:block;font-size:16px}.interrupteur small{display:block;font-size:13.5px;color:var(--gris);margin-top:2px}
 </style>
 
 </head>
-<body>
-<header class="barre"><div class="wrap">
-  <a class="logo" href="/" aria-label="RetroRevente, retour à l'accueil"><svg class="logo-svg" viewBox="6 16 378 50" width="166" height="22" role="img" aria-label="RetroRevente"><g class="manette"><path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/><path class="eclair" fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/></g><path fill="currentColor" d="M 93.007 42.1 L 90.671 42.1 L 90.671 52.679 Q 90.671 54.768 89.75 55.756 Q 88.829 56.745 87.347 56.745 Q 85.752 56.745 84.876 55.711 Q 84 54.678 84 52.679 L 84 27.343 Q 84 25.187 84.966 24.221 Q 85.932 23.255 88.088 23.255 L 98.937 23.255 Q 101.183 23.255 102.777 23.446 Q 104.372 23.637 105.652 24.221 Q 107.202 24.873 108.393 26.085 Q 109.583 27.298 110.201 28.904 Q 110.818 30.51 110.818 32.307 Q 110.818 35.991 108.741 38.192 Q 106.663 40.393 102.44 41.314 Q 104.215 42.257 105.832 44.099 Q 107.449 45.941 108.718 48.019 Q 109.987 50.096 110.695 51.77 Q 111.402 53.443 111.402 54.072 Q 111.402 54.723 110.987 55.363 Q 110.571 56.003 109.853 56.374 Q 109.134 56.745 108.19 56.745 Q 107.067 56.745 106.304 56.217 Q 105.54 55.689 104.99 54.88 Q 104.439 54.072 103.496 52.5 L 100.823 48.052 Q 99.386 45.604 98.251 44.324 Q 97.117 43.043 95.949 42.572 Q 94.781 42.1 93.007 42.1 Z M 96.825 28.264 L 90.671 28.264 L 90.671 37.316 L 96.646 37.316 Q 99.049 37.316 100.688 36.9 Q 102.328 36.485 103.193 35.485 Q 104.058 34.486 104.058 32.734 Q 104.058 31.364 103.361 30.319 Q 102.665 29.275 101.43 28.758 Q 100.262 28.264 96.825 28.264 Z M 132.673 45.784 L 120.679 45.784 Q 120.701 47.873 121.521 49.467 Q 122.341 51.062 123.7 51.871 Q 125.059 52.679 126.698 52.679 Q 127.799 52.679 128.708 52.421 Q 129.618 52.163 130.472 51.612 Q 131.325 51.062 132.044 50.433 Q 132.763 49.804 133.908 48.726 Q 134.38 48.322 135.256 48.322 Q 136.199 48.322 136.783 48.838 Q 137.367 49.355 137.367 50.298 Q 137.367 51.129 136.716 52.241 Q 136.064 53.353 134.75 54.375 Q 133.437 55.397 131.449 56.071 Q 129.461 56.745 126.878 56.745 Q 120.971 56.745 117.691 53.375 Q 114.412 50.006 114.412 44.234 Q 114.412 41.516 115.221 39.191 Q 116.029 36.867 117.579 35.205 Q 119.129 33.542 121.397 32.655 Q 123.666 31.768 126.429 31.768 Q 130.022 31.768 132.594 33.284 Q 135.166 34.8 136.446 37.204 Q 137.727 39.607 137.727 42.1 Q 137.727 44.414 136.401 45.099 Q 135.076 45.784 132.673 45.784 Z M 120.679 42.302 L 131.797 42.302 Q 131.572 39.158 130.101 37.597 Q 128.63 36.036 126.227 36.036 Q 123.936 36.036 122.464 37.619 Q 120.993 39.203 120.679 42.302 Z M 143.229 32.352 L 143.903 32.352 L 143.903 28.668 Q 143.903 27.186 143.982 26.344 Q 144.061 25.501 144.42 24.895 Q 144.779 24.266 145.453 23.873 Q 146.127 23.48 146.958 23.48 Q 148.126 23.48 149.069 24.356 Q 149.698 24.94 149.867 25.782 Q 150.035 26.625 150.035 28.174 L 150.035 32.352 L 152.281 32.352 Q 153.584 32.352 154.269 32.97 Q 154.954 33.587 154.954 34.553 Q 154.954 35.789 153.977 36.283 Q 153 36.777 151.181 36.777 L 150.035 36.777 L 150.035 48.052 Q 150.035 49.49 150.136 50.265 Q 150.237 51.04 150.675 51.522 Q 151.113 52.005 152.102 52.005 Q 152.641 52.005 153.562 51.814 Q 154.482 51.624 154.999 51.624 Q 155.74 51.624 156.335 52.219 Q 156.931 52.814 156.931 53.69 Q 156.931 55.172 155.313 55.958 Q 153.696 56.745 150.664 56.745 Q 147.789 56.745 146.307 55.779 Q 144.824 54.813 144.364 53.106 Q 143.903 51.399 143.903 48.546 L 143.903 36.777 L 143.095 36.777 Q 141.77 36.777 141.073 36.148 Q 140.377 35.519 140.377 34.553 Q 140.377 33.587 141.107 32.97 Q 141.837 32.352 143.229 32.352 Z M 165.264 47.895 L 165.264 53.016 Q 165.264 54.88 164.388 55.812 Q 163.512 56.745 162.164 56.745 Q 160.839 56.745 159.985 55.801 Q 159.132 54.858 159.132 53.016 L 159.132 35.946 Q 159.132 31.813 162.119 31.813 Q 163.646 31.813 164.32 32.779 Q 164.994 33.745 165.062 35.631 Q 166.162 33.745 167.319 32.779 Q 168.476 31.813 170.407 31.813 Q 172.339 31.813 174.158 32.779 Q 175.978 33.745 175.978 35.339 Q 175.978 36.462 175.203 37.192 Q 174.428 37.922 173.529 37.922 Q 173.192 37.922 171.901 37.507 Q 170.609 37.091 169.621 37.091 Q 168.273 37.091 167.42 37.799 Q 166.566 38.506 166.095 39.899 Q 165.623 41.292 165.443 43.212 Q 165.264 45.132 165.264 47.895 Z M 200.527 44.279 Q 200.527 47.019 199.674 49.333 Q 198.82 51.646 197.203 53.308 Q 195.586 54.97 193.34 55.857 Q 191.094 56.745 188.286 56.745 Q 185.501 56.745 183.277 55.846 Q 181.054 54.948 179.425 53.274 Q 177.797 51.601 176.955 49.321 Q 176.112 47.042 176.112 44.279 Q 176.112 41.494 176.966 39.18 Q 177.819 36.867 179.414 35.227 Q 181.009 33.587 183.277 32.7 Q 185.546 31.813 188.286 31.813 Q 191.071 31.813 193.34 32.711 Q 195.608 33.61 197.226 35.272 Q 198.843 36.934 199.685 39.225 Q 200.527 41.516 200.527 44.279 Z M 194.373 44.279 Q 194.373 40.528 192.722 38.439 Q 191.071 36.35 188.286 36.35 Q 186.489 36.35 185.119 37.282 Q 183.749 38.214 183.008 40.034 Q 182.267 41.853 182.267 44.279 Q 182.267 46.682 182.997 48.479 Q 183.727 50.276 185.085 51.23 Q 186.444 52.185 188.286 52.185 Q 191.071 52.185 192.722 50.085 Q 194.373 47.985 194.373 44.279 Z M 214.745 42.1 L 212.409 42.1 L 212.409 52.679 Q 212.409 54.768 211.488 55.756 Q 210.567 56.745 209.085 56.745 Q 207.49 56.745 206.614 55.711 Q 205.738 54.678 205.738 52.679 L 205.738 27.343 Q 205.738 25.187 206.704 24.221 Q 207.67 23.255 209.826 23.255 L 220.675 23.255 Q 222.921 23.255 224.516 23.446 Q 226.11 23.637 227.391 24.221 Q 228.94 24.873 230.131 26.085 Q 231.321 27.298 231.939 28.904 Q 232.557 30.51 232.557 32.307 Q 232.557 35.991 230.479 38.192 Q 228.401 40.393 224.179 41.314 Q 225.953 42.257 227.57 44.099 Q 229.188 45.941 230.457 48.019 Q 231.726 50.096 232.433 51.77 Q 233.141 53.443 233.141 54.072 Q 233.141 54.723 232.725 55.363 Q 232.31 56.003 231.591 56.374 Q 230.872 56.745 229.929 56.745 Q 228.806 56.745 228.042 56.217 Q 227.278 55.689 226.728 54.88 Q 226.178 54.072 225.234 52.5 L 222.562 48.052 Q 221.124 45.604 219.99 44.324 Q 218.855 43.043 217.688 42.572 Q 216.52 42.1 214.745 42.1 Z M 218.563 28.264 L 212.409 28.264 L 212.409 37.316 L 218.384 37.316 Q 220.787 37.316 222.427 36.9 Q 224.066 36.485 224.931 35.485 Q 225.796 34.486 225.796 32.734 Q 225.796 31.364 225.1 30.319 Q 224.403 29.275 223.168 28.758 Q 222 28.264 218.563 28.264 Z M 254.411 45.784 L 242.417 45.784 Q 242.439 47.873 243.259 49.467 Q 244.079 51.062 245.438 51.871 Q 246.797 52.679 248.437 52.679 Q 249.537 52.679 250.447 52.421 Q 251.356 52.163 252.21 51.612 Q 253.063 51.062 253.782 50.433 Q 254.501 49.804 255.646 48.726 Q 256.118 48.322 256.994 48.322 Q 257.938 48.322 258.521 48.838 Q 259.105 49.355 259.105 50.298 Q 259.105 51.129 258.454 52.241 Q 257.803 53.353 256.489 54.375 Q 255.175 55.397 253.187 56.071 Q 251.199 56.745 248.616 56.745 Q 242.709 56.745 239.43 53.375 Q 236.15 50.006 236.15 44.234 Q 236.15 41.516 236.959 39.191 Q 237.768 36.867 239.317 35.205 Q 240.867 33.542 243.136 32.655 Q 245.404 31.768 248.167 31.768 Q 251.761 31.768 254.333 33.284 Q 256.904 34.8 258.185 37.204 Q 259.465 39.607 259.465 42.1 Q 259.465 44.414 258.14 45.099 Q 256.814 45.784 254.411 45.784 Z M 242.417 42.302 L 253.535 42.302 Q 253.311 39.158 251.839 37.597 Q 250.368 36.036 247.965 36.036 Q 245.674 36.036 244.203 37.619 Q 242.731 39.203 242.417 42.302 Z M 267.82 35.631 L 272.784 49.557 L 278.13 35.025 Q 278.759 33.273 279.365 32.543 Q 279.972 31.813 281.207 31.813 Q 282.375 31.813 283.195 32.599 Q 284.015 33.385 284.015 34.418 Q 284.015 34.823 283.869 35.362 Q 283.723 35.901 283.532 36.373 Q 283.341 36.844 283.094 37.451 L 277.209 52.05 Q 276.962 52.679 276.569 53.645 Q 276.176 54.611 275.693 55.296 Q 275.21 55.981 274.502 56.363 Q 273.795 56.745 272.784 56.745 Q 271.481 56.745 270.707 56.149 Q 269.932 55.554 269.561 54.847 Q 269.19 54.139 268.314 52.05 L 262.475 37.608 Q 262.272 37.069 262.059 36.53 Q 261.846 35.991 261.7 35.429 Q 261.554 34.868 261.554 34.463 Q 261.554 33.834 261.936 33.217 Q 262.317 32.599 262.991 32.206 Q 263.665 31.813 264.451 31.813 Q 265.979 31.813 266.551 32.689 Q 267.124 33.565 267.82 35.631 Z M 304.926 45.784 L 292.932 45.784 Q 292.954 47.873 293.774 49.467 Q 294.594 51.062 295.953 51.871 Q 297.312 52.679 298.951 52.679 Q 300.052 52.679 300.961 52.421 Q 301.871 52.163 302.725 51.612 Q 303.578 51.062 304.297 50.433 Q 305.016 49.804 306.161 48.726 Q 306.633 48.322 307.509 48.322 Q 308.452 48.322 309.036 48.838 Q 309.62 49.355 309.62 50.298 Q 309.62 51.129 308.969 52.241 Q 308.317 53.353 307.003 54.375 Q 305.689 55.397 303.702 56.071 Q 301.714 56.745 299.131 56.745 Q 293.224 56.745 289.944 53.375 Q 286.665 50.006 286.665 44.234 Q 286.665 41.516 287.474 39.191 Q 288.282 36.867 289.832 35.205 Q 291.382 33.542 293.65 32.655 Q 295.919 31.768 298.682 31.768 Q 302.275 31.768 304.847 33.284 Q 307.419 34.8 308.699 37.204 Q 309.979 39.607 309.979 42.1 Q 309.979 44.414 308.654 45.099 Q 307.329 45.784 304.926 45.784 Z M 292.932 42.302 L 304.05 42.302 Q 303.825 39.158 302.354 37.597 Q 300.883 36.036 298.479 36.036 Q 296.188 36.036 294.717 37.619 Q 293.246 39.203 292.932 42.302 Z M 320.716 35.205 L 320.716 35.946 Q 322.333 33.812 324.253 32.812 Q 326.174 31.813 328.667 31.813 Q 331.093 31.813 333.002 32.869 Q 334.911 33.924 335.854 35.856 Q 336.461 36.979 336.641 38.282 Q 336.82 39.584 336.82 41.606 L 336.82 53.016 Q 336.82 54.858 335.978 55.801 Q 335.136 56.745 333.788 56.745 Q 332.418 56.745 331.564 55.779 Q 330.711 54.813 330.711 53.016 L 330.711 42.796 Q 330.711 39.764 329.869 38.158 Q 329.026 36.552 326.511 36.552 Q 324.871 36.552 323.523 37.529 Q 322.176 38.506 321.547 40.213 Q 321.098 41.583 321.098 45.334 L 321.098 53.016 Q 321.098 54.88 320.233 55.812 Q 319.368 56.745 317.998 56.745 Q 316.673 56.745 315.819 55.779 Q 314.966 54.813 314.966 53.016 L 314.966 35.294 Q 314.966 33.542 315.729 32.678 Q 316.493 31.813 317.818 31.813 Q 318.627 31.813 319.278 32.195 Q 319.93 32.577 320.323 33.34 Q 320.716 34.104 320.716 35.205 Z M 343.267 32.352 L 343.94 32.352 L 343.94 28.668 Q 343.94 27.186 344.019 26.344 Q 344.098 25.501 344.457 24.895 Q 344.816 24.266 345.49 23.873 Q 346.164 23.48 346.995 23.48 Q 348.163 23.48 349.106 24.356 Q 349.735 24.94 349.904 25.782 Q 350.072 26.625 350.072 28.174 L 350.072 32.352 L 352.318 32.352 Q 353.621 32.352 354.306 32.97 Q 354.991 33.587 354.991 34.553 Q 354.991 35.789 354.014 36.283 Q 353.037 36.777 351.218 36.777 L 350.072 36.777 L 350.072 48.052 Q 350.072 49.49 350.173 50.265 Q 350.274 51.04 350.712 51.522 Q 351.15 52.005 352.139 52.005 Q 352.678 52.005 353.599 51.814 Q 354.52 51.624 355.036 51.624 Q 355.777 51.624 356.373 52.219 Q 356.968 52.814 356.968 53.69 Q 356.968 55.172 355.351 55.958 Q 353.733 56.745 350.701 56.745 Q 347.826 56.745 346.344 55.779 Q 344.861 54.813 344.401 53.106 Q 343.94 51.399 343.94 48.546 L 343.94 36.777 L 343.132 36.777 Q 341.807 36.777 341.11 36.148 Q 340.414 35.519 340.414 34.553 Q 340.414 33.587 341.144 32.97 Q 341.874 32.352 343.267 32.352 Z M 376.329 45.784 L 364.335 45.784 Q 364.357 47.873 365.177 49.467 Q 365.997 51.062 367.356 51.871 Q 368.715 52.679 370.354 52.679 Q 371.455 52.679 372.365 52.421 Q 373.274 52.163 374.128 51.612 Q 374.981 51.062 375.7 50.433 Q 376.419 49.804 377.564 48.726 Q 378.036 48.322 378.912 48.322 Q 379.855 48.322 380.439 48.838 Q 381.023 49.355 381.023 50.298 Q 381.023 51.129 380.372 52.241 Q 379.721 53.353 378.407 54.375 Q 377.093 55.397 375.105 56.071 Q 373.117 56.745 370.534 56.745 Q 364.627 56.745 361.348 53.375 Q 358.068 50.006 358.068 44.234 Q 358.068 41.516 358.877 39.191 Q 359.686 36.867 361.235 35.205 Q 362.785 33.542 365.054 32.655 Q 367.322 31.768 370.085 31.768 Q 373.679 31.768 376.25 33.284 Q 378.822 34.8 380.103 37.204 Q 381.383 39.607 381.383 42.1 Q 381.383 44.414 380.058 45.099 Q 378.732 45.784 376.329 45.784 Z M 364.335 42.302 L 375.453 42.302 Q 375.229 39.158 373.757 37.597 Q 372.286 36.036 369.883 36.036 Q 367.592 36.036 366.121 37.619 Q 364.649 39.203 364.335 42.302 Z"/></svg></a>
-  <a class="barre-lien" href="/"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span>Accueil</span></a>
-  <a class="barre-lien" href="/guides/"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Guides</span></a>
-  <span data-theme-ici hidden></span>
+<body id="app-rr">
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="RetroRevente, accueil"><svg class="logo-svg" viewBox="6 16 378 50" width="166" height="22" role="img" aria-label="RetroRevente"><g class="manette"><path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/><path class="eclair" fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/></g><path fill="currentColor" d="M 93.007 42.1 L 90.671 42.1 L 90.671 52.679 Q 90.671 54.768 89.75 55.756 Q 88.829 56.745 87.347 56.745 Q 85.752 56.745 84.876 55.711 Q 84 54.678 84 52.679 L 84 27.343 Q 84 25.187 84.966 24.221 Q 85.932 23.255 88.088 23.255 L 98.937 23.255 Q 101.183 23.255 102.777 23.446 Q 104.372 23.637 105.652 24.221 Q 107.202 24.873 108.393 26.085 Q 109.583 27.298 110.201 28.904 Q 110.818 30.51 110.818 32.307 Q 110.818 35.991 108.741 38.192 Q 106.663 40.393 102.44 41.314 Q 104.215 42.257 105.832 44.099 Q 107.449 45.941 108.718 48.019 Q 109.987 50.096 110.695 51.77 Q 111.402 53.443 111.402 54.072 Q 111.402 54.723 110.987 55.363 Q 110.571 56.003 109.853 56.374 Q 109.134 56.745 108.19 56.745 Q 107.067 56.745 106.304 56.217 Q 105.54 55.689 104.99 54.88 Q 104.439 54.072 103.496 52.5 L 100.823 48.052 Q 99.386 45.604 98.251 44.324 Q 97.117 43.043 95.949 42.572 Q 94.781 42.1 93.007 42.1 Z M 96.825 28.264 L 90.671 28.264 L 90.671 37.316 L 96.646 37.316 Q 99.049 37.316 100.688 36.9 Q 102.328 36.485 103.193 35.485 Q 104.058 34.486 104.058 32.734 Q 104.058 31.364 103.361 30.319 Q 102.665 29.275 101.43 28.758 Q 100.262 28.264 96.825 28.264 Z M 132.673 45.784 L 120.679 45.784 Q 120.701 47.873 121.521 49.467 Q 122.341 51.062 123.7 51.871 Q 125.059 52.679 126.698 52.679 Q 127.799 52.679 128.708 52.421 Q 129.618 52.163 130.472 51.612 Q 131.325 51.062 132.044 50.433 Q 132.763 49.804 133.908 48.726 Q 134.38 48.322 135.256 48.322 Q 136.199 48.322 136.783 48.838 Q 137.367 49.355 137.367 50.298 Q 137.367 51.129 136.716 52.241 Q 136.064 53.353 134.75 54.375 Q 133.437 55.397 131.449 56.071 Q 129.461 56.745 126.878 56.745 Q 120.971 56.745 117.691 53.375 Q 114.412 50.006 114.412 44.234 Q 114.412 41.516 115.221 39.191 Q 116.029 36.867 117.579 35.205 Q 119.129 33.542 121.397 32.655 Q 123.666 31.768 126.429 31.768 Q 130.022 31.768 132.594 33.284 Q 135.166 34.8 136.446 37.204 Q 137.727 39.607 137.727 42.1 Q 137.727 44.414 136.401 45.099 Q 135.076 45.784 132.673 45.784 Z M 120.679 42.302 L 131.797 42.302 Q 131.572 39.158 130.101 37.597 Q 128.63 36.036 126.227 36.036 Q 123.936 36.036 122.464 37.619 Q 120.993 39.203 120.679 42.302 Z M 143.229 32.352 L 143.903 32.352 L 143.903 28.668 Q 143.903 27.186 143.982 26.344 Q 144.061 25.501 144.42 24.895 Q 144.779 24.266 145.453 23.873 Q 146.127 23.48 146.958 23.48 Q 148.126 23.48 149.069 24.356 Q 149.698 24.94 149.867 25.782 Q 150.035 26.625 150.035 28.174 L 150.035 32.352 L 152.281 32.352 Q 153.584 32.352 154.269 32.97 Q 154.954 33.587 154.954 34.553 Q 154.954 35.789 153.977 36.283 Q 153 36.777 151.181 36.777 L 150.035 36.777 L 150.035 48.052 Q 150.035 49.49 150.136 50.265 Q 150.237 51.04 150.675 51.522 Q 151.113 52.005 152.102 52.005 Q 152.641 52.005 153.562 51.814 Q 154.482 51.624 154.999 51.624 Q 155.74 51.624 156.335 52.219 Q 156.931 52.814 156.931 53.69 Q 156.931 55.172 155.313 55.958 Q 153.696 56.745 150.664 56.745 Q 147.789 56.745 146.307 55.779 Q 144.824 54.813 144.364 53.106 Q 143.903 51.399 143.903 48.546 L 143.903 36.777 L 143.095 36.777 Q 141.77 36.777 141.073 36.148 Q 140.377 35.519 140.377 34.553 Q 140.377 33.587 141.107 32.97 Q 141.837 32.352 143.229 32.352 Z M 165.264 47.895 L 165.264 53.016 Q 165.264 54.88 164.388 55.812 Q 163.512 56.745 162.164 56.745 Q 160.839 56.745 159.985 55.801 Q 159.132 54.858 159.132 53.016 L 159.132 35.946 Q 159.132 31.813 162.119 31.813 Q 163.646 31.813 164.32 32.779 Q 164.994 33.745 165.062 35.631 Q 166.162 33.745 167.319 32.779 Q 168.476 31.813 170.407 31.813 Q 172.339 31.813 174.158 32.779 Q 175.978 33.745 175.978 35.339 Q 175.978 36.462 175.203 37.192 Q 174.428 37.922 173.529 37.922 Q 173.192 37.922 171.901 37.507 Q 170.609 37.091 169.621 37.091 Q 168.273 37.091 167.42 37.799 Q 166.566 38.506 166.095 39.899 Q 165.623 41.292 165.443 43.212 Q 165.264 45.132 165.264 47.895 Z M 200.527 44.279 Q 200.527 47.019 199.674 49.333 Q 198.82 51.646 197.203 53.308 Q 195.586 54.97 193.34 55.857 Q 191.094 56.745 188.286 56.745 Q 185.501 56.745 183.277 55.846 Q 181.054 54.948 179.425 53.274 Q 177.797 51.601 176.955 49.321 Q 176.112 47.042 176.112 44.279 Q 176.112 41.494 176.966 39.18 Q 177.819 36.867 179.414 35.227 Q 181.009 33.587 183.277 32.7 Q 185.546 31.813 188.286 31.813 Q 191.071 31.813 193.34 32.711 Q 195.608 33.61 197.226 35.272 Q 198.843 36.934 199.685 39.225 Q 200.527 41.516 200.527 44.279 Z M 194.373 44.279 Q 194.373 40.528 192.722 38.439 Q 191.071 36.35 188.286 36.35 Q 186.489 36.35 185.119 37.282 Q 183.749 38.214 183.008 40.034 Q 182.267 41.853 182.267 44.279 Q 182.267 46.682 182.997 48.479 Q 183.727 50.276 185.085 51.23 Q 186.444 52.185 188.286 52.185 Q 191.071 52.185 192.722 50.085 Q 194.373 47.985 194.373 44.279 Z M 214.745 42.1 L 212.409 42.1 L 212.409 52.679 Q 212.409 54.768 211.488 55.756 Q 210.567 56.745 209.085 56.745 Q 207.49 56.745 206.614 55.711 Q 205.738 54.678 205.738 52.679 L 205.738 27.343 Q 205.738 25.187 206.704 24.221 Q 207.67 23.255 209.826 23.255 L 220.675 23.255 Q 222.921 23.255 224.516 23.446 Q 226.11 23.637 227.391 24.221 Q 228.94 24.873 230.131 26.085 Q 231.321 27.298 231.939 28.904 Q 232.557 30.51 232.557 32.307 Q 232.557 35.991 230.479 38.192 Q 228.401 40.393 224.179 41.314 Q 225.953 42.257 227.57 44.099 Q 229.188 45.941 230.457 48.019 Q 231.726 50.096 232.433 51.77 Q 233.141 53.443 233.141 54.072 Q 233.141 54.723 232.725 55.363 Q 232.31 56.003 231.591 56.374 Q 230.872 56.745 229.929 56.745 Q 228.806 56.745 228.042 56.217 Q 227.278 55.689 226.728 54.88 Q 226.178 54.072 225.234 52.5 L 222.562 48.052 Q 221.124 45.604 219.99 44.324 Q 218.855 43.043 217.688 42.572 Q 216.52 42.1 214.745 42.1 Z M 218.563 28.264 L 212.409 28.264 L 212.409 37.316 L 218.384 37.316 Q 220.787 37.316 222.427 36.9 Q 224.066 36.485 224.931 35.485 Q 225.796 34.486 225.796 32.734 Q 225.796 31.364 225.1 30.319 Q 224.403 29.275 223.168 28.758 Q 222 28.264 218.563 28.264 Z M 254.411 45.784 L 242.417 45.784 Q 242.439 47.873 243.259 49.467 Q 244.079 51.062 245.438 51.871 Q 246.797 52.679 248.437 52.679 Q 249.537 52.679 250.447 52.421 Q 251.356 52.163 252.21 51.612 Q 253.063 51.062 253.782 50.433 Q 254.501 49.804 255.646 48.726 Q 256.118 48.322 256.994 48.322 Q 257.938 48.322 258.521 48.838 Q 259.105 49.355 259.105 50.298 Q 259.105 51.129 258.454 52.241 Q 257.803 53.353 256.489 54.375 Q 255.175 55.397 253.187 56.071 Q 251.199 56.745 248.616 56.745 Q 242.709 56.745 239.43 53.375 Q 236.15 50.006 236.15 44.234 Q 236.15 41.516 236.959 39.191 Q 237.768 36.867 239.317 35.205 Q 240.867 33.542 243.136 32.655 Q 245.404 31.768 248.167 31.768 Q 251.761 31.768 254.333 33.284 Q 256.904 34.8 258.185 37.204 Q 259.465 39.607 259.465 42.1 Q 259.465 44.414 258.14 45.099 Q 256.814 45.784 254.411 45.784 Z M 242.417 42.302 L 253.535 42.302 Q 253.311 39.158 251.839 37.597 Q 250.368 36.036 247.965 36.036 Q 245.674 36.036 244.203 37.619 Q 242.731 39.203 242.417 42.302 Z M 267.82 35.631 L 272.784 49.557 L 278.13 35.025 Q 278.759 33.273 279.365 32.543 Q 279.972 31.813 281.207 31.813 Q 282.375 31.813 283.195 32.599 Q 284.015 33.385 284.015 34.418 Q 284.015 34.823 283.869 35.362 Q 283.723 35.901 283.532 36.373 Q 283.341 36.844 283.094 37.451 L 277.209 52.05 Q 276.962 52.679 276.569 53.645 Q 276.176 54.611 275.693 55.296 Q 275.21 55.981 274.502 56.363 Q 273.795 56.745 272.784 56.745 Q 271.481 56.745 270.707 56.149 Q 269.932 55.554 269.561 54.847 Q 269.19 54.139 268.314 52.05 L 262.475 37.608 Q 262.272 37.069 262.059 36.53 Q 261.846 35.991 261.7 35.429 Q 261.554 34.868 261.554 34.463 Q 261.554 33.834 261.936 33.217 Q 262.317 32.599 262.991 32.206 Q 263.665 31.813 264.451 31.813 Q 265.979 31.813 266.551 32.689 Q 267.124 33.565 267.82 35.631 Z M 304.926 45.784 L 292.932 45.784 Q 292.954 47.873 293.774 49.467 Q 294.594 51.062 295.953 51.871 Q 297.312 52.679 298.951 52.679 Q 300.052 52.679 300.961 52.421 Q 301.871 52.163 302.725 51.612 Q 303.578 51.062 304.297 50.433 Q 305.016 49.804 306.161 48.726 Q 306.633 48.322 307.509 48.322 Q 308.452 48.322 309.036 48.838 Q 309.62 49.355 309.62 50.298 Q 309.62 51.129 308.969 52.241 Q 308.317 53.353 307.003 54.375 Q 305.689 55.397 303.702 56.071 Q 301.714 56.745 299.131 56.745 Q 293.224 56.745 289.944 53.375 Q 286.665 50.006 286.665 44.234 Q 286.665 41.516 287.474 39.191 Q 288.282 36.867 289.832 35.205 Q 291.382 33.542 293.65 32.655 Q 295.919 31.768 298.682 31.768 Q 302.275 31.768 304.847 33.284 Q 307.419 34.8 308.699 37.204 Q 309.979 39.607 309.979 42.1 Q 309.979 44.414 308.654 45.099 Q 307.329 45.784 304.926 45.784 Z M 292.932 42.302 L 304.05 42.302 Q 303.825 39.158 302.354 37.597 Q 300.883 36.036 298.479 36.036 Q 296.188 36.036 294.717 37.619 Q 293.246 39.203 292.932 42.302 Z M 320.716 35.205 L 320.716 35.946 Q 322.333 33.812 324.253 32.812 Q 326.174 31.813 328.667 31.813 Q 331.093 31.813 333.002 32.869 Q 334.911 33.924 335.854 35.856 Q 336.461 36.979 336.641 38.282 Q 336.82 39.584 336.82 41.606 L 336.82 53.016 Q 336.82 54.858 335.978 55.801 Q 335.136 56.745 333.788 56.745 Q 332.418 56.745 331.564 55.779 Q 330.711 54.813 330.711 53.016 L 330.711 42.796 Q 330.711 39.764 329.869 38.158 Q 329.026 36.552 326.511 36.552 Q 324.871 36.552 323.523 37.529 Q 322.176 38.506 321.547 40.213 Q 321.098 41.583 321.098 45.334 L 321.098 53.016 Q 321.098 54.88 320.233 55.812 Q 319.368 56.745 317.998 56.745 Q 316.673 56.745 315.819 55.779 Q 314.966 54.813 314.966 53.016 L 314.966 35.294 Q 314.966 33.542 315.729 32.678 Q 316.493 31.813 317.818 31.813 Q 318.627 31.813 319.278 32.195 Q 319.93 32.577 320.323 33.34 Q 320.716 34.104 320.716 35.205 Z M 343.267 32.352 L 343.94 32.352 L 343.94 28.668 Q 343.94 27.186 344.019 26.344 Q 344.098 25.501 344.457 24.895 Q 344.816 24.266 345.49 23.873 Q 346.164 23.48 346.995 23.48 Q 348.163 23.48 349.106 24.356 Q 349.735 24.94 349.904 25.782 Q 350.072 26.625 350.072 28.174 L 350.072 32.352 L 352.318 32.352 Q 353.621 32.352 354.306 32.97 Q 354.991 33.587 354.991 34.553 Q 354.991 35.789 354.014 36.283 Q 353.037 36.777 351.218 36.777 L 350.072 36.777 L 350.072 48.052 Q 350.072 49.49 350.173 50.265 Q 350.274 51.04 350.712 51.522 Q 351.15 52.005 352.139 52.005 Q 352.678 52.005 353.599 51.814 Q 354.52 51.624 355.036 51.624 Q 355.777 51.624 356.373 52.219 Q 356.968 52.814 356.968 53.69 Q 356.968 55.172 355.351 55.958 Q 353.733 56.745 350.701 56.745 Q 347.826 56.745 346.344 55.779 Q 344.861 54.813 344.401 53.106 Q 343.94 51.399 343.94 48.546 L 343.94 36.777 L 343.132 36.777 Q 341.807 36.777 341.11 36.148 Q 340.414 35.519 340.414 34.553 Q 340.414 33.587 341.144 32.97 Q 341.874 32.352 343.267 32.352 Z M 376.329 45.784 L 364.335 45.784 Q 364.357 47.873 365.177 49.467 Q 365.997 51.062 367.356 51.871 Q 368.715 52.679 370.354 52.679 Q 371.455 52.679 372.365 52.421 Q 373.274 52.163 374.128 51.612 Q 374.981 51.062 375.7 50.433 Q 376.419 49.804 377.564 48.726 Q 378.036 48.322 378.912 48.322 Q 379.855 48.322 380.439 48.838 Q 381.023 49.355 381.023 50.298 Q 381.023 51.129 380.372 52.241 Q 379.721 53.353 378.407 54.375 Q 377.093 55.397 375.105 56.071 Q 373.117 56.745 370.534 56.745 Q 364.627 56.745 361.348 53.375 Q 358.068 50.006 358.068 44.234 Q 358.068 41.516 358.877 39.191 Q 359.686 36.867 361.235 35.205 Q 362.785 33.542 365.054 32.655 Q 367.322 31.768 370.085 31.768 Q 373.679 31.768 376.25 33.284 Q 378.822 34.8 380.103 37.204 Q 381.383 39.607 381.383 42.1 Q 381.383 44.414 380.058 45.099 Q 378.732 45.784 376.329 45.784 Z M 364.335 42.302 L 375.453 42.302 Q 375.229 39.158 373.757 37.597 Q 372.286 36.036 369.883 36.036 Q 367.592 36.036 366.121 37.619 Q 364.649 39.203 364.335 42.302 Z"/></svg></a>
+    <nav class="nav-liens" id="navLiens" aria-label="Principal">
+      <a href="/#comment"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg><span>Comment ça marche</span></a>
+      <a href="/#photos"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Photos</span></a>
+      <a href="/#tarifs"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Tarifs</span></a>
+      <a href="/guides/"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Guides</span></a>
+      <a href="/app/"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Connexion</span></a>
+      <a class="btn nav-cta" href="/app/?inscription"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg><span>Essayer gratuitement</span></a>
+    </nav>
+    <span data-theme-ici hidden></span>
+    <a class="btn nav-cta-court" href="/app/?inscription"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>Essayer</a>
+    <button class="burger" type="button" aria-expanded="false" aria-controls="navLiens" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+<div class="sous-barre"><div class="wrap">
+  <nav aria-label="Fil d'Ariane"><ol class="fil" id="fil"><li><a href="/">Accueil</a></li><li aria-current="page">Mes jeux</li></ol></nav>
   <span class="pill" id="quota" hidden></span>
-  <button class="btn clair petit" id="bCompte" type="button" hidden>Mon compte</button>
-</div></header>
+  <button class="btn clair petit" id="bCompte" type="button" hidden><span class="av-mini" id="bAvatar" aria-hidden="true"></span><span id="bNom">Mon compte</span></button>
+</div></div>
 
 <!-- ========== Connexion ========== -->
-<section id="auth" hidden>
+<section id="auth" class="vue" hidden>
   <div class="carte">
     <div style="align-self:center;margin-bottom:6px"><img class="logo-clair" src="/img/logo-couleur.svg" alt="RetroRevente" width="166" height="34" style="height:34px;width:auto"><img class="logo-sombre" src="/img/logo-nuit.svg" alt="RetroRevente" width="166" height="34" style="height:34px;width:auto"></div>
     <a class="retour" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Retour à l'accueil</a>
@@ -217,7 +302,7 @@ body.fiche-ouverte #toast{bottom:100px}
 </section>
 
 <!-- ========== Mes jeux ========== -->
-<main class="app wrap" id="accueil" hidden>
+<main class="app wrap vue" id="accueil" hidden>
   <div class="tete">
     <div><p class="pixel">Mes jeux</p><h1 style="margin-top:8px">Qu'est-ce qu'on vend aujourd'hui ?</h1></div>
     <div class="ajout">
@@ -248,14 +333,16 @@ body.fiche-ouverte #toast{bottom:100px}
 </main>
 
 <!-- ========== Fiche d'un jeu ========== -->
-<section id="fiche" hidden aria-labelledby="fTitre">
-  <div class="haut"><div class="wrap"><button class="btn clair petit" type="button" id="fFermer">← Mes jeux</button><h2 id="fTitre">Nouveau jeu</h2></div></div>
+<section id="fiche" class="vue" hidden aria-labelledby="fTitre">
+  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouveau jeu</h2><button class="btn clair petit" type="button" id="fFermer">← Mes jeux</button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
       <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span></div></div>
       <div class="rangee">
         <label class="btn clair petit" for="fPhotoIn">Changer la photo</label><input type="file" id="fPhotoIn" accept="image/*" hidden>
         <button class="btn clair petit" type="button" id="fIa">Remplir depuis la photo</button>
+        <button class="btn clair petit" type="button" id="fNet"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Nettoyer la photo</button>
+        <button class="btn clair petit" type="button" id="fOrig" hidden>Voir l'original</button>
         <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer la photo</button>
       </div>
 
@@ -263,9 +350,11 @@ body.fiche-ouverte #toast{bottom:100px}
     <div class="g-lbc">
       <section class="lbc" aria-labelledby="tLbc">
         <h3 id="tLbc">Publier sur Le Bon Coin</h3>
-        <p>On copie le titre, le texte et le prix, et on ouvre la page de dépôt. Tu colles, tu ajoutes la photo, c'est en ligne.</p>
+        <p>Le Bon Coin demande les infos <strong>une par une</strong>. Ouvre-le dans un nouvel onglet, puis copie chaque champ quand il le demande.</p>
+        <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ouvrir Le Bon Coin (nouvel onglet)</a>
+        <ol class="lbc-etapes" id="lbcEtapes"></ol>
+        <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
         <p id="fLbcExt" hidden>Extension installée : sur Le Bon Coin, ouvre le panneau RetroRevente et clique « Remplir cette étape » à chaque écran.</p>
-        <div class="rangee"><button class="btn" type="button" id="fLbc">Copier et ouvrir Le Bon Coin</button><button class="btn clair petit" type="button" id="fCopie">Copier seulement</button></div>
       </section>
     </div>
     <div class="col g-champs">
@@ -276,7 +365,7 @@ body.fiche-ouverte #toast{bottom:100px}
           <label class="f">Console<input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
           <label class="f">Région<input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
           <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="autres">Autre</option></select></label>
-          <label class="f">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet (boîte et notice)</option></select></label>
+          <label class="f">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Jeu en loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet en boîte (CIB : boîte et notice)</option></select></label>
           <label class="f">État<select id="f_etat"><option value="">—</option><option value="neuf">Neuf</option><option value="tres_bon">Très bon état</option><option value="bon">Bon état</option><option value="correct">État correct</option><option value="pieces">Pour pièces</option></select></label>
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
         </div>
@@ -310,7 +399,7 @@ body.fiche-ouverte #toast{bottom:100px}
 </section>
 
 <!-- ========== Compte ========== -->
-<main class="app wrap" id="compte" hidden>
+<main class="app wrap vue" id="compte" hidden>
   <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div><button class="btn clair" type="button" id="cRetour">← Mes jeux</button></div>
   <section class="carte zone">
     <h2>Ta formule : <span id="cFormule"></span></h2>
@@ -327,6 +416,28 @@ body.fiche-ouverte #toast{bottom:100px}
       <article class="offre" data-o="pass"><h3>Pass Grand ménage</h3><p class="p">9,90 €<small> une fois</small></p><ul><li>Illimité pendant 30 jours</li><li>Tout Collectionneur inclus</li><li>Sans abonnement</li></ul><button class="btn" type="button">Prendre le pass</button></article>
     </div>
     <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Prix TTC. Sans engagement : tu résilies quand tu veux avec le bouton « Résilier votre contrat » de cette page. Voir les <a href="/cgv/" target="_blank">conditions générales</a>.</p>
+  </section>
+  <section class="carte zone profil" aria-labelledby="tProfil">
+    <h2 id="tProfil">Mon profil</h2>
+    <div class="profil-g">
+      <div class="avatar-zone">
+        <label class="avatar" for="pAvatarIn" title="Changer ma photo de profil"><span id="pAvatar"></span><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i></label>
+        <input type="file" id="pAvatarIn" accept="image/*" hidden>
+        <button class="lien" type="button" id="pAvatarSuppr" hidden>Retirer la photo</button>
+      </div>
+      <div class="zone" style="flex:1;min-width:0">
+        <label class="f">Pseudo (affiché dans le menu)<input type="text" id="pPseudo" maxlength="40" autocomplete="nickname" placeholder="ex. Titelive"></label>
+        <div class="rangee"><button class="btn petit" type="button" id="pPseudoGo">Enregistrer le pseudo</button></div>
+        <label class="f">Adresse e-mail<input type="email" id="pEmail" autocomplete="email"></label>
+        <p class="note" id="pEmailTx"></p>
+        <div class="rangee"><button class="btn clair petit" type="button" id="pEmailGo">Changer d'adresse</button><button class="btn clair petit" type="button" id="cMdp2">Changer mon mot de passe</button></div>
+      </div>
+    </div>
+  </section>
+  <section class="carte zone" aria-labelledby="tPrefs">
+    <h2 id="tPrefs">Paramètres</h2>
+    <label class="interrupteur"><input type="checkbox" id="pAnim" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Animations</b><small>Apparitions, transitions et effets. Désactive-les si elles te gênent (réglage gardé sur cet appareil).</small></span></label>
+    <label class="interrupteur"><input type="checkbox" id="pSombre" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Mode sombre</b><small>Aussi accessible avec le bouton soleil / lune du menu.</small></span></label>
   </section>
   <section class="carte zone" id="cExt">
     <h2>Extension Le Bon Coin</h2>
@@ -361,6 +472,13 @@ body.fiche-ouverte #toast{bottom:100px}
   <p class="err" id="mErr"></p>
   <div class="rangee"><button class="btn" type="button" id="mGo">Enregistrer</button><button class="btn clair" value="x">Annuler</button></div>
 </form></dialog>
+<dialog id="dEmail"><form method="dialog">
+  <h2>Changer d'adresse e-mail</h2>
+  <p style="color:var(--gris)" id="eTx"></p>
+  <label class="f">Ton mot de passe pour confirmer<input type="password" id="eMdp" autocomplete="current-password"></label>
+  <p class="err" id="eErr"></p>
+  <div class="rangee"><button class="btn" type="button" id="eGo">Confirmer</button><button class="btn clair" value="x">Annuler</button></div>
+</form></dialog>
 <dialog id="dSuppr"><form method="dialog">
   <h2>Supprimer ton compte ?</h2>
   <p style="color:var(--gris)">Tous tes jeux, photos et statistiques seront effacés définitivement.</p>
@@ -384,16 +502,24 @@ body.fiche-ouverte #toast{bottom:100px}
     <div class="rangee"><button class="btn" type="button" id="qGo"></button><button class="btn clair" type="button" id="qModif">Modifier</button></div>
   </div>
 </form></dialog>
+<footer class="pied-site">
+  <div class="wrap">
+    <div><img src="/img/logo-nuit.svg" alt="RetroRevente" width="137" height="28" loading="lazy"><p>© 2026 RetroRevente. RetroRevente n'est ni affilié ni approuvé par Leboncoin, eBay ou PriceCharting. Les marques citées appartiennent à leurs propriétaires.</p></div>
+    <nav aria-label="Pied de page"><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Tarifs</a><a href="/guides/">Guides</a><a href="/mentions-legales/">Mentions légales</a><a href="/confidentialite/">Confidentialité</a><a href="/cgv/">Conditions générales</a><a href="/app/?compte">Résilier ou renoncer</a><a href="mailto:bonjour@retrorevente.fr">Contact</a></nav>
+    <div class="pied-bas"><a class="tlc" href="https://titelive.me" target="_blank" rel="noopener" title="titelive.me"><span>Site réalisé par</span><img src="/img/titelive.png" alt="" width="26" height="26" loading="lazy"><b>Titelive</b><i class="pixel" aria-hidden="true">1UP</i></a></div>
+  </div>
+</footer>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
 "use strict";
 var $=function(i){return document.getElementById(i)};
-var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,COTE=null,PER="mois",IA_FAITE=false;
+var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,ORIG=null,ROT=0,COTE=null,PER="mois",IA_FAITE=false;
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
-var CON={seul:"Loose",boite:"En boîte",complet:"Complet"};
+var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)"};
 var F=["titre","plateforme","region","categorie","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 var TEMPS={identifier:6,cote:10,lbc:2,suivi:2,bilan:3};
@@ -414,22 +540,28 @@ function api(method,path,body){
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}toast(e.message||def,"bad")}
 
 /* ===== Vues ===== */
-function montrer(v){["auth","accueil","compte"].forEach(function(x){$(x).hidden=x!==v});$("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";window.scrollTo(0,0)}
+function montrer(v,titre){["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});
+  $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
+  var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes jeux",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouveau jeu"])}
+  $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
+  document.title=(v==="fiche"?(titre||"Nouveau jeu"):v==="compte"?"Mon compte":v==="auth"?"Connexion":"Mes jeux")+" · RetroRevente";
+  window.scrollTo(0,0)}
+$("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();
   var q=new URLSearchParams(location.search);
   if(q.has("compte")){compte()}else montrer("accueil");
   if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}
   if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
-function entete(){var q=ME.quota,p=$("quota");
+function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
   p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0)}
 function tempsGagne(){var u=ME.usage||{},n=0;n+=(u.identifier||0)*TEMPS.identifier+(u.cote||0)*TEMPS.cote+(u.lbc||0)*TEMPS.lbc+OBJ.length*TEMPS.suivi+OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length*TEMPS.bilan;return n}
 function dessiner(){
   var vendus=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
-  $("cTemps").textContent=hm(tempsGagne());
-  $("cVente").textContent=OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length;
-  $("cVendus").textContent=vendus.length;
-  $("cEnc").textContent=eur(vendus.reduce(function(a,o){return a+(o.prixVente||0)},0));
+  compter($("cTemps"),tempsGagne(),hm);
+  compter($("cVente"),OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
+  compter($("cVendus"),vendus.length,function(v){return String(Math.round(v))});
+  compter($("cEnc"),vendus.reduce(function(a,o){return a+(o.prixVente||0)},0),function(v){return eur(Math.round(v))});
   // seuil fiscal (année civile)
   var an=String(new Date().getFullYear()),va=vendus.filter(function(o){return (o.dateVente||"").indexOf(an)===0}),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0);
   $("fAn").textContent=an;
@@ -445,9 +577,9 @@ function dessiner(){
   var l=OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")});
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun jeu pour l\'instant</b><span>Prends ton premier jeu en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter un jeu en photo</label></div>';return}
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun jeu dans cette catégorie.</p>';return}
-  $("liste").innerHTML=l.map(function(o){
+  $("liste").innerHTML=l.map(function(o,i){
     var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
-    return '<button type="button" class="jeu" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc([o.plateforme,CON[o.contenu]].filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}).join("");
 }
@@ -498,13 +630,13 @@ function analyser(f){
   attente("Je regarde la photo…");
   ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,1000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
     .then(function(j){var o=j.objet;IA_FAITE=true;
-      if(o.cadre)setPhoto(versData(IMG,o.cadre,1000));
+      ROT=o.rotation||0;if(o.cadre)setPhoto(versData(IMG,o.cadre,1000));
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
       if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
       if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description)$("f_texteAnnonce").value=o.description;
       if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
       $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
-      attente(null);toast("Reconnu : "+o.titre+". Je cherche le bon prix…","ok");return estimer()})
+      attente(null);toast("Reconnu : "+o.titre+". Je nettoie la photo et je cherche le bon prix…","ok");nettoyerPhoto(true);return estimer()})
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null)})}
 $("fIa").onclick=function(){if(!IMG&&!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
@@ -534,28 +666,42 @@ $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data
 
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
 function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
-  if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Cartouche ou disque seul.",boite:"En boîte, sans notice.",complet:"Complet : boîte et notice."}[$("f_contenu").value]||"","Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice."}[$("f_contenu").value]||"","Remise en main propre ou envoi."].filter(Boolean).join("\n");
   return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
 function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
-$("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Annonce copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
-$("fLbc").onclick=function(){if(!$("f_titre").value.trim()){toast("Indique d'abord le nom du jeu.","bad");return}
-  var w=window.open(LBC_URL,"_blank","noopener");
-  copier(texteLbc()).then(function(){toast("Annonce copiée : colle-la sur Le Bon Coin.","ok")},function(){toast("Page ouverte. Copie le texte avec « Copier seulement ».","bad")});
-  api("POST","/api/compter",{quoi:"lbc"}).then(function(){ME.usage.lbc=(ME.usage.lbc||0)+1}).catch(function(){});
-  if(!w)location.href=LBC_URL};
+/* Le Bon Coin demande les champs un par un : un bouton « copier » par champ, dans son ordre. */
+var LBC_ETATS={neuf:"État neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État satisfaisant",pieces:"Pour pièces"};
+var LBC_CAT={jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
+var LBC_FAIT={};
+function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" ")).slice(0,200),
+  tx=texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").slice(0,4000),px=$("f_prixDemande").value;
+  return [{k:"titre",l:"Titre",v:t,n:"200 caractères max"},{k:"cat",l:"Catégorie",v:LBC_CAT[$("f_categorie").value]||LBC_CAT.jeux,n:"à choisir dans la liste",info:true},
+    {k:"desc",l:"Description",v:tx,n:"4 000 caractères max"},{k:"etat",l:"État",v:LBC_ETATS[$("f_etat").value]||"",n:"à choisir dans la liste",info:true},
+    {k:"prix",l:"Prix",v:px?String(Math.round(+px)):"",n:"en euros, sans centimes"},{k:"photo",l:"Photo",v:PHOTO?"Photo nettoyée prête":"",n:"enregistre-la puis glisse-la",photo:true}]}
+function majLbc(){var c=champsLbc(),fait=0;
+  $("lbcEtapes").innerHTML=c.map(function(x,i){var ok=LBC_FAIT[x.k];if(ok)fait++;
+    return '<li class="'+(ok?"fait":"")+(x.v?"":" vide")+'"><span class="n">'+(ok?"✓":i+1)+'</span><div class="c"><b>'+x.l+' <small>'+x.n+'</small></b><span class="v">'+(x.v?esc(x.v.length>90?x.v.slice(0,90)+"…":x.v):"À remplir dans la fiche")+'</span></div>'+
+      (x.v?'<button class="btn '+(ok?"clair":"jaune")+' petit" type="button" data-lbc="'+x.k+'">'+(x.photo?"Enregistrer":x.info?"Copier":"Copier")+'</button>':"")+'</li>'}).join("");
+  $("lbcProg").textContent=fait+" / "+c.length+" faits"}
+$("lbcEtapes").addEventListener("click",function(e){var b=e.target.closest("[data-lbc]");if(!b)return;var k=b.dataset.lbc,x=champsLbc().filter(function(c){return c.k===k})[0];
+  if(k==="photo"){$("fPhotoDl").click();LBC_FAIT.photo=true;majLbc();return}
+  copier(x.v).then(function(){LBC_FAIT[k]=true;majLbc();toast(x.l+" copié : colle-le sur Le Bon Coin.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})});
+["f_titre","f_titreAnnonce","f_texteAnnonce","f_prixDemande","f_etat","f_categorie","f_contenu","f_plateforme"].forEach(function(id){$(id).addEventListener("input",function(){LBC_FAIT={};majLbc()});$(id).addEventListener("change",majLbc)});
+$("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Toute l'annonce est copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
+$("fLbc").onclick=function(){LBC_FAIT={};majLbc();api("POST","/api/compter",{quoi:"lbc"}).then(function(){ME.usage.lbc=(ME.usage.lbc||0)+1}).catch(function(){})};
 
 /* ===== Fiche ===== */
 function majVente(){var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value}
 $("f_statut").onchange=majVente;
-function ouvrirFiche(o){ED=o;IMG=null;PHOTO_CHANGEE=false;IA_FAITE=false;
+function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
   F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photo){fetch("/api/photo/"+o.id,{credentials:"same-origin"}).then(function(r){return r.ok?r.blob():null}).then(function(b){if(!b||ED!==o)return;var fr=new FileReader();fr.onload=function(){setPhoto(fr.result)};fr.readAsDataURL(b)})}
-  $("fiche").hidden=false;$("fiche").scrollTop=0;document.body.classList.add("fiche-ouverte");document.body.style.overflow="hidden"}
-function fermerFiche(){$("fiche").hidden=true;document.body.classList.remove("fiche-ouverte");document.body.style.overflow="";ED=null}
+  montrer("fiche",o?o.titre:"Nouveau jeu");majLbc()}
+function fermerFiche(){ED=null;montrer("accueil")}
 $("fFermer").onclick=fermerFiche;
 $("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvrirFiche(null);$("f_titre").focus()};
 $("fSave").onclick=function(){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
@@ -576,7 +722,7 @@ function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.m
 $("dQuota").addEventListener("click",function(e){var b=e.target.closest("[data-o]");if(b){$("dQuota").close();payer(b.dataset.o,"mois",b)}});
 function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arrive très bientôt.","bad");return}var t=b&&b.textContent;if(b)busy(b,true,"Redirection…");
   api("POST","/api/paiement",{offre:offre,periode:periode}).then(function(j){location.href=j.url}).catch(function(e){erreur(e,"Paiement indisponible.");if(b)busy(b,false,t)})}
-function compte(){var f=ME.formule;montrer("compte");$("cEmail").textContent=ME.email;$("cFormule").textContent=f.nom;
+function compte(){var f=ME.formule;montrer("compte");$("cEmail").textContent=ME.nom||ME.email;profil();$("cFormule").textContent=f.nom;
   var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" jeux":" jeu")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
     f.id==="pass"?"Illimité jusqu'au "+dfr(f.pass)+". Aucun renouvellement automatique.":
     (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.resiliation?", résilié : il s'arrête le "+dfr(f.resiliation)+".":f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
@@ -642,6 +788,97 @@ $("cSuppr").onclick=function(){$("sErr").textContent="";$("sMdp").value="";$("dS
 $("sGo").onclick=function(){api("POST","/api/compte/supprimer",{motdepasse:$("sMdp").value}).then(function(){location.href="/"}).catch(function(e){$("sErr").textContent=e.message})};
 
 charger();
+
+/* ===== Nettoyage de la photo =====
+   Le serveur détoure (fond retiré). Ici : redressement, remise à l'endroit, lumière, reflets atténués, fond blanc.
+   On ne retouche jamais l'objet lui-même : les défauts restent visibles. L'original reste disponible. */
+function chargerImg(src){return new Promise(function(ok,ko){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ko(new Error("Photo illisible."))};i.src=src})}
+function sourceImg(){return IMG?Promise.resolve(IMG):PHOTO?chargerImg(PHOTO):Promise.reject(new Error("Ajoute d'abord une photo."))}
+function angleMasque(c){var w=c.width,h=c.height,k=Math.min(1,220/Math.max(w,h)),cw=Math.max(1,Math.round(w*k)),ch=Math.max(1,Math.round(h*k)),t=document.createElement("canvas");t.width=cw;t.height=ch;
+  var g=t.getContext("2d");g.drawImage(c,0,0,cw,ch);var d=g.getImageData(0,0,cw,ch).data,n=0,sx=0,sy=0,xx=0,yy=0,xy=0;
+  for(var y=0;y<ch;y++)for(var x=0;x<cw;x++)if(d[(y*cw+x)*4+3]>128){n++;sx+=x;sy+=y;xx+=x*x;yy+=y*y;xy+=x*y}
+  if(n<50)return 0;var mx=sx/n,my=sy/n,a=xx/n-mx*mx,b=yy/n-my*my,cxy=xy/n-mx*my,ang=.5*Math.atan2(2*cxy,a-b)*180/Math.PI,dv=((ang+45)%90+90)%90-45;return Math.abs(dv)>15?0:dv}
+function composer(cut,rot){
+  // 1) rotation (quart de tour demandé + redressement fin)
+  var fin=angleMasque(cut),r=(rot-fin)*Math.PI/180,cs=Math.abs(Math.cos(r)),sn=Math.abs(Math.sin(r)),W=Math.ceil(cut.width*cs+cut.height*sn),H=Math.ceil(cut.width*sn+cut.height*cs);
+  var c=document.createElement("canvas");c.width=W;c.height=H;var g=c.getContext("2d");g.translate(W/2,H/2);g.rotate(r);g.drawImage(cut,-cut.width/2,-cut.height/2);
+  // 2) cadrage serré sur l'objet
+  var im=g.getImageData(0,0,W,H),d=im.data,x0=W,y0=H,x1=0,y1=0;
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++)if(d[(y*W+x)*4+3]>40){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<=x0||y1<=y0)throw new Error("Je ne trouve pas le jeu sur la photo.");
+  // 3) niveaux doux (1 % - 99,3 %) et reflets atténués, sur l'objet seulement
+  var hist=[new Uint32Array(256),new Uint32Array(256),new Uint32Array(256)],n=0,i,j;
+  for(i=0;i<d.length;i+=4)if(d[i+3]>150){hist[0][d[i]]++;hist[1][d[i+1]]++;hist[2][d[i+2]]++;n++}
+  var lo=[0,0,0],hi=[255,255,255];
+  for(j=0;j<3;j++){var a=0;for(i=0;i<256;i++){a+=hist[j][i];if(a>n*.01){lo[j]=i;break}}a=0;for(i=255;i>=0;i--){a+=hist[j][i];if(a>n*.007){hi[j]=i;break}}}
+  for(i=0;i<d.length;i+=4){if(!d[i+3])continue;var v=[0,0,0];for(j=0;j<3;j++){var l=(d[i+j]-lo[j])/Math.max(1,hi[j]-lo[j])*255;v[j]=d[i+j]*.45+l*.55}
+    var L=(v[0]+v[1]+v[2])/3,sat=Math.max(v[0],v[1],v[2])-Math.min(v[0],v[1],v[2]),kk=Math.min(1,Math.max(0,(L-205)/50))*Math.min(1,Math.max(0,1-sat/60));
+    for(j=0;j<3;j++)d[i+j]=Math.max(0,Math.min(255,v[j]-kk*(L-205)*.55))}
+  // ombres portées sur le jeu : on égalise doucement l'éclairage (grille de luminosité moyenne, gain plafonné)
+  var G=16,gw=(x1-x0+1)/G,gh=(y1-y0+1)/G,sum=new Float64Array(G*G),cnt=new Float64Array(G*G),all=[];
+  for(y=y0;y<=y1;y+=2)for(x=x0;x<=x1;x+=2){i=(y*W+x)*4;if(d[i+3]<150)continue;var lu=.299*d[i]+.587*d[i+1]+.114*d[i+2],c2=Math.min(G-1,((y-y0)/gh)|0)*G+Math.min(G-1,((x-x0)/gw)|0);sum[c2]+=lu;cnt[c2]++;all.push(lu)}
+  if(all.length>200){all.sort(function(a,b){return a-b});var med=all[(all.length*.6)|0],gain=new Float64Array(G*G);
+    for(j=0;j<G*G;j++){var m=cnt[j]>8?sum[j]/cnt[j]:med;gain[j]=Math.max(1,Math.min(1.35,Math.pow(med/Math.max(m,1),.55)))}
+    for(y=y0;y<=y1;y++){var fy=Math.max(0,Math.min(G-1.001,(y-y0)/gh-.5)),gy=fy|0,ty=fy-gy;
+      for(x=x0;x<=x1;x++){i=(y*W+x)*4;if(!d[i+3])continue;var fx=Math.max(0,Math.min(G-1.001,(x-x0)/gw-.5)),gx=fx|0,tx=fx-gx,
+        k2=(gain[gy*G+gx]*(1-tx)+gain[gy*G+gx+1]*tx)*(1-ty)+(gain[(gy+1)*G+gx]*(1-tx)+gain[(gy+1)*G+gx+1]*tx)*ty;
+        if(k2>1.005)for(j=0;j<3;j++)d[i+j]=Math.min(255,d[i+j]*k2)}}}
+  g.setTransform(1,0,0,1,0,0);g.putImageData(im,0,0);
+  // 4) fond blanc carré, ombre douce, au format des vignettes
+  var S=1000,ow=x1-x0+1,oh=y1-y0+1,k=S*.8/Math.max(ow,oh),dw=ow*k,dh=oh*k,dx=(S-dw)/2,dy=(S-dh)/2-S*.015,o=document.createElement("canvas");o.width=o.height=S;var q=o.getContext("2d");
+  q.fillStyle="#fff";q.fillRect(0,0,S,S);q.imageSmoothingQuality="high";
+  q.save();q.filter="blur(26px) brightness(0)";q.globalAlpha=.28;q.drawImage(c,x0,y0,ow,oh,dx,dy+S*.03,dw,dh);q.restore();
+  q.drawImage(c,x0,y0,ow,oh,dx,dy,dw,dh);
+  var qq=.88,out=o.toDataURL("image/jpeg",qq);while(out.length>650000&&qq>.5){qq-=.08;out=o.toDataURL("image/jpeg",qq)}return out}
+function nettoyerPhoto(auto){var b=$("fNet"),t=b.innerHTML;
+  return sourceImg().then(function(img){if(!ORIG)ORIG=PHOTO;busy(b,true);attente("Je nettoie la photo…");
+      return api("POST","/api/ia/nettoyer",{photo:versData(img,null,1000)})})
+    .then(function(j){return chargerImg(j.photo)})
+    .then(function(cut){setPhoto(composer(cut,ROT));PHOTO_CHANGEE=true;$("fOrig").hidden=false;$("fOrig").textContent="Voir l'original";LBC_FAIT.photo=false;majLbc();
+      $("fPhoto").classList.remove("flash");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo nettoyée. L'original est gardé.","ok")})
+    .catch(function(e){if(!auto)erreur(e,"Nettoyage impossible.");else console.warn(e)})
+    .then(function(){attente(null);b.classList.remove("busy");b.disabled=false;b.innerHTML=t})}
+$("fNet").onclick=function(){nettoyerPhoto(false)};
+$("fOrig").onclick=function(){if(!ORIG)return;var net=PHOTO;setPhoto(ORIG);ORIG=net;PHOTO_CHANGEE=true;
+  $("fOrig").textContent=$("fOrig").textContent==="Voir l'original"?"Revenir à la photo nettoyée":"Voir l'original"};
+$("fRot")&&($("fRot").onclick=function(){});
+
+/* ===== Icône « copier » dans les champs de texte de la fiche ===== */
+["f_titre","f_titreAnnonce","f_texteAnnonce","f_prixDemande","f_plateforme","f_region","f_notes"].forEach(function(id){var el=$(id),lab=el.closest("label");if(!lab)return;
+  var w=document.createElement("span");w.className="copiable";el.parentNode.insertBefore(w,el);w.appendChild(el);
+  var b=document.createElement("button");b.type="button";b.className="copie-bt";b.setAttribute("aria-label","Copier "+lab.firstChild.textContent.trim());b.title="Copier";
+  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg><span>Copié !</span>';
+  w.appendChild(b);b.addEventListener("click",function(e){e.preventDefault();if(!el.value){toast("Ce champ est vide.","bad");return}
+    copier(el.value).then(function(){b.classList.remove("ok");void b.offsetWidth;b.classList.add("ok");setTimeout(function(){b.classList.remove("ok")},1600)})})});
+
+/* ===== Profil ===== */
+function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
+function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
+function profil(){$("pPseudo").value=ME.pseudo||"";$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
+  $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
+  $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
+function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
+$("pPseudoGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{pseudo:$("pPseudo").value}).then(function(m){majMoi(m);toast("Pseudo enregistré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le pseudo")})};
+$("pAvatarIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;ouvrirImage(f).then(function(img){var S=256,c=document.createElement("canvas");c.width=c.height=S;var g=c.getContext("2d"),w=img.naturalWidth,h=img.naturalHeight,m=Math.min(w,h);
+    g.imageSmoothingQuality="high";g.drawImage(img,(w-m)/2,(h-m)/2,m,m,0,0,S,S);return api("POST","/api/compte/profil",{avatar:c.toDataURL("image/jpeg",.85)})})
+  .then(function(m){majMoi(m);toast("Photo de profil mise à jour.","ok")}).catch(function(e){erreur(e,"Photo impossible.")})};
+$("pAvatarSuppr").onclick=function(){api("POST","/api/compte/profil",{avatar:""}).then(function(m){majMoi(m);toast("Photo retirée.","ok")}).catch(function(e){erreur(e,"Impossible.")})};
+$("pEmailGo").onclick=function(){var e=$("pEmail").value.trim();if(!e||e.toLowerCase()===ME.email.toLowerCase()){toast("Indique ta nouvelle adresse dans le champ.","bad");$("pEmail").focus();return}
+  $("eTx").textContent="Nouvelle adresse : "+e+". On t'enverra un lien de confirmation.";$("eMdp").value="";$("eErr").textContent="";$("dEmail").showModal()};
+$("eGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/email",{email:$("pEmail").value.trim(),motdepasse:$("eMdp").value})
+  .then(function(j){$("dEmail").close();if(j.applique){majMoi(j.moi);toast("Adresse e-mail changée.","ok")}else{ME.emailEnAttente=$("pEmail").value.trim();profil();toast("Lien de confirmation envoyé à ta nouvelle adresse.","ok")}})
+  .catch(function(e){$("eErr").textContent=e.message||"Erreur."}).then(function(){busy(b,false,"Confirmer")})};
+$("cMdp2").onclick=function(){$("cMdp").click()};
+$("pAnim").onchange=function(){var on=this.checked;document.documentElement.classList.toggle("sans-anim",!on);try{on?localStorage.removeItem("rr-anim"):localStorage.setItem("rr-anim","off")}catch(e){}toast(on?"Animations activées.":"Animations désactivées.","ok")};
+$("pSombre").onchange=function(){var bt=document.querySelector(".theme-bt");if(bt&&(document.documentElement.getAttribute("data-theme")==="dark")!==this.checked)bt.click()};
+(function(){var q=new URLSearchParams(location.search),j=q.get("email");if(!j)return;history.replaceState(null,"","/app/");
+  api("POST","/api/compte/email/confirmer",{jeton:j}).then(function(m){ME&&majMoi(m);toast("Nouvelle adresse confirmée.","ok")}).catch(function(e){toast(e.message||"Lien expiré.","bad")})})();
+
+/* ===== Animations : compteurs ===== */
+function compter(el,fin,fmt){var calme=document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(calme){el.textContent=fmt(fin);return}var t0=performance.now(),d0=+(el.dataset.v||0);el.dataset.v=fin;
+  (function pas(t){var p=Math.min(1,(t-t0)/900),e=1-Math.pow(1-p,3);el.textContent=fmt(d0+(fin-d0)*e);if(p<1)requestAnimationFrame(pas)})(t0)}
+
 })();
 </script>
 </body>

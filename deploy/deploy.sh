@@ -43,5 +43,22 @@ if [ -z "$ok" ]; then
   exit 1
 fi
 echo "✔ retrorevente en ligne : $REL"
+
+# Détourage des photos : petit service Python local (rembg). Non bloquant : le site marche sans.
+(
+  set +e
+  PY=/opt/retrorevente-py
+  if ! "$PY/bin/python" -c "import rembg, scipy, onnxruntime" >/dev/null 2>&1; then
+    echo "… installation du détourage des photos (une seule fois, quelques minutes)"
+    python3 -m venv "$PY" >/dev/null 2>&1 || { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv >/dev/null && python3 -m venv "$PY"; }
+    "$PY/bin/pip" install -q --disable-pip-version-check "rembg[cpu]" scipy >/tmp/rr-pip.log 2>&1 || { tail -20 /tmp/rr-pip.log; exit 1; }
+  fi
+  mkdir -p /var/lib/retrorevente-modeles && chown titelive:titelive /var/lib/retrorevente-modeles
+  install -m 644 "$SRC/deploy/retrorevente-detourage.service" /etc/systemd/system/retrorevente-detourage.service
+  systemctl daemon-reload && systemctl enable retrorevente-detourage >/dev/null 2>&1
+  systemctl restart retrorevente-detourage
+  for _ in $(seq 1 120); do sleep 2; curl -fsS http://127.0.0.1:7001/sante >/dev/null 2>&1 && { echo "✔ détourage des photos prêt"; exit 0; }; done
+  echo "⚠ le détourage démarre encore (premier téléchargement du modèle)"; journalctl -u retrorevente-detourage -n 15 --no-pager
+) || echo "⚠ détourage des photos non installé (le reste du site fonctionne)"
 # On garde les 5 dernières versions.
 ls -1dt "$BASE"/releases/* | tail -n +6 | xargs -r rm -rf

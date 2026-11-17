@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { db, now, month, bump, usageOf, usageTotal, allow, photoPath, tx } from "./db.mjs";
+import { detourer } from "./photo.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
 import { rights, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
@@ -89,7 +90,7 @@ function bilan(uid) {
 function me(u) {
   const r = rights(u);
   return {
-    email: u.email, cree: u.created,
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(),
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -236,6 +237,49 @@ export async function handleApi(req) {
     if (String(b.nouveau || "").length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     db.prepare("UPDATE users SET pass = ? WHERE id = ?").run(hashPass(String(b.nouveau)), u.id);
     return ok({ ok: true });
+  }
+  if (p === "/api/compte/profil" && method === "POST") {
+    const b = body(), maj = {};
+    if (b.pseudo !== undefined) {
+      const ps = txt(b.pseudo, 40).replace(/\s+/g, " ");
+      if (ps && !/^[\p{L}\p{N} ._'-]{2,40}$/u.test(ps)) fail(400, "Pseudo : 2 à 40 caractères, lettres, chiffres, espaces, points, tirets.");
+      maj.pseudo = ps;
+    }
+    if (b.avatar !== undefined) {
+      const a = String(b.avatar || "");
+      if (a && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a) || a.length > 120000)) fail(400, "Image de profil invalide ou trop lourde.");
+      maj.avatar = a;
+    }
+    for (const [k, v] of Object.entries(maj)) db.prepare(`UPDATE users SET ${k} = ? WHERE id = ?`).run(v, u.id);
+    return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
+  }
+  if (p === "/api/compte/email" && method === "POST") {
+    const b = body(), email = txt(b.email, 254).toLowerCase();
+    if (!checkPass(String(b.motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");
+    if (!validEmail(email)) fail(400, "Adresse e-mail invalide.");
+    if (email === u.email.toLowerCase()) fail(400, "C'est déjà ton adresse.");
+    if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte utilise déjà cette adresse.");
+    if (!allow("mail:" + u.id, 5, 3600)) fail(429, "Trop de demandes, réessaie plus tard.");
+    const t = crypto.randomBytes(24).toString("base64url"), h = crypto.createHash("sha256").update(t).digest("hex");
+    db.prepare("UPDATE users SET email_new = ?, email_token = ?, email_until = ? WHERE id = ?").run(email, h, new Date(Date.now() + 24 * 3600e3).toISOString(), u.id);
+    const envoye = await sendMail(email, "Confirme ta nouvelle adresse RetroRevente", `Bonjour,\n\nPour utiliser cette adresse sur RetroRevente, ouvre ce lien (valable 24 heures) :\n${SITE()}/app/?email=${t}\n\nSi tu n'as rien demandé, ignore ce message.\n\nRetroRevente`);
+    if (!envoye) {
+      // Pas d'envoi d'e-mails configuré : on applique directement (le mot de passe a été vérifié).
+      db.prepare("UPDATE users SET email = ?, email_new = '', email_token = '', email_until = '' WHERE id = ?").run(email, u.id);
+      return ok({ ok: true, applique: true, moi: me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)) });
+    }
+    sendMail(u.email, "Changement d'adresse demandé", `Bonjour,\n\nUn changement d'adresse vers ${email} a été demandé sur ton compte RetroRevente. Si ce n'est pas toi, change ton mot de passe.\n\nRetroRevente`).catch(() => {});
+    return ok({ ok: true, applique: false });
+  }
+  if (p === "/api/compte/email/confirmer" && method === "POST") {
+    const h = crypto.createHash("sha256").update(txt(body().jeton, 100)).digest("hex");
+    if (!u.email_token || u.email_token !== h || u.email_until < now()) fail(400, "Ce lien a expiré. Refais la demande depuis ton compte.");
+    if (db.prepare("SELECT 1 FROM users WHERE email = ? AND id != ?").get(u.email_new, u.id)) fail(409, "Un compte utilise déjà cette adresse.");
+    db.prepare("UPDATE users SET email = email_new, email_new = '', email_token = '', email_until = '' WHERE id = ?").run(u.id);
+    return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
+  }
+  if (p === "/api/ia/nettoyer" && method === "POST") {
+    iaAllowed(u); const png = await detourer(body().photo); bump(u.id, "nettoyer"); return ok({ ok: true, photo: png });
   }
   if (p === "/api/compte/supprimer" && method === "POST") {
     if (!checkPass(String(body().motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");

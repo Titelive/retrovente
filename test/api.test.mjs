@@ -187,6 +187,25 @@ test("résilier votre contrat, puis renoncer au contrat (rétractation)", async 
   assert.deepEqual(traces, ["resiliation", "retractation"]);
 });
 
+test("profil : pseudo, avatar, changement d'e-mail", async () => {
+  const c = await compte("profil@exemple.fr");
+  let r = await call("POST", "/api/compte/profil", { pseudo: "Titelive" }, c);
+  assert.equal(r.status, 200); assert.equal(r.json.pseudo, "Titelive"); assert.equal(r.json.nom, "Titelive");
+  assert.equal((await call("POST", "/api/compte/profil", { pseudo: "<script>" }, c)).status, 400);
+  assert.equal((await call("POST", "/api/compte/profil", { avatar: "javascript:alert(1)" }, c)).status, 400);
+  r = await call("POST", "/api/compte/profil", { avatar: PHOTO }, c);
+  assert.equal(r.status, 200); assert.equal(r.json.avatar, PHOTO);
+  assert.equal((await call("POST", "/api/compte/email", { email: "nouveau@exemple.fr", motdepasse: "faux" }, c)).status, 400);
+  await compte("pris@exemple.fr");
+  assert.equal((await call("POST", "/api/compte/email", { email: "pris@exemple.fr", motdepasse: "motdepasse123" }, c)).status, 409);
+  r = await call("POST", "/api/compte/email", { email: "nouveau@exemple.fr", motdepasse: "motdepasse123" }, c);
+  assert.equal(r.status, 200); assert.equal(r.json.applique, true);   // pas d'envoi d'e-mails configuré en test : appliqué directement
+  assert.equal((await call("GET", "/api/moi", null, c)).json.email, "nouveau@exemple.fr");
+  const cx = await call("POST", "/api/connexion", { email: "nouveau@exemple.fr", motdepasse: "motdepasse123" });
+  assert.equal(cx.status, 200);
+  assert.match(String(cx.headers["Set-Cookie"]), /rr_co=1/);
+});
+
 test("extension navigateur : clé, annonces en vente, photo, isolation, révocation", async () => {
   const c = await compte("ext@exemple.fr"), d = await compte("ext2@exemple.fr");
   assert.equal((await call("POST", "/api/extension/cle")).status, 401);                                   // il faut une session

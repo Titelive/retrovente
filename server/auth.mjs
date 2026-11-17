@@ -23,7 +23,9 @@ export function createSession(userId) {
   return token;
 }
 export function sessionCookie(token, secure = true) {
-  return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${token ? DUREE / 1000 : 0}${secure ? "; Secure" : ""}`;
+  const age = token ? DUREE / 1000 : 0, sec = secure ? "; Secure" : "";
+  // rr_co (lisible par la page, sans secret) : dit au menu du site qu'il peut afficher le pseudo.
+  return [`${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${sec}`, `rr_co=${token ? 1 : ""}; Path=/; SameSite=Lax; Max-Age=${age}${sec}`];
 }
 const tokenOf = (req) => { const m = new RegExp("(?:^|;\\s*)" + COOKIE + "=([A-Za-z0-9_-]+)").exec(req.headers.cookie || ""); return m ? m[1] : ""; };
 export function currentUser(req) {

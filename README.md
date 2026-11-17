@@ -70,3 +70,9 @@ Ce que fait le code pour le droit de la consommation :
 - bouton « Renoncer au contrat ici » pendant le délai de rétractation, puis « Confirmer la rétractation » (art. L221-21 et D221-5, depuis le 19 juin 2026). Le remboursement se fait à la main dans Stripe : un e-mail te donne le montant ;
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
+
+## Nettoyage des photos (détourage)
+
+Le fond des photos est retiré par un petit service Python installé sur le serveur (`tools/detourage.py`, modèle libre rembg / IS-Net), sans service payant : **aucun coût par photo**. `deploy/deploy.sh` l'installe tout seul la première fois (dans `/opt/retrorevente-py`, service `retrorevente-detourage`, port 7001 en local, 2,5 Go de mémoire au plus). Le reste du nettoyage (remise à l'endroit, redressement, lumière, reflets, ombres, fond blanc) est fait dans la page. La photo d'origine reste disponible dans la fiche.
+
+Vérifier : `systemctl status retrorevente-detourage` et `curl -s http://127.0.0.1:7001/sante`.

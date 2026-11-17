@@ -194,3 +194,50 @@ html.menu-ouvert{overflow:hidden}
 @keyframes zap-veille{0%,90%,100%{opacity:1;filter:none}92%{opacity:.25}93%{opacity:1;filter:drop-shadow(0 0 6px #D4F57A) brightness(1.5)}95%{opacity:.4}96.5%{opacity:1;filter:drop-shadow(0 0 4px #D4F57A)}}
 @media (prefers-reduced-motion:reduce){.js .logo-svg .eclair,.logo:hover .logo-svg .eclair{animation:none}.logo:hover .logo-svg .manette{transform:none}}
 .theme-bt{margin-left:4px}
+
+/* ---------- fil d'Ariane ---------- */
+.fil-barre{background:var(--carte);box-shadow:0 1px 0 var(--trait)}
+.fil-barre .wrap{padding:12px 0}
+ol.fil{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px;color:var(--gris)}
+ol.fil li{display:inline-flex;align-items:center;gap:8px;min-width:0}
+ol.fil li+li::before{content:"";width:6px;height:6px;border-right:1.6px solid var(--gris-c);border-top:1.6px solid var(--gris-c);transform:rotate(45deg);margin-right:2px}
+ol.fil a{color:var(--gris);text-decoration:none;transition:color .2s}
+ol.fil a:hover{color:var(--encre)}
+ol.fil [aria-current]{color:var(--encre);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46vw}
+
+/* ---------- pied de page : badge Titelive ---------- */
+.pied-site .pied-bas{grid-column:1/-1;display:flex;justify-content:center;padding-top:26px;margin-top:6px;border-top:1px solid rgba(255,255,255,.08)}
+.tlc{display:inline-flex;align-items:center;gap:10px;padding:9px 18px 9px 20px;border-radius:999px;text-decoration:none;color:#A6A69E!important;font-size:15px;border:1.5px solid rgba(255,255,255,.18);transition:transform .35s var(--ease),border-color .3s,box-shadow .3s,color .3s}
+.tlc img{width:26px!important;height:26px!important;margin:0!important;border-radius:50%;background:var(--anis);padding:2px;transition:transform .6s cubic-bezier(.3,1.7,.5,1)}
+.tlc b{color:#fff;font-weight:700}
+.tlc i{font-style:normal;font-size:9px;color:var(--anis);max-width:0;overflow:hidden;opacity:0;transition:max-width .35s,opacity .25s}
+.tlc:hover{transform:translateY(-3px) rotate(-2deg);border-color:var(--anis);color:#fff!important;box-shadow:0 0 0 4px rgba(212,245,122,.15),0 10px 30px -8px rgba(212,245,122,.55)}
+.tlc:hover img{transform:rotate(360deg) scale(1.15)}
+.tlc:hover i{max-width:4em;opacity:1}
+
+/* ---------- compte dans le menu ---------- */
+.nav-liens a.nav-moi{gap:9px}
+.av-mini{width:24px;height:24px;flex:none;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:inline-grid;place-items:center;font:700 12px/1 var(--texte);overflow:hidden}
+
+/* ---------- sans animations (réglage du compte) ---------- */
+html.sans-anim *,html.sans-anim *::before,html.sans-anim *::after{animation:none!important;transition:none!important}
+html.sans-anim .js .rv,html.sans-anim.js .rv,html.sans-anim.js .mots .m{opacity:1!important;transform:none!important;filter:none!important}
+html.sans-anim.js .surligne{background-size:100% 100%!important;color:var(--nuit)!important}
+html.sans-anim .lecture{display:none}
+
+/* ---------- listes déroulantes ---------- */
+.choix{position:relative}
+.choix-natif{display:none!important}
+.choix-bt{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;cursor:pointer;text-align:left;box-shadow:inset 0 0 0 1px var(--trait);background:var(--papier);border-radius:14px;padding:13px 14px;font:500 16px var(--texte);color:var(--encre);transition:box-shadow .2s,background-color .2s}
+.choix-bt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.choix-bt svg{width:18px;height:18px;flex:none;color:var(--gris);transition:transform .3s var(--ease)}
+.choix-bt:hover{box-shadow:inset 0 0 0 1.5px var(--gris-c)}
+.choix-bt:focus-visible,.choix.ouvert .choix-bt{outline:0;box-shadow:inset 0 0 0 2px var(--encre),0 0 0 4px rgba(212,245,122,.6);background:var(--carte)}
+.choix.ouvert .choix-bt svg{transform:rotate(180deg)}
+.choix-liste{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;list-style:none;margin:0;padding:6px;max-height:280px;overflow:auto;border-radius:16px;background:var(--carte);box-shadow:0 0 0 1px var(--trait),0 24px 50px -18px rgba(0,0,0,.45);opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);transform-origin:top;transition:opacity .2s,transform .25s var(--ease),visibility .25s}
+.choix.haut .choix-liste{top:auto;bottom:calc(100% + 6px);transform-origin:bottom;transform:translateY(6px) scale(.98)}
+.choix.ouvert .choix-liste{opacity:1;visibility:visible;transform:none}
+.choix-liste li{padding:11px 12px 11px 36px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:500;position:relative;outline:0;transition:background-color .15s}
+.choix-liste li:hover,.choix-liste li:focus{background:var(--papier)}
+.choix-liste li[aria-selected="true"]{font-weight:700}
+.choix-liste li[aria-selected="true"]::before{content:"";position:absolute;left:12px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--anis) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.3l2.2 2.2 4.8-5' fill='none' stroke='%231A1A1A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat}
