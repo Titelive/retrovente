@@ -89,7 +89,7 @@ article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
 .ed .loi{font-size:16px;color:var(--gris);border-left:3px solid var(--trait);padding-left:16px;margin:14px 0}
 .ed .sommaire{columns:2;column-gap:28px;font-size:16px}
 .ed .sommaire li{font-size:16px;margin:4px 0;break-inside:avoid}
-@media(max-width:600px){.ed .sommaire{columns:1}.ed table{font-size:14px}.ed th,.ed td{padding:10px}}
+@media(max-width:600px){.ed .sommaire{columns:1}.ed table{font-size:14px}.ed th,.ed td{padding:10px;overflow-wrap:anywhere;hyphens:auto}}
 
 /* ---------- thème clair / sombre ---------- */
 :root{--anis-t:#4A6410}
@@ -241,3 +241,6 @@ html.sans-anim .lecture{display:none}
 .choix-liste li:hover,.choix-liste li:focus{background:var(--papier)}
 .choix-liste li[aria-selected="true"]{font-weight:700}
 .choix-liste li[aria-selected="true"]::before{content:"";position:absolute;left:12px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--anis) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.3l2.2 2.2 4.8-5' fill='none' stroke='%231A1A1A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat}
+
+/* petits écrans : un bouton long passe à la ligne au lieu de déborder */
+@media(max-width:420px){.ed .btn,.ed .cta .btn{white-space:normal;text-align:center;line-height:1.25;max-width:100%}}

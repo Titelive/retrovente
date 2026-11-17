@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=3">
+<link rel="stylesheet" href="/css/rr.css?v=4">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=3" defer></script>
 <style>
@@ -253,6 +253,11 @@ body.fiche-ouverte #toast{bottom:100px}
 .interrupteur input:checked+.piste::after{transform:translateX(20px)}
 .interrupteur input:focus-visible+.piste{outline:3px solid var(--anis);outline-offset:3px}
 .interrupteur b{display:block;font-size:16px}.interrupteur small{display:block;font-size:13.5px;color:var(--gris);margin-top:2px}
+/* lisibilité : états actifs visibles en sombre, rien ne déborde sur mobile */
+:root[data-theme="dark"] .filtres button[aria-pressed="true"],:root[data-theme="dark"] .onglets button[aria-selected="true"],:root[data-theme="dark"] .bascule button[aria-pressed="true"]{background:var(--anis);color:var(--nuit)}
+:root[data-theme="dark"] .offre.actuelle,:root[data-theme="dark"] #fiche .faq details[open]{box-shadow:0 0 0 2px var(--anis)}
+.tete>div{min-width:0;max-width:100%}.tete h1{overflow-wrap:anywhere}
+@media(max-width:560px){.filtres{align-self:stretch;flex-wrap:wrap;justify-content:center;border-radius:20px}.filtres button{padding:9px 12px}}
 </style>
 
 </head>
