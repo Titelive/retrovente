@@ -26,9 +26,21 @@
     if (place) place.parentNode.insertBefore(tb, place);
     else { var hd = d.querySelector(".ed-menu .wrap, .barre .wrap"); if (hd) { var dern = hd.querySelector(":scope > .btn"); dern ? hd.insertBefore(tb, dern) : hd.appendChild(tb); } }
 
+    /* menu : burger, fond au défilement, page courante */
+    var nav = d.getElementById("nav");
+    if (nav) {
+      var bg = nav.querySelector(".burger");
+      function ferme() { nav.classList.remove("ouvert"); html.classList.remove("menu-ouvert"); bg && bg.setAttribute("aria-expanded", "false"); bg && bg.setAttribute("aria-label", "Ouvrir le menu"); }
+      bg && bg.addEventListener("click", function () { var o = !nav.classList.contains("ouvert"); nav.classList.toggle("ouvert", o); html.classList.toggle("menu-ouvert", o); bg.setAttribute("aria-expanded", String(o)); bg.setAttribute("aria-label", o ? "Fermer le menu" : "Ouvrir le menu"); });
+      nav.querySelectorAll(".nav-liens a").forEach(function (a) { a.addEventListener("click", ferme); var h = a.getAttribute("href"); if (h && h.charAt(0) === "/" && h.indexOf("#") < 0 && h.length > 1 && location.pathname.indexOf(h) === 0) a.setAttribute("aria-current", "page"); });
+      d.addEventListener("keydown", function (e) { if (e.key === "Escape") ferme(); });
+      addEventListener("resize", function () { if (innerWidth > 1020) ferme(); });
+      if (nav.classList.contains("flottant")) { var colle = function () { nav.classList.toggle("colle", scrollY > 20); }; colle(); addEventListener("scroll", colle, { passive: true }); }
+    }
+
     /* barre de lecture + retour en haut */
     var barre = d.createElement("div"); barre.className = "lecture"; barre.setAttribute("aria-hidden", "true"); b.appendChild(barre);
-    var haut = d.createElement("button"); haut.type = "button"; haut.className = "haut"; haut.setAttribute("aria-label", "Revenir en haut de la page");
+    var haut = d.createElement("button"); haut.type = "button"; haut.className = "vers-haut"; haut.setAttribute("aria-label", "Revenir en haut de la page");
     haut.innerHTML = '<svg class="anneau" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="25" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><svg class="fleche" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>';
     b.appendChild(haut);
     var anneau = haut.querySelector("circle");
