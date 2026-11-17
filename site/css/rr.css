@@ -90,3 +90,58 @@ article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
 .ed .sommaire{columns:2;column-gap:28px;font-size:16px}
 .ed .sommaire li{font-size:16px;margin:4px 0;break-inside:avoid}
 @media(max-width:600px){.ed .sommaire{columns:1}.ed table{font-size:14px}.ed th,.ed td{padding:10px}}
+
+/* ---------- thème clair / sombre ---------- */
+:root{--anis-t:#4A6410}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--anis-t:var(--anis)}}
+:root[data-theme="dark"]{--anis-t:var(--anis)}
+html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::after{transition:background-color .45s var(--ease),color .45s var(--ease),border-color .45s,box-shadow .45s!important}
+.theme-bt{flex:none;position:relative;width:42px;height:42px;border:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);transition:background-color .25s,transform .4s var(--ease)}
+.theme-bt:hover{background:rgba(255,255,255,.16)}
+.theme-bt:active{transform:scale(.9)}
+.theme-bt svg{position:absolute;width:20px;height:20px;transition:transform .55s var(--ease),opacity .35s}
+.theme-bt .lune{opacity:0;transform:rotate(-90deg) scale(.4)}
+:root[data-theme="dark"] .theme-bt .soleil{opacity:0;transform:rotate(90deg) scale(.4)}
+:root[data-theme="dark"] .theme-bt .lune{opacity:1;transform:none}
+.logo-sombre{display:none!important}
+:root[data-theme="dark"] .logo-clair{display:none!important}
+:root[data-theme="dark"] .logo-sombre{display:block!important}
+
+/* ---------- barre de lecture ---------- */
+.lecture{position:fixed;left:0;top:0;z-index:100;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--anis-f),var(--anis));box-shadow:0 0 12px rgba(212,245,122,.7);pointer-events:none;will-change:transform}
+
+/* ---------- retour en haut ---------- */
+.haut{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:55;width:54px;height:54px;border:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;background:var(--nuit);color:var(--anis);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 18px 36px -14px rgba(0,0,0,.6);opacity:0;visibility:hidden;transform:translateY(20px) scale(.8);transition:opacity .35s var(--ease),transform .45s var(--ease),visibility .35s}
+.haut.on{opacity:1;visibility:visible;transform:none}
+.haut:hover{transform:translateY(-4px)}
+.haut svg.anneau{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.haut svg.anneau circle{fill:none;stroke:var(--anis);stroke-width:2.5;stroke-linecap:round}
+.haut svg.fleche{width:20px;height:20px;transition:transform .3s var(--ease)}
+.haut:hover svg.fleche{transform:translateY(-3px)}
+body.fiche-ouverte .haut{bottom:96px}
+
+/* ---------- apparitions au défilement (contenu visible sans JS) ---------- */
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .85s var(--ease),transform .85s var(--ease),filter .85s var(--ease)}
+.js .rv.gauche{transform:translateX(-36px)}
+.js .rv.droite{transform:translateX(36px)}
+.js .rv.zoom{transform:scale(.92)}
+.js .rv.flou{filter:blur(10px)}
+.js .rv.vu{opacity:1;transform:none;filter:none}
+.js .mots .m{display:inline-block;opacity:0;transform:translateY(.45em) rotate(4deg);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.js .mots.vu .m{opacity:1;transform:none}
+.surligne{background:var(--anis) no-repeat;color:var(--nuit)}
+.js .surligne{background:linear-gradient(var(--anis),var(--anis)) 0 0/0% 100% no-repeat;color:inherit;transition:background-size .9s .35s var(--ease),color .4s .6s}
+.js .vu .surligne,.js .vu.surligne{background-size:100% 100%;color:var(--nuit)}
+
+/* micro-interactions */
+.lueur{--mx:50%;--my:50%}
+.lueur::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(380px circle at var(--mx) var(--my),rgba(212,245,122,.22),transparent 45%)}
+.lueur:hover::after{opacity:1}
+.incline{transform-style:preserve-3d;will-change:transform}
+.btn{overflow:hidden;isolation:isolate}
+.btn .onde{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.28;transform:scale(0);animation:onde .6s var(--ease) forwards;z-index:-1}
+@keyframes onde{to{transform:scale(1);opacity:0}}
+.ed a:not(.btn){text-decoration:none;background:linear-gradient(var(--anis),var(--anis)) 0 100%/100% 2px no-repeat;transition:background-size .3s var(--ease)}
+.ed a:not(.btn):hover{background-size:100% 100%}
+.ed .fil a{background:none}
+@media (prefers-reduced-motion:reduce){.js .rv,.js .mots .m{opacity:1!important;transform:none!important;filter:none!important}.js .surligne{background-size:100% 100%;color:var(--nuit)}.lecture,.btn .onde{display:none}}
