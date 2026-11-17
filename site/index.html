@@ -23,7 +23,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=5">
+<link rel="stylesheet" href="/css/rr.css?v=6">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=3" defer></script>
 <script type="application/ld+json">
@@ -174,7 +174,7 @@ h2:has(.surligne){line-height:1.12}
 .seuil .b i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--nuit);transition:width .35s var(--ease),background-color .3s}
 .seuil .b em{position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(26,26,26,.45);border-radius:2px}
 .seuil .b i::after{content:"";position:absolute;right:-11px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--nuit),0 4px 10px rgba(0,0,0,.25)}
-.seuil .b i.chaud{background:#C7561E}.seuil .b i.rouge{background:#B3261E}
+
 .seuil input[type=range]{position:absolute;left:0;right:0;bottom:-8px;height:30px;margin:0;opacity:0;cursor:pointer;z-index:2}
 .seuil .sl:focus-within .b{outline:3px solid var(--nuit);outline-offset:3px}
 .seuil .alerte{display:flex;gap:12px;align-items:center;background:var(--nuit);color:#fff;border-radius:16px;padding:12px 14px;transition:background-color .3s}
@@ -185,7 +185,8 @@ h2:has(.surligne){line-height:1.12}
 .seuil .alerte[data-niv="1"] .cloche svg,.seuil .alerte[data-niv="2"] .cloche svg{animation:sonne 1.2s ease-in-out infinite}
 @keyframes sonne{0%,60%,100%{transform:none}10%{transform:rotate(18deg)}20%{transform:rotate(-16deg)}30%{transform:rotate(12deg)}40%{transform:rotate(-8deg)}50%{transform:rotate(4deg)}}
 html.sans-anim .seuil .cloche svg{animation:none}
-.t5{display:flex;flex-direction:column;gap:14px}
+.t5{display:flex;flex-direction:column;gap:14px;transition:background-color .45s ease}
+.tuile.anis.t5>p,.t5 .seuil .sl{color:#25251F}
 .jauge{display:flex;flex-direction:column;gap:8px;font-size:14px;color:#3E4A1C}
 .jauge .b{height:14px;border-radius:999px;background:rgba(26,26,26,.12);overflow:hidden}
 .jauge .b i{display:block;height:100%;width:73%;border-radius:999px;background:var(--nuit)}
@@ -729,6 +730,10 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       if(niv===2)t="<b>Seuil atteint.</b> La plateforme transmet tes ventes aux impôts : on t'aide à t'y retrouver (export de tes ventes).";
       else if(niv===1)t="<b>Alerte RetroRevente :</b> plus que "+Math.max(0,30-v)+" vente"+(30-v>1?"s":"")+" ou "+fmt(Math.max(0,2000-m))+" avant le seuil.";
       else t="<b>Tranquille.</b> Encore "+(30-v)+" ventes ou "+fmt(2000-m)+" de marge. On te prévient à l'approche.";
+      // le fond de la carte passe du vert anis à l'orange puis au rouge à l'approche du seuil
+      var r=Math.max(v/30,m/2000),C=[[.7,[212,245,122]],[.88,[246,178,92]],[1,[240,96,80]]],c=C[0][1];
+      if(r>=1)c=C[2][1];else for(var q=0;q<C.length-1;q++){var a=C[q],z=C[q+1];if(r>a[0]&&r<=z[0]){var t2=(r-a[0])/(z[0]-a[0]);c=a[1].map(function(x,i){return Math.round(x+(z[1][i]-x)*t2)})}}
+      svIn.closest(".tuile").style.backgroundColor="rgb("+c.join(",")+")";
       var al=document.getElementById("sAl");al.dataset.niv=niv;document.getElementById("sTx").innerHTML=t};
     svIn.addEventListener("input",majSeuil);smIn.addEventListener("input",majSeuil);majSeuil()}
 
