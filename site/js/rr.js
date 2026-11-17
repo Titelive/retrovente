@@ -42,11 +42,15 @@
     var lienCx = d.querySelector('.nav-liens a[href="/app/"]');
     if (lienCx) lienCx.classList.add("nav-compte");
     window.rrMoi = function (m) {
-      if (!lienCx || !m) return;
+      if (!m) return;
+      // la formule change l'habillage (badge, touches dorées ou holographiques) : voir « Habillage selon la formule » dans rr.css
+      var fid = (m.formule && m.formule.id) || "gratuit"; d.documentElement.setAttribute("data-formule", fid);
+      if (!lienCx) return;
       var nom = m.nom || "Mon compte", av = d.createElement("span");
       av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
       if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase();
       lienCx.innerHTML = ""; lienCx.appendChild(av); var t = d.createElement("span"); t.textContent = nom; lienCx.appendChild(t);
+      if (fid !== "gratuit") { var bd = d.createElement("span"); bd.className = "badge-formule"; bd.textContent = { vendeur: "Vendeur", collectionneur: "Collectionneur", pass: "Pass" }[fid] || ""; lienCx.appendChild(bd); }
       lienCx.classList.add("nav-moi"); lienCx.href = "/app/?compte"; lienCx.title = "Mon compte";
       var cta = d.querySelectorAll(".nav-cta, .nav-cta-court");
       cta.forEach(function (c) { c.href = "/app/"; var s = c.querySelector("span"); if (s) s.textContent = "Mes jeux"; else c.lastChild.textContent = "Mes jeux"; });
@@ -191,8 +195,20 @@
   });
 
   // lueurs vertes en fond : ajoutées aux grandes sections et au pied de page
-  (function(){var hotes=document.querySelectorAll("main > section, main > .s, .pied-site, .ed-menu, #app-rr main");
+  (function(){// accueil : une couche par grande section (toute la largeur) ; autres pages et appli : une seule couche fixe derrière la page, sans bord visible
+    if(!document.querySelector(".heros")){if(document.querySelector("body > .lueurs"))return;var f=document.createElement("div");f.className="lueurs fixe";f.setAttribute("aria-hidden","true");f.innerHTML="<i></i><i></i><i></i>";
+      if(document.documentElement.getAttribute("data-theme")!=="dark")f.classList.add("clair-f");document.body.insertBefore(f,document.body.firstChild);return}
+    var hotes=document.querySelectorAll("main > section, main > .s, .pied-site");
     hotes.forEach(function(h){if(h.querySelector(":scope > .lueurs"))return;var cs=getComputedStyle(h);if(cs.position==="static")h.style.position="relative";h.classList.add("a-lueurs");
       var m=(cs.backgroundColor||"").match(/[\d.]+/g),opaque=m&&(m[3]===undefined||+m[3]>.5);if(opaque?(+m[0]+ +m[1]+ +m[2])>480:document.documentElement.getAttribute("data-theme")!=="dark")h.classList.add("clair-l");
       var l=document.createElement("div");l.className="lueurs";l.setAttribute("aria-hidden","true");l.innerHTML="<i></i><i></i><i></i>";h.insertBefore(l,h.firstChild)})})();
+
+  // Mise en gras automatique des mots importants d'un texte (prix, états, contenu, méthode…) : le texte est échappé d'abord.
+  window.rrGras = function (t) {
+    var e = String(t || "").replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+    var mots = "jeu en loose|en loose|loose|complet en boîte|complet|CIB|en boîte|sans notice|avec notice|boîte et notice|PAL(?: EUR| FRA| française)?|NTSC(?:-[JU])?|médiane|moyenne|ventes? conclues?|dernières ventes|testée?s?|fonctionne(?: parfaitement)?|sauvegarde OK|très bon état|bon état|état neuf|comme neuf|étiquette (?:propre|nette|lisible)|rayures?|défauts?|remise en main propre|envoi soigné|négociation";
+    e = e.replace(/(\d[\d\s\u202f.,]*\s?(?:€|\$|%))/g, "<strong>$1</strong>");
+    e = e.replace(new RegExp("(^|[^\\wÀ-ÿ>])(" + mots + ")(?![\\wÀ-ÿ])", "gi"), "$1<strong>$2</strong>");
+    return e;
+  };
 })();

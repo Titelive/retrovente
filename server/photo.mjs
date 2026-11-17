@@ -1,21 +1,22 @@
-// Détourage des photos : service tools/detourage.py (rembg + BiRefNet) installé sur le même serveur, donc sans coût par photo.
-// Le reste du nettoyage (redressement, reflets, lumière, fond blanc) se fait dans la page, sur le résultat.
+// Retouche des photos : service tools/detourage.py installé sur le même serveur, donc sans coût par photo.
+// Retouche légère, vrai fond gardé : redressement, recadrage, objets à côté et poussières effacés, reflets atténués.
+// Pas de détourage : une photo trop « parfaite » inquiète les acheteurs.
 import { IaError, checkPhoto } from "./ia.mjs";
 
-const URL_DETOURAGE = () => process.env.DETOURAGE_URL || "http://127.0.0.1:7001/detourer";
+const BASE = () => (process.env.DETOURAGE_URL || "http://127.0.0.1:7001/detourer").replace(/\/detourer$/, "");
 
-export async function detourer(photo) {
+export async function retoucher(photo, rotation = 0) {
   checkPhoto(photo);
   if (process.env.IA_FAKE === "1" && !process.env.DETOURAGE_URL) return photo;
   const m = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(photo);
   if (!m) throw new IaError("Photo illisible.");
+  const rot = [0, 90, 180, 270].includes(Number(rotation)) ? Number(rotation) : 0;
   let r;
   try {
-    r = await fetch(URL_DETOURAGE(), { method: "POST", body: Buffer.from(m[2], "base64"), headers: { "Content-Type": "image/" + m[1] }, signal: AbortSignal.timeout(90000) });
+    r = await fetch(BASE() + "/retoucher?rot=" + rot, { method: "POST", body: Buffer.from(m[2], "base64"), headers: { "Content-Type": "image/" + m[1] }, signal: AbortSignal.timeout(90000) });
   } catch (e) {
-    throw new IaError("Le nettoyage des photos redémarre, réessaie dans une minute.");
+    throw new IaError("La retouche des photos redémarre, réessaie dans une minute.");
   }
-  if (!r.ok) throw new IaError("Le nettoyage de cette photo n'a pas marché. Réessaie avec une photo plus nette.");
-  const buf = Buffer.from(await r.arrayBuffer());
-  return "data:image/png;base64," + buf.toString("base64");
+  if (!r.ok) throw new IaError("La retouche de cette photo n'a pas marché. Réessaie avec une photo plus nette.");
+  return "data:image/jpeg;base64," + Buffer.from(await r.arrayBuffer()).toString("base64");
 }

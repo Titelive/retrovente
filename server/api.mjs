@@ -3,9 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { db, now, month, bump, usageOf, usageTotal, allow, photoPath, tx } from "./db.mjs";
-import { detourer } from "./photo.mjs";
+import { retoucher } from "./photo.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
-import { rights, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
+import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
 import * as stripe from "./stripe.mjs";
 
@@ -40,15 +40,28 @@ function nettoyer(v, avant) {
     annonce: lien(v.annonce), notes: txt(v.notes, 1000),
     cote: ia.coteDe(v.cote),
     ia: !!(v.ia || (avant && avant.ia)),
-    photo: !!(avant && avant.photo),
+    photo: !!(avant && photosDe(avant).length),
+    photos: ordrePhotos(v.photos, avant),
   };
 }
-const itemOut = (r) => ({ id: r.id, ...JSON.parse(r.data), cree: r.created, modifie: r.updated });
+/* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
+export const MAX_PHOTOS = 12;
+const photosDe = (it) => (Array.isArray(it.photos) ? it.photos : it.photo ? [{ id: "p0", legende: "" }] : []);
+function ordrePhotos(liste, avant) {
+  const ex = avant ? photosDe(avant) : [];
+  if (!Array.isArray(liste)) return ex;
+  const par = new Map(ex.map((x) => [x.id, x])), vus = new Set(), out = [];
+  for (const x of liste) { const id = x && String(x.id); if (par.has(id) && !vus.has(id)) { vus.add(id); out.push({ id, legende: txt(x.legende, 200) }); } }
+  for (const x of ex) if (!vus.has(x.id)) out.push(x);
+  return out;
+}
+const fichierPhoto = (uid, id, pid) => photoPath(uid, pid === "p0" ? id : id + "-" + pid);
+const itemOut = (r) => { const d = JSON.parse(r.data); const photos = photosDe(d); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
 
-function savePhoto(uid, id, data) {
-  const f = photoPath(uid, id);
+function savePhoto(uid, id, data, pid = "p0") {
+  const f = fichierPhoto(uid, id, pid);
   if (data === "") { fs.rmSync(f, { force: true }); return false; }
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(data));
   if (!m || data.length > ia.MAX_PHOTO) fail(400, "Photo trop lourde ou illisible.");
@@ -90,6 +103,7 @@ function bilan(uid) {
 function me(u) {
   const r = rights(u);
   return {
+    ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
     email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(),
@@ -171,8 +185,8 @@ export async function handleApi(req) {
     }
     const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})$/.exec(p);
     if (mx && method === "GET") {
-      const f = photoPath(eu.id, mx[1]);
-      if (!getItem(eu.id, mx[1]) || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
+      const it = getItem(eu.id, mx[1]), f = it && photosDe(it)[0] ? fichierPhoto(eu.id, it.id, photosDe(it)[0].id) : "";
+      if (!it || !f || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
     }
     if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
@@ -279,7 +293,7 @@ export async function handleApi(req) {
     return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
   }
   if (p === "/api/ia/nettoyer" && method === "POST") {
-    iaAllowed(u); const png = await detourer(body().photo); bump(u.id, "nettoyer"); return ok({ ok: true, photo: png });
+    iaAllowed(u); const b = body(); const jpg = await retoucher(b.photo, b.rotation); bump(u.id, "nettoyer"); return ok({ ok: true, photo: jpg });
   }
   if (p === "/api/compte/supprimer" && method === "POST") {
     if (!checkPass(String(body().motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");
@@ -302,7 +316,7 @@ export async function handleApi(req) {
       return it;
     });
     if (typeof b.photo === "string" && b.photo) {
-      try { item.photo = savePhoto(u.id, id, b.photo); db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(item), id); }
+      try { item.photo = savePhoto(u.id, id, b.photo); item.photos = item.photo ? [{ id: "p0", legende: txt(b.legende, 200) }] : []; db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(item), id); }
       catch (e) { if (!(e instanceof HttpError)) throw e; }
     }
     return ok({ ok: true, objet: getItem(u.id, id) });
@@ -312,25 +326,67 @@ export async function handleApi(req) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Jeu introuvable.");
     if (method === "PUT") {
       const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
-      if (typeof b.photo === "string") it.photo = savePhoto(u.id, avant.id, b.photo);
+      if (typeof b.photo === "string") {
+        const prem = it.photos[0];
+        if (b.photo === "") { if (prem) { savePhoto(u.id, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
+        else if (prem) savePhoto(u.id, avant.id, b.photo, prem.id);
+        else { savePhoto(u.id, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
+      }
+      it.photo = it.photos.length > 0;
       db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
       return ok({ ok: true, objet: getItem(u.id, avant.id) });
     }
     if (method === "DELETE") {
       db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(avant.id, u.id);
-      fs.rmSync(photoPath(u.id, avant.id), { force: true });
+      for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
     }
   }
-  const mp = /^\/api\/photo\/([a-f0-9]{16})$/.exec(p);
+  // Galerie : ajouter, remplacer (retouche) ou retirer une photo
+  const mg = /^\/api\/objets\/([a-f0-9]{16})\/photos(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
+  if (mg) {
+    const avant = getItem(u.id, mg[1]); if (!avant) fail(404, "Jeu introuvable.");
+    const liste = photosDe(avant), b = method === "DELETE" ? {} : body();
+    let photos = liste;
+    if (method === "POST" && !mg[2]) {
+      if (liste.length >= MAX_PHOTOS) fail(400, "12 photos au plus par jeu.");
+      const pid = liste.some((x) => x.id === "p0") || liste.length ? crypto.randomBytes(4).toString("hex") : "p0";
+      if (!savePhoto(u.id, avant.id, String(b.photo || ""), pid)) fail(400, "Photo manquante.");
+      photos = [...liste, { id: pid, legende: txt(b.legende, 200) }];
+    } else if (method === "PUT" && mg[2]) {
+      if (!liste.some((x) => x.id === mg[2])) fail(404, "Photo introuvable.");
+      if (typeof b.photo === "string" && b.photo) savePhoto(u.id, avant.id, b.photo, mg[2]);
+      if (typeof b.legende === "string") photos = liste.map((x) => (x.id === mg[2] ? { ...x, legende: txt(b.legende, 200) } : x));
+    } else if (method === "DELETE" && mg[2]) {
+      fs.rmSync(fichierPhoto(u.id, avant.id, mg[2]), { force: true });
+      photos = liste.filter((x) => x.id !== mg[2]);
+    } else fail(405, "Méthode non prise en charge.");
+    const { id: _i, cree: _c, modifie: _m, ...data } = avant;
+    db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify({ ...data, photos, photo: photos.length > 0 }), now(), avant.id, u.id);
+    return ok({ ok: true, objet: getItem(u.id, avant.id) });
+  }
+  const mp = /^\/api\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
   if (mp && method === "GET") {
-    const f = photoPath(u.id, mp[1]);
+    const it = getItem(u.id, mp[1]); if (!it) fail(404, "Pas de photo.");
+    const ph = photosDe(it), pid = mp[2] || (ph[0] && ph[0].id);
+    if (!pid || !ph.some((x) => x.id === pid)) fail(404, "Pas de photo.");
+    const f = fichierPhoto(u.id, it.id, pid);
     if (!fs.existsSync(f)) fail(404, "Pas de photo.");
     return { status: 200, body: fs.readFileSync(f), headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
   }
 
+  /* --- Mode test des formules : uniquement les comptes listés dans ADMIN_EMAILS (vérifié ici, côté serveur) --- */
+  if (p === "/api/admin/formule" && method === "POST") {
+    if (!isAdmin(u)) fail(404, "Adresse inconnue.");
+    const f = String(body().formule || "");
+    if (f && !PLANS[f]) fail(400, "Formule inconnue.");
+    db.prepare("UPDATE users SET test_plan = ? WHERE id = ?").run(f, u.id);
+    return ok({ ok: true, moi: me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)) });
+  }
+
   /* --- IA --- */
   if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
   if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
