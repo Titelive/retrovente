@@ -56,9 +56,16 @@ Sans clé Stripe, l'appli marche en gratuit et affiche « Le paiement arrive tr�
 
 ### 5. Pages légales
 
-Complète les `[…]` dans `site/mentions-legales/` et `site/cgv/` (identité, SIRET, médiateur de la consommation).
+1. Remplace chaque champ surligné en jaune `[…]` dans `site/mentions-legales/`, `site/cgv/` et `site/confidentialite/` (`grep -rn a-remplir site`) : identité, adresse, SIRET, TVA, téléphone, directeur de la publication, médiateur de la consommation.
+2. Vérifie sur ta facture IONOS l'entité avec qui tu as contracté (IONOS SARL à Sarreguemines pour un compte français, sinon IONOS SE à Montabaur) et corrige l'hébergeur si besoin.
+3. Stripe > Paramètres > Informations publiques : renseigne l'adresse des conditions générales `https://retrorevente.fr/cgv/` (obligatoire : la page de paiement affiche une case à cocher qui y renvoie).
+4. Facultatif : `CONTACT_EMAIL` dans `/etc/retrorevente.env` reçoit les rétractations à rembourser (par défaut `bonjour@retrorevente.fr`).
+5. À chaque modification des conditions générales, change la date en haut de `/cgv/` et `CGV_VERSION` dans `server/plans.mjs`.
 
-## Données
-
-- Base : `/var/lib/retrorevente/retrorevente.db`, photos : `/var/lib/retrorevente/photos/`.
-- Sauvegarde chaque nuit dans `/var/backups/retrorevente/` (30 jours).
+Ce que fait le code pour le droit de la consommation :
+- case Stripe obligatoire : acceptation des CG et demande d'exécution immédiate (art. L221-25) ;
+- e-mail de confirmation de commande (art. L221-13), de résiliation (art. L215-1-1) et accusé de réception de rétractation (art. D221-5) ;
+- bouton « Résilier votre contrat » avec récapitulatif puis « Notification de la résiliation » (art. D215-1 à D215-3) ;
+- bouton « Renoncer au contrat ici » pendant le délai de rétractation, puis « Confirmer la rétractation » (art. L221-21 et D221-5, depuis le 19 juin 2026). Le remboursement se fait à la main dans Stripe : un e-mail te donne le montant ;
+- rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
+- trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).

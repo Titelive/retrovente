@@ -82,3 +82,11 @@ article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
 .pied-site p{max-width:52ch}
 @media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}.pied-site nav{justify-content:flex-start}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+/* pages légales */
+.a-remplir{background:#FFE14D;color:#1A1A1A;padding:0 4px;border-radius:4px;font-weight:600}
+.ed .encadre{border:2px solid var(--encre);border-radius:16px;padding:18px 22px;margin:22px 0}
+.ed .encadre p{font-size:17px}
+.ed .loi{font-size:16px;color:var(--gris);border-left:3px solid var(--trait);padding-left:16px;margin:14px 0}
+.ed .sommaire{columns:2;column-gap:28px;font-size:16px}
+.ed .sommaire li{font-size:16px;margin:4px 0;break-inside:avoid}
+@media(max-width:600px){.ed .sommaire{columns:1}.ed table{font-size:14px}.ed th,.ed td{padding:10px}}

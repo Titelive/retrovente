@@ -142,3 +142,47 @@ test("suppression du compte", async () => {
   assert.equal((await call("POST", "/api/compte/supprimer", { motdepasse: "motdepasse123" }, c)).status, 200);
   assert.equal((await call("GET", "/api/moi", null, c)).status, 401);
 });
+
+test("preuves et obligations légales : CG acceptées, résiliation programmée, rappel annuel", async () => {
+  const c = await compte("legal@exemple.fr");
+  const { CGV_VERSION } = await import("../server/plans.mjs");
+  const { rappelsAnnuels } = await import("../server/stripe.mjs");
+  let u = db.prepare("SELECT * FROM users WHERE email = ?").get("legal@exemple.fr");
+  assert.equal(u.cgv_version, CGV_VERSION); assert.ok(u.cgv_at);
+  const envoyer = async (ev) => { const raw = JSON.stringify(ev); return call("POST", "/api/stripe/webhook", raw, "", { "stripe-signature": signe(raw) }); };
+  const fin = Math.floor(Date.now() / 1000) + 45 * 86400;
+  const sub = (extra) => ({ id: "sub_l", customer: "cus_l", status: "active", metadata: { user_id: String(u.id) }, items: { data: [{ price: { id: "price_c_a" }, current_period_end: fin }] }, ...extra });
+  await envoyer({ id: "evt_l1", type: "customer.subscription.created", data: { object: sub({}) } });
+  assert.equal(await rappelsAnnuels(), 1);                       // échéance dans 45 jours : rappel envoyé
+  assert.equal(await rappelsAnnuels(), 0);                       // une seule fois par échéance
+  await envoyer({ id: "evt_l2", type: "customer.subscription.updated", data: { object: sub({ cancel_at_period_end: true }) } });
+  const moi = await call("GET", "/api/moi", null, c);
+  assert.equal(moi.json.formule.id, "collectionneur");           // garde sa formule jusqu'à la fin
+  assert.equal(moi.json.formule.resiliation, new Date(fin * 1000).toISOString());
+  await envoyer({ id: "evt_l3", type: "customer.subscription.updated", data: { object: sub({ cancel_at_period_end: false }) } });
+  assert.equal((await call("GET", "/api/moi", null, c)).json.formule.resiliation, "");
+});
+
+test("résilier votre contrat, puis renoncer au contrat (rétractation)", async () => {
+  const c = await compte("retract@exemple.fr");
+  const uid = db.prepare("SELECT id FROM users WHERE email = ?").get("retract@exemple.fr").id;
+  const envoyer = async (ev) => { const raw = JSON.stringify(ev); return call("POST", "/api/stripe/webhook", raw, "", { "stripe-signature": signe(raw) }); };
+  assert.equal((await call("POST", "/api/resilier", { nom: "Camille Test", confirmer: true }, c)).status, 400);   // rien à résilier
+  assert.equal((await call("POST", "/api/retractation", { nom: "Camille Test", confirmer: true }, c)).status, 400);
+  const sub = { id: "sub_r", customer: "cus_r", status: "active", metadata: { user_id: String(uid) }, items: { data: [{ price: { id: "price_v_m" }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 }] } };
+  await envoyer({ id: "evt_r1", type: "checkout.session.completed", data: { object: { mode: "subscription", customer: "cus_r", amount_total: 499, client_reference_id: String(uid), metadata: { user_id: String(uid), offre: "vendeur" } } } });
+  await envoyer({ id: "evt_r2", type: "customer.subscription.created", data: { object: sub } });
+  let moi = (await call("GET", "/api/moi", null, c)).json;
+  assert.equal(moi.formule.id, "vendeur"); assert.ok(moi.formule.retractable); assert.match(moi.formule.contrat, /Vendeur/);
+  assert.equal((await call("POST", "/api/resilier", { nom: "", confirmer: true }, c)).status, 400);           // nom obligatoire
+  assert.equal((await call("POST", "/api/resilier", { nom: "Camille Test" }, c)).status, 400);                // confirmation obligatoire
+  assert.equal((await call("POST", "/api/resilier", { nom: "Camille Test", email: "camille@exemple.fr", confirmer: true }, c)).status, 200);
+  moi = (await call("GET", "/api/moi", null, c)).json;
+  assert.equal(moi.formule.id, "vendeur"); assert.ok(moi.formule.resiliation);
+  const r = await call("POST", "/api/retractation", { nom: "Camille Test", confirmer: true }, c);
+  assert.equal(r.status, 200); assert.equal(r.json.rembourse, "4,99");
+  moi = (await call("GET", "/api/moi", null, c)).json;
+  assert.equal(moi.formule.id, "gratuit"); assert.equal(moi.formule.retractable, "");
+  const traces = db.prepare("SELECT type FROM demandes WHERE user_id = ? ORDER BY id").all(uid).map((x) => x.type);
+  assert.deepEqual(traces, ["resiliation", "retractation"]);
+});

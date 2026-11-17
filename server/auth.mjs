@@ -47,12 +47,12 @@ export function useReset(token) {
 }
 
 /** Envoi d'e-mail par Resend (RESEND_API_KEY, MAIL_FROM). Sans clé, l'e-mail est seulement écrit dans le journal. */
-export async function sendMail(to, subject, text) {
+export async function sendMail(to, subject, text, html) {
   if (!process.env.RESEND_API_KEY) { console.log(`[e-mail non envoyé, RESEND_API_KEY absent] à ${to} : ${subject}\n${text}`); return false; }
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST", signal: AbortSignal.timeout(15000),
     headers: { Authorization: "Bearer " + process.env.RESEND_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.MAIL_FROM || "RetroRevente <bonjour@retrorevente.fr>", to: [to], subject, text }),
+    body: JSON.stringify({ from: process.env.MAIL_FROM || "RetroRevente <bonjour@retrorevente.fr>", to: [to], subject, text, ...(html ? { html } : {}) }),
   });
   if (!r.ok) { console.error("e-mail", r.status, await r.text().catch(() => "")); return false; }
   return true;

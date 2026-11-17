@@ -4,7 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { db, now, month, bump, usageOf, usageTotal, allow, photoPath, tx } from "./db.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail } from "./auth.mjs";
-import { rights, SEUIL_VENTES, SEUIL_MONTANT } from "./plans.mjs";
+import { rights, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
 import * as stripe from "./stripe.mjs";
 
@@ -90,7 +90,7 @@ function me(u) {
   const r = rights(u);
   return {
     email: u.email, cree: u.created,
-    formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until },
+    formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(),
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer,
   };
@@ -101,6 +101,31 @@ function csv(items) {
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
+
+/* ===== Résiliation et rétractation en ligne ===== */
+const dateFr = (iso) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
+const heureFr = (iso) => new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }) + " (heure de Paris)";
+const OFFRE_NOMS = { vendeur: "Vendeur", collectionneur: "Collectionneur", pass: "Pass Grand ménage" };
+function contratDe(u) {
+  const [o, per] = String(u.achat_ref || (u.plan + ":" + u.plan_period)).split(":");
+  return `RetroRevente ${OFFRE_NOMS[o] || o}${per === "an" ? ", abonnement annuel" : per === "mois" ? ", abonnement mensuel" : ""} — client n° ${u.id}`;
+}
+// Délai de 14 jours (art. L221-18 et L221-19) ; on accepte jusqu'à 16 jours pleins pour couvrir un délai qui finit un week-end.
+function retractableJusqua(u, at = Date.now()) {
+  if (!u.achat_at || u.retract_at) return "";
+  const lim = Date.parse(u.achat_at) + 16 * 864e5;
+  const actif = u.achat_ref.startsWith("pass") ? Date.parse(u.pass_until || 0) > at : ["active", "trialing", "past_due"].includes(u.plan_status);
+  return actif && at < lim ? new Date(lim).toISOString() : "";
+}
+function demande(b, u) {
+  const nom = txt(b.nom, 120), email = txt(b.email, 254).toLowerCase() || u.email;
+  if (nom.length < 2) fail(400, "Indique ton nom et ton prénom.");
+  if (!validEmail(email)) fail(400, "Adresse e-mail invalide.");
+  if (b.confirmer !== true) fail(400, "Confirme ta demande.");
+  return { nom, email };
+}
+const trace = (type, u, email, contenu) => db.prepare("INSERT INTO demandes(type, user_id, email, contenu, at) VALUES (?, ?, ?, ?, ?)").run(type, u.id, email, JSON.stringify(contenu), now());
+const envoyer = (dest, sujet, texte) => Promise.all([...new Set(dest)].map((to) => sendMail(to, sujet, texte + "\n\nRetroRevente · bonjour@retrorevente.fr · https://retrorevente.fr/cgv/").catch((e) => console.error("e-mail", e.message))));
 
 /* ===== Routeur ===== */
 // req : { method, path, headers, ip, body (Buffer) } → { status, json?, body?, headers? }
@@ -130,7 +155,7 @@ export async function handleApi(req) {
     if (mdp.length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     if (!b.cgv) fail(400, "Accepte les conditions générales pour créer ton compte.");
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte existe déjà avec cette adresse. Connecte-toi.");
-    const r = db.prepare("INSERT INTO users(email, pass, created) VALUES (?, ?, ?)").run(email, hashPass(mdp), now());
+    const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
     const t = createSession(Number(r.lastInsertRowid));
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(t, secure()) });
   }
@@ -238,6 +263,54 @@ export async function handleApi(req) {
     return ok({ url: await stripe.checkout(u, offre, periode) });
   }
   if (p === "/api/portail" && method === "POST") return ok({ url: await stripe.portal(u) });
+  // « Résilier votre contrat » (art. L215-1-1 et D215-1 à D215-3 du Code de la consommation).
+  if (p === "/api/resilier" && method === "POST") {
+    if (!u.stripe_sub || !["active", "trialing", "past_due"].includes(u.plan_status) || u.plan_cancel) fail(400, "Tu n'as pas d'abonnement en cours à résilier.");
+    const d = demande(body(), u);
+    await stripe.resilier(u);
+    const contenu = { ...d, contrat: contratDe(u), fin: u.plan_end };
+    trace("resiliation", u, d.email, contenu);
+    const quand = heureFr(now()), fin = u.plan_end ? dateFr(u.plan_end) : "";
+    await envoyer([d.email, u.email], "Confirmation de ta résiliation", `Bonjour ${d.nom},
+
+Nous avons bien reçu la notification de résiliation de ton contrat le ${quand}.
+
+Contrat : ${contenu.contrat}
+Nom : ${d.nom}
+Adresse e-mail de confirmation : ${d.email}
+
+Ton abonnement prend fin le ${fin}. Jusqu'à cette date, tu gardes tous les avantages de ta formule ; aucun autre paiement ne sera prélevé. Ensuite, ton compte passe en formule Découverte (gratuite) : tes fiches restent disponibles.`);
+    return ok({ ok: true, fin: u.plan_end });
+  }
+  // « Renoncer au contrat ici » (art. L221-21 et D221-5 du Code de la consommation, depuis le 19 juin 2026).
+  if (p === "/api/retractation" && method === "POST") {
+    const lim = retractableJusqua(u);
+    if (!lim) fail(400, "Le délai de rétractation de 14 jours est terminé pour ton dernier achat.");
+    const d = demande(body(), u);
+    const contenu = { ...d, contrat: contratDe(u), achat: u.achat_at, montant: u.achat_montant / 100 };
+    await stripe.arreter(u);
+    const at = now();
+    trace("retractation", u, d.email, contenu);
+    const jours = Math.max(0, Math.floor((Date.parse(at) - Date.parse(u.achat_at)) / 864e5));   // jours entiers écoulés, arrondi en faveur du client
+    const duree = u.achat_ref.endsWith(":an") ? 365 : 30;
+    const du = Math.min(u.achat_montant, Math.round(u.achat_montant * jours / duree));
+    const rembourse = ((u.achat_montant - du) / 100).toFixed(2).replace(".", ",");
+    await envoyer([d.email, u.email], "Accusé de réception de ta rétractation", `Bonjour ${d.nom},
+
+Nous avons bien reçu ta rétractation le ${heureFr(at)}.
+
+Contenu de ta déclaration :
+- Nom : ${d.nom}
+- Contrat : ${contenu.contrat}, conclu le ${heureFr(u.achat_at)}
+- Adresse e-mail pour l'accusé de réception : ${d.email}
+- Décision : rétractation du contrat
+
+Ta formule est arrêtée et ton compte repasse en formule Découverte (gratuite). Tes fiches restent disponibles.
+${jours ? `Comme tu avais demandé que le service commence tout de suite, le montant correspondant au service déjà fourni (${jours} jour${jours > 1 ? "s" : ""} sur ${duree}) est retenu. ` : ""}Nous te remboursons ${rembourse} € sur le moyen de paiement utilisé, au plus tard dans les 14 jours.`);
+    await envoyer([process.env.CONTACT_EMAIL || "bonjour@retrorevente.fr"], `[RetroRevente] Rétractation à rembourser : ${rembourse} €`,
+      `Rétractation reçue le ${heureFr(at)}.\nCompte : ${u.email} (n° ${u.id}), client Stripe ${u.stripe_customer || "-"}\nContrat : ${contenu.contrat}, payé ${(u.achat_montant / 100).toFixed(2)} € le ${heureFr(u.achat_at)}\nJours utilisés : ${jours} sur ${duree}\n\nÀ FAIRE sous 14 jours : rembourser ${rembourse} € depuis Stripe (Paiements > ce paiement > Rembourser).`);
+    return ok({ ok: true, rembourse });
+  }
 
   fail(404, "Adresse inconnue.");
 }
