@@ -188,4 +188,10 @@
       bt.addEventListener("pointerleave", function () { bt.style.transform = ""; });
     });
   });
+
+  // lueurs vertes en fond : ajoutées aux grandes sections et au pied de page
+  (function(){var hotes=document.querySelectorAll("main > section, main > .s, .pied-site, .ed-menu, #app-rr main");
+    hotes.forEach(function(h){if(h.querySelector(":scope > .lueurs"))return;var cs=getComputedStyle(h);if(cs.position==="static")h.style.position="relative";h.classList.add("a-lueurs");
+      var m=(cs.backgroundColor||"").match(/[\d.]+/g),opaque=m&&(m[3]===undefined||+m[3]>.5);if(opaque?(+m[0]+ +m[1]+ +m[2])>480:document.documentElement.getAttribute("data-theme")!=="dark")h.classList.add("clair-l");
+      var l=document.createElement("div");l.className="lueurs";l.setAttribute("aria-hidden","true");l.innerHTML="<i></i><i></i><i></i>";h.insertBefore(l,h.firstChild)})})();
 })();
