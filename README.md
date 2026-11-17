@@ -16,7 +16,7 @@ En local : `npm run dev` puis http://127.0.0.1:8082 (IA simulée, pas besoin de 
 Les mêmes valeurs que dans le dépôt titelive :
 - Secret `IONOS_SSH_KEY` (clé privée `~/.ssh/ionos_deploy`)
 - Secret `IONOS_HOST` : `87.106.204.104`
-- Variable `IONOS_DEPLOY` : `on`
+- (le secret `IONOS_DEPLOY` éventuel n'est pas utilisé)
 
 Ensuite chaque push sur `main` lance les tests puis met le site en ligne.
 

@@ -14,7 +14,7 @@ jobs:
       - run: npm test
   deploy:
     needs: tests
-    if: ${{ github.event_name != 'pull_request' && vars.IONOS_DEPLOY == 'on' }}
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
