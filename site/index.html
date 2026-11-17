@@ -106,7 +106,8 @@
 @media(max-width:560px){.flotte{font-size:12px;padding:8px 11px 8px 8px}.flotte i{width:24px;height:24px;font-size:12px}.flotte.a{left:-2%}.flotte.b{right:-2%}.flotte small{display:none}}
 
 /* bande défilante */
-.defile{background:var(--anis);color:var(--nuit);overflow:hidden;padding:18px 0;transform:rotate(-1.2deg);margin:-14px -10px 0;position:relative;z-index:3;box-shadow:0 20px 40px -20px rgba(0,0,0,.3)}
+.defile{background:var(--anis);color:var(--nuit);overflow:hidden;padding:18px 0;transform:rotate(-1.2deg);margin:0 -6vw;width:112vw;position:relative;z-index:3;box-shadow:0 20px 40px -20px rgba(0,0,0,.3)}
+.defile-zone{position:relative;z-index:3;margin-top:-14px;overflow-x:clip;background:linear-gradient(var(--nuit-2) 50%,var(--nuit) 50%)}
 .defile .rail{display:flex;gap:44px;width:max-content;will-change:transform}
 .defile span{font:400 15px/1 var(--pixel);letter-spacing:.08em;white-space:nowrap;display:inline-flex;align-items:center;gap:44px}
 .defile span::after{content:"";width:9px;height:9px;background:var(--nuit);transform:rotate(45deg)}
@@ -252,8 +253,9 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
 .photos{background:var(--nuit);color:#fff;position:relative;overflow:hidden;isolation:isolate}
 .photos::before{content:"";position:absolute;right:-240px;top:-200px;width:760px;height:760px;border-radius:50%;background:radial-gradient(closest-side,rgba(212,245,122,.16),transparent);z-index:-1}
 .photos .s-tete p{color:#B8B8B0}.photos .s-tete p strong{color:#fff}.photos .s-tete .pixel{color:#8A8A82}
-.vitrine{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:28px;align-items:stretch}
-@media(max-width:900px){.vitrine{grid-template-columns:minmax(0,1fr)}}
+.vitrine{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:28px;align-items:start}
+.vitrine>.comparer{width:100%;position:sticky;top:96px}
+@media(max-width:900px){.vitrine{grid-template-columns:minmax(0,1fr)}.vitrine>.comparer{position:relative;top:0}}
 .comparer{position:relative;aspect-ratio:1;border-radius:24px;overflow:hidden;background:#fff;user-select:none;-webkit-user-select:none;touch-action:pan-y;isolation:isolate}
 .comparer img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .comparer .ap{clip-path:inset(0 0 0 var(--pos));transition:opacity .4s}
@@ -409,10 +411,10 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   </div>
 </section>
 
-<div class="defile" aria-hidden="true"><div class="rail">
+<div class="defile-zone"><div class="defile" aria-hidden="true"><div class="rail">
   <span>NES</span><span>Super Nintendo</span><span>Mega Drive</span><span>Game Boy</span><span>PlayStation</span><span>Nintendo 64</span><span>Saturn</span><span>Dreamcast</span><span>GameCube</span><span>PS2</span><span>Game Boy Advance</span><span>Wii</span><span>DS</span><span>PS4</span><span>Switch</span><span>PS5</span>
   <span>NES</span><span>Super Nintendo</span><span>Mega Drive</span><span>Game Boy</span><span>PlayStation</span><span>Nintendo 64</span><span>Saturn</span><span>Dreamcast</span><span>GameCube</span><span>PS2</span><span>Game Boy Advance</span><span>Wii</span><span>DS</span><span>PS4</span><span>Switch</span><span>PS5</span>
-</div></div>
+</div></div></div>
 
 <section class="s temps" aria-labelledby="t-temps">
   <div class="wrap">
@@ -658,7 +660,11 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
 
   /* bandeau des consoles : bouge seulement avec le défilement */
   var rail=document.querySelector(".defile .rail");
-  if(rail&&!calme){var rq=false;function bouge(){rq=false;var r=rail.parentNode.getBoundingClientRect(),p=(innerHeight-r.top)/(innerHeight+r.height);rail.style.transform="translateX("+(-p*Math.max(0,rail.scrollWidth/2-innerWidth*.2))+"px)"}
+  if(rail){var modele=rail.innerHTML,demi=0;
+    // assez de copies pour couvrir tout l'écran, quelle que soit sa largeur : le bandeau ne s'arrête jamais
+    var remplir=function(){rail.innerHTML=modele;var n=0;while(rail.scrollWidth<innerWidth*3.4&&n<12){rail.insertAdjacentHTML("beforeend",modele);n++}demi=rail.scrollWidth/2};
+    remplir();addEventListener("resize",function(){remplir();if(!calme)bouge()})}
+  if(rail&&!calme){var rq=false;function bouge(){rq=false;var r=rail.parentNode.getBoundingClientRect(),p=(innerHeight-r.top)/(innerHeight+r.height);rail.style.transform="translateX("+(-p*Math.min(demi,innerWidth*1.2))+"px)"}
     addEventListener("scroll",function(){if(!rq){rq=true;requestAnimationFrame(bouge)}},{passive:true});bouge()}
 
   /* comparateurs avant / après */
