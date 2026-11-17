@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=4">
+<link rel="stylesheet" href="/css/rr.css?v=5">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=3" defer></script>
 <style>
@@ -258,6 +258,14 @@ body.fiche-ouverte #toast{bottom:100px}
 :root[data-theme="dark"] .offre.actuelle,:root[data-theme="dark"] #fiche .faq details[open]{box-shadow:0 0 0 2px var(--anis)}
 .tete>div{min-width:0;max-width:100%}.tete h1{overflow-wrap:anywhere}
 @media(max-width:560px){.filtres{align-self:stretch;flex-wrap:wrap;justify-content:center;border-radius:20px}.filtres button{padding:9px 12px}}
+.cote .releves{display:flex;flex-direction:column;gap:6px}.cote .rl-t{font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--anis)}
+.cote .releves ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.cote .releves a{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 12px;transition:background-color .2s}
+.cote .releves a:hover{background:rgba(212,245,122,.14)}
+.cote .rl-s{grid-row:1/3;font-size:11px;font-weight:700;background:rgba(255,255,255,.1);border-radius:999px;padding:4px 8px}
+.cote .rl-n{font-size:13px;color:#D0D0C8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cote .releves b{font:700 15px/1 var(--titre);color:var(--anis)}.cote .releves small{grid-column:2/4;font-size:11.5px;color:#8E8E86}
+.cote .rl-m{margin:0}.cote .rl-m b{color:#fff}
 </style>
 
 </head>
@@ -664,6 +672,8 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   var fx=c.bas!=null&&c.haut!=null?eur(c.bas)+" à "+eur(c.haut):eur(c.conseille);
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+esc(c.resume)+'</p>':"")+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
+    (c.releves&&c.releves.length?'<div class="releves"><span class="rl-t">Les prix sur lesquels je m\'appuie</span><ul>'+c.releves.map(function(r){return '<li><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer"><span class="rl-s">'+esc(r.site||"Lien")+'</span><span class="rl-n">'+esc(r.titre||"")+'</span><b>'+eur(r.prix)+'</b><small>'+(r.date?dfr(r.date):"")+'</small></a></li>'}).join("")+'</ul></div>':"")+
+    (c.methode?'<p class="rl-m"><b>Méthode :</b> '+esc(c.methode)+'</p>':"")+
     (c.sources&&c.sources.length?'<div class="src">Sources : '+c.sources.map(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(h)+'</a>'}).join(" · ")+'</div>':"");
   e.hidden=false}
 $("fCote").onclick=estimer;
@@ -831,8 +841,11 @@ function composer(cut,rot){
   g.setTransform(1,0,0,1,0,0);g.putImageData(im,0,0);
   // 4) fond blanc carré, ombre douce, au format des vignettes
   var S=1000,ow=x1-x0+1,oh=y1-y0+1,k=S*.8/Math.max(ow,oh),dw=ow*k,dh=oh*k,dx=(S-dw)/2,dy=(S-dh)/2-S*.015,o=document.createElement("canvas");o.width=o.height=S;var q=o.getContext("2d");
-  q.fillStyle="#fff";q.fillRect(0,0,S,S);q.imageSmoothingQuality="high";
-  q.save();q.filter="blur(26px) brightness(0)";q.globalAlpha=.28;q.drawImage(c,x0,y0,ow,oh,dx,dy+S*.03,dw,dh);q.restore();
+  // fond studio neutre (gris chaud clair, léger dégradé) + ombre douce et ombre de contact
+  var gr=q.createRadialGradient(S/2,S*.42,0,S/2,S*.42,S*.78);gr.addColorStop(0,"#F1F0EC");gr.addColorStop(1,"#D6D5CF");
+  q.fillStyle=gr;q.fillRect(0,0,S,S);q.imageSmoothingQuality="high";
+  q.save();q.filter="blur(30px) brightness(0)";q.globalAlpha=.34;q.drawImage(c,x0,y0,ow,oh,dx,dy+S*.035,dw,dh);q.restore();
+  q.save();q.filter="blur(7px) brightness(0)";q.globalAlpha=.38;q.drawImage(c,x0,y0,ow,oh,dx,dy+S*.008,dw,dh);q.restore();
   q.drawImage(c,x0,y0,ow,oh,dx,dy,dw,dh);
   var qq=.88,out=o.toDataURL("image/jpeg",qq);while(out.length>650000&&qq>.5){qq-=.08;out=o.toDataURL("image/jpeg",qq)}return out}
 function nettoyerPhoto(auto){var b=$("fNet"),t=b.innerHTML;

@@ -244,3 +244,6 @@ html.sans-anim .lecture{display:none}
 
 /* petits écrans : un bouton long passe à la ligne au lieu de déborder */
 @media(max-width:420px){.ed .btn,.ed .cta .btn{white-space:normal;text-align:center;line-height:1.25;max-width:100%}}
+
+/* mobile : bouton « retour en haut » plus petit, collé au bord, et les « + » de la FAQ décalés pour ne jamais passer dessous */
+@media(max-width:700px){.vers-haut{width:44px;height:44px;right:max(10px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}.vers-haut svg{width:40px;height:40px}.faq details>summary{padding-right:52px}}

@@ -18,12 +18,12 @@
 <meta property="og:url" content="https://retrorevente.fr/">
 <meta property="og:title" content="RetroRevente · Revends tes jeux vidéo en 2 minutes">
 <meta property="og:description" content="Une photo, et ton annonce Le Bon Coin est prête : titre, description, état, prix conseillé et photo nettoyée.">
-<meta property="og:image" content="https://retrorevente.fr/og.png">
+<meta property="og:image" content="https://retrorevente.fr/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=4">
+<link rel="stylesheet" href="/css/rr.css?v=5">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=3" defer></script>
 <script type="application/ld+json">
@@ -77,9 +77,8 @@
 .ecran .hd img{height:18px;width:auto}
 .ecran .hd span{font:600 10px/1 var(--texte);background:#fff;padding:6px 9px;border-radius:999px;box-shadow:0 0 0 1px #E6E6DE}
 .ph{margin:4px 16px 0;aspect-ratio:1;border-radius:22px;position:relative;overflow:hidden;background:linear-gradient(160deg,#ECEBE3,#D9D8CF)}
-.cart{position:absolute;left:50%;top:52%;width:58%;aspect-ratio:1/1.08;transform:translate(-50%,-50%) rotate(-4deg);border-radius:10px 10px 6px 6px;background:linear-gradient(180deg,#5a5a5a,#3b3b3b);box-shadow:0 18px 30px -12px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.15)}
-.cart::before{content:"";position:absolute;left:10%;right:10%;top:12%;height:58%;border-radius:6px;background:linear-gradient(135deg,#E8443A 0,#F6A43C 48%,#3A5BE8 50%,#2A2E7A 100%);box-shadow:inset 0 0 0 3px #2b2b2b}
-.cart::after{content:"";position:absolute;left:18%;right:18%;bottom:10%;height:8%;border-radius:3px;background:repeating-linear-gradient(90deg,#2a2a2a 0 6px,#4a4a4a 6px 9px)}
+.cart{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .35s,transform .6s var(--ease)}
+.cart.change{opacity:0;transform:scale(1.04)}
 .viseur{position:absolute;inset:14% 16%;border-radius:12px;pointer-events:none}
 .viseur i{position:absolute;width:22px;height:22px;border:3px solid var(--anis);filter:drop-shadow(0 0 6px rgba(212,245,122,.8))}
 .viseur i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
@@ -167,6 +166,25 @@ h2:has(.surligne){line-height:1.12}
 .annonce{background:rgba(255,255,255,.05);border-radius:18px;padding:18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font-size:14.5px;color:#D9D9D2;line-height:1.55}
 .annonce b{display:block;color:#fff;font-size:16px;margin-bottom:6px}
 .annonce mark{background:rgba(212,245,122,.18);color:var(--anis);border-radius:4px;padding:0 3px}
+.seuil{display:flex;flex-direction:column;gap:16px;margin-top:auto}
+.seuil .sl{display:flex;flex-direction:column;gap:7px;font-size:14px;color:#3E4A1C;position:relative}
+.seuil .sl b{color:var(--nuit);font-weight:800}
+.seuil .b{position:relative;height:14px;border-radius:999px;background:rgba(26,26,26,.12)}
+.seuil .b i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--nuit);transition:width .35s var(--ease),background-color .3s}
+.seuil .b em{position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(26,26,26,.45);border-radius:2px}
+.seuil .b i::after{content:"";position:absolute;right:-11px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--nuit),0 4px 10px rgba(0,0,0,.25)}
+.seuil .b i.chaud{background:#C7561E}.seuil .b i.rouge{background:#B3261E}
+.seuil input[type=range]{position:absolute;left:0;right:0;bottom:-8px;height:30px;margin:0;opacity:0;cursor:pointer;z-index:2}
+.seuil .sl:focus-within .b{outline:3px solid var(--nuit);outline-offset:3px}
+.seuil .alerte{display:flex;gap:12px;align-items:center;background:var(--nuit);color:#fff;border-radius:16px;padding:12px 14px;transition:background-color .3s}
+.seuil .alerte p,.tuile .seuil .alerte p{font-size:14px;line-height:1.35;margin:0;color:#D8D8D0}.seuil .alerte p b{color:#fff}
+.seuil .cloche{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--anis);color:var(--nuit)}
+.seuil .cloche svg{width:18px;height:18px;transform-origin:50% 10%}
+.seuil .alerte[data-niv="1"] .cloche{background:#F2A65A}.seuil .alerte[data-niv="2"] .cloche{background:#FF7A6E}
+.seuil .alerte[data-niv="1"] .cloche svg,.seuil .alerte[data-niv="2"] .cloche svg{animation:sonne 1.2s ease-in-out infinite}
+@keyframes sonne{0%,60%,100%{transform:none}10%{transform:rotate(18deg)}20%{transform:rotate(-16deg)}30%{transform:rotate(12deg)}40%{transform:rotate(-8deg)}50%{transform:rotate(4deg)}}
+html.sans-anim .seuil .cloche svg{animation:none}
+.t5{display:flex;flex-direction:column;gap:14px}
 .jauge{display:flex;flex-direction:column;gap:8px;font-size:14px;color:#3E4A1C}
 .jauge .b{height:14px;border-radius:999px;background:rgba(26,26,26,.12);overflow:hidden}
 .jauge .b i{display:block;height:100%;width:73%;border-radius:999px;background:var(--nuit)}
@@ -213,9 +231,21 @@ h2:has(.surligne){line-height:1.12}
 .final .bloc{position:relative;overflow:hidden;isolation:isolate;border-radius:40px;background:var(--anis);color:var(--nuit);padding:80px 56px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:40px;align-items:center}
 .final h2{font-size:clamp(40px,6vw,80px);font-weight:800;letter-spacing:-.055em;line-height:.92;max-width:13ch}
 .final p{font-size:19px;margin-top:18px;color:#3E4A1C}
-.final .ico{width:clamp(140px,18vw,230px);transform:rotate(-8deg);filter:drop-shadow(0 30px 40px rgba(60,80,10,.35))}
+.final .ico{width:clamp(150px,19vw,250px);display:block;filter:drop-shadow(0 30px 40px rgba(60,80,10,.35))}
+.final .ico-w{transform:rotate(calc(-14deg + var(--p,0.5) * 14deg)) translateY(calc((var(--p,0.5) - .5) * -40px));transition:transform .2s linear;justify-self:center}
+.final .ico{transform:none;animation:ico-flotte 6s ease-in-out infinite}
+@keyframes ico-flotte{0%,100%{translate:0 0;rotate:0deg}50%{translate:0 -14px;rotate:3deg}}
+.final .eclair-cta{transform-box:fill-box;transform-origin:50% 50%;animation:zap-cta 3.6s 1s var(--ease) infinite}
+.final .etincelles path{stroke-dasharray:8;stroke-dashoffset:8;opacity:0;animation:etincelle 3.6s 1s ease-out infinite}
+.final .etincelles path:nth-child(2){animation-delay:1.05s}.final .etincelles path:nth-child(3){animation-delay:1.1s}
+.final .bloc:hover .eclair-cta{animation:zap-cta .7s var(--ease)}
+@keyframes zap-cta{0%,22%,100%{transform:none;fill:#1A1A1A}4%{transform:scale(1.5) rotate(-12deg);fill:#fff}9%{transform:scale(.85) rotate(8deg);fill:#1A1A1A}13%{transform:scale(1.15);fill:#fff}17%{transform:scale(1);fill:#1A1A1A}}
+@keyframes etincelle{0%,3%{stroke-dashoffset:8;opacity:0}6%{stroke-dashoffset:0;opacity:1}16%{stroke-dashoffset:-8;opacity:0}100%{opacity:0}}
+html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .final .etincelles path{animation:none}
+@media (prefers-reduced-motion:reduce){.final .ico,.final .eclair-cta,.final .etincelles path{animation:none}.final .ico-w{transform:rotate(-8deg)}}
+
 .final .bloc::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.35;background-image:radial-gradient(rgba(26,26,26,.18) 1.5px,transparent 1.6px);background-size:22px 22px;-webkit-mask-image:linear-gradient(110deg,transparent 30%,#000);mask-image:linear-gradient(110deg,transparent 30%,#000)}
-@media(max-width:760px){.final .bloc{grid-template-columns:1fr;padding:56px 28px}.final .ico{justify-self:start;order:-1;width:110px}}
+@media(max-width:760px){.final .bloc{grid-template-columns:1fr;padding:56px 28px}.final .ico-w{justify-self:start;order:-1}.final .ico{width:120px}}
 
 
 /* ---------- section photos ---------- */
@@ -246,6 +276,17 @@ h2:has(.surligne){line-height:1.12}
 .ex-meta div{background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 0 0 1px #E6E6DE}
 .ex-meta dt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#66665F}
 .ex-meta dd{margin:2px 0 0;font-weight:700;font-size:16px}
+.ex-src{display:flex;flex-direction:column;gap:8px}
+.ex-src-t{font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:#66665F}
+.ex-src ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.ex-src ul a{display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;text-decoration:none;color:var(--nuit);background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 0 0 1px #E6E6DE;transition:box-shadow .2s,transform .2s var(--ease)}
+.ex-src ul a:hover{box-shadow:0 0 0 2px var(--nuit);transform:translateX(3px)}
+.ex-src .s{grid-row:1/3;font-size:11px;font-weight:700;background:var(--anis);border-radius:999px;padding:4px 8px}
+.ex-src .n{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ex-src ul b{font:800 16px/1 var(--titre)}.ex-src small{grid-column:2/4;font-size:12px;color:#66665F}
+.ex-meth{font-size:13.5px;color:#4A4A44;margin:0}.ex-meth b{color:var(--nuit)}
+#exSrc{font-size:13.5px;font-weight:600;color:var(--nuit)}
+.fiche-ex.change>*:nth-child(6){animation-delay:.25s}
 .ex-prix{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--nuit);color:#fff;border-radius:16px;padding:14px 18px}
 .ex-prix small{display:block;font-size:11px;color:#A8A8A0;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
 .ex-prix strong{font:800 38px/1 var(--titre);color:var(--anis);letter-spacing:-.04em}
@@ -356,7 +397,7 @@ h2:has(.surligne){line-height:1.12}
       <div class="tel"><div class="ecran">
         <span class="ile"></span>
         <div class="hd"><img src="/img/logo-couleur.svg" alt=""><span>3 / 30 jeux</span></div>
-        <div class="ph"><div class="cart"></div><div class="viseur"><i></i><i></i><i></i><i></i></div><div class="scan"></div></div>
+        <div class="ph"><img class="cart" id="tPhoto" src="/img/exemples/zelda-avant.jpg" alt="Photo d'une cartouche de jeu Nintendo 64 prise au téléphone" width="720" height="720" decoding="async"><div class="viseur"><i></i><i></i><i></i><i></i></div><div class="scan"></div></div>
         <div class="fiche">
           <div class="l"><small>Titre</small><b id="tTitre" class="curs"></b></div>
           <div class="l"><small>État · contenu</small><b id="tEtat"></b></div>
@@ -434,7 +475,8 @@ h2:has(.surligne){line-height:1.12}
           <div><dt>État</dt><dd id="exEtat">Très bon</dd></div>
           <div><dt>Contenu</dt><dd id="exContenu">Jeu en loose</dd></div>
         </dl>
-        <div class="ex-prix"><div><small>Prix conseillé</small><strong id="exPrix">40 €</strong></div><span id="exFourchette">vendus entre 32 et 50 €</span></div>
+        <div class="ex-prix"><div><small>Prix conseillé</small><strong id="exPrix">65 €</strong></div><span id="exFourchette">vendus entre 42 et 72 €</span></div>
+        <div class="ex-src"><p class="ex-src-t">Les ventes sur lesquelles on s'appuie</p><ul id="exVentes"></ul><p class="ex-meth" id="exMeth"></p><a id="exSrc" href="#" target="_blank" rel="noopener">Voir la cote sur PriceCharting ↗</a></div>
         <p class="ex-desc" id="exDesc"></p>
       </div>
     </div>
@@ -490,16 +532,21 @@ h2:has(.surligne){line-height:1.12}
         <h3>Suivi de tes ventes</h3>
         <p>En vente, réservé, vendu : <strong>tu sais où en est chaque jeu</strong>.</p>
         <div class="vis demo suivi" id="suivi">
-          <div><span>Conker · N64</span><button type="button" data-st="2" data-px="85">Vendu 85 €</button></div>
-          <div><span>Kirby 64 · N64</span><button type="button" data-st="1" data-px="40">Réservé</button></div>
-          <div><span>Paper Mario · N64</span><button type="button" data-st="0" data-px="45">En vente</button></div>
-          <p class="total">Encaissé : <b id="suiviTotal">85 €</b></p>
+          <div><span>Conker · N64</span><button type="button" data-st="2" data-px="199">Vendu 199 €</button></div>
+          <div><span>Kirby 64 · N64</span><button type="button" data-st="1" data-px="65">Réservé</button></div>
+          <div><span>Paper Mario · N64</span><button type="button" data-st="0" data-px="125">En vente</button></div>
+          <p class="total">Encaissé : <b id="suiviTotal">199 €</b></p>
         </div>
       </article>
       <article class="tuile anis t5 rv">
         <h3>Alerte avant le seuil fiscal</h3>
         <p>Les plateformes signalent aux impôts les vendeurs au-delà de <strong>30 ventes ou 2 000 €</strong> par an. <strong>On te prévient avant.</strong></p>
-        <div class="vis jauge"><span>22 ventes sur 30 en 2026</span><div class="b"><i></i></div></div>
+        <span class="essaie pixel">Glisse</span>
+        <div class="vis seuil" id="seuil">
+          <label class="sl"><span>Ventes en 2026 <b id="svN">22</b> / 30</span><input type="range" id="svIn" min="0" max="40" value="22" aria-label="Nombre de ventes dans l'année"><div class="b"><i id="svB"></i><em style="left:75%"></em></div></label>
+          <label class="sl"><span>Montant encaissé <b id="smN">1 340 €</b> / 2 000 €</span><input type="range" id="smIn" min="0" max="2600" step="20" value="1340" aria-label="Montant encaissé dans l'année"><div class="b"><i id="smB"></i><em style="left:75%"></em></div></label>
+          <div class="alerte" id="sAl" data-niv="0"><span class="cloche" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><p id="sTx" aria-live="polite"></p></div>
+        </div>
       </article>
       <article class="tuile noire t6 rv lueur">
         <span class="essaie pixel">Clique</span>
@@ -588,7 +635,7 @@ h2:has(.surligne){line-height:1.12}
         <p>Prépare tes <strong>5 premières annonces gratuitement</strong>, ce soir.</p>
         <div class="actions" style="margin-top:30px"><a class="btn noir" href="/app/?inscription">Essayer gratuitement <span class="fl" aria-hidden="true">→</span></a></div>
       </div>
-      <svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#1A1A1A"/><path fill="#D4F57A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg>
+      <div class="ico-w" aria-hidden="true"><svg class="ico" viewBox="-6 -6 76 76" overflow="visible"><rect width="64" height="64" rx="16" fill="#1A1A1A"/><path fill="#D4F57A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z"/><g class="etincelles" stroke="#1A1A1A" stroke-width="2.4" stroke-linecap="round"><path d="M52 14 L56 9"/><path d="M55.5 21 L61.5 19.5"/><path d="M45.5 12.5 L46 6.5"/></g><path class="eclair-cta" fill="#1A1A1A" d="M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg></div>
     </div>
   </div>
 </section>
@@ -623,16 +670,20 @@ h2:has(.surligne){line-height:1.12}
 
   /* exemples réels */
   var EX={
-    "kirby":{t:"Kirby 64: The Crystal Shards",c:"Nintendo 64",r:"PAL EUR",e:"Très bon",k:"Jeu en loose",p:40,f:"vendus entre 32 et 50 €",d:"Kirby 64: The Crystal Shards pour Nintendo 64, version PAL.\nJeu en loose, étiquette propre et couleurs vives.\nTestée, fonctionne parfaitement.\nRemise en main propre ou envoi."},
-    "zelda":{t:"The Legend of Zelda: Ocarina of Time",c:"Nintendo 64",r:"PAL FRA",e:"Bon",k:"En boîte",p:55,f:"vendus entre 45 et 70 €",d:"Zelda Ocarina of Time pour Nintendo 64, version PAL française.\nEn boîte : carton en bon état, coins légèrement frottés.\nCartouche testée, sauvegarde OK.\nRemise en main propre ou envoi."},
-    "conker":{t:"Conker's Bad Fur Day",c:"Nintendo 64",r:"PAL EUR",e:"Bon",k:"Jeu en loose",p:85,f:"vendus entre 70 et 110 €",d:"Conker's Bad Fur Day pour Nintendo 64, version PAL.\nJeu en loose, étiquette lisible avec de légères marques d'usure.\nTestée, fonctionne.\nRemise en main propre ou envoi."},
-    "paper-mario":{t:"Paper Mario",c:"Nintendo 64",r:"PAL EUR",e:"Très bon",k:"Jeu en loose",p:45,f:"vendus entre 38 et 55 €",d:"Paper Mario pour Nintendo 64, version PAL.\nJeu en loose, étiquette nette.\nTestée, sauvegarde OK.\nRemise en main propre ou envoi."}};
+    "kirby":{t:"Kirby 64: The Crystal Shards",c:"Nintendo 64",r:"PAL EUR",e:"Très bon",k:"Jeu en loose",p:65,f:"vendus entre 42 et 72 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/kirby-64-the-crystal-shards",m:"Médiane des 5 dernières ventes PAL en loose (61 €), affichée un peu au-dessus pour la négociation.",v:[["eBay", "Kirby 64 PAL Modul NUS-006(EUR)", 59, "2026-09-11", "https://www.ebay.com/itm/318843941769"], ["eBay", "Kirby 64 - The Crystal Shards (Nintendo 64)", 42, "2026-08-14", "https://www.ebay.com/itm/358897679238"], ["eBay", "Kirby 64: The Crystal Shards N64 (PAL)", 61, "2026-06-14", "https://www.ebay.com/itm/227378996525"]],d:"Kirby 64: The Crystal Shards pour Nintendo 64, version PAL.\nJeu en loose, étiquette propre et couleurs vives.\nTestée, fonctionne parfaitement.\nRemise en main propre ou envoi."},
+    "zelda":{t:"The Legend of Zelda: Ocarina of Time",c:"Nintendo 64",r:"PAL FRA",e:"Bon",k:"En boîte",p:69,f:"vendus entre 62 et 86 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/zelda-ocarina-of-time",m:"Médiane des 5 dernières ventes PAL complètes (67 €). Sans notice, on reste près de ce prix.",v:[["eBay", "Zelda Ocarina of Time N64 PAL CIB & Manual", 67, "2026-11-14", "https://www.ebay.com/itm/287711329101"], ["eBay", "N64 PAL Zelda Ocarina of Time Complete", 81, "2026-11-05", "https://www.ebay.com/itm/940067753669"], ["eBay", "Zelda Ocarina of Time PAL CIB + Manual 1998", 62, "2026-11-01", "https://www.ebay.com/itm/327422684785"]],d:"Zelda Ocarina of Time pour Nintendo 64, version PAL française.\nEn boîte : carton en bon état, coins légèrement frottés.\nCartouche testée, sauvegarde OK.\nRemise en main propre ou envoi."},
+    "conker":{t:"Conker's Bad Fur Day",c:"Nintendo 64",r:"PAL EUR",e:"Bon",k:"Jeu en loose",p:199,f:"vendus entre 121 et 212 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/conker%27s-bad-fur-day",m:"Médiane des 5 dernières ventes PAL en loose (206 €). Prix un peu en dessous car l'étiquette est marquée.",v:[["eBay", "Conkers Bad Fur Day N64 - Cart only - GC", 156, "2026-10-25", "https://www.ebay.com/itm/940027577876"], ["eBay", "Conker's Bad Fur Day PAL Cartridge Tested", 121, "2026-10-22", "https://www.ebay.com/itm/137845137364"], ["eBay", "Conker's Bad Fur Day N64 PAL Cartridge Only", 211, "2026-09-26", "https://www.ebay.com/itm/236907144642"]],d:"Conker's Bad Fur Day pour Nintendo 64, version PAL.\nJeu en loose, étiquette lisible avec de légères marques d'usure.\nTestée, fonctionne.\nRemise en main propre ou envoi."},
+    "paper-mario":{t:"Paper Mario",c:"Nintendo 64",r:"PAL EUR",e:"Très bon",k:"Jeu en loose",p:125,f:"vendus entre 88 et 176 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/paper-mario",m:"Médiane des ventes PAL en loose (116 €), sans les deux extrêmes (28 € et 431 €).",v:[["eBay", "N64 - Paper Mario - Nintendo 64", 116, "2026-10-19", "https://www.ebay.com/itm/168727577199"], ["eBay", "Paper Mario N64 PAL EUR Tested Very Good", 176, "2026-09-09", "https://www.ebay.com/itm/306990831129"], ["eBay", "Paper Mario Module PAL/EUR NUS-NMQP-EUR", 88, "2026-08-05", "https://www.ebay.com/itm/407106766071"]],d:"Paper Mario pour Nintendo 64, version PAL.\nJeu en loose, étiquette nette.\nTestée, sauvegarde OK.\nRemise en main propre ou envoi."}};
   var cmp=document.getElementById("cmpEx"),fx=document.querySelector(".fiche-ex");
   function montre(k,anim){var x=EX[k];if(!x)return;
     function maj(){cmp.querySelector(".av").src="/img/exemples/"+k+"-avant.jpg";cmp.querySelector(".ap").src="/img/exemples/"+k+"-apres.jpg";
       document.getElementById("exTitre").textContent=x.t;document.getElementById("exConsole").textContent=x.c;document.getElementById("exRegion").textContent=x.r;
       document.getElementById("exEtat").textContent=x.e;document.getElementById("exContenu").textContent=x.k;document.getElementById("exPrix").textContent=x.p+" €";
       document.getElementById("exFourchette").textContent=x.f;document.getElementById("exDesc").textContent=x.d;cmp.classList.remove("change");
+      var ul=document.getElementById("exVentes");ul.textContent="";x.v.forEach(function(v){var li=document.createElement("li"),a=document.createElement("a");a.href=v[4];a.target="_blank";a.rel="noopener";
+        var d=new Date(v[3]+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"});
+        a.innerHTML='<span class="s"></span><span class="n"></span><b></b><small></small>';a.children[0].textContent=v[0];a.children[1].textContent=v[1];a.children[2].textContent=v[2]+" €";a.children[3].textContent="Vendu le "+d;li.appendChild(a);ul.appendChild(li)});
+      document.getElementById("exMeth").innerHTML="<b>Méthode :</b> ";document.getElementById("exMeth").appendChild(document.createTextNode(x.m));document.getElementById("exSrc").href=x.u;
       fx.classList.remove("change");void fx.offsetWidth;if(anim)fx.classList.add("change")}
     if(anim&&!calme){cmp.classList.add("change");setTimeout(maj,220)}else maj()}
   if(cmp){montre("kirby",false);
@@ -662,12 +713,31 @@ h2:has(.surligne){line-height:1.12}
     va(0);
     if(!calme){var ob=new IntersectionObserver(function(es){if(es[0].isIntersecting&&!auto&&cur<3){auto=setInterval(function(){if(cur>=3){clearInterval(auto);return}va(cur+1)},1600)}},{threshold:.5});ob.observe(lb)}}
 
+  // Seuil fiscal : simulateur
+  var svIn=document.getElementById("svIn");
+  if(svIn){var smIn=document.getElementById("smIn"),fmt=function(n){return n.toLocaleString("fr-FR").replace(/\u202f/g," ")+" €"};
+    var majSeuil=function(){var v=+svIn.value,m=+smIn.value,pv=v/40*100,pm=m/2600*100,b1=document.getElementById("svB"),b2=document.getElementById("smB");
+      document.getElementById("svN").textContent=v;document.getElementById("smN").textContent=fmt(m);b1.style.width=pv+"%";b2.style.width=pm+"%";
+      b1.className=v>=30?"rouge":v>=24?"chaud":"";b2.className=m>=2000?"rouge":m>=1600?"chaud":"";
+      var niv=v>=30||m>=2000?2:v>=24||m>=1600?1:0,t;
+      if(niv===2)t="<b>Seuil atteint.</b> La plateforme transmet tes ventes aux impôts : on t'aide à t'y retrouver (export de tes ventes).";
+      else if(niv===1)t="<b>Alerte RetroRevente :</b> plus que "+Math.max(0,30-v)+" vente"+(30-v>1?"s":"")+" ou "+fmt(Math.max(0,2000-m))+" avant le seuil.";
+      else t="<b>Tranquille.</b> Encore "+(30-v)+" ventes ou "+fmt(2000-m)+" de marge. On te prévient à l'approche.";
+      var al=document.getElementById("sAl");al.dataset.niv=niv;document.getElementById("sTx").innerHTML=t};
+    svIn.addEventListener("input",majSeuil);smIn.addEventListener("input",majSeuil);majSeuil()}
+
+  // Bloc final : le logo s'incline avec le défilement
+  var icw=document.querySelector(".final .ico-w");
+  if(icw&&!calme&&!document.documentElement.classList.contains("sans-anim")){var majIco=function(){var r=icw.getBoundingClientRect(),p=1-(r.top+r.height/2)/innerHeight;icw.style.setProperty("--p",Math.max(0,Math.min(1,p)).toFixed(3))};addEventListener("scroll",majIco,{passive:true});majIco()}
+
   // Démo du téléphone : la fiche se remplit toute seule.
   var T=document.getElementById("tTitre"),E=document.getElementById("tEtat"),P=document.getElementById("tPrix"),C=document.getElementById("chrono");
-  var jeux=[["Zelda Ocarina of Time · N64 · PAL","Bon état · en boîte",55],["Kirby 64 · Nintendo 64 · PAL","Très bon état · jeu en loose",40],["Conker's Bad Fur Day · N64 · PAL","Bon état · jeu en loose",85],["Paper Mario · Nintendo 64 · PAL","Très bon état · jeu en loose",45]];
+  var jeux=[["Zelda Ocarina of Time · N64 · PAL","Bon état · en boîte",69,"zelda"],["Kirby 64 · Nintendo 64 · PAL","Très bon état · jeu en loose",65,"kirby"],["Conker's Bad Fur Day · N64 · PAL","Bon état · jeu en loose",199,"conker"],["Paper Mario · Nintendo 64 · PAL","Très bon état · jeu en loose",125,"paper-mario"]];
+  var PH=document.getElementById("tPhoto");jeux.forEach(function(j){new Image().src="/img/exemples/"+j[3]+"-avant.jpg"});
   if(calme){T.textContent=jeux[0][0];T.classList.remove("curs");E.textContent=jeux[0][1];P.textContent=jeux[0][2]+" €";return}
   var k=0;
   function tour(){var j=jeux[k++%jeux.length],i=0,s=0;T.textContent="";E.textContent="";P.textContent="—";
+    if(k>1){PH.classList.add("change");setTimeout(function(){PH.src="/img/exemples/"+j[3]+"-avant.jpg";PH.classList.remove("change")},300)}
     var t=setInterval(function(){i++;T.textContent=j[0].slice(0,i);if(i>=j[0].length){clearInterval(t);setTimeout(function(){E.textContent=j[1]},250);
       var n=0,c=setInterval(function(){n+=Math.max(1,Math.round(j[2]/12));if(n>=j[2]){n=j[2];clearInterval(c)}P.textContent=n+" €"},45);setTimeout(tour,3800)}},38);
     var d=Date.now();var ch=setInterval(function(){var e=Math.min(108,Math.round((Date.now()-d)/30));C.textContent="0"+Math.floor(e/60)+":"+String(e%60).padStart(2,"0");if(e>=108)clearInterval(ch)},40)}
