@@ -14,7 +14,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--papier:#141414;--carte:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--anis-p:#232B12;color-scheme:dark}}
 :root[data-theme="dark"]{--papier:#141414;--carte:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--anis-p:#232B12;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:96px}
 html,body{overflow-x:clip}
 body{margin:0;background:var(--papier);color:var(--encre);font:400 17px/1.6 var(--texte);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 a{color:inherit}
