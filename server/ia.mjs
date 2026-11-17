@@ -89,12 +89,12 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. »)` },
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})` },
   ], { max: 1200 });
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
   return {
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
-    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: txt(o.remarques, 300), annonce: txt(o.annonce, 100), description: txt(o.description, 1500), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
+    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
   };
 }
 
@@ -131,18 +131,38 @@ Réponds uniquement par un objet JSON avec les clés :
 }
 
 // Galerie : une courte légende par photo (ce qu'elle montre, défaut visible), dans l'ordre, pour la description « Photo 1 : … ».
+/* Pas d'à-peu-près dans une annonce : on affirme ce que la photo montre, sinon on n'en parle pas.
+   Filet de sécurité si le modèle glisse malgré la consigne un « apparemment », « semble », « visible »… */
+export function affirme(t) {
+  // Un passage incertain (« apparemment propre », « probablement testée ») ne devient pas une affirmation : on le retire.
+  const DOUTE = /\b(?:apparemment|probablement|sans doute|a priori|à priori|vraisemblablement|semble-t-il|en apparence|il semble|semble|semblent|a l'air|ont l'air|para[iî]t|paraissent|peut-être|on dirait)\b/i;
+  const ligne = (l) => {
+    const m = /^([^:\n]{1,40}?)\s*:\s*(.*)$/.exec(l), tete = m ? m[1] : "", corps = m ? m[2] : l;
+    const fin = /[.!]\s*$/.test(corps) ? "." : "";
+    let parts = corps.replace(/[.!]\s*$/, "").split(/\s*,\s*/).filter((x) => x && !DOUTE.test(x));
+    let c = parts.join(", ").replace(/\bvisiblement\s+/gi, "");
+    c = c.replace(/\b((?:pas de|aucun|aucune|sans)\s+[\wÀ-ÿ'’-]+(?:\s+(?:ni|ou)\s+[\wÀ-ÿ'’-]+)*)\s+(?:visibles?|apparents?|apparentes?)\b/gi, "$1")
+         .replace(/\b(défauts?|rayures?|chocs?|cassures?|traces?)\s+(?:visibles?|apparents?|apparentes?)\b/gi, "$1").trim();
+    if (!c) return "";
+    c = c.charAt(0).toUpperCase() + c.slice(1);
+    return (tete ? tete + " : " + c.charAt(0).toLowerCase() + c.slice(1) : c) + fin;
+  };
+  return String(t || "").split("\n").map((l) => (l.trim() ? ligne(l.trim()) : "")).filter((l, i, a) => l || (i > 0 && a[i - 1])).join("\n").trim();
+}
+const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
+
 export async function legender(photos, v = {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
-  if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut visible"));
+  if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut"));
   const quoi = [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
   const contenu = [];
   l.forEach((p, i) => { contenu.push({ type: "text", text: "Photo " + (i + 1) + " :" }); contenu.push(image(p)); });
-  contenu.push({ type: "text", text: `Ces ${l.length} photos montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Pour chaque photo, dans l'ordre, écris une légende courte en français (12 mots au plus) qui dit ce qu'elle montre (face avant, dos, étiquette, boîte, notice, tranche, connecteur…) et, s'il y en a un, le défaut visible (rayure, étiquette décollée, coin abîmé…). Sois honnête, n'invente rien de ce qu'on ne voit pas, pas de majuscule finale ni de point.
+  contenu.push({ type: "text", text: `Ces ${l.length} photos montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Pour chaque photo, dans l'ordre, écris une légende courte en français (12 mots au plus) qui dit ce qu'elle montre (face avant, dos, étiquette, boîte, notice, tranche, connecteur…) et, s'il y en a un, le défaut visible (rayure, étiquette décollée, coin abîmé…). Sois honnête, n'invente rien. ${CERTAIN} Pas de point final.
 Réponds uniquement par un objet JSON : {"legendes": ["…", "…"]} avec exactement ${l.length} légendes.` });
   const o = await claude(contenu, { max: 900, timeout: 60000 });
-  const out = o && Array.isArray(o.legendes) ? o.legendes.map((x) => txt(x, 200)) : [];
+  const out = o && Array.isArray(o.legendes) ? o.legendes.map((x) => affirme(txt(x, 200))) : [];
   if (!out.length) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
   return l.map((_, i) => out[i] || "");
 }
