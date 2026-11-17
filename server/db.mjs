@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS stripe_events (id TEXT PRIMARY KEY, at TEXT NOT NULL)
 CREATE TABLE IF NOT EXISTS hits (key TEXT PRIMARY KEY, n INTEGER NOT NULL, until INTEGER NOT NULL);
 -- Résiliations et rétractations reçues en ligne (preuve : contenu, date et heure). Gardées 5 ans, même après suppression du compte.
 CREATE TABLE IF NOT EXISTS demandes (id INTEGER PRIMARY KEY, type TEXT NOT NULL, user_id INTEGER, email TEXT NOT NULL, contenu TEXT NOT NULL, at TEXT NOT NULL);
+-- Clés de l'extension navigateur (remplissage du dépôt Le Bon Coin) : lecture seule des annonces.
+CREATE TABLE IF NOT EXISTS ext_keys (
+  token    TEXT PRIMARY KEY,                     -- empreinte SHA-256 de la clé
+  user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created  TEXT NOT NULL,
+  used     TEXT NOT NULL DEFAULT ''
+);
 `);
 
 // Colonnes ajoutées après la mise en ligne (une base existante les reçoit au démarrage).

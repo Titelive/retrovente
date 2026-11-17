@@ -205,3 +205,34 @@ test("profil : pseudo, avatar, changement d'e-mail", async () => {
   assert.equal(cx.status, 200);
   assert.match(String(cx.headers["Set-Cookie"]), /rr_co=1/);
 });
+
+test("extension navigateur : clé, annonces en vente, photo, isolation, révocation", async () => {
+  const c = await compte("ext@exemple.fr"), d = await compte("ext2@exemple.fr");
+  assert.equal((await call("POST", "/api/extension/cle")).status, 401);                                   // il faut une session
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle;
+  assert.match(k, /^rre_/);
+  const bearer = (cle) => ({ authorization: "Bearer " + cle });
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Zelda", plateforme: "Nintendo 64", etat: "bon", contenu: "complet", prixDemande: "44,6" }, photo: PHOTO }, c)).json.objet;
+  await call("POST", "/api/objets", { objet: { titre: "Vendu déjà", statut: "vendu" } }, c);
+  const autre = (await call("POST", "/api/objets", { objet: { titre: "Pas à moi" }, photo: PHOTO }, d)).json.objet;
+
+  assert.equal((await call("GET", "/api/extension/annonces")).status, 401);
+  assert.equal((await call("GET", "/api/extension/annonces", null, "", bearer("rre_" + "x".repeat(43)))).status, 401);
+  assert.equal((await call("GET", "/api/extension/annonces", null, c)).status, 401);                      // le cookie ne suffit pas
+  const r = await call("GET", "/api/extension/annonces", null, "", bearer(k));
+  assert.equal(r.status, 200); assert.equal(r.headers["Access-Control-Allow-Origin"], "*");
+  assert.equal(r.json.annonces.length, 1);
+  const a = r.json.annonces[0];
+  assert.equal(a.titre, "Zelda Nintendo 64"); assert.equal(a.prix, 45); assert.equal(a.etat, "bon"); assert.equal(a.photo, true);
+  assert.match(a.description, /Bon état\.\nComplet : boîte et notice\./);
+
+  assert.equal((await call("GET", "/api/extension/photo/" + o.id, null, "", bearer(k))).status, 200);
+  assert.equal((await call("GET", "/api/extension/photo/" + autre.id, null, "", bearer(k))).status, 404);   // photo d'un autre compte
+  assert.equal((await call("OPTIONS", "/api/extension/annonces", null, "", { origin: "chrome-extension://abc" })).status, 204);
+  assert.equal((await call("POST", "/api/extension/rempli", null, "", { ...bearer(k), origin: "chrome-extension://abc" })).status, 200);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.usage.lbc, 1);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.extension, 1);
+
+  assert.equal((await call("DELETE", "/api/extension/cle", null, c)).json.supprimees, 1);
+  assert.equal((await call("GET", "/api/extension/annonces", null, "", bearer(k))).status, 401);
+});

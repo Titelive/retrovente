@@ -35,6 +35,26 @@ export function currentUser(req) {
 export function endSession(req) { const t = tokenOf(req); if (t) db.prepare("DELETE FROM sessions WHERE token = ?").run(sha(t)); }
 export const endAllSessions = (userId) => db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
 
+/* Extension navigateur : clé « Bearer » propre à chaque navigateur, qui ne donne accès qu'à la lecture des annonces.
+   On garde les 5 plus récentes par compte ; changer de mot de passe ou se déconnecter partout ne les touche pas,
+   « Déconnecter l'extension » (Mon compte) les supprime toutes. */
+export function createExtKey(userId) {
+  const t = "rre_" + crypto.randomBytes(32).toString("base64url");
+  db.prepare("INSERT INTO ext_keys(token, user_id, created) VALUES (?, ?, ?)").run(sha(t), userId, now());
+  db.prepare("DELETE FROM ext_keys WHERE user_id = ? AND token NOT IN (SELECT token FROM ext_keys WHERE user_id = ? ORDER BY created DESC LIMIT 5)").run(userId, userId);
+  return t;
+}
+export function extUser(req) {
+  const m = /^Bearer (rre_[A-Za-z0-9_-]{20,80})$/.exec(String(req.headers.authorization || ""));
+  if (!m) return null;
+  const h = sha(m[1]);
+  const u = db.prepare("SELECT u.* FROM ext_keys k JOIN users u ON u.id = k.user_id WHERE k.token = ?").get(h);
+  if (u) db.prepare("UPDATE ext_keys SET used = ? WHERE token = ?").run(now(), h);
+  return u || null;
+}
+export const endExtKeys = (userId) => db.prepare("DELETE FROM ext_keys WHERE user_id = ?").run(userId).changes;
+export const countExtKeys = (userId) => db.prepare("SELECT COUNT(*) AS n FROM ext_keys WHERE user_id = ?").get(userId).n;
+
 /** Lien de nouveau mot de passe (valable 1 heure). Renvoie le jeton en clair, à mettre dans l'e-mail. */
 export function makeReset(userId) {
   const t = crypto.randomBytes(24).toString("base64url");
