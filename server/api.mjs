@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { db, now, month, bump, usageOf, usageTotal, allow, photoPath, tx } from "./db.mjs";
-import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail } from "./auth.mjs";
+import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
 import { rights, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
 import * as stripe from "./stripe.mjs";
@@ -92,7 +92,7 @@ function me(u) {
     email: u.email, cree: u.created,
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(),
-    bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer,
+    bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
   };
 }
 
@@ -101,6 +101,23 @@ function csv(items) {
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
+
+/* ===== Extension navigateur (remplissage du dépôt Le Bon Coin) ===== */
+// Le Bon Coin n'a pas d'API publique : l'extension lit ici les annonces prêtes et remplit le formulaire de dépôt
+// dans l'onglet de la personne, qui vérifie chaque étape et publie elle-même.
+const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état.", correct: "État correct.", pieces: "Pour pièces." };
+const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice." };
+export function annonceLbc(v) {
+  const nom = [v.titre, v.plateforme].filter(Boolean).join(" ");
+  const description = v.texteAnnonce || [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  return {
+    id: v.id, nom: v.titre, titre: (v.titreAnnonce || nom).slice(0, 100), description,
+    prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
+    categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
+    photo: !!v.photo, publiee: !!v.annonce, modifie: v.modifie,
+  };
+}
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 
 /* ===== Résiliation et rétractation en ligne ===== */
 const dateFr = (iso) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
@@ -139,6 +156,26 @@ export async function handleApi(req) {
     const raw = req.body.toString("utf8");
     if (!stripe.verify(raw, req.headers["stripe-signature"])) return ok({ error: "Signature invalide." }, 400);
     return ok({ ok: true, r: await stripe.handleEvent(JSON.parse(raw)) });
+  }
+
+  // Extension navigateur : clé Bearer (pas de cookie), lecture seule, ouverte à toutes les origines.
+  if (p.startsWith("/api/extension/") && p !== "/api/extension/cle") {
+    if (method === "OPTIONS") return { status: 204, body: Buffer.alloc(0), headers: CORS };
+    if (!allow("ext:" + ip, 600, 3600)) fail(429, "Trop de requêtes, réessaie dans un moment.");
+    const eu = extUser(req);
+    if (!eu) return { status: 401, json: { error: "Extension déconnectée : reconnecte-la depuis Mon compte sur retrorevente.fr." }, headers: CORS };
+    if (p === "/api/extension/annonces" && method === "GET") {
+      const l = listItems(eu.id).filter((v) => v.statut === "en_vente").map(annonceLbc);
+      return { status: 200, json: { email: eu.email, annonces: l }, headers: CORS };
+    }
+    const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})$/.exec(p);
+    if (mx && method === "GET") {
+      const f = photoPath(eu.id, mx[1]);
+      if (!getItem(eu.id, mx[1]) || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
+      return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
+    }
+    if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
+    return { status: 404, json: { error: "Adresse inconnue." }, headers: CORS };
   }
 
   // Protection CSRF : les requêtes qui modifient doivent venir de notre site (en plus du cookie SameSite=Lax).
@@ -187,6 +224,12 @@ export async function handleApi(req) {
   if (!u) fail(401, "Connecte-toi pour continuer.");
 
   if (p === "/api/moi" && method === "GET") return ok(me(u));
+  // Clé de l'extension : créée depuis l'appli (session), transmise à l'extension par la page, révocable.
+  if (p === "/api/extension/cle" && method === "POST") {
+    if (!allow("extcle:" + u.id, 20, 3600)) fail(429, "Trop de demandes, réessaie plus tard.");
+    return ok({ ok: true, cle: createExtKey(u.id) });
+  }
+  if (p === "/api/extension/cle" && method === "DELETE") return ok({ ok: true, supprimees: endExtKeys(u.id) });
   if (p === "/api/compte/motdepasse" && method === "POST") {
     const b = body();
     if (!checkPass(String(b.ancien || ""), u.pass)) fail(400, "Mot de passe actuel incorrect.");

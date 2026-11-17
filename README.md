@@ -5,6 +5,7 @@ Revendre ses jeux vidéo sur Le Bon Coin en 2 minutes : une photo, et l'annonce 
 - `site/` : pages publiques (accueil, guides, pages légales) et l'appli (`site/app/`).
 - `server/` : serveur Node 22 sans dépendance (pages + API `/api/…`), base SQLite intégrée à Node.
 - `deploy/` : mise en ligne sur le VPS IONOS (service `retrorevente`, port 8082).
+- `extension/` : extension navigateur (Safari, Chrome, Firefox) qui remplit le dépôt d'annonce Le Bon Coin, voir `extension/README.md`.
 - `test/` : tests de l'API (`npm test`).
 
 En local : `npm run dev` puis http://127.0.0.1:8082 (IA simulée, pas besoin de clé).
