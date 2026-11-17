@@ -53,7 +53,23 @@ CREATE TABLE IF NOT EXISTS usage (
 CREATE TABLE IF NOT EXISTS stripe_events (id TEXT PRIMARY KEY, at TEXT NOT NULL);
 -- Limiteur d'essais (connexion, inscription, IA) : clé → nombre d'essais dans la fenêtre.
 CREATE TABLE IF NOT EXISTS hits (key TEXT PRIMARY KEY, n INTEGER NOT NULL, until INTEGER NOT NULL);
+-- Résiliations et rétractations reçues en ligne (preuve : contenu, date et heure). Gardées 5 ans, même après suppression du compte.
+CREATE TABLE IF NOT EXISTS demandes (id INTEGER PRIMARY KEY, type TEXT NOT NULL, user_id INTEGER, email TEXT NOT NULL, contenu TEXT NOT NULL, at TEXT NOT NULL);
 `);
+
+// Colonnes ajoutées après la mise en ligne (une base existante les reçoit au démarrage).
+const COLS = {
+  cgv_at: "TEXT NOT NULL DEFAULT ''",        // date d'acceptation des conditions générales (preuve)
+  cgv_version: "TEXT NOT NULL DEFAULT ''",   // version acceptée (date de mise à jour des CG)
+  plan_cancel: "TEXT NOT NULL DEFAULT ''",   // résiliation demandée : date de fin de l'abonnement (ISO)
+  rappel: "TEXT NOT NULL DEFAULT ''",        // échéance annuelle déjà rappelée par e-mail (loi Chatel)
+  achat_at: "TEXT NOT NULL DEFAULT ''",      // date du dernier achat (point de départ du délai de rétractation)
+  achat_ref: "TEXT NOT NULL DEFAULT ''",     // offre:periode achetée
+  achat_montant: "INTEGER NOT NULL DEFAULT 0", // montant payé, en centimes
+  retract_at: "TEXT NOT NULL DEFAULT ''",    // rétractation reçue pour cet achat
+};
+const have = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
+for (const [c, def] of Object.entries(COLS)) if (!have.has(c)) db.exec(`ALTER TABLE users ADD COLUMN ${c} ${def}`);
 
 export const now = () => new Date().toISOString();
 export const month = (d = new Date()) => d.toISOString().slice(0, 7);
@@ -88,6 +104,6 @@ export function allow(key, max, windowS) {
   db.prepare("UPDATE hits SET n = n + 1 WHERE key = ?").run(key);
   return true;
 }
-setInterval(() => { try { db.prepare("DELETE FROM hits WHERE until < ?").run(Date.now()); db.prepare("DELETE FROM sessions WHERE expires < ?").run(now()); } catch (e) {} }, 3600_000).unref();
+setInterval(() => { try { db.prepare("DELETE FROM hits WHERE until < ?").run(Date.now()); db.prepare("DELETE FROM demandes WHERE at < ?").run(new Date(Date.now() - 5 * 365.25 * 864e5).toISOString()); db.prepare("DELETE FROM sessions WHERE expires < ?").run(now()); } catch (e) {} }, 3600_000).unref();
 
 export const photoPath = (userId, itemId) => path.join(DATA_DIR, "photos", String(userId), String(itemId).replace(/[^a-z0-9-]/gi, "") + ".jpg");

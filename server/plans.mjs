@@ -17,3 +17,6 @@ export const rights = (u) => ({ id: effectivePlan(u), ...PLANS[effectivePlan(u)]
 
 // Seuils de déclaration des plateformes aux impôts (directive DAC7) : 30 ventes ou 2 000 € sur l'année civile.
 export const SEUIL_VENTES = 30, SEUIL_MONTANT = 2000;
+
+// Version des conditions générales en vigueur (date de mise à jour affichée sur /cgv/). À changer à chaque modification.
+export const CGV_VERSION = "2026-11-17";

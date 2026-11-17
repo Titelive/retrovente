@@ -10,8 +10,7 @@
 <meta name="theme-color" content="#1A1A1A">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/polices.css">
 <link rel="stylesheet" href="/css/rr.css">
 <style>
 [hidden]{display:none!important}
@@ -164,6 +163,8 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 dialog{border:0;border-radius:28px;padding:28px;max-width:min(470px,calc(100% - 32px));background:var(--carte);color:var(--encre);box-shadow:0 50px 100px -30px rgba(0,0,0,.6)}
 dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(4px)}
 dialog form{display:flex;flex-direction:column;gap:14px}
+#qEtape2[hidden],#qEtape1[hidden]{display:none!important}
+.recap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}.recap dt{color:var(--gris)}.recap dd{margin:0;font-weight:600}
 #toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
 #toast::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:#E05A4F}
 #toast.ok::before{background:var(--anis)}
@@ -298,7 +299,8 @@ body.fiche-ouverte #toast{bottom:100px}
   <section class="carte zone">
     <h2>Ta formule : <span id="cFormule"></span></h2>
     <p id="cFormuleTx" style="color:var(--gris)"></p>
-    <div class="rangee"><button class="btn clair" type="button" id="cPortail" hidden>Gérer mon abonnement et mes factures</button></div>
+    <div class="rangee"><button class="btn clair" type="button" id="cPortail" hidden>Gérer mon abonnement et mes factures</button><button class="btn clair" type="button" id="cResilier" hidden>Résilier votre contrat</button><button class="btn clair" type="button" id="cRenoncer" hidden>Renoncer au contrat ici</button></div>
+    <p id="cRenoncerTx" style="font-size:13px;color:var(--gris)" hidden></p>
   </section>
   <section class="zone">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Changer de formule</h2>
@@ -308,7 +310,7 @@ body.fiche-ouverte #toast{bottom:100px}
       <article class="offre" data-o="collectionneur"><h3>Collectionneur</h3><p class="p" data-mois="9,99 €<small> /mois</small>" data-an="79 €<small> /an</small>">9,99 €<small> /mois</small></p><ul><li>Jeux illimités</li><li>Alerte de seuil fiscal</li><li>Export de tes ventes (tableur)</li></ul><button class="btn" type="button">Choisir Collectionneur</button></article>
       <article class="offre" data-o="pass"><h3>Pass Grand ménage</h3><p class="p">9,90 €<small> une fois</small></p><ul><li>Illimité pendant 30 jours</li><li>Tout Collectionneur inclus</li><li>Sans abonnement</li></ul><button class="btn" type="button">Prendre le pass</button></article>
     </div>
-    <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Sans engagement : tu résilies en un clic depuis cette page.</p>
+    <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Prix TTC. Sans engagement : tu résilies quand tu veux avec le bouton « Résilier votre contrat » de cette page. Voir les <a href="/cgv/" target="_blank">conditions générales</a>.</p>
   </section>
   <section class="carte zone">
     <h2>Mes données</h2>
@@ -342,6 +344,22 @@ body.fiche-ouverte #toast{bottom:100px}
   <label class="f">Ton mot de passe pour confirmer<input type="password" id="sMdp" autocomplete="current-password"></label>
   <p class="err" id="sErr"></p>
   <div class="rangee"><button class="btn" type="button" id="sGo">Tout supprimer</button><button class="btn clair" value="x">Annuler</button></div>
+</form></dialog>
+<dialog id="dDem"><form method="dialog">
+  <h2 id="dDemT"></h2>
+  <p id="dDemTx" style="color:var(--gris)"></p>
+  <div id="qEtape1" style="display:flex;flex-direction:column;gap:14px">
+    <label class="f">Contrat concerné<input type="text" id="qContrat" readonly></label>
+    <label class="f">Nom et prénom<input type="text" id="qNom" autocomplete="name" maxlength="120"></label>
+    <label class="f">Adresse e-mail pour recevoir la confirmation<input type="email" id="qEmail" autocomplete="email"></label>
+    <p class="err" id="qErr"></p>
+    <div class="rangee"><button class="btn" type="button" id="qSuite">Continuer</button><button class="btn clair" value="x">Annuler</button></div>
+  </div>
+  <div id="qEtape2" hidden style="display:flex;flex-direction:column;gap:14px">
+    <p style="margin:0"><strong>Vérifie ta demande :</strong></p>
+    <dl id="qRecap" class="recap"></dl>
+    <div class="rangee"><button class="btn" type="button" id="qGo"></button><button class="btn clair" type="button" id="qModif">Modifier</button></div>
+  </div>
 </form></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -538,8 +556,11 @@ function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arr
 function compte(){var f=ME.formule;montrer("compte");$("cEmail").textContent=ME.email;$("cFormule").textContent=f.nom;
   var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" jeux":" jeu")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
     f.id==="pass"?"Illimité jusqu'au "+dfr(f.pass)+". Aucun renouvellement automatique.":
-    (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
+    (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.resiliation?", résilié : il s'arrête le "+dfr(f.resiliation)+".":f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
   $("cFormuleTx").textContent=tx;$("cPortail").hidden=!ME.client;
+  $("cResilier").hidden=!(f.abonnement&&!f.resiliation&&["active","trialing","past_due"].indexOf(f.statut)>=0);
+  $("cRenoncer").hidden=$("cRenoncerTx").hidden=!f.retractable;
+  if(f.retractable)$("cRenoncerTx").textContent="Droit de rétractation : tu peux renoncer à ton dernier achat jusqu'au "+dfr(f.retractable)+" (remboursement de la part non utilisée).";
   [].forEach.call(document.querySelectorAll("#compte .offre"),function(a){a.classList.toggle("actuelle",a.dataset.o===f.id)});
   $("cExport").hidden=!f.export;$("cExportTx").textContent=f.export?"Fichier compatible Excel, Numbers et Google Sheets.":"L'export de tes ventes (pour ta compta ou un tableur) est inclus dans la formule Collectionneur."}
 $("bCompte").onclick=compte;$("cRetour").onclick=function(){montrer("accueil")};
@@ -548,6 +569,30 @@ document.querySelector("#compte .bascule").addEventListener("click",function(e){
   [].forEach.call(document.querySelectorAll("#compte [data-mois]"),function(el){el.innerHTML=el.dataset[PER]})});
 document.querySelector("#compte .offres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var o=b.closest(".offre").dataset.o;payer(o,o==="pass"?"mois":PER,b)});
 $("cPortail").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Ouverture…");api("POST","/api/portail").then(function(j){location.href=j.url}).catch(function(e){erreur(e,"Indisponible.");busy(b,false,t)})};
+/* Résiliation (art. D215-1 à D215-3) et rétractation (art. D221-5) : formulaire, récapitulatif, puis confirmation. */
+var DEM=null;
+function demander(type){DEM=type;var f=ME.formule,r=type==="resilier";
+  $("dDemT").textContent=r?"Résilier votre contrat":"Renoncer au contrat";
+  $("dDemTx").textContent=r?"Ton abonnement s'arrêtera à la fin de la période déjà payée"+(f.fin?", le "+dfr(f.fin):"")+". Aucun frais, aucun préavis.":
+    "Tu te rétractes de ton dernier achat. Ta formule s'arrête tout de suite ; tu es remboursé de la part non utilisée, au plus tard sous 14 jours.";
+  $("qContrat").value=f.contrat||"";$("qEmail").value=ME.email;$("qNom").value="";$("qErr").textContent="";
+  $("qEtape1").hidden=false;$("qEtape2").hidden=true;$("dDem").showModal()}
+$("cResilier").onclick=function(){demander("resilier")};
+$("cRenoncer").onclick=function(){demander("retractation")};
+$("qSuite").onclick=function(){var nom=$("qNom").value.trim(),em=$("qEmail").value.trim();
+  if(nom.length<2){$("qErr").textContent="Indique ton nom et ton prénom.";return}
+  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(em)){$("qErr").textContent="Adresse e-mail invalide.";return}
+  $("qErr").textContent="";$("qRecap").innerHTML="";
+  [["Demande",DEM==="resilier"?"Résiliation":"Rétractation"],["Contrat",$("qContrat").value],["Nom et prénom",nom],["Confirmation envoyée à",em],
+   ["Date d'effet",DEM==="resilier"?(ME.formule.fin?"fin de la période payée, le "+dfr(ME.formule.fin):"fin de la période payée"):"immédiate"]].forEach(function(l){
+    var dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=l[0];dd.textContent=l[1];$("qRecap").append(dt,dd)});
+  $("qGo").textContent=DEM==="resilier"?"Notification de la résiliation":"Confirmer la rétractation";
+  $("qEtape1").hidden=true;$("qEtape2").hidden=false};
+$("qModif").onclick=function(){$("qEtape1").hidden=false;$("qEtape2").hidden=true};
+$("qGo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Envoi…");
+  api("POST",DEM==="resilier"?"/api/resilier":"/api/retractation",{nom:$("qNom").value.trim(),email:$("qEmail").value.trim(),confirmer:true}).then(function(){
+    $("dDem").close();busy(b,false,t);toast(DEM==="resilier"?"Résiliation enregistrée. Une confirmation t'a été envoyée par e-mail.":"Rétractation enregistrée. Un accusé de réception t'a été envoyé par e-mail.","ok");
+    return api("GET","/api/moi").then(function(j){ME=j;compte()})}).catch(function(e){busy(b,false,t);$("qEtape1").hidden=false;$("qEtape2").hidden=true;$("qErr").textContent=e.message})};
 $("cSortir").onclick=function(){api("POST","/api/deconnexion").then(function(){ME=null;OBJ=[];auth()})};
 $("cMdp").onclick=function(){$("mErr").textContent="";$("mAncien").value=$("mNouveau").value="";$("dMdp").showModal()};
 $("mGo").onclick=function(){api("POST","/api/compte/motdepasse",{ancien:$("mAncien").value,nouveau:$("mNouveau").value}).then(function(){$("dMdp").close();toast("Mot de passe changé.","ok")}).catch(function(e){$("mErr").textContent=e.message})};

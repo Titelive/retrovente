@@ -6,13 +6,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleApi, HttpError } from "./api.mjs";
 import { IaError } from "./ia.mjs";
+import { rappelsAnnuels } from "./stripe.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = path.resolve(process.env.SITE_DIR || path.join(ROOT, "site"));
 const PORT = +process.env.PORT || 8082, HOST = process.env.HOST || "127.0.0.1";
 const MAX_BODY = 2 * 1024 * 1024;
 
-const MIME = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", json: "application/json; charset=utf-8", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", ico: "image/x-icon", txt: "text/plain; charset=utf-8", xml: "application/xml; charset=utf-8", webmanifest: "application/manifest+json" };
+const MIME = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", json: "application/json; charset=utf-8", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", ico: "image/x-icon", txt: "text/plain; charset=utf-8", xml: "application/xml; charset=utf-8", webmanifest: "application/manifest+json", woff2: "font/woff2" };
 const SECU = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -85,5 +86,9 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" }); } res.end("Erreur du serveur");
   }
 });
+// Rappel avant renouvellement des abonnements annuels (loi Chatel) : vérifié toutes les 6 heures.
+const rappels = () => rappelsAnnuels().catch((e) => console.error("rappels", e.message));
+setTimeout(rappels, 60_000).unref(); setInterval(rappels, 6 * 3600_000).unref();
+
 server.listen(PORT, HOST, () => console.log(`RetroRevente : http://${HOST}:${PORT} (site : ${SITE})`));
 process.on("unhandledRejection", (e) => console.error("promesse non gérée :", e && e.stack || e));
