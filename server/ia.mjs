@@ -124,3 +124,20 @@ Réponds uniquement par un objet JSON avec les clés :
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
   return c;
 }
+
+// Galerie : une courte légende par photo (ce qu'elle montre, défaut visible), dans l'ordre, pour la description « Photo 1 : … ».
+export async function legender(photos, v = {}) {
+  const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
+  if (!l.length) throw new IaError("Ajoute d'abord des photos.");
+  l.forEach(checkPhoto);
+  if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut visible"));
+  const quoi = [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
+  const contenu = [];
+  l.forEach((p, i) => { contenu.push({ type: "text", text: "Photo " + (i + 1) + " :" }); contenu.push(image(p)); });
+  contenu.push({ type: "text", text: `Ces ${l.length} photos montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Pour chaque photo, dans l'ordre, écris une légende courte en français (12 mots au plus) qui dit ce qu'elle montre (face avant, dos, étiquette, boîte, notice, tranche, connecteur…) et, s'il y en a un, le défaut visible (rayure, étiquette décollée, coin abîmé…). Sois honnête, n'invente rien de ce qu'on ne voit pas, pas de majuscule finale ni de point.
+Réponds uniquement par un objet JSON : {"legendes": ["…", "…"]} avec exactement ${l.length} légendes.` });
+  const o = await claude(contenu, { max: 900, timeout: 60000 });
+  const out = o && Array.isArray(o.legendes) ? o.legendes.map((x) => txt(x, 200)) : [];
+  if (!out.length) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
+  return l.map((_, i) => out[i] || "");
+}

@@ -8,7 +8,10 @@ export const PLANS = {
 const ACTIFS = ["active", "trialing", "past_due"];   // past_due : Stripe réessaie le paiement, on laisse l'accès pendant ce temps
 
 /** Formule en vigueur pour un utilisateur (le pass l'emporte tant qu'il court). */
+// Comptes autorisés à essayer toutes les formules sans payer : variable ADMIN_EMAILS du serveur (adresses séparées par des virgules).
+export const isAdmin = (u) => !!u && !!u.email && String(process.env.ADMIN_EMAILS || "").toLowerCase().split(/[\s,;]+/).filter(Boolean).includes(String(u.email).toLowerCase());
 export function effectivePlan(u, at = new Date()) {
+  if (u.test_plan && PLANS[u.test_plan] && isAdmin(u)) return u.test_plan;
   if (u.pass_until && new Date(u.pass_until) > at) return "pass";
   if ((u.plan === "vendeur" || u.plan === "collectionneur") && ACTIFS.includes(u.plan_status)) return u.plan;
   return "gratuit";

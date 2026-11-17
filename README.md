@@ -71,8 +71,14 @@ Ce que fait le code pour le droit de la consommation :
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
 
-## Nettoyage des photos (détourage)
+## Retouche des photos (vrai fond gardé)
 
-Le fond des photos est retiré par un petit service Python installé sur le serveur (`tools/detourage.py`, modèle libre rembg / IS-Net), sans service payant : **aucun coût par photo**. `deploy/deploy.sh` l'installe tout seul la première fois (dans `/opt/retrorevente-py`, service `retrorevente-detourage`, port 7001 en local, 2,5 Go de mémoire au plus). Le reste du nettoyage (remise à l'endroit, redressement, lumière, reflets, ombres, fond blanc) est fait dans la page. La photo d'origine reste disponible dans la fiche.
+Les photos sont retouchées par un petit service Python installé sur le serveur (`tools/detourage.py`, route `/retoucher`, modèle libre rembg / IS-Net + OpenCV), sans service payant : **aucun coût par photo**. Le jeu est repéré pour **redresser et recadrer** la photo, les **objets posés à côté et les poussières du fond sont effacés**, les **reflets atténués**. **Pas de détourage ni de fond remplacé** : une vraie photo rassure les acheteurs. `deploy/deploy.sh` l'installe tout seul (dans `/opt/retrorevente-py`, service `retrorevente-detourage`, port 7001 en local, 2,5 Go de mémoire au plus). La photo d'origine reste disponible dans la fiche.
+
+Chaque jeu a une **galerie de 12 photos au plus**, réorganisable ; l'IA décrit chaque photo, la description de l'annonce reprend « Photos : 1. … », et les photos exportées portent leur numéro.
+
+## Mode test des formules (propriétaire seulement)
+
+Ajoute `ADMIN_EMAILS=ton@adresse` dans `/etc/retrorevente.env` puis `systemctl restart retrorevente`. Ce compte (et lui seul, vérifié côté serveur) voit dans Mon compte un bloc « Mode test » pour passer d'une formule à l'autre sans payer.
 
 Vérifier : `systemctl status retrorevente-detourage` et `curl -s http://127.0.0.1:7001/sante`.

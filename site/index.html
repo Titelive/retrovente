@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>RetroRevente · Revends tes jeux vidéo sur Le Bon Coin en 2 minutes</title>
-<meta name="description" content="Prends ton jeu en photo : RetroRevente remplit l'annonce, détoure et nettoie la photo, te donne le bon prix (eBay, Le Bon Coin, PriceCharting) et prépare tout pour Le Bon Coin. Environ 13 minutes gagnées par jeu. Gratuit jusqu'à 5 jeux par mois.">
+<meta name="description" content="Prends ton jeu en photo : RetroRevente remplit l'annonce, retouche la photo (vrai fond gardé), te donne le bon prix (eBay, Le Bon Coin, PriceCharting) et prépare tout pour Le Bon Coin. Environ 13 minutes gagnées par jeu. Gratuit jusqu'à 5 jeux par mois.">
 <link rel="canonical" href="https://retrorevente.fr/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -23,14 +23,14 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=8">
+<link rel="stylesheet" href="/css/rr.css?v=10">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=5" defer></script>
+<script src="/js/rr.js?v=7" defer></script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"WebSite","@id":"https://retrorevente.fr/#site","url":"https://retrorevente.fr/","name":"RetroRevente","inLanguage":"fr-FR"},
 {"@type":"SoftwareApplication","name":"RetroRevente","url":"https://retrorevente.fr/","applicationCategory":"BusinessApplication","operatingSystem":"Web, iPhone, Android","inLanguage":"fr-FR",
-"description":"Application web qui prépare en deux minutes les annonces de jeux vidéo à revendre sur Le Bon Coin : remplissage depuis une photo, prix conseillé, photo détourée et nettoyée et suivi des ventes.",
+"description":"Application web qui prépare en deux minutes les annonces de jeux vidéo à revendre sur Le Bon Coin : remplissage depuis une photo, prix conseillé, galerie de photos retouchées et numérotées, et suivi des ventes.",
 "offers":[
 {"@type":"Offer","name":"Découverte","price":"0","priceCurrency":"EUR","description":"5 jeux par mois"},
 {"@type":"Offer","name":"Vendeur","price":"4.99","priceCurrency":"EUR","description":"30 jeux par mois, 39 € par an"},
@@ -38,7 +38,7 @@
 {"@type":"Offer","name":"Pass Grand ménage","price":"9.90","priceCurrency":"EUR","description":"30 jours illimités, sans abonnement"}]},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"RetroRevente publie-t-il l'annonce sur Le Bon Coin à ma place ?","acceptedAnswer":{"@type":"Answer","text":"Non. Le Bon Coin ne propose pas d'accès public pour publier depuis une autre application. RetroRevente prépare tout (titre, description, prix, photo nettoyée), copie le texte en un clic et ouvre la page de dépôt d'annonce : il ne te reste qu'à coller et valider."}},
-{"@type":"Question","name":"Comment la photo est-elle nettoyée ?","acceptedAnswer":{"@type":"Answer","text":"L'IA retire le fond, atténue les reflets, corrige la lumière et remet le jeu droit, sur fond blanc au format des vignettes Le Bon Coin. Elle ne retouche jamais le jeu lui-même : les vrais défauts restent visibles, et la photo d'origine est conservée."}},
+{"@type":"Question","name":"Comment la photo est-elle nettoyée ?","acceptedAnswer":{"@type":"Answer","text":"L'IA garde le vrai fond de ta photo : elle redresse et recadre le jeu, efface ce qui traîne à côté (objets, miettes, poussières) et atténue les reflets. Pas de détourage ni de fond artificiel : une vraie photo rassure les acheteurs. Elle ne retouche jamais le jeu lui-même : les vrais défauts restent visibles, et la photo d'origine est conservée."}},
 {"@type":"Question","name":"Quels jeux et consoles sont reconnus ?","acceptedAnswer":{"@type":"Answer","text":"Les jeux, consoles et accessoires de toutes les générations, de la NES et de la Master System à la PS5 et la Switch, en passant par la Game Boy, la Mega Drive, la PlayStation et la Nintendo 64. Tu peux toujours corriger ce que l'outil a proposé."}},
 {"@type":"Question","name":"D'où vient le prix conseillé ?","acceptedAnswer":{"@type":"Answer","text":"Des ventes réellement conclues sur eBay, des annonces en ligne sur Le Bon Coin et des cotes PriceCharting, ajustées selon l'état et la présence de la boîte et de la notice. C'est un repère pour vendre vite au bon prix, tu restes libre de le changer."}},
 {"@type":"Question","name":"Est-ce que je dois déclarer mes ventes ?","acceptedAnswer":{"@type":"Answer","text":"Vendre tes propres affaires d'occasion n'est en principe pas imposable. Mais depuis 2023, les plateformes transmettent aux impôts les comptes qui dépassent 30 ventes ou 2 000 euros dans l'année. Avec la formule Collectionneur, RetroRevente te prévient avant d'atteindre ces seuils."}},
@@ -166,26 +166,34 @@ h2:has(.surligne){line-height:1.12}
 @media(max-width:600px){.bento{grid-template-columns:1fr}.t1,.t2,.t3,.t4,.t5,.t6{grid-column:span 1}}
 .annonce{background:rgba(255,255,255,.05);border-radius:18px;padding:18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font-size:14.5px;color:#D9D9D2;line-height:1.55}
 .annonce b{display:block;color:#fff;font-size:16px;margin-bottom:6px}
-.annonce mark{background:rgba(212,245,122,.18);color:var(--anis);border-radius:4px;padding:0 3px}
+.annonce mark{background:rgba(212,245,122,.18);color:var(--anis);border-radius:4px;padding:0 3px;font-weight:700}
+.annonce strong{color:#fff}
+.annonce .corps,.annonce b{min-height:1.2em}
+.annonce mark.pop,.annonce strong.pop{display:inline-block;animation:pop-mot .5s var(--ease)}
+@keyframes pop-mot{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:none}}
+.annonce .caret{display:inline-block;width:2px;height:1.05em;background:var(--anis);vertical-align:-2px;margin-left:1px;animation:clig 1s steps(1) infinite}
+.annonce{min-height:150px}
 .seuil{display:flex;flex-direction:column;gap:16px;margin-top:auto}
 .seuil .sl{display:flex;flex-direction:column;gap:7px;font-size:14px;color:#3E4A1C;position:relative}
 .seuil .sl b{color:var(--nuit);font-weight:800}
 .seuil .b{position:relative;height:14px;border-radius:999px;background:rgba(26,26,26,.12)}
-.seuil .b i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--nuit);transition:width .35s var(--ease),background-color .3s}
+.seuil .b i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--nuit)}
 .seuil .b em{position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(26,26,26,.45);border-radius:2px}
 .seuil .b i::after{content:"";position:absolute;right:-11px;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--nuit),0 4px 10px rgba(0,0,0,.25)}
 
-.seuil input[type=range]{position:absolute;left:0;right:0;bottom:-8px;height:30px;margin:0;opacity:0;cursor:pointer;z-index:2}
+.seuil input[type=range]{position:absolute;left:0;right:0;bottom:-8px;width:100%;height:30px;margin:0;opacity:0;cursor:pointer;z-index:2;-webkit-appearance:none;appearance:none;background:transparent}
+.seuil input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%}
+.seuil input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%}
 .seuil .sl:focus-within .b{outline:3px solid var(--nuit);outline-offset:3px}
 .seuil .alerte{display:flex;gap:12px;align-items:center;background:var(--nuit);color:#fff;border-radius:16px;padding:12px 14px;transition:background-color .3s}
-.seuil .alerte p,.tuile .seuil .alerte p{font-size:14px;line-height:1.35;margin:0;color:#D8D8D0}.seuil .alerte p b{color:#fff}
+.seuil .alerte p,.tuile .seuil .alerte p{font-size:14px;line-height:1.35;margin:0;color:#D8D8D0;min-height:calc(3 * 1.35em);display:flex;align-items:center}.seuil .alerte p>span{display:block}.seuil .alerte p b{color:#fff}
 .seuil .cloche{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--anis);color:var(--nuit)}
 .seuil .cloche svg{width:18px;height:18px;transform-origin:50% 10%}
 .seuil .alerte[data-niv="1"] .cloche{background:#F2A65A}.seuil .alerte[data-niv="2"] .cloche{background:#FF7A6E}
 .seuil .alerte[data-niv="1"] .cloche svg,.seuil .alerte[data-niv="2"] .cloche svg{animation:sonne 1.2s ease-in-out infinite}
 @keyframes sonne{0%,60%,100%{transform:none}10%{transform:rotate(18deg)}20%{transform:rotate(-16deg)}30%{transform:rotate(12deg)}40%{transform:rotate(-8deg)}50%{transform:rotate(4deg)}}
 html.sans-anim .seuil .cloche svg{animation:none}
-.t5{display:flex;flex-direction:column;gap:14px;transition:background-color .45s ease}
+.t5{transition:background-color .45s ease}
 .tuile.anis.t5>p,.t5 .seuil .sl{color:#25251F}
 .jauge{display:flex;flex-direction:column;gap:8px;font-size:14px;color:#3E4A1C}
 .jauge .b{height:14px;border-radius:999px;background:rgba(26,26,26,.12);overflow:hidden}
@@ -307,10 +315,16 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
 
 /* ---------- démos interactives (bento) ---------- */
 .essaie{position:absolute;top:22px;right:22px;font-size:10px;padding:6px 9px;border-radius:999px;background:var(--anis);color:var(--nuit);animation:pouls 2.4s ease-in-out infinite}
-.tuile.noire .essaie{background:var(--anis)}
+.tuile.noire .essaie{background:var(--anis)}.tuile.anis .essaie{background:var(--nuit);color:var(--anis)}
 @keyframes pouls{0%,100%{box-shadow:0 0 0 0 rgba(212,245,122,.55)}50%{box-shadow:0 0 0 7px rgba(212,245,122,0)}}
 .tuile:has(.essaie) h3{padding-right:70px}
 .demo{margin-top:auto}
+.t3,.t4,.t5{gap:10px}
+.t3 h3,.t4 h3,.t5 h3{min-height:1.05em;white-space:nowrap}
+.t3>p,.t4>p,.t5>p{min-height:4.8em;margin:0}
+.t3 .vis,.t4 .vis,.t5 .vis{padding-top:14px;height:276px;box-sizing:content-box;display:flex;flex-direction:column;justify-content:flex-end}
+.t3 .vis .comparer{height:100%;aspect-ratio:auto}
+@media(max-width:600px){.t3 h3,.t4 h3,.t5 h3{white-space:normal}.t3>p,.t4>p,.t5>p{min-height:0}.t3 .vis,.t4 .vis,.t5 .vis{height:auto}.t3 .vis .comparer{height:auto;aspect-ratio:1}}
 .prix-demo{display:flex;flex-direction:column;gap:12px;background:var(--papier);border-radius:18px;padding:16px 16px 12px;box-shadow:inset 0 0 0 1px var(--trait)}
 .pd-haut{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .prix-demo .px{font:800 42px/1 var(--titre);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
@@ -447,7 +461,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <h2 id="t-comment" data-mots>Trois gestes. <span class="surligne">Zéro prise de tête.</span></h2>
     </header>
     <ol class="etapes">
-      <li class="rv lueur incline"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4F57A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><h3>Photographie ton jeu</h3><p>Avec ton téléphone, <strong>même vite fait</strong> sur la table du salon : on <strong>détoure, nettoie et redresse</strong> la photo.</p></li>
+      <li class="rv lueur incline"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4F57A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><h3>Photographie ton jeu</h3><p>Avec ton téléphone, <strong>même vite fait</strong> sur la table du salon : on <strong>redresse, recadre et nettoie</strong> la photo, <strong>vrai fond gardé</strong>.</p></li>
       <li class="rv lueur incline"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4F57A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 6 13h5l-1 8 7-10h-5z"/></svg></span><h3>Vérifie la fiche</h3><p>Titre, console, région, état, contenu, description et <strong>prix conseillé</strong> sont proposés. <strong>Tu corriges si besoin.</strong></p></li>
       <li class="rv lueur incline"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4F57A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></span><h3>Colle sur Le Bon Coin</h3><p>Un bouton <strong>copie l'annonce</strong> et <strong>ouvre la page de dépôt</strong>. Tu colles, tu ajoutes la photo, c'est en ligne.</p></li>
     </ol>
@@ -459,7 +473,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     <header class="s-tete rv">
       <p class="pixel">Photos nettoyées par l'IA</p>
       <h2 id="t-photos" data-mots>De la table du salon à la vitrine.</h2>
-      <p>Fond <strong>détouré</strong>, <strong>reflets atténués</strong>, lumière corrigée, jeu <strong>remis à l'endroit</strong>. Les vrais défauts restent visibles : ton annonce reste <strong>honnête</strong>.</p>
+      <p><strong>Vrai fond gardé</strong>, <strong>objets autour effacés</strong>, <strong>reflets atténués</strong>, jeu <strong>remis droit</strong>. Pas de détourage qui fait faux : les vrais défauts restent visibles, ton annonce reste <strong>honnête</strong>.</p>
     </header>
     <div class="vitrine rv zoom">
       <div class="comparer grand-cmp" id="cmpEx" style="--pos:50%">
@@ -489,7 +503,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <button type="button" role="tab" aria-selected="false" data-ex="conker"><img src="/img/exemples/conker-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Conker</span></button>
       <button type="button" role="tab" aria-selected="false" data-ex="paper-mario"><img src="/img/exemples/paper-mario-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Paper Mario</span></button>
     </div>
-    <p class="note-ex">Exemples réels, photos prises au téléphone. Prix indicatifs, calculés au moment de la vente.</p>
+    <p class="note-ex"><strong>Exemples réels</strong>, photos prises <strong>au téléphone</strong>. Prix <strong>indicatifs</strong>, calculés à partir des <strong>ventes récentes</strong>.</p>
   </div>
 </section>
 
@@ -504,7 +518,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <article class="tuile noire t1 rv lueur">
         <h3>L'annonce s'écrit toute seule</h3>
         <p>Le jeu, la console, la région et l'état sont <strong>reconnus sur la photo</strong>. La description est rédigée comme le font les bons vendeurs : <strong>claire, honnête, sans faute</strong>.</p>
-        <div class="vis"><div class="annonce"><b>Zelda Ocarina of Time · Nintendo 64 · boîte PAL</b>The Legend of Zelda: Ocarina of Time pour Nintendo 64, <mark>version PAL française</mark>. <mark>En boîte</mark>, carton en bon état, couleurs vives. Cartouche testée, sauvegarde OK. Remise en main propre ou envoi.</div></div>
+        <div class="vis"><div class="annonce" id="annEcrit"><b>Zelda Ocarina of Time · Nintendo 64 · boîte PAL</b><span class="corps">The Legend of Zelda: <strong>Ocarina of Time</strong> pour Nintendo 64, <mark>version PAL française</mark>. <mark>En boîte</mark>, carton en <strong>bon état</strong>, couleurs vives. Cartouche <strong>testée</strong>, <strong>sauvegarde OK</strong>. Remise en main propre ou envoi.</span></div></div>
       </article>
       <article class="tuile t2 rv lueur">
         <span class="essaie pixel">Glisse</span>
@@ -519,11 +533,11 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <article class="tuile t3 rv lueur">
         <span class="essaie pixel">Glisse</span>
         <h3>Photo nettoyée</h3>
-        <p><strong>Fond retiré</strong>, reflets atténués, jeu remis droit.</p>
+        <p><strong>Vrai fond gardé</strong>, <strong>reflets atténués</strong>, <strong>jeu remis droit</strong>.</p>
         <div class="vis demo">
           <div class="comparer petit-cmp" style="--pos:50%">
             <img class="av" src="/img/exemples/conker-avant.jpg" alt="Conker's Bad Fur Day, photo d'origine de travers" width="720" height="720" loading="lazy" decoding="async">
-            <img class="ap" src="/img/exemples/conker-apres.jpg" alt="Conker's Bad Fur Day, photo nettoyée et redressée" width="720" height="720" loading="lazy" decoding="async">
+            <img class="ap" src="/img/exemples/conker-apres.jpg" alt="Conker's Bad Fur Day, photo retouchée et redressée, vrai fond gardé" width="720" height="720" loading="lazy" decoding="async">
             <span class="tag t-av">Avant</span><span class="tag t-ap">Après</span>
             <span class="poignee" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></span>
             <input type="range" min="0" max="100" value="50" aria-label="Glisser pour comparer avant et après">
@@ -542,12 +556,12 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
         </div>
       </article>
       <article class="tuile anis t5 rv">
-        <h3>Alerte avant le seuil fiscal</h3>
-        <p>Les plateformes signalent aux impôts les vendeurs au-delà de <strong>30 ventes ou 2 000 €</strong> par an. <strong>On te prévient avant.</strong></p>
         <span class="essaie pixel">Glisse</span>
-        <div class="vis seuil" id="seuil">
-          <label class="sl"><span>Ventes en 2026 <b id="svN">22</b> / 30</span><input type="range" id="svIn" min="0" max="40" value="22" aria-label="Nombre de ventes dans l'année"><div class="b"><i id="svB"></i><em style="left:75%"></em></div></label>
-          <label class="sl"><span>Montant encaissé <b id="smN">1 340 €</b> / 2 000 €</span><input type="range" id="smIn" min="0" max="2600" step="20" value="1340" aria-label="Montant encaissé dans l'année"><div class="b"><i id="smB"></i><em style="left:75%"></em></div></label>
+        <h3>Alerte seuil fiscal</h3>
+        <p>Au-delà de <strong>30 ventes ou 2 000 €</strong> par an, les plateformes te signalent aux impôts. <strong>On te prévient avant.</strong></p>
+        <div class="vis demo seuil" id="seuil">
+          <label class="sl"><span>Ventes en 2026 <b id="svN">22</b> / 30</span><input type="range" id="svIn" min="0" max="40" value="22" aria-label="Nombre de ventes dans l'année"><div class="b"><i id="svB"></i><em style="left:calc(.75 * (100% - 22px) + 11px)"></em></div></label>
+          <label class="sl"><span>Montant encaissé <b id="smN">1 340 €</b> / 2 000 €</span><input type="range" id="smIn" min="0" max="2600" step="20" value="1340" aria-label="Montant encaissé dans l'année"><div class="b"><i id="smB"></i><em style="left:calc(.75 * (100% - 22px) + 11px)"></em></div></label>
           <div class="alerte" id="sAl" data-niv="0"><span class="cloche" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><p id="sTx" aria-live="polite"></p></div>
         </div>
       </article>
@@ -583,7 +597,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <article class="offre rv lueur">
         <h3>Découverte</h3><p class="pour">Pour tester avec quelques jeux.</p>
         <p class="p">0 €</p><p class="an">Pour toujours</p>
-        <ul><li><strong>5 jeux</strong> par mois</li><li>Annonce depuis la photo</li><li>Prix conseillé</li><li>Photo détourée et nettoyée</li><li>Suivi des ventes</li></ul>
+        <ul><li><strong>5 jeux</strong> par mois</li><li>Annonce depuis la photo</li><li>Prix conseillé</li><li>Photos retouchées et numérotées</li><li>Suivi des ventes</li></ul>
         <a class="btn contour" href="/app/?inscription">Commencer</a>
       </article>
       <article class="offre star rv lueur">
@@ -621,7 +635,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     </header>
     <div class="faq rv droite">
       <details><summary>RetroRevente publie-t-il l'annonce sur Le Bon Coin à ma place ?</summary><p><strong>Non.</strong> Le Bon Coin ne propose pas d'accès public pour publier depuis une autre application. RetroRevente <strong>prépare tout</strong> (titre, description, prix, photo nettoyée), copie le texte en un clic et ouvre la page de dépôt d'annonce : il ne te reste qu'à <strong>coller et valider</strong>.</p></details>
-      <details><summary>Comment la photo est-elle nettoyée ?</summary><p>L'IA <strong>retire le fond</strong>, <strong>atténue les reflets</strong>, corrige la lumière et <strong>remet le jeu droit</strong>, sur fond blanc au format des vignettes Le Bon Coin. Elle ne retouche jamais le jeu lui-même : <strong>les vrais défauts restent visibles</strong>, et ta photo d'origine est toujours conservée.</p></details>
+      <details><summary>Comment la photo est-elle nettoyée ?</summary><p>L'IA <strong>garde le vrai fond</strong> : elle <strong>redresse et recadre</strong> le jeu, <strong>efface ce qui traîne à côté</strong> (objets, miettes, poussières) et <strong>atténue les reflets</strong>. <strong>Pas de détourage</strong> ni de fond artificiel : une vraie photo <strong>rassure les acheteurs</strong>. Elle ne retouche jamais le jeu lui-même : <strong>les vrais défauts restent visibles</strong>, et ta photo d'origine est toujours conservée.</p></details>
       <details><summary>Quels jeux et consoles sont reconnus ?</summary><p>Les jeux, consoles et accessoires de <strong>toutes les générations</strong>, de la NES et de la Master System à la PS5 et la Switch, en passant par la Game Boy, la Mega Drive, la PlayStation et la Nintendo 64. <strong>Tu peux toujours corriger</strong> ce que l'outil a proposé.</p></details>
       <details><summary>D'où vient le prix conseillé ?</summary><p>Des <strong>ventes réellement conclues</strong> sur eBay, des annonces en ligne sur Le Bon Coin et des cotes PriceCharting, ajustées selon l'état et la présence de la boîte et de la notice. C'est un repère pour vendre vite au bon prix, <strong>tu restes libre</strong> de le changer.</p></details>
       <details><summary>Est-ce que je dois déclarer mes ventes ?</summary><p>Vendre tes propres affaires d'occasion n'est en principe <strong>pas imposable</strong>. Mais depuis 2023, les plateformes transmettent aux impôts les comptes qui dépassent <strong>30 ventes ou 2 000 euros</strong> dans l'année. Avec la formule Collectionneur, RetroRevente te prévient avant d'atteindre ces seuils.</p></details>
@@ -681,19 +695,20 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     "zelda":{t:"The Legend of Zelda: Ocarina of Time",c:"Nintendo 64",r:"PAL FRA",e:"Bon",k:"En boîte",p:69,f:"vendus entre 62 et 86 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/zelda-ocarina-of-time",m:"Médiane des 5 dernières ventes PAL complètes (67 €). Sans notice, on reste près de ce prix.",v:[["eBay", "Zelda Ocarina of Time N64 PAL CIB & Manual", 67, "2026-11-14", "https://www.ebay.com/itm/287711329101"], ["eBay", "N64 PAL Zelda Ocarina of Time Complete", 81, "2026-11-05", "https://www.ebay.com/itm/940067753669"], ["eBay", "Zelda Ocarina of Time PAL CIB + Manual 1998", 62, "2026-11-01", "https://www.ebay.com/itm/327422684785"]],d:"Zelda Ocarina of Time pour Nintendo 64, version PAL française.\nEn boîte : carton en bon état, coins légèrement frottés.\nCartouche testée, sauvegarde OK.\nRemise en main propre ou envoi."},
     "conker":{t:"Conker's Bad Fur Day",c:"Nintendo 64",r:"PAL EUR",e:"Bon",k:"Jeu en loose",p:199,f:"vendus entre 121 et 212 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/conker%27s-bad-fur-day",m:"Médiane des 5 dernières ventes PAL en loose (206 €). Prix un peu en dessous car l'étiquette est marquée.",v:[["eBay", "Conkers Bad Fur Day N64 - Cart only - GC", 156, "2026-10-25", "https://www.ebay.com/itm/940027577876"], ["eBay", "Conker's Bad Fur Day PAL Cartridge Tested", 121, "2026-10-22", "https://www.ebay.com/itm/137845137364"], ["eBay", "Conker's Bad Fur Day N64 PAL Cartridge Only", 211, "2026-09-26", "https://www.ebay.com/itm/236907144642"]],d:"Conker's Bad Fur Day pour Nintendo 64, version PAL.\nJeu en loose, étiquette lisible avec de légères marques d'usure.\nTestée, fonctionne.\nRemise en main propre ou envoi."},
     "paper-mario":{t:"Paper Mario",c:"Nintendo 64",r:"PAL EUR",e:"Très bon",k:"Jeu en loose",p:125,f:"vendus entre 88 et 176 €",u:"https://www.pricecharting.com/game/pal-nintendo-64/paper-mario",m:"Médiane des ventes PAL en loose (116 €), sans les deux extrêmes (28 € et 431 €).",v:[["eBay", "N64 - Paper Mario - Nintendo 64", 116, "2026-10-19", "https://www.ebay.com/itm/168727577199"], ["eBay", "Paper Mario N64 PAL EUR Tested Very Good", 176, "2026-09-09", "https://www.ebay.com/itm/306990831129"], ["eBay", "Paper Mario Module PAL/EUR NUS-NMQP-EUR", 88, "2026-08-05", "https://www.ebay.com/itm/407106766071"]],d:"Paper Mario pour Nintendo 64, version PAL.\nJeu en loose, étiquette nette.\nTestée, sauvegarde OK.\nRemise en main propre ou envoi."}};
+  var gras=function(t){return window.rrGras?window.rrGras(t):String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
   var cmp=document.getElementById("cmpEx"),fx=document.querySelector(".fiche-ex");
   function montre(k,anim){var x=EX[k];if(!x)return;
     function maj(){cmp.querySelector(".av").src="/img/exemples/"+k+"-avant.jpg";cmp.querySelector(".ap").src="/img/exemples/"+k+"-apres.jpg";
       document.getElementById("exTitre").textContent=x.t;document.getElementById("exConsole").textContent=x.c;document.getElementById("exRegion").textContent=x.r;
       document.getElementById("exEtat").textContent=x.e;document.getElementById("exContenu").textContent=x.k;document.getElementById("exPrix").textContent=x.p+" €";
-      document.getElementById("exFourchette").textContent=x.f;document.getElementById("exDesc").textContent=x.d;cmp.classList.remove("change");
+      document.getElementById("exFourchette").innerHTML=gras(x.f);document.getElementById("exDesc").innerHTML=gras(x.d);cmp.classList.remove("change");
       var ul=document.getElementById("exVentes");ul.textContent="";x.v.forEach(function(v){var li=document.createElement("li"),a=document.createElement("a");a.href=v[4];a.target="_blank";a.rel="noopener";
         var d=new Date(v[3]+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"});
         a.innerHTML='<span class="s"></span><span class="n"></span><b></b><small></small>';a.children[0].textContent=v[0];a.children[1].textContent=v[1];a.children[2].textContent=v[2]+" €";a.children[3].textContent="Vendu le "+d;li.appendChild(a);ul.appendChild(li)});
-      document.getElementById("exMeth").innerHTML="<b>Méthode :</b> ";document.getElementById("exMeth").appendChild(document.createTextNode(x.m));document.getElementById("exSrc").href=x.u;
+      document.getElementById("exMeth").innerHTML="<b>Méthode :</b> "+gras(x.m);document.getElementById("exSrc").href=x.u;
       fx.classList.remove("change");void fx.offsetWidth;if(anim)fx.classList.add("change")}
     if(anim&&!calme){cmp.classList.add("change");setTimeout(maj,220)}else maj()}
-  if(cmp){montre("kirby",false);
+  if(cmp){montre("kirby",false);if(!window.rrGras)document.addEventListener("DOMContentLoaded",function(){var o=document.querySelector(".vignettes button[aria-selected=true]");montre(o?o.dataset.ex:"kirby",false)});
     document.querySelectorAll(".vignettes button").forEach(function(b){b.addEventListener("click",function(){
       document.querySelectorAll(".vignettes button").forEach(function(o){o.setAttribute("aria-selected",o===b?"true":"false")});montre(b.dataset.ex,true)})})}
 
@@ -720,11 +735,26 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     va(0);
     if(!calme){var ob=new IntersectionObserver(function(es){if(es[0].isIntersecting&&!auto&&cur<3){auto=setInterval(function(){if(cur>=3){clearInterval(auto);return}va(cur+1)},1600)}},{threshold:.5});ob.observe(lb)}}
 
+  // « L'annonce s'écrit toute seule » : le texte se tape quand on arrive dessus, les mots clés surgissent
+  var ann=document.getElementById("annEcrit");
+  if(ann&&!calme&&!document.documentElement.classList.contains("sans-anim")){
+    var titre=ann.querySelector("b"),corps=ann.querySelector(".corps"),T0=titre.textContent,segs=[];
+    [].forEach.call(corps.childNodes,function(n){segs.push(n.nodeType===3?{t:n.textContent}:{t:n.textContent,tag:n.tagName.toLowerCase()})});
+    titre.textContent="";corps.innerHTML="";
+    var ecrire=function(){var car=document.createElement("span");car.className="caret";var i=0;titre.appendChild(car);
+      var t1=setInterval(function(){i++;titre.textContent=T0.slice(0,i);titre.appendChild(car);if(i>=T0.length){clearInterval(t1);suite()}},28);
+      function suite(){var k=0,j=0,el=null;corps.appendChild(car);
+        var t2=setInterval(function(){var sg=segs[k];if(!sg){clearInterval(t2);setTimeout(function(){car.remove()},1500);return}
+          if(sg.tag){el=document.createElement(sg.tag);el.textContent=sg.t;el.className="pop";corps.insertBefore(el,car);k++;return}
+          j+=2;var tn=corps.lastChild&&corps.lastChild.previousSibling;if(j<=2||!tn||tn.nodeType!==3){tn=document.createTextNode("");corps.insertBefore(tn,car)}
+          tn.textContent=sg.t.slice(0,j);if(j>=sg.t.length){k++;j=0}},22)}};
+    var oa=new IntersectionObserver(function(es){if(es[0].isIntersecting){oa.disconnect();setTimeout(ecrire,300)}},{threshold:.5});oa.observe(ann)}
+
   // Seuil fiscal : simulateur
   var svIn=document.getElementById("svIn");
   if(svIn){var smIn=document.getElementById("smIn"),fmt=function(n){return n.toLocaleString("fr-FR").replace(/\u202f/g," ")+" €"};
     var majSeuil=function(){var v=+svIn.value,m=+smIn.value,pv=v/40*100,pm=m/2600*100,b1=document.getElementById("svB"),b2=document.getElementById("smB");
-      document.getElementById("svN").textContent=v;document.getElementById("smN").textContent=fmt(m);b1.style.width=pv+"%";b2.style.width=pm+"%";
+      document.getElementById("svN").textContent=v;document.getElementById("smN").textContent=fmt(m);b1.style.width="calc("+(pv/100)+" * (100% - 22px) + 11px)";b2.style.width="calc("+(pm/100)+" * (100% - 22px) + 11px)";
       b1.className=v>=30?"rouge":v>=24?"chaud":"";b2.className=m>=2000?"rouge":m>=1600?"chaud":"";
       var niv=v>=30||m>=2000?2:v>=24||m>=1600?1:0,t;
       if(niv===2)t="<b>Seuil atteint.</b> La plateforme transmet tes ventes aux impôts : on t'aide à t'y retrouver (export de tes ventes).";
@@ -734,7 +764,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       var r=Math.max(v/30,m/2000),C=[[.7,[212,245,122]],[.88,[246,178,92]],[1,[240,96,80]]],c=C[0][1];
       if(r>=1)c=C[2][1];else for(var q=0;q<C.length-1;q++){var a=C[q],z=C[q+1];if(r>a[0]&&r<=z[0]){var t2=(r-a[0])/(z[0]-a[0]);c=a[1].map(function(x,i){return Math.round(x+(z[1][i]-x)*t2)})}}
       svIn.closest(".tuile").style.backgroundColor="rgb("+c.join(",")+")";
-      var al=document.getElementById("sAl");al.dataset.niv=niv;document.getElementById("sTx").innerHTML=t};
+      var al=document.getElementById("sAl");al.dataset.niv=niv;document.getElementById("sTx").innerHTML="<span>"+t+"</span>"};
     svIn.addEventListener("input",majSeuil);smIn.addEventListener("input",majSeuil);majSeuil()}
 
   // Bloc final : le logo s'incline avec le défilement

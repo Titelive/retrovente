@@ -79,6 +79,7 @@ const COLS = {
   email_new: "TEXT NOT NULL DEFAULT ''",     // nouvelle adresse en attente de confirmation
   email_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation
   email_until: "TEXT NOT NULL DEFAULT ''",
+  test_plan: "TEXT NOT NULL DEFAULT ''",     // formule de test, prise en compte seulement pour les comptes de ADMIN_EMAILS
 };
 const have = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
 for (const [c, def] of Object.entries(COLS)) if (!have.has(c)) db.exec(`ALTER TABLE users ADD COLUMN ${c} ${def}`);

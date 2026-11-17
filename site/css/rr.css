@@ -267,7 +267,30 @@ html.sans-anim .lecture{display:none}
 .lueurs i:nth-child(2){right:-14%;top:30%;--t:540px;--d:34s;animation-delay:-9s}
 .lueurs i:nth-child(3){left:30%;bottom:-30%;--t:480px;--d:24s;animation-delay:-15s;--o:.1}
 .clair-l .lueurs i{--o:.32}
+.lueurs.fixe{position:fixed;inset:-20vmax;z-index:-1;overflow:visible}
+.lueurs.fixe i:nth-child(1){left:10%;top:12%}.lueurs.fixe i:nth-child(2){right:8%;top:45%}.lueurs.fixe i:nth-child(3){left:40%;bottom:8%}
+.lueurs.fixe.clair-f i{--o:.3}
+:root[data-theme="dark"] .lueurs.fixe i{--o:.13}
 @keyframes derive{0%{transform:translate(0,0) scale(1)}33%{transform:translate(9vw,6vh) scale(1.12)}66%{transform:translate(-5vw,10vh) scale(.92)}100%{transform:translate(6vw,-6vh) scale(1.06)}}
 @media (max-width:700px){.lueurs i{--t:340px}}
 html.sans-anim .lueurs i{animation:none}
 @media (prefers-reduced-motion:reduce){.lueurs i{animation:none}}
+
+/* ===== Habillage selon la formule (html[data-formule]) : plus la formule est haute, plus c'est brillant ===== */
+:root{--or-1:#F7D774;--or-2:#C9962B;--holo:linear-gradient(115deg,#D4F57A,#7AF5E4,#B98CFF,#FF9AD5,#F7D774,#D4F57A)}
+@media(max-width:1340px){.badge-formule{display:none}}
+.badge-formule{font:400 9px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:7px;background:var(--anis);color:var(--nuit);margin-left:2px}
+html[data-formule="vendeur"] .av-mini{box-shadow:0 0 0 2px var(--anis)}
+html[data-formule="vendeur"] .logo-svg .eclair{filter:drop-shadow(0 0 4px rgba(212,245,122,.9))}
+html[data-formule="collectionneur"] .badge-formule{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00;box-shadow:0 0 12px rgba(247,215,116,.45)}
+html[data-formule="collectionneur"] .av-mini{box-shadow:0 0 0 2px var(--or-1),0 0 10px rgba(247,215,116,.6)}
+html[data-formule="collectionneur"] .nav{box-shadow:inset 0 -2px 0 rgba(247,215,116,.55)}
+html[data-formule="collectionneur"] .logo-svg .eclair{fill:var(--or-1)!important;filter:drop-shadow(0 0 5px rgba(247,215,116,.9))}
+html[data-formule="collectionneur"] .lecture{background:linear-gradient(90deg,var(--anis),var(--or-1))}
+html[data-formule="pass"] .badge-formule{background:var(--holo);background-size:300% 100%;color:var(--nuit);animation:holo 4s linear infinite}
+html[data-formule="pass"] .av-mini{box-shadow:0 0 0 2px transparent;background-clip:padding-box;outline:2px solid #B98CFF;outline-offset:1px}
+html[data-formule="pass"] .nav{box-shadow:inset 0 -2px 0 rgba(185,140,255,.6)}
+html[data-formule="pass"] .lecture{background:var(--holo);background-size:300% 100%;animation:holo 6s linear infinite}
+html[data-formule="pass"] .logo-svg .eclair{filter:drop-shadow(0 0 5px rgba(185,140,255,.9))}
+@keyframes holo{to{background-position:300% 0}}
+html.sans-anim .badge-formule,html.sans-anim .lecture{animation:none}

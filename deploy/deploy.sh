@@ -48,10 +48,10 @@ echo "✔ retrorevente en ligne : $REL"
 (
   set +e
   PY=/opt/retrorevente-py
-  if ! "$PY/bin/python" -c "import rembg, scipy, onnxruntime" >/dev/null 2>&1; then
+  if ! "$PY/bin/python" -c "import rembg, scipy, onnxruntime, cv2" >/dev/null 2>&1; then
     echo "… installation du détourage des photos (une seule fois, quelques minutes)"
     python3 -m venv "$PY" >/dev/null 2>&1 || { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv >/dev/null && python3 -m venv "$PY"; }
-    "$PY/bin/pip" install -q --disable-pip-version-check "rembg[cpu]" scipy >/tmp/rr-pip.log 2>&1 || { tail -20 /tmp/rr-pip.log; exit 1; }
+    "$PY/bin/pip" install -q --disable-pip-version-check "rembg[cpu]" scipy opencv-python-headless >/tmp/rr-pip.log 2>&1 || { tail -20 /tmp/rr-pip.log; exit 1; }
   fi
   mkdir -p /var/lib/retrorevente-modeles && chown titelive:titelive /var/lib/retrorevente-modeles
   install -m 644 "$SRC/deploy/retrorevente-detourage.service" /etc/systemd/system/retrorevente-detourage.service

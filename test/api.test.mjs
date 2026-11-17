@@ -236,3 +236,51 @@ test("extension navigateur : clé, annonces en vente, photo, isolation, révocat
   assert.equal((await call("DELETE", "/api/extension/cle", null, c)).json.supprimees, 1);
   assert.equal((await call("GET", "/api/extension/annonces", null, "", bearer(k))).status, 401);
 });
+
+test("galerie : ajout, légende, ordre, suppression, plafond de 12", async () => {
+  const c = await compte("galerie@exemple.fr"), d = await compte("intrus@exemple.fr");
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64" }, photo: PHOTO }, c)).json.objet;
+  assert.deepEqual(o.photos.map((x) => x.id), ["p0"]);
+  const a = await call("POST", "/api/objets/" + o.id + "/photos", { photo: PHOTO, legende: "Dos de la cartouche" }, c);
+  assert.equal(a.status, 200);
+  const p1 = a.json.objet.photos[1];
+  assert.equal(p1.legende, "Dos de la cartouche");
+  assert.equal((await call("POST", "/api/objets/" + o.id + "/photos", { photo: PHOTO }, d)).status, 404);
+  assert.equal((await call("GET", "/api/photo/" + o.id + "/" + p1.id, null, c)).status, 200);
+  assert.equal((await call("GET", "/api/photo/" + o.id + "/" + p1.id, null, d)).status, 404);
+  const l = await call("PUT", "/api/objets/" + o.id + "/photos/" + p1.id, { legende: "Étiquette arrière" }, c);
+  assert.equal(l.json.objet.photos[1].legende, "Étiquette arrière");
+  const r = await call("PUT", "/api/objets/" + o.id, { objet: { photos: [{ id: p1.id, legende: "Étiquette arrière" }, { id: "p0", legende: "Face" }, { id: "inconnu" }] } }, c);
+  assert.deepEqual(r.json.objet.photos.map((x) => x.id), [p1.id, "p0"]);
+  assert.equal((await call("GET", "/api/photo/" + o.id, null, c)).status, 200);
+  assert.equal((await call("DELETE", "/api/objets/" + o.id + "/photos/p0", null, c)).json.objet.photos.length, 1);
+  for (let i = 0; i < 11; i++) assert.equal((await call("POST", "/api/objets/" + o.id + "/photos", { photo: PHOTO }, c)).status, 200);
+  assert.equal((await call("POST", "/api/objets/" + o.id + "/photos", { photo: PHOTO }, c)).status, 400);
+  assert.equal((await call("DELETE", "/api/objets/" + o.id, null, c)).status, 200);
+});
+
+test("légendes IA simulées : une par photo", async () => {
+  const c = await compte("legende@exemple.fr");
+  const r = await call("POST", "/api/ia/legender", { photos: [PHOTO, PHOTO, PHOTO], objet: { titre: "Zelda" } }, c);
+  assert.equal(r.status, 200);
+  assert.equal(r.json.legendes.length, 3);
+  assert.ok(r.json.legendes.every((x) => typeof x === "string" && x.length > 0));
+});
+
+test("mode test des formules : réservé aux adresses ADMIN_EMAILS", async () => {
+  process.env.ADMIN_EMAILS = "chef@exemple.fr, autre@exemple.fr";
+  try {
+    const n = await compte("pasadmin@exemple.fr"), a = await compte("Chef@Exemple.fr");
+    assert.equal((await call("POST", "/api/admin/formule", { formule: "pass" }, n)).status, 404);
+    const mn = (await call("GET", "/api/moi", null, n)).json;
+    assert.equal(mn.admin, undefined); assert.equal(mn.formuleTest, undefined);
+    assert.equal((await call("POST", "/api/admin/formule", { formule: "nimporte" }, a)).status, 400);
+    const r = await call("POST", "/api/admin/formule", { formule: "collectionneur" }, a);
+    assert.equal(r.status, 200);
+    assert.equal(r.json.moi.admin, true); assert.equal(r.json.moi.formuleTest, "collectionneur");
+    assert.equal((await call("GET", "/api/export.csv", null, a)).status, 200);
+    process.env.ADMIN_EMAILS = "";
+    assert.notEqual((await call("GET", "/api/export.csv", null, a)).status, 200);
+    assert.equal((await call("POST", "/api/admin/formule", { formule: "" }, a)).status, 404);
+  } finally { process.env.ADMIN_EMAILS = ""; }
+});
