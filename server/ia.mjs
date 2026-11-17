@@ -13,11 +13,16 @@ export const parmi = (v, liste, def) => (liste.includes(v) ? v : def);
 export const lien = (v) => { const s = txt(v, 500); try { const u = new URL(s); return /^https?:$/.test(u.protocol) ? u.href : ""; } catch (e) { return ""; } };
 
 export class IaError extends Error {}
+// adresse sans fragment ni barre finale, pour comparer un lien cité aux pages réellement trouvées par la recherche
+export const norme = (u) => { try { const x = new URL(u); x.hash = ""; return (x.host.replace(/^www\./, "") + x.pathname.replace(/\/$/, "") + x.search).toLowerCase(); } catch (e) { return ""; } };
 
 export function coteDe(c) {
   if (!c || typeof c !== "object") return null;
   const o = { bas: prix(c.bas), haut: prix(c.haut), conseille: prix(c.conseille), rapide: prix(c.rapide), resume: txt(c.resume, 400), date: jour(c.date) || new Date().toISOString().slice(0, 10),
-    sources: (Array.isArray(c.sources) ? c.sources : []).map(lien).filter(Boolean).slice(0, 4) };
+    sources: (Array.isArray(c.sources) ? c.sources : []).map(lien).filter(Boolean).slice(0, 4),
+    methode: txt(c.methode, 400),
+    releves: (Array.isArray(c.releves) ? c.releves : []).map((r) => r && typeof r === "object" ? { site: txt(r.site, 40), titre: txt(r.titre, 140), prix: prix(r.prix), date: jour(r.date), url: lien(r.url) } : null)
+      .filter((r) => r && r.url && r.prix != null).slice(0, 6) };
   return o.conseille != null || o.bas != null ? o : null;
 }
 
@@ -36,8 +41,11 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000 } = {}) {
   if (!r.ok) { console.error("IA", r.status, (await r.text().catch(() => "")).slice(0, 300)); throw new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); }
   const d = await r.json();
   const t = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  const vus = new Set();
+  for (const b of d.content || []) if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const x of b.content) if (x && x.url) vus.add(norme(x.url));
+  for (const b of d.content || []) for (const c of b.citations || []) if (c && c.url) vus.add(norme(c.url));
   const m = /\{[\s\S]*\}/.exec(t);
-  try { return m ? JSON.parse(m[0]) : null; } catch (e) { return null; }
+  try { const o = m ? JSON.parse(m[0]) : null; if (o && web) Object.defineProperty(o, "_vus", { value: vus }); return o; } catch (e) { return null; }
 }
 
 export function checkPhoto(photo) {
@@ -96,7 +104,9 @@ const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "e
 export async function estimerCote(v) {
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
-  if (FAKE()) return coteDe({ bas: 38, haut: 52, conseille: 49, rapide: 42, resume: "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"] });
+  if (FAKE()) return coteDe({ bas: 38, haut: 52, conseille: 49, rapide: 42, resume: "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
+    methode: "Médiane des ventes conclues récentes, dans le même état, puis prix affiché un peu au-dessus pour laisser place à la négociation.",
+    releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/" }, { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/" }] });
   const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30), LIB_CONTENU[v.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
   const o = await claude(`Estime la cote d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
 Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Tiens compte de l'état et de ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro.
@@ -105,8 +115,12 @@ Réponds uniquement par un objet JSON avec les clés :
 "conseille" (prix à afficher sur Le Bon Coin, un peu au-dessus du prix de vente probable pour laisser de la marge à la négociation, arrondi à l'euro),
 "rapide" (prix pour vendre en quelques jours),
 "resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
-"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 4, max: 2500, timeout: 55000 });
+"methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
+"releves" (3 à 6 prix précis réellement lus pendant ta recherche, dans le même état si possible : objets avec "site" (eBay, PriceCharting, Le Bon Coin…), "titre" (intitulé de la vente ou de la page), "prix" (en euros, converti si besoin), "date" (AAAA-MM-JJ de la vente ou du relevé) et "url" (adresse exacte de la page où tu l'as lu, telle que donnée par la recherche ; n'invente jamais d'adresse)),
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
   const c = coteDe(o);
+  // on ne garde que les liens qui sont vraiment sortis de la recherche web
+  if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
   return c;
 }
