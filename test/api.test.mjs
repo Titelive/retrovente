@@ -293,3 +293,13 @@ test("origine et fonctionnement : d'origine testé par défaut, précision gard�
   assert.equal(b.origine, "modifie"); assert.equal(b.modif, "pile changée");
   assert.equal((await call("POST", "/api/objets", { objet: { titre: "X", origine: "bidon" } }, c)).json.objet.origine, "origine");
 });
+
+test("légendes et annonces : jamais d'« apparemment », on affirme ou on se tait", async () => {
+  const { affirme } = await import("../server/ia.mjs");
+  assert.equal(affirme("Connecteur doré : contacts apparemment propres, pas de défaut visible"), "Connecteur doré : pas de défaut");
+  assert.equal(affirme("Extrémité : aucune cassure apparente"), "Extrémité : aucune cassure");
+  assert.equal(affirme("L'étiquette semble propre"), "");
+  assert.equal(affirme("Super Mario 64 sur Nintendo 64.\nBon état, coins probablement frottés.\nRemise en main propre ou envoi."), "Super Mario 64 sur Nintendo 64.\nBon état.\nRemise en main propre ou envoi.");
+  assert.equal(affirme("Tranche gauche : plastique lisse, sans rayure ni choc visible"), "Tranche gauche : plastique lisse, sans rayure ni choc");
+  assert.equal(affirme("Cartouche visiblement d'origine, probablement testée"), "Cartouche d'origine");
+});
