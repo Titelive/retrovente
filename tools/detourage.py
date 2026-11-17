@@ -55,29 +55,44 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False) -> bytes:
         z = lab == k + 1
         if k + 1 != 1 + int(np.argmax(tailles)) and tailles[k] > H * W * .002 and not (z & pres).any():
             bazar |= z
-    # 2) poussières et miettes sur le fond : petits points très contrastés hors du jeu
+    # 2) poussières et miettes sur le fond : petits points ronds, très contrastés, isolés, hors du jeu.
+    #    Le grain du bois, le tissu ou un tapis donnent beaucoup de traits allongés : c'est une texture,
+    #    on n'y touche pas (sinon l'inpainting fait des pâtés flous).
     gris = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     fond = cv2.medianBlur(gris, 31)
-    ecart = np.abs(gris.astype(int) - fond.astype(int)) > 38
-    ecart &= ~pres
+    ecart = (np.abs(gris.astype(int) - fond.astype(int)) > 60) & ~pres
     lp, npt = ndimage.label(ecart)
+    poussiere = np.zeros_like(obj)
     if npt:
-        tp = ndimage.sum(np.ones_like(lp), lp, range(1, npt + 1))
-        petits = np.isin(lp, 1 + np.nonzero(tp < H * W * .0004)[0])
-        bazar |= petits
+        retenus = []
+        for k, sl in enumerate(ndimage.find_objects(lp)):
+            h_, w_ = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+            aire = int((lp[sl] == k + 1).sum())
+            if aire < H * W * .0002 and max(h_, w_) <= 2.2 * min(h_, w_) and aire >= .45 * h_ * w_:
+                retenus.append(k + 1)
+        if 0 < len(retenus) <= 25:     # au-delà, c'est la texture du fond, pas de la poussière
+            poussiere = np.isin(lp, retenus)
     if bazar.any() and bazar.mean() < .22:
         zone = cv2.dilate(bazar.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=max(4, W // 160))
         img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    # 3) reflets sur le jeu (hautes lumières peu saturées) et niveaux doux
+    if poussiere.any():
+        zone = cv2.dilate(poussiere.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=2)
+        img = cv2.inpaint(img, zone, 3, cv2.INPAINT_TELEA)
+    # 3) niveaux : on étire seulement (jamais moins de contraste ni moins de couleur que l'original),
+    #    puis on calme les reflets blancs sur le jeu
     f = img.astype(np.float32)
-    o = obj
-    lo = np.percentile(f[o], 1, axis=0); hi = np.percentile(f[o], 99.4, axis=0)
-    lv = (f - lo) / np.maximum(hi - lo, 1) * 255
-    f = f * .6 + lv * .4
+    lum = f.mean(axis=2)
+    lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
+    g = 255 / max(hi - lo, 1)
+    if g > 1:
+        lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
+        f = np.clip((f - lo) * min(g, 1.25), 0, 255)
+    gr = f.mean(axis=2, keepdims=True)
+    f = gr + (f - gr) * 1.08          # couleurs un poil plus vives, jamais plus ternes
     L = f.mean(axis=2, keepdims=True); sat = f.max(axis=2, keepdims=True) - f.min(axis=2, keepdims=True)
-    k = np.clip((L - 210) / 45, 0, 1) * np.clip(1 - sat / 55, 0, 1) * o[..., None]
+    k = np.clip((L - 225) / 30, 0, 1) * np.clip(1 - sat / 40, 0, 1) * obj[..., None]
     k = cv2.GaussianBlur(k[..., 0], (0, 0), 3)[..., None]
-    f = f - k * (L - 210) * .5
+    f = f - k * (L - 225) * .35
     img = np.clip(f, 0, 255).astype(np.uint8)
     # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
     ys, xs = np.nonzero(obj)
@@ -107,7 +122,10 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False) -> bytes:
         c_ = max(X1 - X0, Y1 - Y0); c_ = min(c_, NW, NH)
         mx, my = (X0 + X1) / 2, (Y0 + Y1) / 2
         X0 = int(min(max(0, mx - c_ / 2), NW - c_)); Y0 = int(min(max(0, my - c_ / 2), NH - c_)); X1, Y1 = X0 + c_, Y0 + c_
-    out_im = Image.fromarray(img[Y0:Y1, X0:X1])
+    crop = img[Y0:Y1, X0:X1]
+    flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
+    crop = cv2.addWeighted(crop, 1.35, flou, -.35, 0)   # netteté légère, compense la rotation
+    out_im = Image.fromarray(crop)
     if max(out_im.size) > 1600:
         out_im.thumbnail((1600, 1600), Image.LANCZOS)
     out = io.BytesIO()

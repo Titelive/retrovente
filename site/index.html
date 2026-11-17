@@ -478,7 +478,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     <div class="vitrine rv zoom">
       <div class="comparer grand-cmp" id="cmpEx" style="--pos:50%">
         <img class="av" src="/img/exemples/kirby-avant.jpg" alt="Photo d'origine, prise sur une table" width="720" height="720" loading="lazy" decoding="async">
-        <img class="ap" src="/img/exemples/kirby-apres.jpg" alt="Photo nettoyée par RetroRevente" width="720" height="720" loading="lazy" decoding="async">
+        <img class="ap" src="/img/exemples/kirby-apres.jpg?v=3" alt="Photo nettoyée par RetroRevente" width="720" height="720" loading="lazy" decoding="async">
         <span class="tag t-av">Avant</span><span class="tag t-ap">Après</span>
         <span class="poignee" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></span>
         <input type="range" min="0" max="100" value="50" aria-label="Glisser pour comparer la photo avant et après nettoyage">
@@ -498,10 +498,10 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       </div>
     </div>
     <div class="vignettes rv" role="tablist" aria-label="Exemples">
-      <button type="button" role="tab" aria-selected="true" data-ex="kirby"><img src="/img/exemples/kirby-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Kirby 64</span></button>
-      <button type="button" role="tab" aria-selected="false" data-ex="zelda"><img src="/img/exemples/zelda-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Zelda</span></button>
-      <button type="button" role="tab" aria-selected="false" data-ex="conker"><img src="/img/exemples/conker-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Conker</span></button>
-      <button type="button" role="tab" aria-selected="false" data-ex="paper-mario"><img src="/img/exemples/paper-mario-apres.jpg" alt="" width="72" height="72" loading="lazy"><span>Paper Mario</span></button>
+      <button type="button" role="tab" aria-selected="true" data-ex="kirby"><img src="/img/exemples/kirby-apres.jpg?v=3" alt="" width="72" height="72" loading="lazy"><span>Kirby 64</span></button>
+      <button type="button" role="tab" aria-selected="false" data-ex="zelda"><img src="/img/exemples/zelda-apres.jpg?v=3" alt="" width="72" height="72" loading="lazy"><span>Zelda</span></button>
+      <button type="button" role="tab" aria-selected="false" data-ex="conker"><img src="/img/exemples/conker-apres.jpg?v=3" alt="" width="72" height="72" loading="lazy"><span>Conker</span></button>
+      <button type="button" role="tab" aria-selected="false" data-ex="paper-mario"><img src="/img/exemples/paper-mario-apres.jpg?v=3" alt="" width="72" height="72" loading="lazy"><span>Paper Mario</span></button>
     </div>
     <p class="note-ex"><strong>Exemples réels</strong>, photos prises <strong>au téléphone</strong>. Prix <strong>indicatifs</strong>, calculés à partir des <strong>ventes récentes</strong>.</p>
   </div>
@@ -537,7 +537,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
         <div class="vis demo">
           <div class="comparer petit-cmp" style="--pos:50%">
             <img class="av" src="/img/exemples/conker-avant.jpg" alt="Conker's Bad Fur Day, photo d'origine de travers" width="720" height="720" loading="lazy" decoding="async">
-            <img class="ap" src="/img/exemples/conker-apres.jpg" alt="Conker's Bad Fur Day, photo retouchée et redressée, vrai fond gardé" width="720" height="720" loading="lazy" decoding="async">
+            <img class="ap" src="/img/exemples/conker-apres.jpg?v=3" alt="Conker's Bad Fur Day, photo retouchée et redressée, vrai fond gardé" width="720" height="720" loading="lazy" decoding="async">
             <span class="tag t-av">Avant</span><span class="tag t-ap">Après</span>
             <span class="poignee" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></span>
             <input type="range" min="0" max="100" value="50" aria-label="Glisser pour comparer avant et après">
@@ -698,7 +698,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   var gras=function(t){return window.rrGras?window.rrGras(t):String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
   var cmp=document.getElementById("cmpEx"),fx=document.querySelector(".fiche-ex");
   function montre(k,anim){var x=EX[k];if(!x)return;
-    function maj(){cmp.querySelector(".av").src="/img/exemples/"+k+"-avant.jpg";cmp.querySelector(".ap").src="/img/exemples/"+k+"-apres.jpg";
+    function maj(){cmp.querySelector(".av").src="/img/exemples/"+k+"-avant.jpg";cmp.querySelector(".ap").src="/img/exemples/"+k+"-apres.jpg?v=3";cmp.style.setProperty("--pos","50%");var rg=cmp.querySelector("input[type=range]");if(rg)rg.value=50;
       document.getElementById("exTitre").textContent=x.t;document.getElementById("exConsole").textContent=x.c;document.getElementById("exRegion").textContent=x.r;
       document.getElementById("exEtat").textContent=x.e;document.getElementById("exContenu").textContent=x.k;document.getElementById("exPrix").textContent=x.p+" €";
       document.getElementById("exFourchette").innerHTML=gras(x.f);document.getElementById("exDesc").innerHTML=gras(x.d);cmp.classList.remove("change");
