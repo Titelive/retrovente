@@ -23,7 +23,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=10">
+<link rel="stylesheet" href="/css/rr.css?v=11">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=7" defer></script>
 <script type="application/ld+json">
@@ -114,7 +114,7 @@
 @keyframes rail{to{transform:translateX(-50%)}}
 
 /* sections */
-section.s{padding:130px 0}
+section.s{padding:130px 0;scroll-margin-top:-112px}section.s.suite{padding-top:0;scroll-margin-top:18px}
 .s-tete{display:flex;flex-direction:column;gap:18px;margin-bottom:56px;max-width:760px}
 .s-tete .pixel{color:var(--gris)}
 .s-tete h2{font-size:clamp(40px,5.6vw,72px);font-weight:800;letter-spacing:-.05em;line-height:.95}
@@ -507,7 +507,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   </div>
 </section>
 
-<section class="s" style="padding-top:0" aria-labelledby="t-atouts">
+<section class="s" aria-labelledby="t-atouts">
   <div class="wrap">
     <header class="s-tete rv">
       <p class="pixel">Ce qu'on fait pour toi</p>
@@ -582,7 +582,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   </div>
 </section>
 
-<section class="s" id="tarifs" style="padding-top:0" aria-labelledby="t-tarifs">
+<section class="s suite" id="tarifs" aria-labelledby="t-tarifs">
   <div class="wrap">
     <header class="s-tete rv">
       <p class="pixel">Tarifs</p>
@@ -626,7 +626,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   </div>
 </section>
 
-<section class="s" id="faq" style="padding-top:0" aria-labelledby="t-faq">
+<section class="s suite" id="faq" aria-labelledby="t-faq">
   <div class="wrap faq-grille">
     <header class="s-tete rv" style="margin-bottom:0">
       <p class="pixel">Questions fréquentes</p>
