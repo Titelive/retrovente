@@ -38,6 +38,7 @@ function nettoyer(v, avant) {
     remise: parmi(v.remise, REMISES, ""),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
     annonce: lien(v.annonce), notes: txt(v.notes, 1000),
+    origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160),
     cote: ia.coteDe(v.cote),
     ia: !!(v.ia || (avant && avant.ia)),
     photo: !!(avant && photosDe(avant).length),
@@ -46,6 +47,7 @@ function nettoyer(v, avant) {
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
 export const MAX_PHOTOS = 12;
+const ORIGINES = ["origine", "non_teste", "modifie", "repro", "hs"];
 const photosDe = (it) => (Array.isArray(it.photos) ? it.photos : it.photo ? [{ id: "p0", legende: "" }] : []);
 function ordrePhotos(liste, avant) {
   const ex = avant ? photosDe(avant) : [];

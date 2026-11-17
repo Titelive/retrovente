@@ -284,3 +284,12 @@ test("mode test des formules : réservé aux adresses ADMIN_EMAILS", async () =>
     assert.equal((await call("POST", "/api/admin/formule", { formule: "" }, a)).status, 404);
   } finally { process.env.ADMIN_EMAILS = ""; }
 });
+
+test("origine et fonctionnement : d'origine testé par défaut, précision gardée", async () => {
+  const c = await compte("origine@exemple.fr");
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Conker" } }, c)).json.objet;
+  assert.equal(a.origine, "origine");
+  const b = (await call("POST", "/api/objets", { objet: { titre: "Zelda", origine: "modifie", modif: "pile changée" } }, c)).json.objet;
+  assert.equal(b.origine, "modifie"); assert.equal(b.modif, "pile changée");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "X", origine: "bidon" } }, c)).json.objet.origine, "origine");
+});

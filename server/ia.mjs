@@ -68,7 +68,7 @@ export function cadreDe(c) {
 const FAKE = () => process.env.IA_FAKE === "1";
 
 export async function identifier(photo) {
-  if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 pour Nintendo 64, version PAL française.\nComplet : boîte, notice et cartouche.\nBon état général, coins de la boîte légèrement frottés.\nCartouche testée, fonctionne parfaitement.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
+  if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
   const o = await claude([
     image(photo),
     { type: "text", text: `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console ou un accessoire). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »).
@@ -84,7 +84,12 @@ Réponds uniquement par un objet JSON avec les clés :
 ${CADRE_CONSIGNE},
 "rotation" (rotation en degrés, dans le sens des aiguilles d'une montre, à appliquer à la photo pour que l'étiquette ou le texte de l'objet soit à l'endroit : 0, 90, 180 ou 270),
 "annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, région, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose »),
-"description" (texte de l'annonce en français, 3 à 6 lignes courtes, honnête et vendeur : ce que c'est, l'état et ce qui est fourni (dis « Jeu en loose » pour une cartouche ou un disque seul, « Complet en boîte (CIB) » pour boîte et notice), un défaut visible s'il y en a, puis « Remise en main propre ou envoi. » ; sans prix, sans émoji, sans inventer ce qui ne se voit pas).` },
+"description" (texte de l'annonce en français, exactement dans ce style, 4 lignes courtes, honnête, sans prix ni émoji, sans inventer ce qui ne se voit pas :
+« Conker's Bad Fur Day sur Nintendo 64, version européenne (PAL, NUS-NFUP-EUR).
+Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
+Étiquette propre et bien lisible, cartouche en bon état.
+Remise en main propre ou envoi. »
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. »)` },
   ], { max: 1200 });
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
   return {
