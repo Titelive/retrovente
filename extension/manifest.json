@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "RetroRevente pour Le Bon Coin",
+  "short_name": "RetroRevente",
+  "version": "1.0.0",
+  "description": "Remplit le dépôt d'annonce Le Bon Coin avec l'annonce préparée dans RetroRevente. Tu vérifies et tu publies toi-même.",
+  "homepage_url": "https://retrorevente.fr/",
+  "icons": {
+    "16": "icones/icone-16.png",
+    "32": "icones/icone-32.png",
+    "48": "icones/icone-48.png",
+    "96": "icones/icone-96.png",
+    "128": "icones/icone-128.png"
+  },
+  "action": {
+    "default_title": "RetroRevente",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icones/icone-16.png",
+      "32": "icones/icone-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://retrorevente.fr/*",
+    "https://www.leboncoin.fr/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.leboncoin.fr/*"
+      ],
+      "js": [
+        "commun.js",
+        "lbc.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://retrorevente.fr/app/*",
+        "http://127.0.0.1/app/*",
+        "http://localhost/app/*"
+      ],
+      "js": [
+        "commun.js",
+        "appli.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "extension@retrorevente.fr",
+      "strict_min_version": "121.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}

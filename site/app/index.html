@@ -252,6 +252,7 @@ body.fiche-ouverte #toast{bottom:100px}
       <section class="lbc" aria-labelledby="tLbc">
         <h3 id="tLbc">Publier sur Le Bon Coin</h3>
         <p>On copie le titre, le texte et le prix, et on ouvre la page de dépôt. Tu colles, tu ajoutes la photo, c'est en ligne.</p>
+        <p id="fLbcExt" hidden>Extension installée : sur Le Bon Coin, ouvre le panneau RetroRevente et clique « Remplir cette étape » à chaque écran.</p>
         <div class="rangee"><button class="btn" type="button" id="fLbc">Copier et ouvrir Le Bon Coin</button><button class="btn clair petit" type="button" id="fCopie">Copier seulement</button></div>
       </section>
     </div>
@@ -314,6 +315,13 @@ body.fiche-ouverte #toast{bottom:100px}
       <article class="offre" data-o="pass"><h3>Pass Grand ménage</h3><p class="p">9,90 €<small> une fois</small></p><ul><li>Illimité pendant 30 jours</li><li>Tout Collectionneur inclus</li><li>Sans abonnement</li></ul><button class="btn" type="button">Prendre le pass</button></article>
     </div>
     <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Prix TTC. Sans engagement : tu résilies quand tu veux avec le bouton « Résilier votre contrat » de cette page. Voir les <a href="/cgv/" target="_blank">conditions générales</a>.</p>
+  </section>
+  <section class="carte zone" id="cExt">
+    <h2>Extension Le Bon Coin</h2>
+    <p style="color:var(--gris)" id="cExtTx">L'extension RetroRevente pour Safari, Chrome et Firefox remplit pour toi chaque étape du dépôt d'annonce sur Le Bon Coin (titre, description, état, prix, photo). Tu vérifies et tu publies toi-même.</p>
+    <div class="rangee"><button class="btn" type="button" id="cExtCo">Connecter l'extension</button><button class="btn clair" type="button" id="cExtDeco" hidden>Déconnecter l'extension</button></div>
+    <div id="cExtCle" hidden><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
+      <div class="rangee"><input type="text" id="cExtCleIn" readonly style="flex:1;min-width:0;font-family:monospace;font-size:13px"><button class="btn clair petit" type="button" id="cExtCopie">Copier</button></div></div>
   </section>
   <section class="carte zone">
     <h2>Mes données</h2>
@@ -565,7 +573,26 @@ function compte(){var f=ME.formule;montrer("compte");$("cEmail").textContent=ME.
   $("cRenoncer").hidden=$("cRenoncerTx").hidden=!f.retractable;
   if(f.retractable)$("cRenoncerTx").textContent="Droit de rétractation : tu peux renoncer à ton dernier achat jusqu'au "+dfr(f.retractable)+" (remboursement de la part non utilisée).";
   [].forEach.call(document.querySelectorAll("#compte .offre"),function(a){a.classList.toggle("actuelle",a.dataset.o===f.id)});
+  extMaj();$("cExtCle").hidden=true;
   $("cExport").hidden=!f.export;$("cExportTx").textContent=f.export?"Fichier compatible Excel, Numbers et Google Sheets.":"L'export de tes ventes (pour ta compta ou un tableur) est inclus dans la formule Collectionneur."}
+/* Extension navigateur : la page lui transmet une clé de lecture seule (postMessage, même origine). */
+var EXT=false;
+window.addEventListener("message",function(e){var d=e.data;if(e.source!==window||e.origin!==location.origin||!d||d.source!=="retrorevente-extension")return;
+  if(d.type==="present"){EXT=true;$("fLbcExt").hidden=false;extMaj()}
+  if(d.type==="cle-erreur"){clearTimeout(extT);$("cExtCle").hidden=false;toast(d.message||"L'extension n'a pas pu se connecter : colle la clé à la main.","bad")}
+  if(d.type==="cle-ok"){EXT=true;clearTimeout(extT);$("cExtCle").hidden=true;if(ME)ME.extension=(ME.extension||0)+1;extMaj();toast("Extension connectée. Ouvre Le Bon Coin pour déposer une annonce.","ok")}});
+var extT;
+function extMaj(){if(!ME)return;var n=ME.extension||0;$("cExtDeco").hidden=!n;$("cExtCo").textContent=n?"Reconnecter l'extension":"Connecter l'extension";
+  $("cExtTx").textContent=(EXT?"Extension détectée sur ce navigateur. ":"")+(n?"Connectée sur "+n+(n>1?" navigateurs":" navigateur")+". ":"")+"Sur Le Bon Coin, l'extension remplit chaque étape du dépôt (titre, description, état, prix, photo). Tu vérifies et tu publies toi-même."}
+$("cExtCo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Connexion…");
+  api("POST","/api/extension/cle").then(function(j){busy(b,false,t);$("cExtCleIn").value=j.cle;
+    window.postMessage({source:"retrorevente-app",type:"cle",cle:j.cle},location.origin);
+    extT=setTimeout(function(){$("cExtCle").hidden=false;ME.extension=(ME.extension||0)+1;extMaj()},EXT?6000:1500)})
+  .catch(function(e){busy(b,false,t);erreur(e,"Impossible de créer la clé.")})};
+$("cExtCopie").onclick=function(){copier($("cExtCleIn").value).then(function(){toast("Clé copiée.","ok")},function(){$("cExtCleIn").select()})};
+$("cExtDeco").onclick=function(){var b=this,t=b.textContent;busy(b,true,"…");
+  api("DELETE","/api/extension/cle").then(function(){busy(b,false,t);ME.extension=0;$("cExtCle").hidden=true;window.postMessage({source:"retrorevente-app",type:"deconnecter"},location.origin);extMaj();toast("Extension déconnectée partout.","ok")})
+  .catch(function(e){busy(b,false,t);erreur(e,"Impossible pour le moment.")})};
 $("bCompte").onclick=compte;$("cRetour").onclick=function(){montrer("accueil")};
 document.querySelector("#compte .bascule").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;PER=b.dataset.p;
   [].forEach.call(b.parentNode.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
