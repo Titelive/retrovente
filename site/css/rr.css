@@ -256,3 +256,18 @@ html.sans-anim .lecture{display:none}
 
 /* mobile : bouton « retour en haut » plus petit, collé au bord, et les « + » de la FAQ décalés pour ne jamais passer dessous */
 @media(max-width:700px){.vers-haut{width:44px;height:44px;right:max(10px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}.vers-haut svg{width:40px;height:40px}.faq details>summary{padding-right:52px}}
+
+.pied-site p strong{color:#E4E4DC;font-weight:700}
+
+/* lueurs vertes qui dérivent lentement dans le fond des sections */
+.a-lueurs{position:relative;isolation:isolate}
+.lueurs{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none}
+.lueurs i{position:absolute;width:var(--t,560px);height:var(--t,560px);border-radius:50%;background:radial-gradient(closest-side,rgba(212,245,122,var(--o,.18)),rgba(212,245,122,0));will-change:transform;animation:derive var(--d,26s) ease-in-out infinite alternate}
+.lueurs i:nth-child(1){left:-12%;top:-18%;--t:620px;--d:28s}
+.lueurs i:nth-child(2){right:-14%;top:30%;--t:540px;--d:34s;animation-delay:-9s}
+.lueurs i:nth-child(3){left:30%;bottom:-30%;--t:480px;--d:24s;animation-delay:-15s;--o:.1}
+.clair-l .lueurs i{--o:.32}
+@keyframes derive{0%{transform:translate(0,0) scale(1)}33%{transform:translate(9vw,6vh) scale(1.12)}66%{transform:translate(-5vw,10vh) scale(.92)}100%{transform:translate(6vw,-6vh) scale(1.06)}}
+@media (max-width:700px){.lueurs i{--t:340px}}
+html.sans-anim .lueurs i{animation:none}
+@media (prefers-reduced-motion:reduce){.lueurs i{animation:none}}
