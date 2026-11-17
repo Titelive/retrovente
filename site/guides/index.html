@@ -11,9 +11,9 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=2">
-<script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=2" defer></script>
+<link rel="stylesheet" href="/css/rr.css?v=3">
+<script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
+<script src="/js/rr.js?v=3" defer></script>
 </head>
 <body>
 <header class="nav" id="nav">
@@ -32,6 +32,7 @@
     <button class="burger" type="button" aria-expanded="false" aria-controls="navLiens" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
   </div>
 </header>
+<nav class="fil-barre" aria-label="Fil d'Ariane"><div class="wrap"><ol class="fil"><li><a href="/">Accueil</a></li><li aria-current="page">Guides</li></ol></div></nav>
 <main>
 <article class="ed">
 <p class="pixel etq">Guides</p>
@@ -44,8 +45,9 @@
 </main>
 <footer class="pied-site">
   <div class="wrap">
-    <div><img src="/img/logo-nuit.svg" alt="RetroRevente" width="137" height="28"><p>© 2026 RetroRevente. RetroRevente n'est ni affilié ni approuvé par Leboncoin, eBay ou PriceCharting.</p></div>
-    <nav aria-label="Pied de page"><a href="/guides/">Guides</a><a href="/#tarifs">Tarifs</a><a href="/mentions-legales/">Mentions légales</a><a href="/confidentialite/">Confidentialité</a><a href="/cgv/">Conditions générales</a><a href="/app/?compte">Résilier ou renoncer</a><a href="/app/">Connexion</a></nav>
+    <div><img src="/img/logo-nuit.svg" alt="RetroRevente" width="137" height="28" loading="lazy"><p>© 2026 RetroRevente. RetroRevente n'est ni affilié ni approuvé par Leboncoin, eBay ou PriceCharting. Les marques citées appartiennent à leurs propriétaires.</p></div>
+    <nav aria-label="Pied de page"><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Tarifs</a><a href="/guides/">Guides</a><a href="/mentions-legales/">Mentions légales</a><a href="/confidentialite/">Confidentialité</a><a href="/cgv/">Conditions générales</a><a href="/app/?compte">Résilier ou renoncer</a><a href="mailto:bonjour@retrorevente.fr">Contact</a></nav>
+    <div class="pied-bas"><a class="tlc" href="https://titelive.me" target="_blank" rel="noopener" title="titelive.me"><span>Site réalisé par</span><img src="/img/titelive.png" alt="" width="26" height="26" loading="lazy"><b>Titelive</b><i class="pixel" aria-hidden="true">1UP</i></a></div>
   </div>
 </footer>
 </body>

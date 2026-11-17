@@ -67,6 +67,11 @@ const COLS = {
   achat_ref: "TEXT NOT NULL DEFAULT ''",     // offre:periode achetée
   achat_montant: "INTEGER NOT NULL DEFAULT 0", // montant payé, en centimes
   retract_at: "TEXT NOT NULL DEFAULT ''",    // rétractation reçue pour cet achat
+  pseudo: "TEXT NOT NULL DEFAULT ''",        // nom affiché dans le menu
+  avatar: "TEXT NOT NULL DEFAULT ''",        // photo de profil (data URL JPEG 256 px)
+  email_new: "TEXT NOT NULL DEFAULT ''",     // nouvelle adresse en attente de confirmation
+  email_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation
+  email_until: "TEXT NOT NULL DEFAULT ''",
 };
 const have = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
 for (const [c, def] of Object.entries(COLS)) if (!have.has(c)) db.exec(`ALTER TABLE users ADD COLUMN ${c} ${def}`);

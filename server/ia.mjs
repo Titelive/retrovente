@@ -71,16 +71,17 @@ Réponds uniquement par un objet JSON avec les clés :
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (ex. « PAL EUR », « NTSC-J » ; "" si inconnue),
 "etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire),
-"contenu" (« seul » si cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice ; "" si sans objet),
+"contenu" (« seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice ; "" si sans objet),
 "remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, éléments manquants… ; "" sinon),
 ${CADRE_CONSIGNE},
-"annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, contenu, région),
-"description" (texte de l'annonce en français, 3 à 6 lignes courtes, honnête et vendeur : ce que c'est, l'état et ce qui est fourni, un défaut visible s'il y en a, puis « Remise en main propre ou envoi. » ; sans prix, sans émoji, sans inventer ce qui ne se voit pas).` },
+"rotation" (rotation en degrés, dans le sens des aiguilles d'une montre, à appliquer à la photo pour que l'étiquette ou le texte de l'objet soit à l'endroit : 0, 90, 180 ou 270),
+"annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, région, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose »),
+"description" (texte de l'annonce en français, 3 à 6 lignes courtes, honnête et vendeur : ce que c'est, l'état et ce qui est fourni (dis « Jeu en loose » pour une cartouche ou un disque seul, « Complet en boîte (CIB) » pour boîte et notice), un défaut visible s'il y en a, puis « Remise en main propre ou envoi. » ; sans prix, sans émoji, sans inventer ce qui ne se voit pas).` },
   ], { max: 1200 });
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
   return {
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
-    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: txt(o.remarques, 300), annonce: txt(o.annonce, 100), description: txt(o.description, 1500), cadre: cadreDe(o.cadre),
+    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: txt(o.remarques, 300), annonce: txt(o.annonce, 100), description: txt(o.description, 1500), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
   };
 }
 
@@ -91,7 +92,7 @@ export async function cadrer(photo) {
 }
 
 const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", correct: "état correct", pieces: "pour pièces" };
-const LIB_CONTENU = { seul: "cartouche ou disque seul (loose)", boite: "en boîte, sans notice", complet: "complet (boîte et notice)" };
+const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)" };
 export async function estimerCote(v) {
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");

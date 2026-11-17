@@ -1,0 +1,21 @@
+[Unit]
+Description=retrorevente.fr : détourage des photos (local, sans coût par photo)
+After=network-online.target
+
+[Service]
+User=titelive
+WorkingDirectory=/srv/retrorevente/current
+Environment=U2NET_HOME=/var/lib/retrorevente-modeles PORT=7001 OMP_NUM_THREADS=2 NUMBA_CACHE_DIR=/tmp MPLCONFIGDIR=/tmp
+ExecStart=/opt/retrorevente-py/bin/python /srv/retrorevente/current/tools/detourage.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/retrorevente-modeles
+MemoryMax=2500M
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target
