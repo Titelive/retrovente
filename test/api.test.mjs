@@ -376,3 +376,9 @@ test("identification : si le premier modèle ne reconnaît pas, un modèle plus 
     assert.notEqual(appels[1].model, appels[0].model);
   } finally { globalThis.fetch = vrai; process.env.IA_FAKE = "1"; delete process.env.ANTHROPIC_API_KEY; }
 });
+
+test("JSON du modèle : lu même avec des retours à la ligne bruts ou une virgule en trop", async () => {
+  const { lireJson } = await import("../server/ia.mjs");
+  assert.deepEqual(lireJson('Voici :\n```json\n{"a": "l1\nl2", "b": [1,],}\n```'), { a: "l1\nl2", b: [1] });
+  assert.equal(lireJson("pas de json"), null);
+});
