@@ -422,6 +422,9 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .filtres button{transition:background-color .25s,color .25s,transform .2s var(--ease)}
 .filtres button:active{transform:scale(.94)}
 .carte{transition:box-shadow .3s}
+#jIa{position:fixed;left:12px;bottom:12px;z-index:95;width:min(560px,calc(100vw - 24px));max-height:42vh;display:flex;flex-direction:column;background:#111;color:#e8e8e8;border-radius:14px;box-shadow:0 20px 50px -10px rgba(0,0,0,.6);font:12px/1.45 ui-monospace,Menlo,monospace}
+#jIa header{display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid #2a2a2a}#jIa header b{flex:1;font:700 12px var(--texte)}#jIa header button{border:0;background:#2a2a2a;color:#fff;border-radius:8px;padding:4px 9px;cursor:pointer}
+#jIa pre{margin:0;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .photo.flash>img{animation:nette .6s var(--ease)}@keyframes nette{from{opacity:.35;filter:blur(6px)}to{opacity:1;filter:none}}   /* photo retouchée : simple fondu, sans lueur */
 .btn .i{width:18px;height:18px;flex:none}
 
@@ -489,6 +492,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 /* habillage selon la formule (voir aussi rr.css) */
 html[data-formule="vendeur"] #quota{box-shadow:inset 0 0 0 1.5px var(--anis)}
 html[data-formule="collectionneur"] #quota{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00}
+html[data-formule="collectionneur"] #quota b,html[data-formule="pass"] #quota b{color:inherit;font-weight:800}
 html[data-formule="collectionneur"] .chiffres .tps,html[data-formule="collectionneur"] .lbc{box-shadow:inset 0 0 0 2px rgba(247,215,116,.7),0 18px 40px -24px rgba(201,150,43,.6)}
 html[data-formule="collectionneur"] .chiffres .tps b,html[data-formule="collectionneur"] .tps strong{color:var(--or-1)}
 html[data-formule="pass"] #quota{background:var(--holo);background-size:300% 100%;color:var(--nuit);animation:holo 5s linear infinite}
@@ -866,7 +870,7 @@ function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){va
 var APP=(function(){var a="";try{a=localStorage.getItem("rr-app")||"";if(!/^[a-z0-9]{16,40}$/.test(a)){a=(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,"").slice(0,32);localStorage.setItem("rr-app",a)}}catch(e){}return a})();
 function api(method,path,body){var h=body?{"content-type":"application/json"}:{};if(APP)h["x-rr-app"]=APP;
   return fetch(path,{method:method,credentials:"same-origin",cache:"no-store",headers:h,body:body?JSON.stringify(body):undefined})
-    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.quota=j.quota;e.ia=j.ia;e.verif=j.verif;throw e}return j})});
+    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.trace=j.trace;e.quota=j.quota;e.ia=j.ia;e.verif=j.verif;throw e}return j})});
 }
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}if((e.status===402&&e.ia)||(e.status===403&&e.verif)){iaBloquee(e);return}toast(e.message||def,"bad")}
 /* IA réservée aux formules payantes : essai unique en Découverte */
@@ -1088,7 +1092,15 @@ function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].f
    tournée, elle confirme que le texte est à l'endroit (sinon on laisse la photo telle quelle). */
 function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.round(img.naturalWidth*k),h=Math.round(img.naturalHeight*k),q=deg%180!==0;
   c.width=q?h:w;c.height=q?w:h;var g=c.getContext("2d");g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);g.drawImage(img,-w/2,-h/2,w,h);return c.toDataURL("image/jpeg",.85)}
-function sens(d){return api("POST","/api/ia/endroit",{photo:d}).catch(function(){return{sur:false,rotation:0,sens:"incertain"}})}
+function tourneHD(img,deg){var c=document.createElement("canvas"),w=img.naturalWidth,h=img.naturalHeight,q=deg%180!==0;c.width=q?h:w;c.height=q?w:h;var g=c.getContext("2d");g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);g.drawImage(img,-w/2,-h/2);return c.toDataURL("image/jpeg",.92)}
+function sens(d){return api("POST","/api/ia/endroit",{photo:d}).then(function(j){journal("Sens",j.sens+(j.sur?"":" (pas sûr)"),j.trace);return j}).catch(function(e){journal("Sens","échec : "+e.message,e.trace);return{sur:false,rotation:0,sens:"incertain"}})}
+/* Journal IA : pour les administrateurs, chaque appel de sens et de description s'affiche (réponse brute, durée, erreur) */
+var JOURNAL=[];
+function journal(quoi,res,trace){if(!(ME&&ME.admin))return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
+  JOURNAL.push(new Date().toLocaleTimeString("fr-FR")+" "+quoi+" : "+res+(tr?"\n   "+tr:""));JOURNAL=JOURNAL.slice(-14);
+  var z=$("jIa");if(!z){z=document.createElement("div");z.id="jIa";z.innerHTML='<header><b>Journal IA</b><button type="button" data-j="c">Copier</button><button type="button" data-j="x" aria-label="Fermer">×</button></header><pre></pre>';document.body.appendChild(z);
+    z.addEventListener("click",function(e){var b=e.target.closest("[data-j]");if(!b)return;if(b.dataset.j==="x")z.hidden=true;else copier(JOURNAL.join("\n")).then(function(){toast("Journal copié.","ok")})})}
+  z.hidden=false;z.querySelector("pre").textContent=JOURNAL.join("\n")}
 function trouverSens(img){if(!img)return Promise.resolve(0);
   return sens(tourne(img,0)).then(function(a){if(!a.sur||!a.rotation)return 0;
     return sens(tourne(img,a.rotation)).then(function(b){if(b.sens==="haut")return a.rotation;
@@ -1098,7 +1110,7 @@ var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la p
 function analyser(f){
   ANALYSE=true;attente("Je regarde la photo…");
   return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
-    .then(function(j){var o=j.objet;IA_FAITE=true;
+    .then(function(j){var o=j.objet;IA_FAITE=true;journal("Reconnaissance",o.titre||"rien");
       ROT=0;   // le sens est vérifié à part (trouverSens), pas deviné avec le reste
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
       remplirCarte(o);
@@ -1106,7 +1118,9 @@ function analyser(f){
       if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);
       if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
       $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
-      attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");var im0=IMG;return Promise.all([trouverSens(im0).then(function(r){ROT=r;return nettoyerPhoto(true,0,ROT)}),estimer()])})
+      attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");var im0=IMG;return Promise.all([trouverSens(im0).then(function(r){var g=GAL[0];if(!r||!g)return nettoyerPhoto(true,0,0);
+        /* la photo elle-même est tournée (pas seulement la version retouchée) : elle reste droite même si la retouche échoue */
+        return chargerImg(g.src).then(function(img){var d=tourneHD(img,r);g.src=g.data=d;IMG=null;afficher();journal("Sens","photo tournée de "+r+"°");return nettoyerPhoto(true,0,0)})}),estimer()])})
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null);ANALYSE=false;afficher()})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
@@ -1139,12 +1153,12 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
-    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||tout||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
+    .then(function(j){journal("Légendes",(j.legendes||[]).map(function(l,i){return (i+1)+"="+(l?"ok":"vide"+(j.erreurs&&j.erreurs[i]?" ("+j.erreurs[i]+")":""))}).join(", "),j.trace);(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||tout||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
       var rates=GAL.map(function(g,i){return g.legende?0:i+1}).filter(Boolean);
       if(rates.length&&!essai){return new Promise(function(ok){setTimeout(ok,4000)}).then(function(){busy(b,false,t);return decrire(auto,2,false,muet)})}   // on réessaie seulement les photos restées vides
       if(rates.length){if(!muet)toast("Photo"+(rates.length>1?"s ":" ")+rates.join(", ")+" non décrite"+(rates.length>1?"s":"")+((j.erreurs||[]).filter(Boolean)[0]?" ("+(j.erreurs||[]).filter(Boolean)[0]+")":"")+". Clique « Décrire les photos » pour réessayer.","bad");return}
       if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
-    .catch(function(e){if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
+    .catch(function(e){journal("Légendes","échec : "+e.message,e.trace);if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
       if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)});   // une seconde tentative, en silence
       if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};

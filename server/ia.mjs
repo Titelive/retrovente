@@ -28,10 +28,13 @@ export function coteDe(c) {
   return o.conseille != null || o.bas != null ? o : null;
 }
 
-async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null } = {}) {
+async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null } = {}) {
+  const t0 = Date.now(), modele = model || process.env.CLAUDE_MODEL || "claude-haiku-5-5";
+  const note = (x) => { if (trace) trace.push({ modele, ms: Date.now() - t0, ...x }); };
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new IaError("Le service d'IA n'est pas configuré.");
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
+  let r;
+  try { r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: AbortSignal.timeout(timeout),
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
@@ -41,8 +44,8 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
       ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: { type: "tool", name: outil.name } } : {}),
       messages: [{ role: "user", content }],
     }),
-  });
-  if (!r.ok) { console.error("IA", r.status, (await r.text().catch(() => "")).slice(0, 300)); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
+  }); } catch (e) { note({ erreur: e.name === "TimeoutError" ? "délai dépassé (" + timeout / 1000 + " s)" : String(e.message || e).slice(0, 120) }); throw e; }
+  if (!r.ok) { const corps = (await r.text().catch(() => "")).slice(0, 300); console.error("IA", r.status, corps); note({ statut: r.status, erreur: corps.slice(0, 200) }); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
   const d = await r.json();
   const t = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const vus = new Set();
@@ -55,6 +58,7 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
     console.error("IA : outil non rempli", d.stop_reason, t.slice(0, 300));
   }
   const o = lireJson(t);
+  note({ statut: 200, fin: d.stop_reason, texte: t.slice(0, 240), json: !!o });
   if (!o) { console.error("IA : JSON illisible", t.slice(0, 400)); if (brut) return { _texte: t }; }
   if (o && web) Object.defineProperty(o, "_vus", { value: vus });
   return o;
@@ -193,7 +197,7 @@ export async function cadrer(photo) {
 /* Sens de la photo : où pointe le haut des lettres de l'étiquette ? (plus fiable que de demander un angle)
    haut → 0, gauche → 90 (quart de tour horaire), bas → 180, droite → 270. « incertain » : on ne tourne pas. */
 const SENS = { haut: 0, gauche: 90, bas: 180, droite: 270 };
-export async function endroit(photo) {
+export async function endroit(photo, trace = null) {
   if (FAKE()) { checkPhoto(photo); const s = process.env.IA_FAKE_SENS || "haut"; return { sens: s, rotation: SENS[s] ?? 0, sur: s !== "incertain" }; }
   const o = await claude([image(photo), { type: "text", text: `Regarde le texte principal imprimé sur l'objet (titre de l'étiquette, logo, texte de la boîte ou de la carte). Le haut des lettres pointe vers quel bord de la photo ?
 - « haut » : le texte se lit normalement, à l'endroit ;
@@ -201,7 +205,7 @@ export async function endroit(photo) {
 - « droite » : le texte se lit de haut en bas ;
 - « bas » : le texte est à l'envers, tête en bas ;
 - « incertain » : pas de texte lisible, ou tu hésites.
-Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 60, timeout: 20000, brut: true });
+Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 300, timeout: 25000, brut: true, trace });
   const s = String((o && o.sens) || (/"sens"\s*:\s*"(\w+)"/.exec((o && o._texte) || "") || [])[1] || "").toLowerCase();
   return s in SENS ? { sens: s, rotation: SENS[s], sur: true } : { sens: "incertain", rotation: 0, sur: false };
 }
@@ -360,7 +364,7 @@ export function affirme(t) {
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 const carte0 = (v) => v.categorie === "cartes";
-export async function legender(photos, v = {}) {
+export async function legender(photos, v = {}, trace = null) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
@@ -376,7 +380,7 @@ export async function legender(photos, v = {}) {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
-Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 400, timeout: 30000, brut: true });
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 30000, brut: true, trace });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");

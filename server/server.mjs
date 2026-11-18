@@ -63,7 +63,7 @@ const server = http.createServer(async (req, res) => {
         out = await handleApi({ method: req.method, path: url.pathname, query: url.searchParams, headers: req.headers, ip, body });
       } catch (e) {
         if (e instanceof HttpError) out = { status: e.status, json: { error: e.message, ...(e.extra || {}) } };
-        else if (e instanceof IaError) out = { status: 422, json: { error: e.message } };
+        else if (e instanceof IaError) out = { status: 422, json: { error: e.message, ...(e.trace ? { trace: e.trace } : {}) } };
         else if (e && e.name === "TimeoutError") out = { status: 504, json: { error: "Le service a mis trop de temps à répondre, réessaie." } };
         else { console.error(e && e.stack || e); out = { status: 500, json: { error: e && e.message && /paiement/i.test(e.message) ? e.message : "Erreur du serveur." } }; }
       }
