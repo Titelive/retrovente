@@ -132,9 +132,10 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 /* fiche */
 #fiche .haut .wrap{display:flex;align-items:center;gap:14px;padding-top:26px}
 #fiche .haut h2{font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-.045em;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.1}
-.grille{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-template-areas:"photo champs" "lbc champs" ". champs";grid-template-rows:auto auto 1fr;gap:20px;padding:24px 0 130px;align-items:start}
-.grille>.g-photo{grid-area:photo}.grille>.g-champs{grid-area:champs}.grille>.g-lbc{grid-area:lbc}
-@media(max-width:860px){.grille{grid-template-columns:minmax(0,1fr);grid-template-areas:"photo" "champs" "lbc";grid-template-rows:auto}}
+.grille{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-template-areas:"photo champs";gap:20px;padding:24px 0 130px;align-items:start}
+.grille>.g-photo{grid-area:photo}.grille>.g-champs{grid-area:champs}
+@media(max-width:860px){.grille{grid-template-columns:minmax(0,1fr);grid-template-areas:"photo" "champs"}}
+@media(min-width:861px){.grille>.g-photo{position:sticky;top:96px}}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .photo{position:relative;aspect-ratio:1;background:var(--carte);border-radius:28px;overflow:hidden;display:grid;place-items:center;box-shadow:0 0 0 1px var(--trait)}
 .photo img{width:100%;height:100%;object-fit:contain}
@@ -204,7 +205,7 @@ dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(4px)}
 dialog form{display:flex;flex-direction:column;gap:14px}
 #qEtape2[hidden],#qEtape1[hidden]{display:none!important}
 .recap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}.recap dt{color:var(--gris)}.recap dd{margin:0;font-weight:600}
-#toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
+#toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:80;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
 #toast::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:#E05A4F}
 #toast.ok::before{background:var(--anis)}
 #toast.on{transform:translate(-50%,0);visibility:visible}
@@ -232,6 +233,30 @@ body.fiche-ouverte #toast{bottom:100px}
 
 
 
+
+/* Fiche harmonisée : la colonne photo est une carte comme les autres */
+.photos-carte .photo{border-radius:18px;box-shadow:none;background:var(--papier)}
+.photos-carte .note{margin:0}
+.g-champs{display:flex;flex-direction:column;gap:20px}
+/* Dock flottant : Le Bon Coin + Enregistrer */
+.fab-save{display:flex;gap:10px;align-items:center}
+.fab-save .btn.sombre{--bg:var(--nuit);--fg:#fff;background:var(--nuit);color:#fff;position:relative}
+:root[data-theme="dark"] .fab-save .btn.sombre{background:#2A2A27;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 36px -12px rgba(0,0,0,.6)}
+.fab-prog{font:700 11.5px/1 var(--texte);padding:4px 7px;border-radius:999px;background:var(--anis);color:var(--nuit);margin-left:2px}
+/* Panneau Le Bon Coin : glisse depuis la droite (en bas sur mobile) */
+.lbc-feuille{position:fixed;inset:0;z-index:70;display:flex;justify-content:flex-end;align-items:flex-start;padding:14px}
+.lbc-feuille[hidden]{display:none}
+.lbc-fond{position:absolute;inset:0;background:rgba(10,10,10,.45);backdrop-filter:blur(3px);animation:fondu .3s both}
+.lbc-feuille .lbc{position:relative;width:min(440px,100%);max-height:100%;overflow-y:auto;animation:glisse-g .45s var(--ease) both;box-shadow:0 40px 90px -30px rgba(0,0,0,.7)}
+.lbc-x{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:12px;border:0;display:grid;place-items:center;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;z-index:2}
+.lbc-x:hover{background:rgba(255,255,255,.16)}.lbc-x svg{width:18px;height:18px}
+.lbc-feuille .lbc h3{padding-right:48px}
+@keyframes fondu{from{opacity:0}}
+@keyframes glisse-g{from{transform:translateX(40px);opacity:0}}
+@keyframes glisse-h{from{transform:translateY(60px);opacity:0}}
+@media(max-width:700px){.lbc-feuille{align-items:flex-end;padding:0}.lbc-feuille .lbc{width:100%;max-height:88vh;border-radius:28px 28px 0 0;animation-name:glisse-h;padding-bottom:max(24px,env(safe-area-inset-bottom))}
+  .fab-save{gap:8px}.fab-save .btn.sombre span{display:none}.fab-save .btn.sombre{padding:0 14px}}
+body.panneau-ouvert{overflow:hidden}
 /* Discussion avec l'IA sur la fiche */
 .dial{gap:10px}
 .dial h3{display:flex;align-items:center;gap:10px}
@@ -321,7 +346,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .lbc-etapes{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .lbc-etapes li{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:16px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);transition:background-color .3s,box-shadow .3s}
 .lbc-etapes li.fait{box-shadow:inset 0 0 0 1.5px var(--anis);background:rgba(212,245,122,.07)}
-.lbc-etapes li.vide{opacity:.6}
+.lbc-etapes li.manque{opacity:.6}
 .lbc-etapes .n{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font:400 11px/1 var(--pixel);background:rgba(255,255,255,.1);color:#fff;transition:background-color .3s,color .3s}
 .lbc-etapes li.fait .n{background:var(--anis);color:var(--nuit);font:700 14px/1 var(--texte)}
 .lbc-etapes .c{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -471,6 +496,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <div class="haut"><div class="wrap"><h2 id="fTitre">Nouveau jeu</h2><button class="btn clair petit" type="button" id="fFermer">← Mes jeux</button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
+     <section class="carte bloc photos-carte" aria-labelledby="tPhotos">
+      <header><h3 id="tPhotos">Photos</h3></header>
       <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span></div></div>
       <ol class="galerie" id="fGal" aria-label="Photos du jeu (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
@@ -485,17 +512,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <button class="lien" type="button" id="fPhotoSuppr" hidden>Retirer cette photo</button>
       </div>
       <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts du jeu restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
+     </section>
 
-    </div>
-    <div class="g-lbc">
-      <section class="lbc" aria-labelledby="tLbc">
-        <h3 id="tLbc">Publier sur Le Bon Coin</h3>
-        <p>Le Bon Coin demande les infos <strong>une par une</strong>. Ouvre-le dans un nouvel onglet, puis copie chaque champ quand il le demande.</p>
-        <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ouvrir Le Bon Coin (nouvel onglet)</a>
-        <ol class="lbc-etapes" id="lbcEtapes"></ol>
-        <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
-        <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
-      </section>
     </div>
     <div class="col g-champs">
       <section class="carte bloc dial" id="fDial" aria-labelledby="tDial">
@@ -687,7 +705,18 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<div class="fab-save" id="fabSave" hidden><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
+<div class="lbc-feuille" id="lbcFeuille" hidden><div class="lbc-fond" data-ferme></div>
+<section class="lbc" role="dialog" aria-labelledby="tLbc">
+        <button class="lbc-x" type="button" data-ferme aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <h3 id="tLbc">Publier sur Le Bon Coin</h3>
+        <p>Le Bon Coin demande les infos <strong>une par une</strong>. Ouvre-le dans un nouvel onglet, puis copie chaque champ quand il le demande.</p>
+        <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ouvrir Le Bon Coin (nouvel onglet)</a>
+        <ol class="lbc-etapes" id="lbcEtapes"></ol>
+        <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
+        <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
+      </section>
+</div>
+<div class="fab-save" id="fabSave" hidden><button class="btn sombre" type="button" id="fLbcBt" aria-label="Publier sur Le Bon Coin" aria-expanded="false" aria-controls="lbcFeuille"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Le Bon Coin</span><b class="fab-prog" id="fLbcProg" hidden></b></button><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
 <script>
 (function(){
 "use strict";
@@ -721,7 +750,7 @@ function api(method,path,body){
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}toast(e.message||def,"bad")}
 
 /* ===== Vues ===== */
-function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";if(v==="accueil")requestAnimationFrame(pastille);
+function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
   $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
   var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes jeux",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouveau jeu"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
@@ -976,6 +1005,13 @@ $("fCote").onclick=estimer;
 $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data-px]");if(b){$("f_prixDemande").value=b.dataset.px;toast("Prix : "+eur(+b.dataset.px)+".","ok")}});
 
 
+
+/* Panneau Le Bon Coin (bouton du dock flottant) */
+function panneauLbc(on){var f=$("lbcFeuille");f.hidden=!on;$("fLbcBt").setAttribute("aria-expanded",String(on));document.body.classList.toggle("panneau-ouvert",on);
+  if(on){majLbc();setTimeout(function(){var b=f.querySelector("#fLbc");if(b)b.focus()},60)}else $("fLbcBt").focus({preventScroll:true})}
+$("fLbcBt").onclick=function(){panneauLbc($("lbcFeuille").hidden)};
+$("lbcFeuille").addEventListener("click",function(e){if(e.target.closest("[data-ferme]"))panneauLbc(false)});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("lbcFeuille").hidden)panneauLbc(false)});
 /* ===== Discussion avec l'IA sur la fiche ===== */
 var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce"],
   DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite"};
@@ -1022,9 +1058,9 @@ function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").valu
     {k:"prix",l:"Prix",v:px?String(Math.round(+px)):"",n:"en euros, sans centimes"},{k:"photo",l:"Photos",v:GAL.length?(GAL.length>1?GAL.length+" photos numérotées prêtes":"Photo prête"):"",n:"enregistre-les puis glisse-les",photo:true}]}
 function majLbc(){var c=champsLbc(),fait=0;
   $("lbcEtapes").innerHTML=c.map(function(x,i){var ok=LBC_FAIT[x.k];if(ok)fait++;
-    return '<li class="'+(ok?"fait":"")+(x.v?"":" vide")+'"><span class="n">'+(ok?"✓":i+1)+'</span><div class="c"><b>'+x.l+' <small>'+x.n+'</small></b><span class="v">'+(x.v?esc(x.v.length>90?x.v.slice(0,90)+"…":x.v):"À remplir dans la fiche")+'</span></div>'+
+    return '<li class="'+(ok?"fait":"")+(x.v?"":" manque")+'"><span class="n">'+(ok?"✓":i+1)+'</span><div class="c"><b>'+x.l+' <small>'+x.n+'</small></b><span class="v">'+(x.v?esc(x.v.length>90?x.v.slice(0,90)+"…":x.v):"À remplir dans la fiche")+'</span></div>'+
       (x.v?'<button class="btn '+(ok?"clair":"jaune")+' petit" type="button" data-lbc="'+x.k+'">'+(x.photo?"Enregistrer":x.info?"Copier":"Copier")+'</button>':"")+'</li>'}).join("");
-  $("lbcProg").textContent=fait+" / "+c.length+" faits"}
+  $("lbcProg").textContent=fait+" / "+c.length+" faits";var pg=$("fLbcProg");if(pg){pg.hidden=!fait;pg.textContent=fait+"/"+c.length}}
 $("lbcEtapes").addEventListener("click",function(e){var b=e.target.closest("[data-lbc]");if(!b)return;var k=b.dataset.lbc,x=champsLbc().filter(function(c){return c.k===k})[0];
   if(k==="photo"){$("fPhotoDl").click();LBC_FAIT.photo=true;majLbc();return}
   copier(x.v).then(function(){LBC_FAIT[k]=true;majLbc();toast(x.l+" copié : colle-le sur Le Bon Coin.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})});
