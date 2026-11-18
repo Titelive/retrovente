@@ -67,6 +67,18 @@ textarea{resize:vertical;min-height:130px;line-height:1.5}
 /* tableau de bord */
 main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .tete{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between}
+/* Mon compte : appel à l'action vers Mes jeux */
+.cta-jeux{display:flex;align-items:center;gap:18px;margin:22px 0 4px;padding:18px 18px 18px 22px;border-radius:24px;background:var(--nuit);color:#fff;text-decoration:none;box-shadow:0 0 0 1px rgba(212,245,122,.25),0 22px 44px -22px rgba(26,26,26,.7);transition:transform .3s var(--ease),box-shadow .3s}
+.cta-jeux:hover{transform:translateY(-3px);box-shadow:0 0 0 1px rgba(212,245,122,.6),0 28px 50px -22px rgba(26,26,26,.75)}
+.cta-jeux .cj-ico{flex:none;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:rgba(212,245,122,.14);color:var(--anis)}
+.cta-jeux .cj-ico svg{width:28px;height:28px}
+.cta-jeux .cj-tx{display:flex;flex-direction:column;gap:2px;min-width:0;margin-right:auto}
+.cta-jeux .cj-tx b{font:800 22px/1.1 var(--titre,inherit);letter-spacing:-.02em}
+.cta-jeux .cj-tx small{color:rgba(255,255,255,.7);font-size:14px}
+.cta-jeux .cj-bt{flex:none;padding:16px 24px;font-size:16px;pointer-events:none}
+.cta-jeux .cj-bt svg{width:18px;height:18px;transition:transform .3s var(--ease)}
+.cta-jeux:hover .cj-bt svg{transform:translateX(4px)}
+@media(max-width:600px){.cta-jeux{flex-wrap:wrap;padding:16px}.cta-jeux .cj-bt{width:100%}}
 .ajout{display:flex;gap:10px;flex-wrap:wrap}
 .ajout .btn:first-child{padding:16px 24px;font-size:16px}
 .ajout svg{width:20px;height:20px}
@@ -447,7 +459,12 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
 <!-- ========== Compte ========== -->
 <main class="app wrap vue" id="compte" hidden>
-  <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div><button class="btn clair" type="button" id="cRetour">← Mes jeux</button></div>
+  <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div></div>
+  <a class="cta-jeux" href="/app/" id="cRetour">
+    <span class="cj-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15.5" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="13" r=".6" fill="currentColor"/></svg></span>
+    <span class="cj-tx"><b>Mes jeux</b><small id="cJeuxTx">Tes annonces, tes prix et tes ventes</small></span>
+    <span class="btn cj-bt">Ouvrir mes jeux <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>
   <section class="carte zone">
     <h2>Ta formule : <span id="cFormule"></span></h2>
     <p id="cFormuleTx" style="color:var(--gris)"></p>
@@ -876,7 +893,7 @@ function modeTest(){var z=$("cTest");z.hidden=!ME.admin;if(!ME.admin)return;var 
   $("cTestBt").innerHTML=F2.map(function(x){return '<button class="btn clair petit" type="button" data-test="'+x[0]+'" aria-pressed="'+((ME.formuleTest||"")===x[0])+'">'+x[1]+'</button>'}).join("")}
 $("cTestBt").addEventListener("click",function(e){var b=e.target.closest("[data-test]");if(!b)return;var t=b.textContent;busy(b,true,"…");
   api("POST","/api/admin/formule",{formule:b.dataset.test}).then(function(j){ME=Object.assign(ME,j.moi);entete();compte();toast("Formule de test : "+ME.formule.nom+".","ok")}).catch(function(e){erreur(e,"Changement impossible.");busy(b,false,t)})});
-function compte(){var f=ME.formule;montrer("compte");modeTest();$("cEmail").textContent=ME.nom||ME.email;profil();$("cFormule").textContent=f.nom;
+function compte(){var f=ME.formule;montrer("compte");(function(){var v=OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,n=OBJ.length;$("cJeuxTx").textContent=n?n+(n>1?" jeux":" jeu")+(v?", dont "+v+" en vente":"")+(ME.bilan&&ME.bilan.vendus?" · "+ME.bilan.vendus+" vendu"+(ME.bilan.vendus>1?"s":""):""):"Ajoute ton premier jeu en une photo"})();modeTest();$("cEmail").textContent=ME.nom||ME.email;profil();$("cFormule").textContent=f.nom;
   var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" jeux":" jeu")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
     f.id==="pass"?"Illimité jusqu'au "+dfr(f.pass)+". Aucun renouvellement automatique.":
     (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.resiliation?", résilié : il s'arrête le "+dfr(f.resiliation)+".":f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
@@ -906,7 +923,7 @@ $("cExtCopie").onclick=function(){copier($("cExtCleIn").value).then(function(){t
 $("cExtDeco").onclick=function(){var b=this,t=b.textContent;busy(b,true,"…");
   api("DELETE","/api/extension/cle").then(function(){busy(b,false,t);ME.extension=0;$("cExtCle").hidden=true;window.postMessage({source:"retrorevente-app",type:"deconnecter"},location.origin);extMaj();toast("Extension déconnectée partout.","ok")})
   .catch(function(e){busy(b,false,t);erreur(e,"Impossible pour le moment.")})};
-$("bCompte").onclick=compte;$("cRetour").onclick=function(){montrer("accueil")};
+$("bCompte").onclick=compte;$("cRetour").onclick=function(e){e.preventDefault();montrer("accueil");scrollTo(0,0)};
 document.querySelector("#compte .bascule").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;PER=b.dataset.p;
   [].forEach.call(b.parentNode.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
   [].forEach.call(document.querySelectorAll("#compte [data-mois]"),function(el){el.innerHTML=el.dataset[PER]})});
