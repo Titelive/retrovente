@@ -1337,7 +1337,13 @@ $("lbcEtapes").addEventListener("click",function(e){var b=e.target.closest("[dat
   copier(x.v).then(function(){LBC_FAIT[k]=true;majLbc();toast(x.l+" copié : colle-le sur Le Bon Coin.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})});
 ["f_titre","f_titreAnnonce","f_texteAnnonce","f_prixDemande","f_etat","f_categorie","f_contenu","f_plateforme"].forEach(function(id){$(id).addEventListener("input",function(){LBC_FAIT={};majLbc()});$(id).addEventListener("change",majLbc)});
 $("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Toute l'annonce est copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
-$("fLbc").onclick=function(){LBC_FAIT={};majLbc();api("POST","/api/compter",{quoi:"lbc"}).then(function(){ME.usage.lbc=(ME.usage.lbc||0)+1}).catch(function(){})};
+/* Départ vers Le Bon Coin : on enregistre d'abord la fiche si besoin, puis on dit à l'extension quel article déposer
+   (message à l'extension + #rr=<id> dans l'adresse), pour qu'elle ne reprenne jamais un ancien article. */
+function versLbc(id){window.postMessage({source:"retrorevente-app",type:"deposer",id:id},location.origin);return LBC_URL+"#rr="+id}
+$("fLbc").onclick=function(e){LBC_FAIT={};majLbc();api("POST","/api/compter",{quoi:"lbc"}).then(function(){ME.usage.lbc=(ME.usage.lbc||0)+1}).catch(function(){});
+  if(ED&&ED.id&&!sale()){this.href=versLbc(ED.id);return}
+  e.preventDefault();var w=window.open("","_blank");
+  sauver(true).then(function(o){if(!o){if(w)w.close();return}var u=versLbc(o.id);if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
 
 /* ===== Fiche ===== */
 function majVente(){var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
@@ -1422,15 +1428,17 @@ $("ajoutManuel").onclick=function(){ouvrirFiche(null);$("f_titre").focus()};
 document.addEventListener("click",function(e){if(!e.target.closest(".nouv"))fermerAjout()});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("ajoutMenu").hidden){fermerAjout();$("bNouveau").focus()}});
 $("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvrirFiche(null);$("f_titre").focus()};
-$("fSave").onclick=function(){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
-  if(!o.titre.trim()){toast("Indique le nom de l'article.","bad");$("f_titre").focus();return}
-  var corps={objet:o};
+/* Enregistre la fiche. rester : la fiche reste ouverte (départ vers Le Bon Coin) ; renvoie l'article enregistré, ou null. */
+function sauver(rester){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
+  if(!o.titre.trim()){toast("Indique le nom de l'article.","bad");$("f_titre").focus();return Promise.resolve(null)}
+  var corps={objet:o},nouveau=!ED;
   busy(b,true,"Enregistrement…");
-  (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
+  return (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
       var i=OBJ.map(function(x){return x.id}).indexOf(j.objet.id);if(i>=0)OBJ[i]=j.objet;else OBJ.unshift(j.objet);
-      if(!ED){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
-      BR.del(cle());figer();fermerFiche();dessiner();toast("Enregistré.","ok")})
-    .catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer")})};
+      if(nouveau){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
+      BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;figer();dessiner();toast("Enregistré.","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
+    .catch(function(e){erreur(e,"Enregistrement impossible.");return null}).then(function(r){busy(b,false,"Enregistrer");return r})}
+$("fSave").onclick=function(){sauver(false)};
 /* envoie les photos ajoutées ou retouchées, retire les supprimées, puis enregistre l'ordre et les légendes */
 function syncGalerie(obj,o){var id=obj.id,ch=Promise.resolve(),der={objet:obj};
   DELS.forEach(function(pid){ch=ch.then(function(){return api("DELETE","/api/objets/"+id+"/photos/"+pid).then(function(j){der=j})})});
