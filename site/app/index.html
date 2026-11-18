@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=11">
+<link rel="stylesheet" href="/css/rr.css?v=12">
 <script>try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=7" defer></script>
 <style>
@@ -149,12 +149,15 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .lbc h3{font-size:21px}
 .lbc p{font-size:14.5px;color:#B8B8B0}
 .lbc .btn.clair{--bg:rgba(255,255,255,.08);--fg:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
-.pied{position:fixed;left:0;right:0;bottom:0;z-index:41;background:rgba(246,246,241,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 -1px 0 var(--trait);padding:12px 0 calc(12px + env(safe-area-inset-bottom))}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pied{background:rgba(20,20,20,.85)}}
-:root[data-theme="dark"] .pied{background:rgba(20,20,20,.85)}
+.pied{padding:28px 0 40px}
 .pied .wrap{display:flex;gap:10px;align-items:center}
-.pied .btn:first-child{margin-right:auto}
-.pied #fSave{padding:15px 30px}
+/* Enregistrer : bouton flottant, toujours à portée (hors de la vue animée, sinon « fixed » suit la page) */
+.fab-save{position:fixed;z-index:56;right:calc(max(18px,env(safe-area-inset-right)) + 66px);bottom:max(18px,env(safe-area-inset-bottom));transition:right .35s var(--ease)}
+body:not(:has(.vers-haut.on)) .fab-save{right:max(18px,env(safe-area-inset-right))}
+.fab-save .btn{height:54px;padding:0 26px;gap:9px;box-shadow:0 0 0 1px rgba(26,26,26,.08),0 18px 36px -12px rgba(26,26,26,.45)}
+.fab-save .btn svg{width:19px;height:19px}
+.fab-save .btn:hover{transform:translateY(-3px)}
+@media(max-width:700px){.fab-save{right:calc(max(10px,env(safe-area-inset-right)) + 54px);bottom:max(12px,env(safe-area-inset-bottom))}body:not(:has(.vers-haut.on)) .fab-save{right:max(10px,env(safe-area-inset-right))}.fab-save .btn{height:44px;padding:0 20px;font-size:15px}}
 
 /* compte */
 #compte .offres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
@@ -439,7 +442,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       </section>
     </div>
   </div>
-  <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button><button class="btn" type="button" id="fSave">Enregistrer</button></div></div>
+  <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button></div></div>
 </section>
 
 <!-- ========== Compte ========== -->
@@ -561,6 +564,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<div class="fab-save" id="fabSave" hidden><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
 <script>
 (function(){
 "use strict";
@@ -581,7 +585,7 @@ function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function dfr(s){if(!s)return"";var d=new Date(s);return d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
 var tt;function toast(t,k){var e=$("toast");e.textContent=t;e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"?6500:3500)}
-function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null)b.textContent=t}
+function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){var sp=b.id==="fSave"&&b.querySelector("span");if(sp)sp.textContent=t;else b.textContent=t}}
 
 function api(method,path,body){
   return fetch(path,{method:method,credentials:"same-origin",cache:"no-store",headers:body?{"content-type":"application/json"}:{},body:body?JSON.stringify(body):undefined})
@@ -590,7 +594,7 @@ function api(method,path,body){
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}toast(e.message||def,"bad")}
 
 /* ===== Vues ===== */
-function montrer(v,titre){["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});
+function montrer(v,titre){["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";
   $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
   var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes jeux",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouveau jeu"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
