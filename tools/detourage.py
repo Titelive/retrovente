@@ -14,6 +14,7 @@ from PIL import Image, ImageOps
 from rembg import new_session, remove
 from scipy import ndimage
 import cv2
+import filigrane
 
 MODELE = os.environ.get("REMBG_MODEL", "isnet-general-use")
 SESSION = new_session(MODELE)
@@ -35,7 +36,7 @@ def detourer(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def retoucher(data: bytes, rot: int = 0, carre: bool = False) -> bytes:
+def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False) -> bytes:
     im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     if max(im.size) > 1800:
         im.thumbnail((1800, 1800), Image.LANCZOS)
@@ -128,6 +129,8 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False) -> bytes:
     out_im = Image.fromarray(crop)
     if max(out_im.size) > 1600:
         out_im.thumbnail((1600, 1600), Image.LANCZOS)
+    if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
+        out_im = filigrane.poser(out_im)
     out = io.BytesIO()
     out_im.save(out, "JPEG", quality=88, optimize=True, progressive=True)
     return out.getvalue()
@@ -154,7 +157,7 @@ class H(BaseHTTPRequestHandler):
             if chemin == "/retoucher":
                 rot = int(dict(x.split("=", 1) for x in q.split("&") if "=" in x).get("rot", "0"))
                 carre = "carre=1" in q
-                png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre)
+                png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre, "filigrane=1" in q)
             else:
                 png = detourer(corps)
         except Exception as e:  # image illisible

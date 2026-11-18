@@ -372,7 +372,7 @@ export async function handleApi(req) {
     return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
   }
   if (p === "/api/ia/nettoyer" && method === "POST") {
-    iaAllowed(u, "nettoyer", req); const b = body(); const jpg = await retoucher(b.photo, b.rotation); bump(u.id, "nettoyer"); return ok({ ok: true, photo: jpg });
+    iaAllowed(u, "nettoyer", req); const b = body(); const jpg = await retoucher(b.photo, b.rotation, rights(u).id === "gratuit"); bump(u.id, "nettoyer"); return ok({ ok: true, photo: jpg });
   }
   if (p === "/api/compte/supprimer" && method === "POST") {
     if (!checkPass(String(body().motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");
