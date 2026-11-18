@@ -663,9 +663,9 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <button class="lien" value="x">Annuler</button>
 </form></dialog>
 <dialog id="dIa" aria-labelledby="dIaT"><form method="dialog">
-  <h2 id="dIaT">L'IA est comprise dans les formules payantes</h2>
+  <h2 id="dIaT">Garde l'IA à tes côtés</h2>
   <p id="dIaTx" style="color:var(--gris)"></p>
-  <p style="margin:0;font-size:14.5px">Tu peux toujours remplir la fiche à la main : tout le reste fonctionne.</p>
+  <p style="margin:0;font-size:14.5px">Avec <b>Vendeur</b> (4,99 € par mois), l'IA reconnaît, décrit, estime et retouche <b>tous tes jeux</b>. Et tu peux toujours remplir cette fiche à la main.</p>
   <button class="btn" type="button" id="dIaFormules">Voir les formules</button>
   <button class="btn" type="button" id="dIaRenv" hidden>Renvoyer le lien de confirmation</button>
   <button class="lien" value="x">Plus tard</button>
@@ -785,9 +785,9 @@ function api(method,path,body){var h=body?{"content-type":"application/json"}:{}
 }
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}if((e.status===402&&e.ia)||(e.status===403&&e.verif)){iaBloquee(e);return}toast(e.message||def,"bad")}
 /* IA réservée aux formules payantes : essai unique en Découverte */
-function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Confirme ton adresse e-mail":"L'IA est comprise dans les formules payantes";
+function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton annonce offerte t'attend":"Garde l'IA à tes côtés";
   $("dIaTx").textContent=e.message;$("dIaRenv").hidden=!v;$("dIaFormules").hidden=v;if(!$("dIa").open)$("dIa").showModal();if(ME){ME.ia=v?"verif":"utilise";iaNote()}}
-function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"Essai offert : l'IA reconnaît, décrit et estime <b>un jeu</b>.",en_cours:"Ton essai de l'IA est en cours : il couvre <b>un jeu</b>.",verif:"Confirme ton adresse e-mail pour essayer l'IA sur <b>un jeu</b>. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Essai de l'IA utilisé. <button class='lien' type='button' data-formules>Passer à une formule avec l'IA</button>"}[ME.ia];
+function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>première annonce par l'IA est offerte</b> : prends un jeu en photo, elle s'occupe du reste.",en_cours:"🎁 Ton annonce offerte par l'IA est en cours : profites-en sur ce jeu.",verif:"🎁 Ta <b>première annonce par l'IA est offerte</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton annonce offerte par l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes jeux, dès 4,99 €</button>"}[ME.ia];
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */

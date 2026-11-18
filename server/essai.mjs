@@ -49,7 +49,7 @@ export function ouvrirEssai(u, req) {
   const norm = emailNorme(u.email), app = appareilDe(req), ip = String(req.ip || "");
   const deja = db.prepare("SELECT 1 FROM essais_ia WHERE email_norm = ?").get(norm) || (app && db.prepare("SELECT 1 FROM essais_ia WHERE appareil = ?").get(app));
   const parIp = ip ? db.prepare("SELECT COUNT(*) AS n FROM essais_ia WHERE ip = ? AND at > ?").get(ip, new Date(Date.now() - 30 * 864e5).toISOString()).n : 0;
-  if (deja || parIp >= 2) return "L'essai gratuit de l'IA a déjà été utilisé depuis cet appareil ou cette connexion. Choisis une formule pour continuer avec l'IA.";
+  if (deja || parIp >= 2) return "L'annonce offerte par l'IA a déjà été utilisée depuis cet appareil ou cette connexion. L'IA t'attend dans toutes les formules payantes, sur tous tes jeux.";
   db.prepare("INSERT INTO essais_ia(user_id, email_norm, ip, appareil, at) VALUES (?, ?, ?, ?, ?)").run(u.id, norm, ip, app, now());
   return null;
 }

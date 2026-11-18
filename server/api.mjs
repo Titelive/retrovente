@@ -88,12 +88,12 @@ function needQuota(u) {
   if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} jeux de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
 /* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
-const MSG_ESSAI_FINI = "Ton essai gratuit de l'IA est terminé : il couvrait un jeu.";
+const MSG_ESSAI_FINI = "Tu as profité de ton annonce offerte par l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
 function iaAllowed(u, kind, req) {
   if (!allow("ia:" + u.id, 40, 600) || !allow("iaip:" + req.ip, 90, 600)) fail(429, "Trop de demandes à l'IA d'un coup, attends quelques minutes.");
   const r = rights(u), us = usageOf(u.id);
   if (r.id === "gratuit") {
-    if (!u.email_ok) fail(403, "Confirme d'abord ton adresse e-mail pour essayer l'IA : ouvre le lien qu'on t'a envoyé.", { verif: true });
+    if (!u.email_ok) fail(403, "Ta première annonce par l'IA est offerte : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
     const refus = ouvrirEssai(u, req);
     if (refus) fail(402, refus, { ia: true });
     const tot = usageTotal(u.id);
