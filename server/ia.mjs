@@ -100,10 +100,11 @@ Réponds uniquement par un objet JSON avec les clés :
 "categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, ou « autres »),
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (ex. « PAL EUR », « NTSC-J » ; "" si inconnue),
-"etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire),
+"etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
+"jauni" (couleur du plastique de la cartouche, de la console ou de la manette : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps (UV) ; compare avec la couleur normale de ce modèle et avec les parties à l'abri : « non », « leger » ou « net » ; « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer ou si c'est impossible à dire),
 "contenu" (« seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice, « boite_vide » si c'est une boîte sans le jeu (édition à code, disque absent) ; "" si sans objet),
 "particularites" (liste de 0 à 5 points propres à CE jeu ou à cette édition qu'un acheteur voudrait savoir, sous forme d'options courtes à cocher par le vendeur, ex. pour un jeu vendu avec un code : « Code de téléchargement déjà utilisé », « Code non utilisé » ; pour une édition avec bonus : « Poster inclus », « Carte de la ville incluse », « Steelbook inclus », « Jaquette réversible » ; [] si rien de particulier),
-"remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, éléments manquants… ; "" sinon),
+"remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, plastique jauni, éléments manquants… ; "" sinon),
 ${CADRE_CONSIGNE},
 "rotation" (rotation en degrés, dans le sens des aiguilles d'une montre, à appliquer à la photo pour que l'étiquette ou le texte de l'objet soit à l'endroit : 0, 90, 180 ou 270),
 "annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, région, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose »),
@@ -112,7 +113,7 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas). Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
 ${consigneCarte()}`;
   let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1500 });
   // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
@@ -131,6 +132,23 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
     etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
+    ...(o.categorie === "cartes" ? {} : jaunissement(o)),
+  };
+}
+// Plastique jauni (cartouche, console, manette) : dit honnêtement dans les remarques et les particularités, et l'état ne peut pas être « comme neuf ».
+function jaunissement(o) {
+  const j = parmi(o.jauni, ["non", "leger", "net"], "non");
+  if (j === "non") return { jauni: "non" };
+  const mot = j === "net" ? "Plastique nettement jauni" : "Plastique légèrement jauni";
+  let etat = parmi(o.etat, ETATS, "");
+  if (j === "net" && (etat === "neuf" || etat === "tres_bon")) etat = "bon";
+  if (j === "leger" && etat === "neuf") etat = "tres_bon";
+  const rem = affirme(txt(o.remarques, 300));
+  const part = (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean);
+  return {
+    jauni: j, etat,
+    remarques: /jaun/i.test(rem) ? rem : [rem, mot.toLowerCase().replace(/^./, (c) => c.toUpperCase()) + " (vieillissement normal du plastique)."].filter(Boolean).join(" "),
+    particularites: (part.some((x) => /jaun/i.test(x)) ? part : [...part, mot]).slice(0, 5),
   };
 }
 
@@ -328,7 +346,7 @@ export async function legender(photos, v = {}) {
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
   const vues = carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
     : "« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…";
-  const defauts = carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé…";
+  const defauts = carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.

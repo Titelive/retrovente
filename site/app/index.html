@@ -1127,9 +1127,14 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 function decrire(auto){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
-    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
+    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[]);if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Description impossible.");else console.warn(e)}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};
+/* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
+function jauniVu(l){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){if(n<0&&/jaun/i.test(x||"")){n=i;net=/nettement|très|fort/i.test(x)}});if(n<0)return;
+  var p=$("f_particularites");if(!/jaun/i.test(p.value)){p.value=(p.value.trim()?p.value.trim().replace(/[.,;]$/,"")+", ":"")+(net?"plastique nettement jauni":"plastique légèrement jauni");majParticularites()}
+  var e=$("f_etat");if(e.value==="neuf"||(net&&e.value==="tres_bon"))e.value=net?"bon":"tres_bon";
+  toast("Plastique jauni repéré sur la photo "+(n+1)+" : je l'ai indiqué dans l'annonce.","ok")}
 
 /* ===== Cote ===== */
 function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
