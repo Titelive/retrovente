@@ -173,9 +173,9 @@
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var RACCOURCI = MAC ? "⌘K" : "Ctrl K";
   var CSS = ":host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}" +
-    ".b{--anis:#D4F57A;--anis-p:#F1FCD0;--nuit:#1A1A1A;--carte:#fff;--papier:#F6F6F1;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;--titre:'RR Rubik',ui-rounded,'Arial Rounded MT Bold',system-ui,sans-serif;--texte:'RR Figtree','Avenir Next',ui-sans-serif,system-ui,sans-serif;--ease:cubic-bezier(.2,.8,.2,1);" +
+    ".b{--anis:#D4F57A;--anis-p:#F1FCD0;--vert-p:#E9F7EC;--vert-t:#CBEBD3;--vert-f:#14401F;--rouge-p:#FCEDEA;--rouge-t:#F6D3CB;--rouge-f:#6A1E12;--nuit:#1A1A1A;--carte:#fff;--papier:#F6F6F1;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;--titre:'RR Rubik',ui-rounded,'Arial Rounded MT Bold',system-ui,sans-serif;--texte:'RR Figtree','Avenir Next',ui-sans-serif,system-ui,sans-serif;--ease:cubic-bezier(.2,.8,.2,1);" +
       "position:fixed;right:18px;bottom:18px;z-index:2147483646;font:500 14px/1.45 var(--texte);color:var(--encre);-webkit-font-smoothing:antialiased}" +
-    "@media (prefers-color-scheme:dark){.b{--carte:#1E1E1E;--papier:#262626;--encre:#F4F4EE;--gris:#A6A69E;--gris-c:#7A7A72;--trait:#333;--anis-p:#2A3414}}" +
+    "@media (prefers-color-scheme:dark){.b{--carte:#1E1E1E;--papier:#262626;--encre:#F4F4EE;--gris:#A6A69E;--gris-c:#7A7A72;--trait:#333;--anis-p:#2A3414;--vert-p:#1C2E21;--vert-t:#2D4A35;--vert-f:#BFE8C8;--rouge-p:#33201D;--rouge-t:#553029;--rouge-f:#F6C4B9}}" +
     "button,input{font:inherit;color:inherit}" +
     ".rond{position:relative;width:58px;height:58px;border-radius:50%;border:0;background:var(--nuit);color:var(--anis);font:800 17px/1 var(--titre);letter-spacing:-.5px;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.28);transition:transform .25s var(--ease)}" +
     ".rond:hover{transform:translateY(-2px) rotate(-4deg)}" +
@@ -224,7 +224,13 @@
     ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:var(--anis)}" +
     ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
-    ".rep b{font:600 13.5px/1.3 var(--titre)}.rep span{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
+    // Couleur pastel selon le sens de la réponse : vert quand on va dans le sens de l'acheteur, rouge quand on refuse.
+    ".s:empty{display:none}.rep.s-plus{background:var(--vert-p);border-color:var(--vert-t)}.rep.s-plus .ico{background:var(--vert-t);color:var(--vert-f)}" +
+    ".rep.s-moins{background:var(--rouge-p);border-color:var(--rouge-t)}.rep.s-moins .ico{background:var(--rouge-t);color:var(--rouge-f)}" +
+    ".rep.s-plus:hover,.rep.s-moins:hover{border-color:var(--encre)}" +
+    ".rep.fort.s-plus{background:rgba(191,232,200,.13);border-color:rgba(191,232,200,.35)}.rep.fort.s-plus .ico{background:#BFE8C8;color:#14401F}.rep.fort.s-plus b{color:#CFF0D6}" +
+    ".rep.fort.s-moins{background:rgba(243,185,174,.13);border-color:rgba(243,185,174,.35)}.rep.fort.s-moins .ico{background:#F3B9AE;color:#5A1A10}.rep.fort.s-moins b{color:#F8CFC6}" +
+".rep b{font:600 13.5px/1.3 var(--titre)}.rep span{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
     "button:focus-visible{outline:2px solid var(--anis);outline-offset:2px}.cherche input:focus{outline:none}.cherche:focus-within{box-shadow:inset 0 0 0 1.5px var(--anis-f,#BFE54C)}";
   function loupe() {
     var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
@@ -410,7 +416,7 @@
       var ia = el("div", { class: "ia" });
       corps.appendChild(el("div", { class: "pile" }, [haut, ia, el("p", { class: "grp", texte: "Réponses types" }), reponsesUI(a)]));
       dessinerIA(ia);
-      statut(a.lot ? "Lot de " + a.n + " articles à " + a.prix + " € repéré. Un clic place la réponse dans la zone de message." : "Un clic place la réponse dans la zone de message : relis, puis envoie.", "");
+      statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les jeux inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -472,7 +478,11 @@
     return String(t || "").split(/\s[–—-]\s|\s\(|\s(?:nintendo|n64|snes|super nintendo|nes|game ?boy|gba|gbc|sega|mega ?drive|master system|dreamcast|saturn|playstation|ps[1-5]|psp|xbox|wii|gamecube|ds|3ds|switch|pal|ntsc|eur|fr|loose|complet|cib)\b/i)[0].trim() || t;
   }
   function lotLu() {
-    var m = /lot de (\d{1,2}) articles?\s*\n?\s*(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/i.exec(texteEncadre() + "\n" + colonneConversation().innerText.slice(0, 600));
+    var re = /lot de (\d{1,2}) articles?[\s·•|-]*(\d[\d\s\u202f\u00a0]{0,6}(?:[.,]\d{1,2})?)\s?€/i;
+    var m = re.exec(texteEncadre() + "\n" + colonneConversation().innerText.slice(0, 600));
+    // Mise en page inattendue : on cherche « Lot de N articles · prix » dans toute la page, hors liste des conversations
+    // (là, le lot n'est pas suivi d'un prix).
+    if (!m) m = re.exec(document.body.innerText.slice(0, 60000));
     if (!m) return null;
     var lot = { n: +m[1], prix: entier(m[2]) }, cle = lot.n + "|" + lot.prix, vus = articlesLotAffiches(lot.n);
     if (vus && (lotsVus[cle] || []).join("|") !== vus.join("|")) {
@@ -605,7 +615,7 @@
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
       r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)) };
-      z.appendChild(el("button", { class: "rep fort", type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
+      z.appendChild(el("button", { class: "rep fort" + (SENS_APPROCHE[r.approche] ? " s-" + SENS_APPROCHE[r.approche] : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
         el("span", { class: "ico" }, [icone(ICONE_APPROCHE[r.approche] || "question")]),
         el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte)])]),
       ]));
@@ -683,6 +693,15 @@
     "Paiement hors Le Bon Coin : refus poli": "bouclier", "Lien ou site suspect": "lien", "Acheteur qui ne répond plus": "cloche",
     "Rendez-vous manqué": "calendrier", "Merci après la vente": "coeur",
   };
+  // Sens des réponses : « plus » va dans le sens de l'acheteur (vert pastel), « moins » refuse ou freine (rouge pastel).
+  var SENS_DE = {
+    "Toujours disponible": "plus", "Accepter l'offre": "plus", "Offre un peu basse : on coupe la poire en deux": "plus", "« C'est quoi votre dernier prix ? »": "plus",
+    "Lot de plusieurs jeux": "plus", "État et fonctionnement": "plus", "Plus de photos": "plus", "Version et région": "plus", "Demande de test en vidéo": "plus",
+    "Envoi sécurisé": "plus", "Remise en main propre": "plus", "Colis envoyé": "plus", "Merci après la vente": "plus",
+    "Réservé pour quelqu'un": "moins", "Déjà vendu": "moins", "Offre vraiment trop basse": "moins", "Prix ferme, poliment": "moins", "Offre groupée bien trop basse": "moins",
+    "Couper court poliment": "moins", "Proposition d'échange": "moins", "Paiement hors Le Bon Coin : refus poli": "moins", "Lien ou site suspect": "moins",
+  };
+  var SENS_APPROCHE = { accepter: "plus", ferme: "moins", couper_court: "moins" };
   var ICONE_APPROCHE = { contre_offre: "relance", ferme: "cadenas", couper_court: "stop", accepter: "ok", info: "question" };
   // Mots importants en gras dans les aperçus (le texte inséré, lui, reste normal).
   var IMPORTANT = /(\d[\d\s]*(?:[.,]\d+)?\s?€|toujours disponible|réservé|vendu|prix ferme|dernier prix|minimum|paiement sécurisé(?: Le Bon Coin)?|pas de virement|lien(?:s)? externes?|main propre|livraison Le Bon Coin|expédié sous 48 h|d'origine, testé et fonctionnel|couper la poire en deux|geste|lot|échanger|d'autres photos|vidéo|avis|remettrai en vente|en rester là|c'est d'accord|trop loin|PAL européenne|ventes réellement conclues)/gi;
@@ -703,7 +722,7 @@
       zone.textContent = "";
       tout.filter(function (r) { var h = norm(r.g + " " + r.t + " " + r.m); return mots.every(function (m) { return h.indexOf(m) >= 0; }); }).forEach(function (r) {
         if (r.g !== g) { g = r.g; zone.appendChild(el("p", { class: "grp", texte: g })); }
-        zone.appendChild(el("button", { class: "rep", type: "button", "aria-label": r.t + " : " + r.m, onclick: function () { inserer(r.m); } }, [
+        zone.appendChild(el("button", { class: "rep" + (SENS_DE[r.t] ? " s-" + SENS_DE[r.t] : ""), type: "button", "aria-label": r.t + " : " + r.m, onclick: function () { inserer(r.m); } }, [
           el("span", { class: "ico" }, [icone(ICONE_DE[r.t])]),
           el("span", { class: "q" }, [el("b", {}, [surligne(r.t, mots)]), el("span", { class: "ap2" }, [apercu(r.m)])]),
         ]));

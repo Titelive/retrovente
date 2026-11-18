@@ -44,8 +44,28 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
   const vus = new Set();
   for (const b of d.content || []) if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const x of b.content) if (x && x.url) vus.add(norme(x.url));
   for (const b of d.content || []) for (const c of b.citations || []) if (c && c.url) vus.add(norme(c.url));
-  const m = /\{[\s\S]*\}/.exec(t);
-  try { const o = m ? JSON.parse(m[0]) : null; if (!o) console.error("IA : pas de JSON", t.slice(0, 300)); if (o && web) Object.defineProperty(o, "_vus", { value: vus }); return o; } catch (e) { console.error("IA : JSON illisible", e.message, t.slice(0, 300)); return null; }
+  if (d.stop_reason === "max_tokens") console.error("IA : réponse coupée (max_tokens)", max);
+  const o = lireJson(t);
+  if (!o) console.error("IA : JSON illisible", t.slice(0, 400));
+  if (o && web) Object.defineProperty(o, "_vus", { value: vus });
+  return o;
+}
+// Lit l'objet JSON d'une réponse du modèle, même entouré de texte ou de ```json, avec des retours à la ligne bruts
+// dans les chaînes ou une virgule en trop.
+export function lireJson(t) {
+  const m = /\{[\s\S]*\}/.exec(String(t || "").replace(/```(?:json)?/g, ""));
+  if (!m) return null;
+  try { return JSON.parse(m[0]); } catch {}
+  let r = "", dans = false, ech = false;
+  for (const c of m[0]) {
+    if (dans) {
+      if (ech) { ech = false; r += c; continue; }
+      if (c === "\\") { ech = true; r += c; continue; }
+      if (c === '"') dans = false;
+      r += c === "\n" ? "\\n" : c === "\r" ? "" : c === "\t" ? " " : c;
+    } else { if (c === '"') dans = true; r += c; }
+  }
+  try { return JSON.parse(r.replace(/,\s*([}\]])/g, "$1")); } catch { return null; }
 }
 
 export function checkPhoto(photo) {
@@ -250,7 +270,7 @@ Pour chaque réponse :
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment.
-Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 1600, timeout: 30000 });
+Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 2500, timeout: 40000 });
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
   return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
