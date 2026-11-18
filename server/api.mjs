@@ -465,7 +465,13 @@ export async function handleApi(req) {
 
   /* --- IA --- */
   if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
-  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = []; let l; try { l = await ia.legender(b.photos, b.objet || {}, tr); } catch (e) { if (isAdmin(u)) e.trace = tr; throw e; } bump(u.id, "legender"); return ok({ ok: true, ...l, ...(isAdmin(u) ? { trace: tr } : {}) }); }
+  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = [];
+    // Avec « flux », l'avancement (photo N/M, jaunissement) est envoyé au fil de l'eau, puis le résultat.
+    if (b.flux) return { status: 200, headers: {}, flux: async (envoi) => {
+      try { const l = await ia.legender(b.photos, b.objet || {}, tr, (x) => envoi({ progres: x })); bump(u.id, "legender"); envoi({ fin: true, ok: true, ...l, ...(isAdmin(u) ? { trace: tr } : {}) }); }
+      catch (e) { console.error("legender", e && e.message); envoi({ fin: true, error: e instanceof ia.IaError ? e.message : "Le service d'IA est momentanément indisponible, réessaie.", statut: e instanceof ia.IaError ? 422 : 500, ...(isAdmin(u) ? { trace: tr } : {}) }); }
+    } };
+    let l; try { l = await ia.legender(b.photos, b.objet || {}, tr); } catch (e) { if (isAdmin(u)) e.trace = tr; throw e; } bump(u.id, "legender"); return ok({ ok: true, ...l, ...(isAdmin(u) ? { trace: tr } : {}) }); }
   if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }

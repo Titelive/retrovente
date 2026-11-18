@@ -165,6 +165,11 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .photo .attente::before{content:"";position:absolute;left:12%;right:12%;height:2px;top:20%;background:linear-gradient(90deg,transparent,var(--anis),transparent);box-shadow:0 0 16px 3px rgba(var(--anis-rgb),.7);animation:scan 2.2s ease-in-out infinite}
 @keyframes scan{0%,100%{top:16%}50%{top:84%}}
 .photo .attente span{display:inline-flex;gap:10px;align-items:center;background:var(--nuit);color:#fff;border-radius:999px;padding:12px 18px;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
+.photo .attente small{position:absolute;left:0;right:0;bottom:16%;text-align:center;color:#fff;font-size:13px;font-weight:500;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.8);padding:0 16px;transition:opacity .3s}
+.ia-etat{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.ia-etat li{display:flex;gap:10px;align-items:center;font-size:13px;line-height:1.35;padding:8px 12px;border-radius:12px;background:var(--carte2,rgba(127,127,127,.12));color:inherit}
+.ia-etat li::before{content:"";flex:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--anis);border-right-color:transparent;animation:t .8s linear infinite}
+.ia-etat li b{font-weight:700}
 .photo .attente span::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--anis);border-right-color:transparent;animation:t .8s linear infinite}
 .rangee{display:flex;gap:8px;flex-wrap:wrap}
 .champs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -601,7 +606,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <div class="col g-photo">
      <section class="carte bloc photos-carte" aria-labelledby="tPhotos">
       <header><h3 id="tPhotos">Photos</h3></header>
-      <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span></div></div>
+      <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span><small id="fAttenteSub"></small></div></div>
+      <ul class="ia-etat" id="fIaEtat" hidden aria-live="polite"></ul>
       <ol class="galerie" id="fGal" aria-label="Photos de l'article (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
       <div class="rangee">
@@ -1077,7 +1083,23 @@ function numeroter(src,n){return chargerImg(src).then(function(img){var c=docume
   var r=Math.round(Math.min(sw,sh)*.055),x=ox+r*1.25+Math.min(sw,sh)*.05,y=oy+r*1.25+Math.min(sw,sh)*.05;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle="#D4F57A";g.fill();g.lineWidth=Math.max(2,r*.14);g.strokeStyle="#1A1A1A";g.stroke();
   g.fillStyle="#1A1A1A";g.font="800 "+Math.round(r*1.15)+"px Rubik, Arial, sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText(String(n),x,y+r*.06);
   return new Promise(function(ok){c.toBlob(ok,"image/jpeg",.9)})})}
-function attente(t){$("fAttente").hidden=!t;if(t)$("fAttenteTx").textContent=t}
+/* Pendant que l'IA travaille : l'étape exacte, et une blague rétro qui change si ça dure, pour qu'on ne croie pas que ça a planté. */
+var BLAGUES=["Je souffle dans la cartouche, au cas où 🎮","Je règle le tracking de la télé cathodique 📺","Je consulte mes vieux magazines de jeux vidéo 📚","Je vérifie que ce n'est pas une contrefaçon de fête foraine 🔍","Je cherche la manette de second joueur… ah non, c'est bon","Ça charge, comme une PlayStation qui lit un CD rayé 💿","Je n'ai pas planté, promis : pas d'écran bleu en vue","J'enlève la poussière de 1998 🧹"],BL=0,BLT=0;
+function attente(t){$("fAttente").hidden=!t;clearInterval(BLT);$("fAttenteSub").textContent="";if(!t)return;$("fAttenteTx").textContent=t;
+  BLT=setInterval(function(){$("fAttenteSub").textContent="Toujours là : "+BLAGUES[BL++%BLAGUES.length].replace(/^./,function(c){return c.toLowerCase()})},3500)}
+var ETATS={};
+function iaEtat(cle,t){if(t)ETATS[cle]=t;else delete ETATS[cle];var l=$("fIaEtat"),k=Object.keys(ETATS);l.hidden=!k.length;
+  l.innerHTML=k.map(function(c){return "<li>"+ETATS[c]+"</li>"}).join("")}
+/* Requête au fil de l'eau (événements serveur) : progres(x) à chaque étape, puis le résultat. Sans flux, on retombe sur la réponse finale. */
+function apiFlux(path,body,progres){var h={"content-type":"application/json"};if(APP)h["x-rr-app"]=APP;
+  return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:h,body:JSON.stringify(Object.assign({flux:true},body))}).then(function(r){
+    if(!r.ok||!r.body||!/event-stream/.test(r.headers.get("content-type")||""))return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.trace=j.trace;e.quota=j.quota;e.ia=j.ia;e.verif=j.verif;throw e}return j});
+    var lu=r.body.getReader(),dec=new TextDecoder(),tampon="",fin=null;
+    function lire(){return lu.read().then(function(x){if(x.done){if(!fin)throw new Error("La connexion a été coupée, réessaie.");return}
+      tampon+=dec.decode(x.value,{stream:true});var morceaux=tampon.split("\n\n");tampon=morceaux.pop();
+      morceaux.forEach(function(m){var d=/^data: (.*)$/m.exec(m);if(!d)return;var o;try{o=JSON.parse(d[1])}catch(_){return}if(o.progres){try{progres(o.progres)}catch(_){}}if(o.fin)fin=o});
+      return lire()})}
+    return lire().then(function(){if(fin.error){var e=new Error(fin.error);e.status=fin.statut||500;e.trace=fin.trace;throw e}return fin})})}
 
 $("photoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;
   if(ME.quota.reste===0){quotaPlein();return}
@@ -1088,7 +1110,7 @@ $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.valu
   if(vide){var prem=fs.shift();analyser(prem).then(function(){ajouterPhotos(fs)});return}
   ajouterPhotos(fs)};
 function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g){return!g.legende})?decrire(true):Promise.resolve();   // une seule photo : elle est décrite aussi
-  var debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
+  var debut=GAL.length;attente("Je développe "+(fs.length>1?"tes "+fs.length+" photos":"ta photo")+" (plus rapide qu'au photomaton)…");
   return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,2000,1100000);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
@@ -1109,14 +1131,17 @@ function journal(quoi,res,trace){if(!(DEBUG||(ME&&ME.admin)))return;if(quoi==nul
   var z=$("jIa");if(!z){z=document.createElement("div");z.id="jIa";z.innerHTML='<header><b>Journal IA</b><button type="button" data-j="c">Copier</button><button type="button" data-j="x" aria-label="Fermer">×</button></header><pre></pre>';document.body.appendChild(z);
     z.addEventListener("click",function(e){var b=e.target.closest("[data-j]");if(!b)return;if(b.dataset.j==="x")z.hidden=true;else copier(JOURNAL.join("\n")).then(function(){toast("Journal copié.","ok")})})}
   z.hidden=false;z.querySelector("pre").textContent=vide?"Le journal se remplit dès que l'IA travaille : ajoute une photo (Nouvel article › En photo) ou clique « Décrire les photos ».":JOURNAL.join("\n")}
-function trouverSens(img){if(!img)return Promise.resolve(0);
+function trouverSens(img){if(!img)return Promise.resolve(0);iaEtat("sens","Je cherche dans quel sens tu as tenu la cartouche 🙃");
+  return trouverSens0(img).then(function(r){iaEtat("sens");return r},function(e){iaEtat("sens");throw e})}
+function trouverSens0(img){
   return sens(tourne(img,0)).then(function(a){if(!a.sur||!a.rotation)return 0;
+    iaEtat("sens","Je penche la tête pour vérifier que l'étiquette est bien à l'endroit…");
     return sens(tourne(img,a.rotation)).then(function(b){if(b.sens==="haut")return a.rotation;
       if(!b.sur||!b.rotation)return 0;var r=(a.rotation+b.rotation)%360;if(!r)return 0;
       return sens(tourne(img,r)).then(function(c){return c.sens==="haut"?r:0})})})}
 var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la première analyse finie
 function analyser(f){
-  ANALYSE=true;attente("Je regarde la photo…");
+  ANALYSE=true;attente("Je lis l'étiquette pour reconnaître le jeu…");
   return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
     .then(function(j){var o=j.objet;IA_FAITE=true;journal("Reconnaissance",o.titre||"rien");
       ROT=0;   // le sens est vérifié à part (trouverSens), pas deviné avec le reste
@@ -1132,7 +1157,7 @@ function analyser(f){
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null);ANALYSE=false;afficher()})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
-function analyserImg(){attente("Je regarde la photo…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
+function analyserImg(){attente("Je relis la photo pour remplir la fiche…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
   ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});remplirCarte(o);if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
   if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);ME.usage.identifier=(ME.usage.identifier||0)+1;toast(GAL.length>1?"Fiche remplie. Je décris maintenant chaque photo…":"Fiche remplie.","ok");attente(null);
     return decrire(true,0,true).then(function(){if(GAL.some(function(g){return g.legende}))toast("Fiche remplie et chaque photo décrite.","ok")})})
@@ -1160,15 +1185,17 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 /* auto : sans message de réussite ; tout : remplace aussi les légendes déjà écrites ; muet : aucun message, même en cas d'échec */
 function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
-    .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
+    .then(function(ph){iaEtat("leg","Je prépare l'album photo…");return apiFlux("/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}},function(x){
+      if(x.etape==="photo")iaEtat("leg","<span><b>Photo "+x.photo+"/"+x.n+"</b> : je la décris, défauts compris, sans enjoliver 🔎</span>");
+      if(x.etape==="jauni")iaEtat("jauni","<span>J'inspecte les tranches à la loupe : le gris a-t-il jauni avec les années ? 🧐</span>")})})
     .then(function(j){journal("Légendes",(j.legendes||[]).map(function(l,i){return (i+1)+"="+(l?"ok":"vide"+(j.erreurs&&j.erreurs[i]?" ("+j.erreurs[i]+")":""))}).join(", "),j.trace);(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||tout||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
       var rates=GAL.map(function(g,i){return g.legende?0:i+1}).filter(Boolean);
       if(rates.length&&!essai){return new Promise(function(ok){setTimeout(ok,4000)}).then(function(){busy(b,false,t);return decrire(auto,2,false,muet)})}   // on réessaie seulement les photos restées vides
       if(rates.length){if(!muet)toast("Photo"+(rates.length>1?"s ":" ")+rates.join(", ")+" non décrite"+(rates.length>1?"s":"")+((j.erreurs||[]).filter(Boolean)[0]?" ("+(j.erreurs||[]).filter(Boolean)[0]+")":"")+". Clique « Décrire les photos » pour réessayer.","bad");return}
       if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){journal("Légendes","échec : "+e.message,e.trace);if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
-      if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)});   // une seconde tentative, en silence
-      if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}
+      if(!essai){iaEtat("leg","Petit hoquet de l'IA, je relance comme un bouton Reset…");return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)})}   // une seconde tentative, en silence
+      if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t);iaEtat("leg");iaEtat("jauni")})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
 function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});if(n<0)return;
@@ -1187,9 +1214,9 @@ function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(functio
 function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
   if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});return o}
 function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
-  busy(b,true,"Recherche des prix (jusqu'à 1 min)…");
+  busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix","Je fouille les annonces vendues pour le bon prix, sans marchander 💶 (jusqu'à 1 min)");
   return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
-    .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){busy(b,false,"Trouver le bon prix")})}
+    .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
 function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.innerHTML="";return}
   var fx=c.bas!=null&&c.haut!=null?eur(c.bas)+" à "+eur(c.haut):eur(c.conseille);
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+
@@ -1505,13 +1532,13 @@ var RV=2;
 function refaireAnciennes(){var ch=Promise.resolve(),n=0;GAL.forEach(function(g,k){if(g.orig&&!g.vueOrig&&(g.rv||0)<RV){n++;ch=ch.then(function(){return nettoyerPhoto(true,k)})}});
   if(n)ch.then(function(){toast(n>1?n+" photos retouchées à nouveau avec la nouvelle retouche.":"Photo retouchée à nouveau avec la nouvelle retouche.","ok")});return ch}
 function nettoyerPhoto(auto,idx,rot){var k=idx==null?SEL:idx,g=GAL[k];if(!g)return Promise.resolve();var b=$("fNet"),t=b.innerHTML;
-  busy(b,true);if(k===SEL)attente("Je retouche la photo…");
+  busy(b,true);var rk="ret"+k+"_"+Date.now();iaEtat(rk,"<span><b>Photo "+(k+1)+(GAL.length>1?"/"+GAL.length:"")+"</b> : coup de chiffon numérique, fond et lumière ✨</span>");if(k===SEL&&!auto)attente("Je retouche la photo…");
   var base=g.vueOrig?g.src:(g.orig||g.src);   // toujours depuis la photo d'origine
   return chargerImg(base).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,2400,1500000),rotation:rot||0})})
     .then(function(j){g.orig=base;g.src=g.data=j.photo;g.vueOrig=false;g.rv=RV;IMG=null;afficher();LBC_FAIT.photo=false;
       $("fPhoto").classList.remove("flash");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo retouchée. L'original est gardé.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Retouche impossible.");else console.warn(e)})
-    .then(function(){attente(null);b.classList.remove("busy");b.disabled=false;b.innerHTML=t})}
+    .then(function(){iaEtat(rk);if(!auto||k===SEL)attente(null);b.classList.remove("busy");b.disabled=false;b.innerHTML=t})}
 $("fNet").onclick=function(){nettoyerPhoto(false,SEL,SEL===0?ROT:0)};
 $("fOrig").onclick=function(){var c=cur();if(!c||!c.orig)return;var autre=c.orig;c.orig=c.src;c.src=c.data=autre;c.vueOrig=!c.vueOrig;IMG=null;afficher()};
 $("fRot")&&($("fRot").onclick=function(){});

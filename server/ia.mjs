@@ -388,11 +388,11 @@ Réponds uniquement par un objet JSON : {"jauni": "non", "photos": [], "ou": ""}
   const ph = (Array.isArray(o && o.photos) ? o.photos : []).map(Number).filter((n) => n >= 1 && n <= photos.length);
   return { jauni, photos: [...new Set(ph)], ou: txt(o && o.ou, 60) };
 }
-export async function legender(photos, v = {}, trace = null) {
+export async function legender(photos, v = {}, trace = null, progres = () => {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
-  if (FAKE()) return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) ? process.env.IA_FAKE_JAUNI : "non")) };
+  if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) ? process.env.IA_FAKE_JAUNI : "non")) }; }
   const carte = v.categorie === "cartes";
   const quoi = carte ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
@@ -419,6 +419,7 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
   const ouvrier = async () => {
     while (suivant < l.length) {
       const i = suivant++;
+      progres({ etape: "photo", photo: i + 1, n: l.length });
       let r = null, err = "";
       for (let essai = 0; essai < 3 && !(r && r.legende); essai++) {
         if (essai) await new Promise((ok) => setTimeout(ok, 1500 * essai * essai));
@@ -428,7 +429,7 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
       out[i] = r && r.legende ? { ...r, erreur: "" } : { legende: "", jauni: "non", erreur: err };
     }
   };
-  await Promise.all([ouvrier(), ouvrier(), carte ? null : jauniEnsemble(l, quoi, trace).then((g) => { jg = g; }, () => {})]);
+  await Promise.all([ouvrier(), ouvrier(), carte ? null : (progres({ etape: "jauni", n: l.length }), jauniEnsemble(l, quoi, trace)).then((g) => { jg = g; }, () => {})]);
   // Avis d'ensemble : en voyant toutes les photos, le modèle compare les faces entre elles, ce qu'une photo seule ne permet pas.
   if (jg && jg.jauni !== "non" && !out.some((x) => x.jauni !== "non")) {
     const cibles = jg.photos.filter((n) => out[n - 1] && out[n - 1].legende);
