@@ -378,15 +378,17 @@ export function affirme(t) {
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 const carte0 = (v) => v.categorie === "cartes";
+// Coupe un texte à n caractères sur une fin de mot, sans parenthèse ni ponctuation laissée en plan.
+const court = (t, n) => { const v = t.split(/[,;(]/)[0].trim(); let c = t.length <= n ? t : v.length >= 3 && v.length <= n ? v : t.slice(0, n).replace(/\s+\S*$/, ""); c = c.replace(/\([^)]*$/, "").replace(/[\s,;:(/]+$/, ""); return c; };
 // Jaunissement vu sur l'ensemble des photos, avec un modèle plus attentif et un effort normal.
 async function jauniEnsemble(photos, quoi, trace) {
   const o = await claude([...photos.slice(0, 6).map(image), { type: "text", text: `Ces ${Math.min(photos.length, 6)} photos (dans l'ordre, numérotées à partir de 1) montrent ${quoi}, vendu d'occasion. Une seule question : le plastique a-t-il jauni ?
 Le plastique gris d'origine (Nintendo 64, Super Nintendo, Game Boy, PlayStation) est un gris neutre, presque sans couleur ; jauni, il tire sur le crème, le beige ou l'orangé. Compare les faces et les photos entre elles : une face, une tranche ou une bande nettement plus crème ou beige que le reste du même plastique, c'est un jaunissement, souvent léger. La lumière n'explique tout que si l'objet entier, sur toutes les photos, a la même teinte que son environnement. Ignore l'étiquette, le bois, la peau.
-Réponds uniquement par un objet JSON : {"jauni": "non", "photos": [], "ou": ""}, où "jauni" vaut exactement "non", "leger" ou "net", "photos" liste les numéros des photos où ça se voit et "ou" dit en quelques mots où (par exemple « tranche supérieure »).` }], { max: 1500, timeout: 60000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+Réponds uniquement par un objet JSON : {"jauni": "non", "photos": [], "ou": ""}, où "jauni" vaut exactement "non", "leger" ou "net", "photos" liste les numéros des photos où ça se voit et "ou" dit où en 2 à 5 mots, commençant par « sur » (par exemple « sur les tranches »).` }], { max: 1500, timeout: 60000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
   const b = (o && o._texte) || "";
   const jauni = parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(b) || [])[1], ["non", "leger", "net"], "non");
   const ph = (Array.isArray(o && o.photos) ? o.photos : []).map(Number).filter((n) => n >= 1 && n <= photos.length);
-  return { jauni, photos: [...new Set(ph)], ou: txt(o && o.ou, 60) };
+  return { jauni, photos: [...new Set(ph)], ou: court(txt(o && o.ou, 300), 60) };
 }
 export async function legender(photos, v = {}, trace = null, progres = () => {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
@@ -433,15 +435,17 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
   // Avis d'ensemble : en voyant toutes les photos, le modèle compare les faces entre elles, ce qu'une photo seule ne permet pas.
   if (jg && jg.jauni !== "non" && !out.some((x) => x.jauni !== "non")) {
     const cibles = jg.photos.filter((n) => out[n - 1] && out[n - 1].legende);
-    for (const n of cibles.length ? cibles : [out.findIndex((x) => x.legende) + 1]) {
+    (cibles.length ? cibles : [out.findIndex((x) => x.legende) + 1]).forEach((n, k) => {
       const x = out[n - 1];
       x.jauni = jg.jauni;
-      if (!/jaun/i.test(x.legende)) {
-        const base = x.legende.replace(/,?\s*plastique[^,:]*$/i, "").replace(/,?\s*(sans|aucun) défaut.*$/i, "").trim();
-        const dit = (jg.jauni === "net" ? "plastique nettement jauni" : "plastique légèrement jauni") + (jg.ou ? " (" + jg.ou + ")" : "");
-        x.legende = (/:$/.test(base) ? base + " " + dit : base + (base.includes(":") ? ", " : " : ") + dit).slice(0, 200);
-      }
-    }
+      if (/jaun/i.test(x.legende)) return;
+      // On retire ce que la légende affirmait du plastique (« plastique gris », « sans défaut »…) pour ne pas se contredire.
+      const [vue, ...reste] = x.legende.split(" : ");
+      const garde = reste.join(" : ").split(/,\s*/).filter((c) => c && !/plastique|défaut|rayure|\bgris\b|\buni\b|impeccable|parfait/i.test(c));
+      const ou = k === 0 && jg.ou ? " " + (/^(sur|aux?|à|en|dans)\b/i.test(jg.ou) ? jg.ou : "(" + jg.ou + ")") : "";
+      const dit = (jg.jauni === "net" ? "plastique nettement jauni" : "plastique légèrement jauni") + ou;
+      x.legende = (reste.length ? vue + " : " + [...garde, dit].join(", ") : (garde.length ? x.legende + ", " : "") + dit).slice(0, 200);
+    });
   }
   if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos (" + (out[0].erreur || "erreur") + "), réessaie.");
   return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur) };
