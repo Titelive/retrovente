@@ -58,7 +58,10 @@ RR.runtime.onMessage.addListener(function (m, expediteur, repondre) {
   if (expediteur.id && expediteur.id !== RR.runtime.id) return false;
   var f = m && ACTIONS[m.type];
   if (!f) return false;
-  f(m).then(repondre, function (e) { repondre({ error: e.message || String(e), status: e.status || 0 }); });
+  var p = f(m).catch(function (e) { return { error: e.message || String(e), status: e.status || 0 }; });
+  // Safari et Firefox attendent une promesse renvoyée (Safari laisse sinon l'appel sans réponse) ; Chrome, le rappel.
+  if (globalThis.browser && globalThis.browser.runtime) return p;
+  p.then(repondre);
   return true;   // réponse asynchrone
 });
 
