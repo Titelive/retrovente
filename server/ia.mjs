@@ -28,7 +28,7 @@ export function coteDe(c) {
   return o.conseille != null || o.bas != null ? o : null;
 }
 
-async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "" } = {}) {
+async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false } = {}) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new IaError("Le service d'IA n'est pas configuré.");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -48,7 +48,7 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
   for (const b of d.content || []) for (const c of b.citations || []) if (c && c.url) vus.add(norme(c.url));
   if (d.stop_reason === "max_tokens") console.error("IA : réponse coupée (max_tokens)", max);
   const o = lireJson(t);
-  if (!o) console.error("IA : JSON illisible", t.slice(0, 400));
+  if (!o) { console.error("IA : JSON illisible", t.slice(0, 400)); if (brut) return { _texte: t }; }
   if (o && web) Object.defineProperty(o, "_vus", { value: vus });
   return o;
 }
@@ -353,9 +353,11 @@ export async function legender(photos, v = {}) {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
-Réponds uniquement par un objet JSON : {"legende": "…"${carte ? "" : `, "jauni": "non" | "leger" | "net"`}}` }], { max: 200, timeout: 45000 });
-    const leg = affirme(txt(o && o.legende, 200)).replace(/\.$/, "");
-    const j = carte ? "non" : parmi(o && o.jauni, ["non", "leger", "net"], /nettement jauni/i.test(leg) ? "net" : /jauni/i.test(leg) ? "leger" : "non");
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 400, timeout: 45000, brut: true });
+    // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
+    const brut = (o && o._texte) || "";
+    const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
+    const j = carte ? "non" : parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(brut) || [])[1], ["non", "leger", "net"], /nettement jauni/i.test(leg) ? "net" : /jauni/i.test(leg) ? "leger" : "non");
     const dit = j === "non" || /jaun/i.test(leg) ? leg : (leg ? leg + ", " : "") + (j === "net" ? "plastique nettement jauni" : "plastique légèrement jauni");
     return { legende: dit.slice(0, 200), jauni: j };
   };

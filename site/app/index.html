@@ -1127,17 +1127,25 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
   var tc=cent.reduce(function(a,x){return a+x.byteLength},0),e=new DataView(new ArrayBuffer(22));
   e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,tc,true);e.setUint32(16,off,true);
   return new Blob(parts.concat(cent,[e]),{type:"application/zip"})})}
-function decrire(auto){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
+function decrire(auto,essai){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
     .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
-    .catch(function(e){if(!auto)erreur(e,"Description impossible.");else console.warn(e)}).then(function(){busy(b,false,t)})}
+    .catch(function(e){if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
+      if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2)});   // une seconde tentative, en silence
+      toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
 function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});if(n<0)return;
   var p=$("f_particularites");if(net&&/légèrement jauni/i.test(p.value)){p.value=p.value.replace(/plastique légèrement jauni/i,"plastique nettement jauni");majParticularites()}
   if(!/jaun/i.test(p.value)){p.value=(p.value.trim()?p.value.trim().replace(/[.,;]$/,"")+", ":"")+(net?"plastique nettement jauni":"plastique légèrement jauni");majParticularites()}
   var e=$("f_etat");if(e.value==="neuf"||(net&&e.value==="tres_bon")){e.value=net?"bon":"tres_bon";e.dispatchEvent(new Event("change",{bubbles:true}))}
+  /* et dans le texte de l'annonce, sur la ligne de l'état */
+  var ta=$("f_texteAnnonce"),phr=net?"Plastique nettement jauni.":"Plastique légèrement jauni.";
+  if(ta.value&&!/jauni/i.test(ta.value)){var L=ta.value.split("\n"),k=-1;L.forEach(function(x,i){if(k<0&&/état/i.test(x)&&!/^Contenu/i.test(x))k=i});
+    if(k<0)L.forEach(function(x,i){if(k<0&&/^Remise en main propre/i.test(x))k=i-1});
+    if(k>=0&&L[k]!=null){L[k]=L[k].replace(/\s*$/,"")+" "+phr;if(net)L[k]=L[k].replace(/très bon état/i,"bon état")}else if(k===-1)L.push(phr);else L.splice(0,0,phr);
+    ta.value=L.join("\n");ta.dispatchEvent(new Event("input",{bubbles:true}))}
   toast("Plastique jauni repéré sur la photo "+(n+1)+" : je l'ai indiqué dans l'annonce.","ok")}
 
 /* ===== Cote ===== */
