@@ -17,7 +17,7 @@
     neuf: ["État neuf", "Neuf", "Neuf avec étiquette", "Neuf sans étiquette"],
     tres_bon: ["Très bon état"],
     bon: ["Bon état"],
-    correct: ["État satisfaisant", "Satisfaisant", "État correct"],
+    correct: ["État satisfaisant - fonctionnel", "État satisfaisant", "Satisfaisant", "État correct"],
     pieces: ["Pour pièces", "Pour pièce", "Hors service"],
   };
   // Catégories Le Bon Coin, la plus probable en premier. Les suggestions s'affichent « Électronique › Jeux vidéo » :
@@ -136,7 +136,12 @@
     var prix = champ("input", /prix|price/, /livraison|envoi|poids/);
     if (prix && a.prix != null && poser(prix, String(a.prix), a, force, "prix")) fait.push("prix");
     if (a.etat && ETATS_LBC[a.etat]) {
-      var ch = choisir(ETATS_LBC[a.etat], force ? null : groupeDejaChoisi);
+      var ch = "";
+      if (force || (etat.compte[k("etatcb")] || 0) < 3) {   // liste à saisie : 3 essais au plus (pas de boucle)
+        ch = await choisirCombobox(/^etat\b/, ETATS_LBC[a.etat], force);
+        if (ch === "ok") etat.compte[k("etatcb")] = (etat.compte[k("etatcb")] || 0) + 1;
+      }
+      if (!ch) ch = choisir(ETATS_LBC[a.etat], force ? null : groupeDejaChoisi);
       if (ch === "ok") fait.push("état");
       else if (!ch && (force || (etat.compte[k("etat")] || 0) < 2)) {
         etat.compte[k("etat")] = (etat.compte[k("etat")] || 0) + 1;
@@ -213,11 +218,16 @@
   }
   function obligatoireVide() {
     if (categorieVide()) return true;
+    // Le Bon Coin marque les champs obligatoires d'un « * » dans le libellé, sans attribut required.
+    if ([].some.call(document.querySelectorAll("input[role=combobox], input[type=text], input:not([type]), textarea"), function (x) {
+      return visible(x) && !(hote && hote.contains(x)) && /\*\s*$/.test(libelleDe(x)) && !String(x.value || "").trim();
+    })) return true;
     return [].some.call(document.querySelectorAll("input[required], textarea[required], select[required], [aria-required=true]"), function (x) {
       return visible(x) && !(hote && hote.contains(x)) && x.type !== "file" && x.type !== "radio" && x.type !== "checkbox" && "value" in x && !String(x.value || "").trim();
     });
   }
   function erreurAffichee() {
+    if ([].some.call((document.querySelector("main") || document.body).querySelectorAll("span, p, div"), function (x) { return x.childElementCount <= 1 && /^ce champ est (requis|obligatoire)/.test(norm(x.textContent)) && visible(x) && !(hote && hote.contains(x)); })) return true;
     return [].some.call(document.querySelectorAll("[role=alert], [aria-invalid=true]"), function (x) { return visible(x) && (x.getAttribute("aria-invalid") === "true" || (x.textContent || "").trim().length > 3); });
   }
   function planifierContinuer() {
@@ -342,6 +352,49 @@
   }
   // « État » en liste déroulante maison (« Choisissez ») : on l'ouvre pour que l'option devienne cliquable.
   // Une valeur déjà choisie est respectée, sauf « Remplir à nouveau ».
+  /* Liste à saisie (Le Bon Coin : <input role=combobox> + bouton « Ouvrir la liste » + <ul role=listbox> dont les
+     options restent dans la page, cachées). On ouvre la liste comme un clic de la personne, puis on clique l'option. */
+  // Le libellé visible d'un champ (« État * »), sans son id ni son texte d'aide.
+  function libelleDe(x) {
+    var lb = x.getAttribute("aria-labelledby");
+    if (lb) { var t = lb.split(/\s+/).map(function (id) { var e = document.getElementById(id); return e ? e.textContent : ""; }).join(" "); if (norm(t)) return norm(t); }
+    if (x.labels && x.labels.length) return norm(x.labels[0].textContent);
+    return norm(x.getAttribute("aria-label") || "");
+  }
+  function cliquer(x) {
+    ["pointerdown", "mousedown", "pointerup", "mouseup"].forEach(function (t) { x.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })); });
+    x.click();
+  }
+  function texteOption(o) {
+    var lb = o.getAttribute("aria-labelledby"), x = lb && document.getElementById(lb.split(/\s+/)[0]);
+    return norm((x || o).textContent);
+  }
+  async function choisirCombobox(reDesc, libelles, force) {
+    var champ = [].find.call(document.querySelectorAll("input[role=combobox], [role=combobox]"), function (x) { return !(hote && hote.contains(x)) && visible(x) && reDesc.test(libelleDe(x)); });
+    if (!champ) return "";
+    var vu = norm(champ.value != null ? champ.value : champ.textContent);
+    if (!force && vu && !/^choisi/.test(vu)) return "deja";   // déjà choisi par la personne (ou par Le Bon Coin)
+    var id = champ.id, liste = function () {
+      return document.getElementById(champ.getAttribute("aria-controls") || "") || (id && document.getElementById(id + "-menu")) ||
+        (champ.getAttribute("aria-labelledby") && document.querySelector("[role=listbox][aria-labelledby='" + champ.getAttribute("aria-labelledby").split(/\s+/)[0] + "']"));
+    };
+    var bouton = (id && document.getElementById(id + "-toggle-button")) || [].find.call((champ.closest("div") && champ.closest("div").parentElement || document).querySelectorAll("button"), function (b) { return /ouvrir|open/.test(norm(b.getAttribute("aria-label"))); });
+    if (champ.getAttribute("aria-expanded") !== "true") { champ.focus(); cliquer(bouton || champ); await attendre(300); }
+    var cibles = libelles.map(norm);
+    for (var essai = 0; essai < 4; essai++) {
+      var l = liste(), opts = l ? [].slice.call(l.querySelectorAll("[role=option]")) : [];
+      var o = null;
+      for (var i = 0; i < cibles.length && !o; i++) o = opts.find(function (x) { return texteOption(x) === cibles[i]; }) || opts.find(function (x) { return texteOption(x).indexOf(cibles[i]) === 0; });
+      if (o) {
+        if (o.getAttribute("aria-selected") === "true" && vu) return "deja";
+        cliquer(o); await attendre(200);
+        return "ok";
+      }
+      if (opts.length) return "";        // liste ouverte, mais aucune option ne convient
+      await attendre(250);
+    }
+    return "";
+  }
   function ouvrirDeroulantEtat(a, force) { return ouvrirDeroulant(/^etat\b/, /^etat\s*\*?$/, force); }
   // Liste déroulante maison (pas un <select>) repérée par son libellé : on l'ouvre comme un clic de la personne.
   function deroulant(reDesc, reLibelle) {
@@ -349,7 +402,7 @@
       // une vraie liste : pas un bloc qui contient des boutons radio ou tout un formulaire
       && (x.textContent || "").length < 80 && !x.querySelector("input[type=radio], [role=radio], input:not([type=hidden]):not([readonly]), textarea"); });
     return cand.find(function (el) {
-      if (reDesc.test(description(el))) return true;
+      if (reDesc.test(description(el)) || reDesc.test(libelleDe(el))) return true;
       for (var p = el.parentElement, n = 0; p && n < 4; p = p.parentElement, n++) {
         var lab = [].find.call(p.querySelectorAll("label, legend, p, span, div"), function (x) { return (x.textContent || "").length < 60 && !el.contains(x) && !x.contains(el) && reLibelle.test(norm(x.textContent)); });
         if (lab) return lab.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING;
@@ -472,6 +525,9 @@
     if (!force && dd && valeurDe(dd)) return "deja";   // la personne a déjà pris une catégorie dans la liste
     var r = cocherCategorie(cibles, force ? null : groupeDejaChoisi);
     if (r) return r;
+    var cb = (force || (etat.compte[k + "cb"] || 0) < 3) ? await choisirCombobox(/categorie/, libs, force) : "";
+    if (cb === "ok") etat.compte[k + "cb"] = (etat.compte[k + "cb"] || 0) + 1;
+    if (cb) return cb;
     var c = choisir(libs);            // vrai <select> ou libellé exact
     if (c) return c;
     // Pas de suggestion qui convient : on attend un peu (elles arrivent après le titre), puis on ouvre la liste.
