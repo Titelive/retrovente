@@ -68,6 +68,12 @@ const server = http.createServer(async (req, res) => {
         else { console.error(e && e.stack || e); out = { status: 500, json: { error: e && e.message && /paiement/i.test(e.message) ? e.message : "Erreur du serveur." } }; }
       }
       const h = { ...SECU, "Cache-Control": "no-store", ...(out.headers || {}) };
+      if (out.flux) {   // flux d'événements (text/event-stream : le proxy le transmet sans attendre la fin)
+        res.writeHead(200, { ...h, "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" });
+        const vie = setInterval(() => res.write(": attente\n\n"), 10000);
+        try { await out.flux((x) => res.write("data: " + JSON.stringify(x) + "\n\n")); } finally { clearInterval(vie); }
+        return res.end();
+      }
       if (out.json !== undefined) { h["Content-Type"] = "application/json; charset=utf-8"; res.writeHead(out.status, h); return res.end(JSON.stringify(out.json)); }
       res.writeHead(out.status, h); return res.end(out.body);
     }
