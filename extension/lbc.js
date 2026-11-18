@@ -474,17 +474,17 @@
     etat.emojis = emojis(etat.annonces || []);
     var corps = ombre.querySelector(".corps"); corps.textContent = "";
     var l = etat.annonces;
-    if (!l.length) { statut("Aucun jeu « En vente » dans RetroRevente. Prépare une annonce dans l'appli, puis reviens ici.", ""); corps.appendChild(el("button", { class: "go", texte: "Ouvrir RetroRevente", onclick: function () { window.open("https://retrorevente.fr/app/", "_blank", "noopener"); } })); return; }
+    if (!l.length) { statut("Aucun article « En vente » dans RetroRevente. Prépare une annonce dans l'appli, puis reviens ici.", ""); corps.appendChild(el("button", { class: "go", texte: "Ouvrir RetroRevente", onclick: function () { window.open("https://retrorevente.fr/app/", "_blank", "noopener"); } })); return; }
     // Par défaut : la plus récente qui n'a pas encore de lien d'annonce.
     if (!etat.choisie || (!etat.choisie.lot && !etat.choisie.externe && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
     var a = etat.choisie;
     var choix = el("button", { class: "choix", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Annonce à déposer : " + a.titre + ". Changer (" + RACCOURCI + ")", onclick: function () { liste.hidden ? ouvrirListe() : fermerListe(); } }, [
       el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) }),
-      el("span", { class: "q" }, [el("span", { class: "nom", texte: a.titre }), el("span", { class: "meta", texte: metaTxt(a) || "Changer de jeu" })]),
+      el("span", { class: "q" }, [el("span", { class: "nom", texte: a.titre }), el("span", { class: "meta", texte: metaTxt(a) || "Changer d'article" })]),
       a.prix != null ? el("span", { class: "px", texte: prixTxt(a) }) : null,
       el("kbd", { class: "k", texte: RACCOURCI }),
     ]);
-    var champ = el("input", { type: "text", placeholder: "Rechercher un jeu, une console…", "aria-label": "Rechercher une annonce", autocomplete: "off", spellcheck: "false", role: "combobox", "aria-controls": "rr-opts", "aria-expanded": "true" });
+    var champ = el("input", { type: "text", placeholder: "Rechercher un jeu, une carte, une console…", "aria-label": "Rechercher une annonce", autocomplete: "off", spellcheck: "false", role: "combobox", "aria-controls": "rr-opts", "aria-expanded": "true" });
     var opts = el("ul", { class: "opts", id: "rr-opts", role: "listbox", "aria-label": "Annonces en vente" });
     var liste = el("div", { class: "liste" }, [el("label", { class: "cherche" }, [loupe(), champ]), opts]);
     liste.hidden = true;
@@ -492,7 +492,7 @@
     function rendre() {
       var r = filtrer(champ.value); vus = r.l; opts.textContent = "";
       if (actif >= vus.length) actif = Math.max(0, vus.length - 1);
-      if (!vus.length) { opts.appendChild(el("li", { class: "vide", texte: "Aucun jeu ne correspond à « " + champ.value.trim() + " »." })); champ.removeAttribute("aria-activedescendant"); return; }
+      if (!vus.length) { opts.appendChild(el("li", { class: "vide", texte: "Aucun article ne correspond à « " + champ.value.trim() + " »." })); champ.removeAttribute("aria-activedescendant"); return; }
       vus.forEach(function (x, i) {
         var nom = el("span", { class: "nom" }, [surligne(x.titre, r.mots)]);
         if (x.publiee) nom.appendChild(el("span", { class: "pub", texte: "publiée" }));
@@ -536,7 +536,7 @@
       types.addEventListener("toggle", function () { etat.typesOuvert = types.open; });
       corps.appendChild(el("div", { class: "pile" }, [haut, ia, types]));
       dessinerIA(ia);
-      statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les jeux inclus.") : "", "");
+      statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -555,7 +555,7 @@
       el("span", { class: "rail" }), "Continuer tout seul",
     ]);
     suite.querySelector("input").checked = etat.continuer;
-    var actions = el("div", { class: "actions" }, [bascule, suite, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec ce jeu", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    var actions = el("div", { class: "actions" }, [bascule, suite, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
@@ -652,7 +652,7 @@
     var lot = lotLu();
     if (lot && lot.prix) {
       var noms = (lot.articles || []).map(titreCourt), liste = noms.length > 1 ? noms.slice(0, -1).join(", ") + " et " + noms[noms.length - 1] : "";
-      return { id: "lot", lot: true, titre: "Lot de " + lot.n + " articles", nom: liste ? "le lot " + liste : "le lot de " + lot.n + " jeux", plateforme: liste, prix: lot.prix, n: lot.n, articles: lot.articles, description: "" };
+      return { id: "lot", lot: true, titre: "Lot de " + lot.n + " articles", nom: liste ? "le lot " + liste : "le lot de " + lot.n + " articles", plateforme: liste, prix: lot.prix, n: lot.n, articles: lot.articles, description: "" };
     }
     // Le jeu de l'encadré de l'annonce (à côté de la conversation), sinon celui dont parle la conversation : on compare
     // les mots du titre (apostrophes, accents et « PAL EU… » tronqués ne gênent pas).
@@ -707,7 +707,7 @@
     var det = detail ? detail + ". " : "";
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
     // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
-    var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux jeux" : "des " + (a.n || "") + " jeux").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
+    var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux articles" : "des " + (a.n || "") + " articles").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
       : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
     var l = [
       // Disponibilité
