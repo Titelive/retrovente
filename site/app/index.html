@@ -1097,7 +1097,7 @@ function sens(d){return api("POST","/api/ia/endroit",{photo:d}).then(function(j)
 /* Journal IA : pour les administrateurs, chaque appel de sens et de description s'affiche (réponse brute, durée, erreur) */
 var JOURNAL=[],DEBUG=/[?&]debug=1/.test(location.search);
 try{if(DEBUG)sessionStorage.setItem("rr-debug","1");else DEBUG=sessionStorage.getItem("rr-debug")==="1"}catch(e){}
-function journal(quoi,res,trace){if(!(DEBUG||(ME&&ME.admin)))return;if(quoi==null&&JOURNAL.length)return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
+function journal(quoi,res,trace){if(!(DEBUG||(ME&&ME.admin)))return;if(quoi==null&&JOURNAL.length)return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.jetons!=null?x.jetons+"/"+x.max+" jetons ":"")+(x.blocs?"["+x.blocs+"] ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
   if(quoi!=null){JOURNAL.push(new Date().toLocaleTimeString("fr-FR")+" "+quoi+" : "+res+(tr?"\n   "+tr:""));JOURNAL=JOURNAL.slice(-14)}
   var vide=!JOURNAL.length;
   var z=$("jIa");if(!z){z=document.createElement("div");z.id="jIa";z.innerHTML='<header><b>Journal IA</b><button type="button" data-j="c">Copier</button><button type="button" data-j="x" aria-label="Fermer">×</button></header><pre></pre>';document.body.appendChild(z);

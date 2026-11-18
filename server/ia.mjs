@@ -28,7 +28,18 @@ export function coteDe(c) {
   return o.conseille != null || o.bas != null ? o : null;
 }
 
-async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null } = {}) {
+// Les modèles récents réfléchissent avant de répondre, et cette réflexion compte dans max_tokens :
+// un petit budget (200, 300, 800) peut être entièrement consommé et la réponse arriver vide.
+// On garde donc un plancher confortable, et on relance une fois avec plus de marge si c'est arrivé.
+const PLANCHER = 4000;
+async function claude(content, opts = {}) {
+  const d = await claude1(content, opts);
+  if (!(d && d._vide)) return d;
+  const e = await claude1(content, { ...opts, max: Math.max(opts.max || 1500, PLANCHER) * 2, timeout: Math.max(opts.timeout || 30000, 45000) });
+  return e && e._vide ? (opts.brut ? { _texte: "" } : null) : e;
+}
+async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null, effort = "" } = {}) {
+  max = Math.max(max, PLANCHER);
   const t0 = Date.now(), modele = model || process.env.CLAUDE_MODEL || "claude-haiku-5-5";
   const note = (x) => { if (trace) trace.push({ modele, ms: Date.now() - t0, ...x }); };
   const key = process.env.ANTHROPIC_API_KEY;
@@ -38,7 +49,9 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
     method: "POST", signal: AbortSignal.timeout(timeout),
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: model || process.env.CLAUDE_MODEL || "claude-haiku-5-5", max_tokens: max,
+      model: modele, max_tokens: max,
+      // Effort réduit pour les petites tâches (sens, légendes, cadrage) : moins de réflexion, réponse plus rapide.
+      ...(effort && /claude-(haiku|sonnet|opus|fable)-5/.test(modele) ? { output_config: { effort } } : {}),
       ...(web ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: web }] } : {}),
       // Sortie structurée : le modèle remplit un outil au schéma imposé (pas de JSON à relire dans du texte).
       ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: { type: "tool", name: outil.name } } : {}),
@@ -58,7 +71,8 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
     console.error("IA : outil non rempli", d.stop_reason, t.slice(0, 300));
   }
   const o = lireJson(t);
-  note({ statut: 200, fin: d.stop_reason, texte: t.slice(0, 240), json: !!o });
+  note({ statut: 200, fin: d.stop_reason, texte: t.slice(0, 240), json: !!o, blocs: (d.content || []).map((b) => b.type).join(","), jetons: d.usage && d.usage.output_tokens, max });
+  if (!t.trim() && d.stop_reason === "max_tokens" && !outil) return { _vide: true };
   if (!o) { console.error("IA : JSON illisible", t.slice(0, 400)); if (brut) return { _texte: t }; }
   if (o && web) Object.defineProperty(o, "_vus", { value: vus });
   return o;
@@ -190,7 +204,7 @@ function champsCarte(o) {
 
 export async function cadrer(photo) {
   if (FAKE()) { checkPhoto(photo); return { x: 0.15, y: 0.1, w: 0.7, h: 0.8 }; }
-  const o = await claude([image(photo), { type: "text", text: `Repère sur cette photo l'objet qu'un particulier veut vendre (jeu vidéo, console, accessoire…). Réponds uniquement par un objet JSON avec la clé ${CADRE_CONSIGNE}.` }], { max: 200 });
+  const o = await claude([image(photo), { type: "text", text: `Repère sur cette photo l'objet qu'un particulier veut vendre (jeu vidéo, console, accessoire…). Réponds uniquement par un objet JSON avec la clé ${CADRE_CONSIGNE}.` }], { max: 200, effort: "low" });
   return cadreDe(o && o.cadre);
 }
 
@@ -205,7 +219,7 @@ export async function endroit(photo, trace = null) {
 - « droite » : le texte se lit de haut en bas ;
 - « bas » : le texte est à l'envers, tête en bas ;
 - « incertain » : pas de texte lisible, ou tu hésites.
-Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 300, timeout: 25000, brut: true, trace });
+Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 300, timeout: 40000, brut: true, trace, effort: "low" });
   const s = String((o && o.sens) || (/"sens"\s*:\s*"(\w+)"/.exec((o && o._texte) || "") || [])[1] || "").toLowerCase();
   return s in SENS ? { sens: s, rotation: SENS[s], sur: true } : { sens: "incertain", rotation: 0, sur: false };
 }
@@ -380,7 +394,7 @@ export async function legender(photos, v = {}, trace = null) {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
-Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 30000, brut: true, trace });
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
