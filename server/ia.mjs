@@ -171,6 +171,8 @@ Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, time
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
    La conversation est le texte visible de la page de messagerie, copié par l'extension : on demande au modèle
    de retrouver le dernier message de l'acheteur et de proposer trois réponses du vendeur, sympas et diplomates. */
+// Toujours au moins un smiley dans une réponse aux acheteurs.
+export const smiley = (t) => (!t || /\p{Extended_Pictographic}/u.test(t) ? t : t.replace(/\s*[.!]?\s*$/, (f) => (f.trim() === "!" ? " ! 🙂" : " 🙂")));
 export async function repondre(conversation, a = {}, autres = []) {
   const conv = txt(conversation, 4000);
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
@@ -184,9 +186,9 @@ export async function repondre(conversation, a = {}, autres = []) {
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
   if (FAKE()) return { resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
-      { titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va." },
-      { titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel." },
-      { titre: "Ouvrir la discussion", texte: "Bonjour, merci pour l'intérêt ! Faites-moi une proposition un peu plus proche du prix et on devrait s'entendre." },
+      { titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂" },
+      { titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
+      { titre: "Ouvrir la discussion", texte: "Bonjour, merci pour l'intérêt ! Faites-moi une proposition un peu plus proche du prix et on devrait s'entendre 😊" },
     ] };
   const o = await claude(`Tu aides un particulier qui vend un jeu vidéo d'occasion sur Le Bon Coin à répondre à un acheteur.
 
@@ -201,6 +203,7 @@ ${conv}
 Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
 Propose trois réponses différentes du vendeur, prêtes à envoyer :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
+- toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
 - 1 à 4 phrases courtes, qui commencent par « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
@@ -208,7 +211,7 @@ Propose trois réponses différentes du vendeur, prêtes à envoyer :
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment.
 Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 900, timeout: 25000 });
-  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ titre: txt(r && r.titre, 40), texte: txt(r && r.texte, 700) })).filter((r) => r.texte).slice(0, 3);
+  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
   return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
 }

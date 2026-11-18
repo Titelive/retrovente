@@ -481,7 +481,7 @@
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); return; }
     if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
     (i.reponses || []).forEach(function (r) {
-      z.appendChild(el("button", { class: "rep fort", type: "button", title: "Placer dans la zone de message", onclick: function () { inserer(r.texte); } }, [el("b", { texte: r.titre || "Réponse" }), el("span", { class: "plein", texte: r.texte })]));
+      z.appendChild(el("button", { class: "rep fort", type: "button", title: "Placer dans la zone de message", onclick: function () { inserer(smiley(r.texte)); } }, [el("b", { texte: r.titre || "Réponse" }), el("span", { class: "plein", texte: r.texte })]));
     });
   }
   // Nouveau message reçu ou autre conversation : nouvelles propositions (une seule demande à la fois, espacées).
@@ -516,8 +516,10 @@
     z.focus();
     statut("Réponse placée dans la zone de message : relis, puis envoie.", "ok");
   }
+  // Toujours un smiley, du genre 🙂, à la fin d'une réponse qui n'en a pas.
+  function smiley(t) { return /\p{Extended_Pictographic}/u.test(t) ? t : t.replace(/\s*[.!]?\s*$/, function (f) { return f.trim() === "!" ? " ! 🙂" : " 🙂"; }); }
   function reponsesUI(a) {
-    var tout = reponses(a);
+    var tout = reponses(a).map(function (r) { return { g: r.g, t: r.t, m: smiley(r.m) }; });
     var champ = el("input", { type: "text", placeholder: "Chercher une réponse (offre, envoi, photos…)", "aria-label": "Chercher une réponse", autocomplete: "off", spellcheck: "false" });
     var zone = el("div", { class: "reps" });
     function rendre() {
