@@ -20,7 +20,9 @@
     correct: ["État satisfaisant", "Satisfaisant", "État correct"],
     pieces: ["Pour pièces", "Pour pièce", "Hors service"],
   };
-  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], jeux: ["Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires"], autres: [] };
+  // Catégories Le Bon Coin, la plus probable en premier. Les suggestions s'affichent « Électronique › Jeux vidéo » :
+  // on compare le dernier niveau.
+  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
@@ -140,8 +142,9 @@
         if ((await ouvrirDeroulantEtat(a, force)) && choisir(ETATS_LBC[a.etat]) === "ok") fait.push("état");
       }
     }
-    if (!titre && !desc && !prix && a.categorie && CATEGORIES_LBC[a.categorie].length && (force || !etat.compte[k("cat")])) {
-      if (choisir(CATEGORIES_LBC[a.categorie])) { etat.compte[k("cat")] = true; fait.push("catégorie"); }
+    if (a.categorie && CATEGORIES_LBC[a.categorie].length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
+      var cat = await choisirCategorie(a, force);
+      if (cat) { etat.compte[k("cat")] = true; if (cat === "ok") fait.push("catégorie"); }
     }
     var fic = photoFichier();
     if (fic && a.photo && (force || !etat.compte[k("photo")])) {
@@ -198,7 +201,17 @@
     var champs = [].filter.call(document.querySelectorAll("input, textarea, select, [role=combobox]"), function (x) { return visible(x) && !(hote && hote.contains(x)); }).slice(0, 6).map(description).join("/");
     return location.pathname + "|" + (h ? norm(h.textContent).slice(0, 80) : "") + "|" + champs.slice(0, 200);
   }
+  function categorieVide() {
+    if (!zoneCategorie()) return false;
+    var r = [].filter.call(document.querySelectorAll("input[type=radio]"), function (x) { return !(hote && hote.contains(x)); });
+    var choisie = r.some(function (x) { return x.checked; }) || [].some.call(document.querySelectorAll("[role=radio][aria-checked=true]"), visible);
+    var dd = deroulant(CAT_DESC, CAT_LIB);
+    if (!r.length && !dd) return false;   // simple rappel « Catégorie : … », rien à choisir ici
+    var liste = !!(dd && valeurDe(dd));
+    return !choisie && !liste;
+  }
   function obligatoireVide() {
+    if (categorieVide()) return true;
     return [].some.call(document.querySelectorAll("input[required], textarea[required], select[required], [aria-required=true]"), function (x) {
       return visible(x) && !(hote && hote.contains(x)) && x.type !== "file" && x.type !== "radio" && x.type !== "checkbox" && "value" in x && !String(x.value || "").trim();
     });
@@ -259,29 +272,91 @@
   }
   // « État » en liste déroulante maison (« Choisissez ») : on l'ouvre pour que l'option devienne cliquable.
   // Une valeur déjà choisie est respectée, sauf « Remplir à nouveau ».
-  async function ouvrirDeroulantEtat(a, force) {
-    var cand = [].filter.call(document.querySelectorAll("[role=combobox], [aria-haspopup], button, input[readonly], div[tabindex]"), visible);
-    var d = cand.find(function (el) {
-      if (/^etat\b/.test(description(el))) return true;
+  function ouvrirDeroulantEtat(a, force) { return ouvrirDeroulant(/^etat\b/, /^etat\s*\*?$/, force); }
+  // Liste déroulante maison (pas un <select>) repérée par son libellé : on l'ouvre comme un clic de la personne.
+  function deroulant(reDesc, reLibelle) {
+    var cand = [].filter.call(document.querySelectorAll("[role=combobox], [aria-haspopup], select, button, input[readonly], div[tabindex]"), function (x) { return visible(x) && !(hote && hote.contains(x)) && !/^(publier|continuer|valider|suivant|deposer)/.test(norm(x.textContent)); });
+    return cand.find(function (el) {
+      if (reDesc.test(description(el))) return true;
       for (var p = el.parentElement, n = 0; p && n < 4; p = p.parentElement, n++) {
-        var lab = [].find.call(p.querySelectorAll("label, legend, p, span, div"), function (x) { return x.childElementCount === 0 && !el.contains(x) && /^etat\s*\*?$/.test(norm(x.textContent)); });
+        var lab = [].find.call(p.querySelectorAll("label, legend, p, span, div"), function (x) { return (x.textContent || "").length < 60 && !el.contains(x) && !x.contains(el) && reLibelle.test(norm(x.textContent)); });
         if (lab) return lab.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING;
       }
       return false;
-    });
-    if (!d) return false;
-    var vu = norm(d.value || d.textContent || "");
-    if (!force && vu && !/^choisi/.test(vu)) return false;   // déjà choisi
+    }) || null;
+  }
+  // Valeur affichée d'une liste déroulante (« » ou « Choisissez » = rien de choisi).
+  function valeurDe(d) { var v = d.tagName === "SELECT" ? (d.selectedIndex > 0 ? d.options[d.selectedIndex].textContent : "") : (d.value || d.textContent || ""); v = norm(v); return /^choisi/.test(v) ? "" : v; }
+  async function ouvrirDeroulant(reDesc, reLibelle, force) {
+    var d = deroulant(reDesc, reLibelle);
+    if (!d || d.tagName === "SELECT") return false;
+    if (!force && valeurDe(d)) return false;   // déjà choisi
     ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach(function (t) { d.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })); });
     await attendre(350);
     return true;
   }
 
+  /* ===== Catégorie =====
+     Le Bon Coin propose quelques catégories d'après le titre (« Électronique › Jeux vidéo », boutons radio), puis
+     « Ou choisissez une autre catégorie » (liste déroulante). On coche la bonne suggestion ; sinon on ouvre la liste
+     et on y choisit la catégorie. Un choix déjà fait par la personne est respecté. */
+  var CAT_DESC = /categorie/, CAT_LIB = /^(ou )?(choisissez (une autre |la )?)?categorie\s*\*?$/;
+  function feuille(t) { var x = String(t || "").split(/[›>»\/]/); return norm(x[x.length - 1]); }
+  function zoneCategorie() {
+    return [].some.call(document.querySelectorAll("h1, h2, h3, h4, legend, label, p, span"), function (x) {
+      return (x.textContent || "").length < 60 && !(hote && hote.contains(x)) && /^(ou )?(choisissez (une autre |la )?)?categorie\b/.test(norm(x.textContent)) && visible(x);
+    });
+  }
+  function optionsCategorie() {
+    return [].filter.call(document.querySelectorAll("label, [role=radio], [role=option], [role=menuitemradio], li, button"), function (el) {
+      var t = el.textContent || "";
+      return t.length < 90 && visible(el) && !el.closest("a[href], nav, header, footer") && !/^(publier|continuer|valider|suivant|deposer)/.test(norm(t));
+    });
+  }
+  function cocherCategorie(cibles, garde) {
+    var cand = optionsCategorie();
+    for (var i = 0; i < cibles.length; i++) {
+      // Le plus petit élément qui porte le libellé (le label plutôt que la ligne entière).
+      var el = cand.filter(function (x) { return feuille(x.textContent) === cibles[i]; }).sort(function (x, y) { return x.textContent.length - y.textContent.length || (x.contains(y) ? 1 : -1); })[0];
+      if (!el) continue;
+      var radio = el.matches("label") ? (el.control || el.querySelector("input")) : el.querySelector("input[type=radio]");
+      if ((radio && radio.checked) || el.getAttribute("aria-checked") === "true" || el.getAttribute("aria-selected") === "true") return "deja";
+      if (garde && garde(radio || el)) return "deja";
+      (radio && !el.matches("label") ? radio : el).click();
+      return "ok";
+    }
+    return "";
+  }
+  async function choisirCategorie(a, force) {
+    var libs = CATEGORIES_LBC[a.categorie], cibles = libs.map(norm), k = a.id + ":catliste";
+    var dd = deroulant(CAT_DESC, CAT_LIB);
+    if (!force && dd && valeurDe(dd)) return "deja";   // la personne a déjà pris une catégorie dans la liste
+    var r = cocherCategorie(cibles, force ? null : groupeDejaChoisi);
+    if (r) return r;
+    var c = choisir(libs);            // vrai <select> ou libellé exact
+    if (c) return c;
+    // Pas de suggestion qui convient : on attend un peu (elles arrivent après le titre), puis on ouvre la liste.
+    var vue = etat.compte[a.id + ":catvue"] = etat.compte[a.id + ":catvue"] || Date.now();
+    if (!force && Date.now() - vue < 2500) {   // on repasse une fois le délai écoulé, même si la page ne bouge plus
+      clearTimeout(etat.catMin); etat.catMin = setTimeout(function () { if (!enCours) { enCours = true; remplir(false).catch(function () {}).then(function () { enCours = false; planifierContinuer(); }); } }, 2700);
+      return "";
+    }
+    if (!force && (etat.compte[k] || 0) >= 2) return "";
+    etat.compte[k] = (etat.compte[k] || 0) + 1;
+    if (!(await ouvrirDeroulant(CAT_DESC, CAT_LIB, true))) return "";
+    for (var i = 0; i < 6; i++) {        // la liste peut se charger en deux temps
+      r = cocherCategorie(cibles);
+      if (r) return r;
+      await attendre(250);
+    }
+    return "";
+  }
+
   /* ===== Panneau (charte RetroRevente : vert anis, noir doux, Rubik + Figtree) ===== */
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var RACCOURCI = MAC ? "⌘K" : "Ctrl K";
-  // Logo du site (police Righteous, en tracés SVG) : la couleur suit le thème via currentColor.
-  var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" height="26" aria-hidden="true" focusable="false" viewBox="0 0 396 80"> <path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="currentColor" d="M93.81 29.95V43.36H100.52Q101.89 43.36 103.11 42.83Q104.32 42.31 105.24 41.4Q106.15 40.49 106.67 39.26Q107.2 38.03 107.2 36.65Q107.2 35.28 106.67 34.05Q106.15 32.82 105.24 31.91Q104.32 31 103.11 30.48Q101.89 29.95 100.52 29.95ZM93.81 56.74H87.11V23.24H100.52Q102.36 23.24 104.07 23.72Q105.77 24.2 107.26 25.08Q108.74 25.95 109.97 27.18Q111.19 28.41 112.07 29.9Q112.94 31.4 113.42 33.1Q113.9 34.81 113.9 36.65Q113.9 38.38 113.47 40.02Q113.04 41.65 112.23 43.13Q111.43 44.6 110.26 45.84Q109.09 47.07 107.64 47.98L111.36 56.74H104.23L101.31 49.99L93.81 50.04ZM127.57 50.62Q127.94 50.74 128.32 50.78Q128.69 50.81 129.06 50.81Q130 50.81 130.86 50.55Q131.73 50.3 132.49 49.82Q133.25 49.34 133.84 48.65Q134.44 47.96 134.81 47.12L139.48 51.82Q138.6 53.08 137.44 54.08Q136.28 55.09 134.94 55.79Q133.6 56.49 132.11 56.85Q130.63 57.21 129.06 57.21Q126.42 57.21 124.1 56.23Q121.78 55.25 120.03 53.5Q118.29 51.75 117.29 49.33Q116.29 46.91 116.29 44.01Q116.29 41.05 117.29 38.59Q118.29 36.14 120.03 34.41Q121.78 32.68 124.1 31.73Q126.42 30.77 129.06 30.77Q130.63 30.77 132.12 31.14Q133.62 31.51 134.96 32.22Q136.31 32.92 137.47 33.93Q138.64 34.95 139.53 36.21ZM130.84 37.47Q130.4 37.31 129.96 37.26Q129.53 37.22 129.06 37.22Q127.76 37.22 126.6 37.69Q125.44 38.17 124.59 39.06Q123.74 39.95 123.25 41.2Q122.76 42.45 122.76 44.01Q122.76 44.36 122.79 44.81Q122.83 45.25 122.91 45.71Q122.99 46.16 123.11 46.58Q123.22 47 123.41 47.33ZM155.28 56.74Q152.96 56.74 150.93 55.87Q148.9 54.99 147.37 53.46Q145.84 51.93 144.96 49.9Q144.09 47.87 144.09 45.55V38.13H140.98V31.77H144.09V21.77H150.44V31.77H160.11V38.13H150.44V45.55Q150.44 46.56 150.81 47.44Q151.19 48.31 151.84 48.97Q152.5 49.62 153.38 50.01Q154.27 50.39 155.28 50.39H160.11V56.74ZM170.06 56.74H163.69V31.73H165.23L167.33 34.69Q168.87 33.29 170.83 32.53Q172.8 31.77 174.9 31.77H180.53V38.13H174.9Q173.89 38.13 173.01 38.5Q172.12 38.87 171.46 39.53Q170.81 40.18 170.44 41.07Q170.06 41.96 170.06 42.96ZM207.67 44.01Q207.67 46.82 206.67 49.23Q205.67 51.65 203.94 53.42Q202.21 55.18 199.88 56.2Q197.56 57.21 194.9 57.21Q192.26 57.21 189.93 56.2Q187.61 55.18 185.87 53.42Q184.13 51.65 183.12 49.23Q182.12 46.82 182.12 44.01Q182.12 41.16 183.12 38.73Q184.13 36.3 185.87 34.54Q187.61 32.78 189.93 31.77Q192.26 30.77 194.9 30.77Q197.56 30.77 199.88 31.71Q202.21 32.66 203.94 34.4Q205.67 36.14 206.67 38.58Q207.67 41.02 207.67 44.01ZM201.25 44.01Q201.25 42.47 200.75 41.22Q200.25 39.97 199.38 39.07Q198.52 38.17 197.36 37.69Q196.2 37.22 194.9 37.22Q193.59 37.22 192.43 37.69Q191.27 38.17 190.42 39.07Q189.57 39.97 189.08 41.22Q188.59 42.47 188.59 44.01Q188.59 45.46 189.08 46.7Q189.57 47.94 190.42 48.85Q191.27 49.76 192.43 50.29Q193.59 50.81 194.9 50.81Q196.2 50.81 197.36 50.32Q198.52 49.83 199.38 48.94Q200.25 48.05 200.75 46.79Q201.25 45.53 201.25 44.01ZM218.58 29.95V43.36H225.29Q226.67 43.36 227.88 42.83Q229.1 42.31 230.01 41.4Q230.92 40.49 231.44 39.26Q231.97 38.03 231.97 36.65Q231.97 35.28 231.44 34.05Q230.92 32.82 230.01 31.91Q229.1 31 227.88 30.48Q226.67 29.95 225.29 29.95ZM218.58 56.74H211.88V23.24H225.29Q227.13 23.24 228.84 23.72Q230.54 24.2 232.03 25.08Q233.51 25.95 234.74 27.18Q235.96 28.41 236.84 29.9Q237.72 31.4 238.2 33.1Q238.67 34.81 238.67 36.65Q238.67 38.38 238.24 40.02Q237.81 41.65 237 43.13Q236.2 44.6 235.03 45.84Q233.86 47.07 232.41 47.98L236.13 56.74H229L226.08 49.99L218.58 50.04ZM252.34 50.62Q252.71 50.74 253.09 50.78Q253.46 50.81 253.84 50.81Q254.77 50.81 255.63 50.55Q256.5 50.3 257.26 49.82Q258.02 49.34 258.61 48.65Q259.21 47.96 259.58 47.12L264.26 51.82Q263.37 53.08 262.21 54.08Q261.05 55.09 259.71 55.79Q258.37 56.49 256.88 56.85Q255.4 57.21 253.84 57.21Q251.2 57.21 248.87 56.23Q246.55 55.25 244.81 53.5Q243.07 51.75 242.06 49.33Q241.06 46.91 241.06 44.01Q241.06 41.05 242.06 38.59Q243.07 36.14 244.81 34.41Q246.55 32.68 248.87 31.73Q251.2 30.77 253.84 30.77Q255.4 30.77 256.9 31.14Q258.39 31.51 259.73 32.22Q261.08 32.92 262.25 33.93Q263.41 34.95 264.3 36.21ZM255.61 37.47Q255.17 37.31 254.74 37.26Q254.3 37.22 253.84 37.22Q252.53 37.22 251.37 37.69Q250.22 38.17 249.36 39.06Q248.51 39.95 248.02 41.2Q247.53 42.45 247.53 44.01Q247.53 44.36 247.56 44.81Q247.6 45.25 247.68 45.71Q247.76 46.16 247.88 46.58Q248 47 248.18 47.33ZM274.6 56.74 265.07 31.73H272.34L277.8 47.33L283.25 31.73H290.54L281.01 56.74ZM302.92 50.62Q303.29 50.74 303.67 50.78Q304.04 50.81 304.41 50.81Q305.35 50.81 306.21 50.55Q307.08 50.3 307.84 49.82Q308.59 49.34 309.19 48.65Q309.79 47.96 310.16 47.12L314.83 51.82Q313.94 53.08 312.79 54.08Q311.63 55.09 310.29 55.79Q308.95 56.49 307.46 56.85Q305.98 57.21 304.41 57.21Q301.77 57.21 299.45 56.23Q297.12 55.25 295.38 53.5Q293.64 51.75 292.64 49.33Q291.63 46.91 291.63 44.01Q291.63 41.05 292.64 38.59Q293.64 36.14 295.38 34.41Q297.12 32.68 299.45 31.73Q301.77 30.77 304.41 30.77Q305.98 30.77 307.47 31.14Q308.97 31.51 310.31 32.22Q311.66 32.92 312.82 33.93Q313.99 34.95 314.88 36.21ZM306.19 37.47Q305.74 37.31 305.31 37.26Q304.88 37.22 304.41 37.22Q303.1 37.22 301.95 37.69Q300.79 38.17 299.94 39.06Q299.09 39.95 298.6 41.2Q298.11 42.45 298.11 44.01Q298.11 44.36 298.14 44.81Q298.18 45.25 298.26 45.71Q298.34 46.16 298.46 46.58Q298.57 47 298.76 47.33ZM324.46 56.74H318.08V31.73H319.62L321.72 34.15Q323.27 32.75 325.22 31.99Q327.17 31.23 329.29 31.23Q331.58 31.23 333.61 32.11Q335.65 32.99 337.17 34.52Q338.68 36.05 339.56 38.09Q340.44 40.14 340.44 42.45V56.74H334.06V42.45Q334.06 41.47 333.68 40.59Q333.31 39.71 332.66 39.06Q332 38.41 331.14 38.03Q330.27 37.66 329.29 37.66Q328.29 37.66 327.4 38.03Q326.51 38.41 325.86 39.06Q325.2 39.71 324.83 40.59Q324.46 41.47 324.46 42.45ZM357.51 56.74Q355.2 56.74 353.17 55.87Q351.14 54.99 349.61 53.46Q348.08 51.93 347.2 49.9Q346.32 47.87 346.32 45.55V38.13H343.22V31.77H346.32V21.77H352.68V31.77H362.35V38.13H352.68V45.55Q352.68 46.56 353.05 47.44Q353.43 48.31 354.08 48.97Q354.73 49.62 355.62 50.01Q356.51 50.39 357.51 50.39H362.35V56.74ZM375.88 50.62Q376.25 50.74 376.62 50.78Q377 50.81 377.37 50.81Q378.3 50.81 379.17 50.55Q380.03 50.3 380.79 49.82Q381.55 49.34 382.15 48.65Q382.74 47.96 383.12 47.12L387.79 51.82Q386.9 53.08 385.75 54.08Q384.59 55.09 383.25 55.79Q381.9 56.49 380.42 56.85Q378.94 57.21 377.37 57.21Q374.73 57.21 372.41 56.23Q370.08 55.25 368.34 53.5Q366.6 51.75 365.6 49.33Q364.59 46.91 364.59 44.01Q364.59 41.05 365.6 38.59Q366.6 36.14 368.34 34.41Q370.08 32.68 372.41 31.73Q374.73 30.77 377.37 30.77Q378.94 30.77 380.43 31.14Q381.93 31.51 383.27 32.22Q384.61 32.92 385.78 33.93Q386.95 34.95 387.84 36.21ZM379.15 37.47Q378.7 37.31 378.27 37.26Q377.84 37.22 377.37 37.22Q376.06 37.22 374.91 37.69Q373.75 38.17 372.9 39.06Q372.04 39.95 371.55 41.2Q371.06 42.45 371.06 44.01Q371.06 44.36 371.1 44.81Q371.13 45.25 371.21 45.71Q371.3 46.16 371.41 46.58Q371.53 47 371.72 47.33Z"/> </svg>';
+  // Logo du site (police Unbounded, en tracés SVG) : la couleur suit le thème via currentColor.
+  var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" height="22" aria-hidden="true" focusable="false" viewBox="6 16 420 50"> <path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="currentColor" d="M92.24 38.18H102.79Q104.73 38.18 105.81 37.29Q106.89 36.4 106.89 34.82Q106.89 33.19 105.81 32.32Q104.73 31.45 102.79 31.45H91.11L94.71 27.63V54.5H86.71V25.5H103.91Q107.24 25.5 109.71 26.68Q112.19 27.86 113.58 29.93Q114.97 32 114.97 34.82Q114.97 37.56 113.58 39.65Q112.19 41.74 109.71 42.9Q107.24 44.06 103.91 44.06H92.24ZM96.57 40.93H105.58L115.98 54.5H106.7ZM131.99 55.12Q127.96 55.12 124.81 53.65Q121.66 52.18 119.84 49.53Q118.03 46.88 118.03 43.36Q118.03 39.92 119.77 37.31Q121.51 34.7 124.54 33.23Q127.58 31.76 131.41 31.76Q135.39 31.76 138.19 33.48Q140.99 35.21 142.52 38.34Q144.05 41.47 144.05 45.72H124.41V40.97H139.6L137.01 42.63Q136.86 40.93 136.16 39.75Q135.47 38.57 134.32 37.95Q133.18 37.33 131.6 37.33Q129.86 37.33 128.62 38.03Q127.38 38.72 126.69 39.94Q125.99 41.16 125.99 42.78Q125.99 44.87 126.94 46.32Q127.89 47.77 129.72 48.55Q131.56 49.32 134.23 49.32Q136.66 49.32 139.08 48.68Q141.5 48.04 143.47 46.88V51.91Q141.19 53.46 138.27 54.29Q135.35 55.12 131.99 55.12ZM145.48 38.26V34.82L149.97 33L153.37 26.47H157.85V32.42H167.13V38.26H157.85V44.76Q157.85 47.15 158.82 48.12Q159.79 49.09 162.34 49.09Q163.96 49.09 165.22 48.8Q166.48 48.51 167.52 48.04V54Q166.36 54.42 164.47 54.77Q162.57 55.12 160.56 55.12Q156.89 55.12 154.55 54Q152.21 52.88 151.09 50.77Q149.97 48.66 149.97 45.84V38.26ZM169.69 32.42H177.73L179.04 40.31V54.5H171.15V39.85ZM189.41 32.07V38.8Q188.25 38.57 187.22 38.47Q186.2 38.38 185.35 38.38Q183.64 38.38 182.21 39.05Q180.78 39.73 179.91 41.28Q179.04 42.82 179.04 45.41L177.53 43.56Q177.84 41.16 178.46 39.05Q179.08 36.95 180.14 35.3Q181.21 33.66 182.79 32.71Q184.38 31.76 186.66 31.76Q187.32 31.76 188.01 31.84Q188.71 31.92 189.41 32.07ZM205.26 55.12Q201.01 55.12 197.83 53.67Q194.66 52.22 192.89 49.57Q191.11 46.92 191.11 43.48Q191.11 39.96 192.89 37.33Q194.66 34.7 197.83 33.23Q201.01 31.76 205.26 31.76Q209.47 31.76 212.66 33.23Q215.85 34.7 217.63 37.33Q219.41 39.96 219.41 43.48Q219.41 46.92 217.63 49.57Q215.85 52.22 212.66 53.67Q209.47 55.12 205.26 55.12ZM205.26 49.28Q207.19 49.28 208.56 48.58Q209.94 47.89 210.67 46.57Q211.41 45.26 211.41 43.48Q211.41 41.62 210.67 40.33Q209.94 39.03 208.56 38.34Q207.19 37.64 205.26 37.64Q203.33 37.64 201.93 38.34Q200.54 39.03 199.81 40.33Q199.07 41.62 199.07 43.44Q199.07 45.26 199.81 46.57Q200.54 47.89 201.93 48.58Q203.33 49.28 205.26 49.28ZM228.81 38.18H239.36Q241.3 38.18 242.38 37.29Q243.46 36.4 243.46 34.82Q243.46 33.19 242.38 32.32Q241.3 31.45 239.36 31.45H227.69L231.28 27.63V54.5H223.28V25.5H240.48Q243.81 25.5 246.28 26.68Q248.76 27.86 250.15 29.93Q251.54 32 251.54 34.82Q251.54 37.56 250.15 39.65Q248.76 41.74 246.28 42.9Q243.81 44.06 240.48 44.06H228.81ZM233.14 40.93H242.15L252.55 54.5H243.27ZM268.56 55.12Q264.53 55.12 261.38 53.65Q258.23 52.18 256.41 49.53Q254.6 46.88 254.6 43.36Q254.6 39.92 256.34 37.31Q258.08 34.7 261.11 33.23Q264.15 31.76 267.98 31.76Q271.96 31.76 274.76 33.48Q277.57 35.21 279.09 38.34Q280.62 41.47 280.62 45.72H260.98V40.97H276.17L273.58 42.63Q273.43 40.93 272.73 39.75Q272.04 38.57 270.9 37.95Q269.75 37.33 268.17 37.33Q266.43 37.33 265.19 38.03Q263.95 38.72 263.26 39.94Q262.56 41.16 262.56 42.78Q262.56 44.87 263.51 46.32Q264.46 47.77 266.29 48.55Q268.13 49.32 270.8 49.32Q273.23 49.32 275.65 48.68Q278.07 48.04 280.04 46.88V51.91Q277.76 53.46 274.84 54.29Q271.92 55.12 268.56 55.12ZM298.14 50.75 295.43 50.71 303.09 32.42H311.51L301.19 54.5H292.18L281.86 32.42H290.6ZM326.67 55.12Q322.65 55.12 319.5 53.65Q316.35 52.18 314.53 49.53Q312.71 46.88 312.71 43.36Q312.71 39.92 314.45 37.31Q316.19 34.7 319.23 33.23Q322.26 31.76 326.09 31.76Q330.07 31.76 332.88 33.48Q335.68 35.21 337.21 38.34Q338.74 41.47 338.74 45.72H319.09V40.97H334.29L331.7 42.63Q331.54 40.93 330.85 39.75Q330.15 38.57 329.01 37.95Q327.87 37.33 326.29 37.33Q324.55 37.33 323.31 38.03Q322.07 38.72 321.37 39.94Q320.68 41.16 320.68 42.78Q320.68 44.87 321.63 46.32Q322.57 47.77 324.41 48.55Q326.25 49.32 328.91 49.32Q331.35 49.32 333.77 48.68Q336.18 48.04 338.16 46.88V51.91Q335.87 53.46 332.96 54.29Q330.04 55.12 326.67 55.12ZM341.06 32.42H348.98L350.41 41.24V54.5H342.53V40.04ZM358.53 31.76Q361.7 31.76 363.95 33.04Q366.19 34.32 367.37 36.64Q368.55 38.96 368.55 42.13V54.5H360.66V43.29Q360.66 40.81 359.4 39.5Q358.15 38.18 355.79 38.18Q354.16 38.18 352.95 38.88Q351.73 39.57 351.07 40.85Q350.41 42.13 350.41 43.87L347.98 42.59Q348.44 39.07 349.95 36.66Q351.46 34.24 353.66 33Q355.87 31.76 358.53 31.76ZM370.67 38.26V34.82L375.16 33L378.56 26.47H383.05V32.42H392.33V38.26H383.05V44.76Q383.05 47.15 384.01 48.12Q384.98 49.09 387.53 49.09Q389.16 49.09 390.41 48.8Q391.67 48.51 392.71 48.04V54Q391.55 54.42 389.66 54.77Q387.77 55.12 385.75 55.12Q382.08 55.12 379.74 54Q377.4 52.88 376.28 50.77Q375.16 48.66 375.16 45.84V38.26ZM408.88 55.12Q404.86 55.12 401.7 53.65Q398.55 52.18 396.74 49.53Q394.92 46.88 394.92 43.36Q394.92 39.92 396.66 37.31Q398.4 34.7 401.43 33.23Q404.47 31.76 408.3 31.76Q412.28 31.76 415.08 33.48Q417.89 35.21 419.41 38.34Q420.94 41.47 420.94 45.72H401.3V40.97H416.49L413.9 42.63Q413.75 40.93 413.05 39.75Q412.36 38.57 411.22 37.95Q410.08 37.33 408.49 37.33Q406.75 37.33 405.51 38.03Q404.28 38.72 403.58 39.94Q402.88 41.16 402.88 42.78Q402.88 44.87 403.83 46.32Q404.78 47.77 406.62 48.55Q408.45 49.32 411.12 49.32Q413.56 49.32 415.97 48.68Q418.39 48.04 420.36 46.88V51.91Q418.08 53.46 415.16 54.29Q412.24 55.12 408.88 55.12Z"/> </svg>';
   function marque() { var b = el("b", { class: "marque", role: "img", "aria-label": "RetroRevente" }); b.innerHTML = LOGO; return b; }
   var CSS = ":host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}" +
     ".b{--anis:#D4F57A;--anis-p:#F1FCD0;--vert-p:#E9F7EC;--vert-t:#CBEBD3;--vert-f:#14401F;--rouge-p:#FCEDEA;--rouge-t:#F6D3CB;--rouge-f:#6A1E12;--nuit:#1A1A1A;--carte:#fff;--papier:#F6F6F1;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;--titre:'RR Rubik',ui-rounded,'Arial Rounded MT Bold',system-ui,sans-serif;--texte:'RR Figtree','Avenir Next',ui-sans-serif,system-ui,sans-serif;--ease:cubic-bezier(.2,.8,.2,1);" +
@@ -295,7 +370,7 @@
     ".p{position:relative;width:360px;max-width:calc(100vw - 36px);max-height:calc(100vh - 36px);overflow:auto;background:var(--carte);border-radius:26px;box-shadow:0 18px 50px rgba(0,0,0,.3);padding:18px;display:flex;flex-direction:column;gap:12px;animation:monte .3s var(--ease)}" +
     "@keyframes monte{from{opacity:0;transform:translateY(10px) scale(.98)}}" +
     ".t{display:flex;align-items:center;justify-content:space-between;gap:8px}.t b{font:700 17px/1 var(--titre);letter-spacing:-.3px;display:flex;align-items:center;gap:8px}" +
-    ".marque{display:flex;color:var(--encre)}.marque svg{display:block;height:26px;width:auto}" +
+    ".marque{display:flex;color:var(--encre)}.marque svg{display:block;height:22px;width:auto}" +
     ".logo{background:var(--anis);color:var(--nuit);border-radius:8px;padding:4px 6px;font:800 13px/1 var(--titre)}" +
     ".x{border:0;background:none;width:32px;height:32px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;color:var(--gris)}.x:hover{background:var(--papier);color:var(--encre)}" +
     /* sélecteur d'annonce */
