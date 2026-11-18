@@ -50,6 +50,16 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     obj = lab == 1 + int(np.argmax(tailles))
     obj = ndimage.binary_fill_holes(obj)
     pres = ndimage.binary_dilation(obj, iterations=max(6, W // 120))
+    # Repérage fiable ? Si l'objet touche un bord (photo prise de près, objet coupé, tenu en main),
+    # s'il est minuscule, énorme ou de forme confuse (main + objet), on ne recadre pas et on n'efface rien :
+    # mieux vaut la vraie photo entière qu'un zoom au hasard qui coupe l'article.
+    ys_, xs_ = np.nonzero(obj)
+    bx0, bx1, by0, by1 = xs_.min(), xs_.max(), ys_.min(), ys_.max()
+    bord = max(2, int(min(H, W) * .015))
+    touche = bx0 <= bord or by0 <= bord or bx1 >= W - 1 - bord or by1 >= H - 1 - bord
+    frac = float(obj.mean())
+    rempli = obj.sum() / float((bx1 - bx0 + 1) * (by1 - by0 + 1))
+    fiable = (not touche) and .03 < frac < .85 and rempli > .45
     # 1) objets à côté : autres zones repérées, assez grandes, détachées du jeu
     bazar = np.zeros_like(obj)
     for k in range(n):
@@ -73,7 +83,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
                 retenus.append(k + 1)
         if 0 < len(retenus) <= 25:     # au-delà, c'est la texture du fond, pas de la poussière
             poussiere = np.isin(lp, retenus)
-    if bazar.any() and bazar.mean() < .22:
+    if fiable and bazar.any() and bazar.mean() < .22:
         zone = cv2.dilate(bazar.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=max(4, W // 160))
         img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
     if poussiere.any():
@@ -101,7 +111,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     w_, v = np.linalg.eigh(np.cov(np.vstack([xs - cx, ys - cy])))
     ang = np.degrees(np.arctan2(v[1, 1], v[0, 1]))
     d = ((ang + 45) % 90) - 45
-    if abs(d) > 15:
+    if abs(d) > 15 or not fiable:
         d = 0
     a = d - rot          # degrés, sens trigonométrique pour OpenCV
     M = cv2.getRotationMatrix2D((W / 2, H / 2), a, 1.0)
@@ -115,7 +125,9 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
     marge = int(max(x1 - x0, y1 - y0) * .13)
     X0, X1, Y0, Y1 = max(0, x0 - marge), min(NW, x1 + marge), max(0, y0 - marge), min(NH, y1 + marge)
-    for _ in range(40):   # rogne tant que les coins tombent hors de la photo d'origine
+    if not fiable:        # photo entière (seulement le quart de tour demandé)
+        X0, X1, Y0, Y1 = 0, NW, 0, NH
+    for _ in range(40 if fiable else 0):   # rogne tant que les coins tombent hors de la photo d'origine
         if ok[Y0, X0] and ok[Y0, X1 - 1] and ok[Y1 - 1, X0] and ok[Y1 - 1, X1 - 1]:
             break
         X0 = min(x0, X0 + 4); X1 = max(x1 + 1, X1 - 4); Y0 = min(y0, Y0 + 4); Y1 = max(y1 + 1, Y1 - 4)

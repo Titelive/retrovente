@@ -148,6 +148,11 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .galerie .dep{position:absolute;bottom:4px;display:flex;gap:2px;right:4px}
 .galerie .dep button{width:22px;height:22px;border:0;border-radius:7px;background:rgba(26,26,26,.75);color:#fff;font-size:12px;cursor:pointer;padding:0;line-height:22px}
 .galerie .dep button:disabled{opacity:.25}
+/* Flèches de déplacement : seulement sur la photo déjà choisie (et au survol à la souris), pour ne plus les toucher par erreur en choisissant une vignette.
+   À la souris, on peut aussi glisser les vignettes. */
+.galerie .dep{display:none}
+.galerie li.sel .dep{display:flex}
+@media(hover:hover) and (pointer:fine){.galerie li.sel .dep{display:none}.galerie li.sel:hover .dep,.galerie li.sel:focus-within .dep{display:flex}}
 .galerie .ajout{display:grid;place-items:center;cursor:pointer;color:var(--gris);font-size:28px;font-weight:300;box-shadow:inset 0 0 0 2px var(--trait)}
 .galerie .ajout:hover{color:var(--encre);box-shadow:inset 0 0 0 2px var(--encre)}
 .leg{margin-top:10px}.leg b{background:var(--anis);color:var(--nuit);border-radius:999px;padding:0 7px;font-size:12px}
@@ -236,6 +241,17 @@ body.fiche-ouverte #toast{bottom:100px}
 .sous-barre .pill{background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait)}
 .sous-barre .pill b{color:var(--anis-t)}
 .sous-barre .btn.clair{gap:8px;padding:6px 14px 6px 6px}
+/* « Nouvel article » toujours à portée, depuis la fiche ou le compte */
+.nouv{position:relative}
+.nouv>.btn{gap:6px;padding:8px 14px}.nouv>.btn svg{width:16px;height:16px}
+.nouv-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:290px;background:var(--carte);border-radius:18px;padding:6px;box-shadow:0 0 0 1px var(--trait),0 24px 50px -18px rgba(0,0,0,.45);transform-origin:top right;animation:menu-in .22s var(--ease)}
+@keyframes menu-in{from{opacity:0;transform:translateY(-6px) scale(.97)}}
+.nouv-menu label,.nouv-menu button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:12px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.nouv-menu label:hover,.nouv-menu button:hover,.nouv-menu :focus-visible{background:rgba(var(--anis-rgb),.18);outline:0}
+.nouv-menu i{font-style:normal;font-size:20px;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--anis-p);flex:none}
+.nouv-menu span{font-weight:600;font-size:14.5px;line-height:1.25}.nouv-menu small{display:block;font-weight:400;font-size:12.5px;color:var(--gris)}
+body:has(#ajoutMenu:not([hidden])) .fab-save{visibility:hidden}
+@media(max-width:640px){.nouv>.btn span{display:none}.nouv>.btn{padding:0;width:36px;height:36px;justify-content:center}.nouv>.btn svg{width:18px;height:18px}.nouv-menu{position:fixed;z-index:90;left:12px;right:12px;top:auto;bottom:12px;width:auto;transform-origin:bottom center}}
 @media(max-width:560px){.sous-barre #bNom{display:none}.sous-barre .btn.clair{padding:4px}.sous-barre .pill{font-size:12px;padding:7px 10px}}
 #auth{min-height:calc(100vh - 126px)}
 
@@ -245,6 +261,56 @@ body.fiche-ouverte #toast{bottom:100px}
 /* Fiche harmonisée : la colonne photo est une carte comme les autres */
 .photos-carte .photo{border-radius:18px;box-shadow:none;background:var(--papier)}
 .photos-carte .note{margin:0}
+/* Fiche : fond neutre, sans les lueurs qui passaient derrière les photos */
+body.fiche-ouverte .lueurs{display:none}
+/* ===== Fiche « tout sous les yeux » (ordinateur) : la fiche tient dans la fenêtre, sans faire défiler.
+   Photos à gauche, à la hauteur de l'écran ; à droite l'IA puis des onglets Le jeu · Prix · L'annonce · Suivi. ===== */
+.onglets{display:none}
+@media(min-width:1100px) and (min-height:620px){
+  html.etabli body.fiche-ouverte .pied-site{display:none}
+  html.etabli #fiche .haut .wrap{padding-top:12px}
+  html.etabli #fiche .haut h2{font-size:30px}
+  html.etabli #fiche .grille{height:var(--dispo,auto);padding:12px 0 0;align-items:stretch;box-sizing:border-box}
+  html.etabli #fiche .grille>.col{min-height:0;overflow:hidden}
+  html.etabli #fiche .g-photo{position:static}
+  html.etabli #fiche .photos-carte{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:16px 18px}
+  html.etabli #fiche .photos-carte>header{display:none}
+  html.etabli #fiche .photos-carte .photo{flex:1 1 auto;min-height:120px;aspect-ratio:auto}
+  html.etabli #fiche .galerie{margin:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 2px 6px;flex:none}
+  html.etabli #fiche .galerie li{width:60px;height:60px;flex:none;border-radius:13px}
+  html.etabli #fiche .photos-carte .note{display:none}
+  html.etabli #fiche .photos-carte .rangee{gap:6px}html.etabli #fiche .photos-carte .rangee .btn{padding:7px 12px;font-size:13px}
+  html.etabli #fiche .photos-carte .f.leg{flex:none}
+  html.etabli #fiche .g-champs{gap:12px}
+  html.etabli #fiche .dial{padding:14px 18px;gap:8px;flex:none}
+  html.etabli #fiche .dial-aide{display:none}
+  html.etabli #fiche .dial-sug{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}html.etabli #fiche .dial-sug button{flex:none;white-space:nowrap}
+  html.etabli #fiche .photos-carte .f.leg input{padding-top:9px;padding-bottom:9px}
+  html.etabli #fiche .dial-fil{max-height:150px}
+  html.etabli #fiche .dial-in textarea{min-height:42px}
+  html.etabli #fiche .dial-in .btn{width:42px;height:42px}
+  html.etabli #fiche .onglets{display:flex;gap:4px;flex:none;padding:4px;border-radius:16px;background:var(--carte);box-shadow:0 0 0 1px var(--trait)}
+  html.etabli #fiche .onglets button{flex:1;border:0;background:none;border-radius:12px;padding:9px 10px;font:600 14px/1 var(--texte);color:var(--gris);cursor:pointer;position:relative;transition:background-color .2s,color .2s}
+  html.etabli #fiche .onglets button:hover{color:var(--encre)}
+  html.etabli #fiche .onglets button[aria-pressed="true"]{background:var(--anis);color:var(--nuit)}
+  html.etabli #fiche .onglets button.neuf::after{content:"";position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--anis-f);box-shadow:0 0 0 2px var(--carte)}
+  html.etabli #fiche [data-onglet]{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px}
+  html.etabli #fiche [data-onglet]:not(.actif){display:none}
+  html.etabli #fiche [data-onglet="annonce"].actif{display:flex;flex-direction:column}
+  html.etabli #fiche [data-onglet="annonce"] .f:has(#f_texteAnnonce){flex:1;display:flex;flex-direction:column}
+  html.etabli #fiche #f_texteAnnonce{flex:1;min-height:90px}
+  html.etabli #fiche .champs{gap:8px 12px}
+  html.etabli #fiche [data-onglet="article"] .champs{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense}
+  html.etabli #fiche [data-onglet="article"] .champs>.l2.nopkm:has(#f_origine){grid-column:span 1}
+  html.etabli #fiche [data-onglet="article"] .champs>.partic{grid-column:span 2}
+  html.etabli #fiche [data-onglet] select{height:42px;padding-top:0;padding-bottom:0}
+  html.etabli #fiche [data-onglet] label.f,html.etabli #fiche [data-onglet] .f{gap:4px;font-size:12.5px}
+  html.etabli #fiche [data-onglet] :is(input[type=text],input[type=number],input[type=date],input[type=url],select){padding-top:9px;padding-bottom:9px}
+  html.etabli #fiche [data-onglet]>h3,html.etabli #fiche [data-onglet]>header h3{display:none}
+  html.etabli #fiche [data-onglet]>header{justify-content:flex-end;margin-bottom:6px}
+  html.etabli #fiche .g-champs>.pub{display:none}
+}
+
 .g-champs{display:flex;flex-direction:column;gap:20px}
 /* Dock flottant : Le Bon Coin + Enregistrer */
 .fab-save{display:flex;gap:10px;align-items:center}
@@ -453,6 +519,12 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 <div class="sous-barre"><div class="wrap">
   <nav aria-label="Fil d'Ariane"><ol class="fil" id="fil"><li><a href="/">Accueil</a></li><li aria-current="page">Mes articles</li></ol></nav>
   <span class="pill" id="quota" hidden></span>
+  <div class="nouv" id="ajout" hidden><button class="btn petit" id="bNouveau" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="ajoutMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Nouvel article</span></button>
+    <div class="nouv-menu" id="ajoutMenu" role="menu" hidden>
+      <label role="menuitem" for="photoIn"><i>📷</i><span>En photo<small>L'IA remplit la fiche</small></span></label>
+      <label role="menuitem" for="cartesIn"><i>🃏</i><span>Plusieurs cartes Pokémon<small>Une photo de classeur ou de cartes étalées</small></span></label>
+      <button role="menuitem" type="button" id="ajoutManuel"><i>✍️</i><span>À la main<small>Sans photo pour l'instant</small></span></button>
+    </div></div>
   <button class="btn clair petit" id="bCompte" type="button" hidden><span class="av-mini" id="bAvatar" aria-hidden="true"></span><span id="bNom">Mon compte</span></button>
 </div></div>
 
@@ -547,7 +619,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <div class="dial-fil" id="dFil" hidden aria-live="polite"></div>
         <form class="dial-in" id="dForm"><textarea id="dTexte" rows="1" maxlength="1500" placeholder="Écris à l'IA…" aria-label="Message à l'IA"></textarea><button class="btn" id="dEnv" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
       </section>
-      <section class="carte bloc">
+      <nav class="onglets" id="fOnglets" aria-label="Parties de la fiche"><button type="button" data-o="article" aria-pressed="true" id="oArticle">Le jeu</button><button type="button" data-o="prix" aria-pressed="false">Prix</button><button type="button" data-o="annonce" aria-pressed="false">L'annonce</button><button type="button" data-o="suivi" aria-pressed="false">Suivi</button></nav>
+      <section class="carte bloc" data-onglet="article">
         <h3 id="fBlocTitre">Le jeu</h3>
         <div class="champs">
           <label class="f l2"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
@@ -568,18 +641,18 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
         </div>
       </section>
-      <section class="carte bloc">
+      <section class="carte bloc" data-onglet="prix">
         <header><h3>Prix</h3><button class="btn clair petit" type="button" id="fCote">Trouver le bon prix</button></header>
         <div class="cote" id="fCoteBox" hidden></div>
         <label class="f">Prix affiché sur l'annonce (€)<input type="number" id="f_prixDemande" min="0" step="1" inputmode="decimal"></label>
       </section>
-      <section class="carte bloc">
+      <section class="carte bloc" data-onglet="annonce">
         <h3>L'annonce</h3>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
         <label class="f">Lien de l'annonce une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
       </section>
-      <section class="carte bloc">
+      <section class="carte bloc" data-onglet="suivi">
         <h3>Suivi</h3>
         <div class="champs">
           <label class="f">Statut<select id="f_statut"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></label>
@@ -804,7 +877,7 @@ function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>p
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
-function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
+function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";$("ajout").hidden=!(v==="fiche"||v==="compte");fermerAjout();if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
   $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
   var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
@@ -979,7 +1052,7 @@ function zoneModif(){$("fModifZone").hidden=estCarte()||$("f_origine").value!=="
 function estCarte(){return $("f_categorie").value==="cartes"}
 var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
 function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c});
-  $("fBlocTitre").textContent=c?"La carte":"Le jeu";$("lTitre").textContent=c?"Nom de la carte":"Nom du jeu";$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
+  $("fBlocTitre").textContent=c?"La carte":"Le jeu";$("oArticle").textContent=c?"La carte":"Le jeu";$("lTitre").textContent=c?"Nom de la carte":"Nom du jeu";$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
   $("f_titre").placeholder=c?"ex. Dracaufeu":"ex. Super Mario 64";$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
   if(c)$("f_contenu").value="";zoneModif();
   var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
@@ -1169,7 +1242,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   $("fTitre").textContent=o?o.titre:"Nouvel article";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos()}
-  montrer("fiche",o?o.titre:"Nouvel article");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer()}
+  montrer("fiche",o?o.titre:"Nouvel article");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article")}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -1210,6 +1283,36 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:null}});SEL=0;afficher();
     $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();toast("Brouillon repris.","ok")})});
 $("fFermer").onclick=fermerFiche;
+
+/* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
+(function(){var mq=matchMedia("(min-width:1100px) and (min-height:620px)"),O=$("fOnglets");
+  function sections(){return [].slice.call(document.querySelectorAll("#fiche [data-onglet]"))}
+  function choisir(o){sections().forEach(function(s){s.classList.toggle("actif",s.dataset.onglet===o)});[].forEach.call(O.querySelectorAll("button"),function(b){var on=b.dataset.o===o;b.setAttribute("aria-pressed",on?"true":"false");if(on)b.classList.remove("neuf")})}
+  window.ongletFiche=choisir;
+  function dispo(){if(!mq.matches||$("fiche").hidden)return;var g=document.querySelector("#fiche .grille"),F=$("fiche"),haut=g.getBoundingClientRect().top+scrollY,h=Math.max(480,innerHeight-haut);F.style.setProperty("--dispo",h+"px");
+    var trop=document.documentElement.scrollHeight-innerHeight;if(trop>0&&h-trop>=480)F.style.setProperty("--dispo",(h-trop)+"px")}
+  function maj(){document.documentElement.classList.toggle("etabli",mq.matches);dispo()}
+  (mq.addEventListener?mq.addEventListener("change",maj):mq.addListener(maj));addEventListener("resize",dispo);
+  O.addEventListener("click",function(e){var b=e.target.closest("button");if(b)choisir(b.dataset.o)});
+  choisir("article");maj();
+  new MutationObserver(function(){if(!$("fiche").hidden){scrollTo(0,0);requestAnimationFrame(dispo)}}).observe($("fiche"),{attributes:true,attributeFilter:["hidden"]});
+  /* un champ d'un autre onglet qui reçoit le focus (erreur, IA, copie) : on affiche son onglet */
+  var foc=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(){var s=this.closest&&this.closest("#fiche [data-onglet]");if(s&&!s.classList.contains("actif")&&document.documentElement.classList.contains("etabli"))choisir(s.dataset.onglet);return foc.apply(this,arguments)};
+  document.addEventListener("invalid",function(e){var s=e.target.closest&&e.target.closest("#fiche [data-onglet]");if(s)choisir(s.dataset.onglet)},true);
+  /* l'IA ou l'estimation remplissent un autre onglet : petit point pour le signaler */
+  var vals={};function photo(){sections().forEach(function(s){[].forEach.call(s.querySelectorAll("input,select,textarea"),function(x){vals[x.id]=x.value})})}
+  setInterval(function(){if($("fiche").hidden||!document.documentElement.classList.contains("etabli"))return;sections().forEach(function(s){if(s.classList.contains("actif"))return;var ch=[].some.call(s.querySelectorAll("input,select,textarea"),function(x){return x.id in vals&&vals[x.id]!==x.value});if(ch){var b=O.querySelector('[data-o="'+s.dataset.onglet+'"]');b&&b.classList.add("neuf")}});photo()},700);
+})();
+/* Menu « Nouvel article » : un article en cours de modification est gardé en brouillon avant d'en commencer un autre */
+function fermerAjout(){var m=$("ajoutMenu");if(m&&!m.hidden){m.hidden=true;$("bNouveau").setAttribute("aria-expanded","false")}}
+$("bNouveau").onclick=function(e){e.stopPropagation();var m=$("ajoutMenu"),o=m.hidden;m.hidden=!o;this.setAttribute("aria-expanded",String(o));if(o){var p=m.querySelector("label,button");p&&p.focus()}};
+$("ajoutMenu").addEventListener("click",function(e){var it=e.target.closest("label,button");if(!it)return;
+  if(ME&&ME.quota&&ME.quota.reste===0){e.preventDefault();fermerAjout();quotaPlein();return}
+  if(sale()){garder().then(dessinerBrouillons);SNAP=null;toast("L'article en cours est gardé en brouillon, tu le retrouves dans Mes articles.","ok")}
+  setTimeout(fermerAjout,0)},true);
+$("ajoutManuel").onclick=function(){ouvrirFiche(null);$("f_titre").focus()};
+document.addEventListener("click",function(e){if(!e.target.closest(".nouv"))fermerAjout()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("ajoutMenu").hidden){fermerAjout();$("bNouveau").focus()}});
 $("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvrirFiche(null);$("f_titre").focus()};
 $("fSave").onclick=function(){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
   if(!o.titre.trim()){toast("Indique le nom de l'article.","bad");$("f_titre").focus();return}
