@@ -192,13 +192,26 @@ export async function handleApi(req) {
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
     }
     if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
+    // Lien de l'annonce publiée, repéré par l'extension sur Le Bon Coin : seul champ que la clé peut écrire.
+    if (p === "/api/extension/lien" && method === "POST") {
+      const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
+      if (!it) return { status: 404, json: { error: "Jeu introuvable." }, headers: CORS };
+      let url = ""; try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
+      if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
+      if (it.annonce !== url) {
+        const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
+        d.annonce = url;
+        db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), now(), it.id, eu.id);
+      }
+      return { status: 200, json: { ok: true, url }, headers: CORS };
+    }
     // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
     if (p === "/api/extension/reponse" && method === "POST") {
       const r = rights(eu), n = usageOf(eu.id).reponse || 0, cap = r.quota === Infinity ? FAIR_USE : r.quota * 6 + 20;
       if (n >= cap || !allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       const tous = listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve").map(annonceLbc);
-      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous);
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
     }

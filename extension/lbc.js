@@ -151,6 +151,8 @@
   });
   function demarrerAuto() {
     observateur.disconnect();
+    // Mémorise le jeu en cours de dépôt : son lien sera repris tout seul une fois l'annonce publiée.
+    if (etat.choisie && !etat.choisie.lot) { try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
     if (!etat.auto || !etat.choisie) return;
     observateur.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style"] });
     remplir(false).catch(function () {});
@@ -211,11 +213,16 @@
     ".rail{width:40px;height:24px;border-radius:999px;background:var(--trait);position:relative;transition:background .2s;flex:none}.rail::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}" +
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
     ".reps{display:flex;flex-direction:column;gap:6px;max-height:min(46vh,380px);overflow:auto;margin:0 -4px;padding:0 4px}" +
-    ".rep{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--trait);background:var(--papier);border-radius:14px;padding:9px 12px;cursor:pointer;transition:border-color .2s,background .2s}.rep:hover{border-color:var(--anis);background:var(--anis-p)}" +
+    ".rep{display:flex;flex-direction:row;align-items:flex-start;gap:10px;text-align:left;border:1px solid var(--trait);background:var(--papier);border-radius:14px;padding:9px 12px;cursor:pointer;transition:border-color .2s,background .2s}.rep:hover{border-color:var(--anis);background:var(--anis-p)}" +
     ".ia{display:flex;flex-direction:column;gap:7px;background:var(--nuit);color:#fff;border-radius:18px;padding:12px;--papier:rgba(255,255,255,.06);--trait:rgba(255,255,255,.14);--gris:#B8B8B0;--encre:#fff}" +
     ".ia-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.ia-t b{font:700 14px/1.2 var(--titre);display:flex;gap:6px;align-items:center}.etoile{color:var(--anis)}" +
     ".ia .mini{color:#fff}.ia .mini:hover{color:var(--nuit)}.ia-r{margin:0;font-size:12.5px;color:#B8B8B0}.ia-r.charge{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}" +
     ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
+    ".ap{font-style:normal;font:700 10.5px/1 var(--texte);letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:3px 7px;margin-right:7px;vertical-align:1px;background:rgba(255,255,255,.12);color:#fff}.ap-contre_offre{background:var(--anis);color:var(--nuit)}.ap-couper_court{background:#F3B9AE;color:#5A1A10}.ap-accepter{background:#BFE8C8;color:#14401F}" +
+    ".rep .ico{flex:none;width:30px;height:30px;border-radius:10px;background:var(--anis-p);color:var(--nuit);display:grid;place-items:center}.rep .ic{width:17px;height:17px}.rep .q{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
+    ".rep .ap2{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rep strong{color:var(--encre);font-weight:700}" +
+    ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:var(--anis)}" +
+    ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     ".rep b{font:600 13.5px/1.3 var(--titre)}.rep span{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
     "button:focus-visible{outline:2px solid var(--anis);outline-offset:2px}.cherche input:focus{outline:none}.cherche:focus-within{box-shadow:inset 0 0 0 1.5px var(--anis-f,#BFE54C)}";
@@ -316,14 +323,41 @@
     return { mots: mots, l: etat.annonces.filter(function (a) { var h = norm([a.titre, a.nom, a.plateforme, alias(a.plateforme || a.titre), ETAT_TXT[a.etat], prixTxt(a)].join(" ")); return mots.every(function (m) { return h.indexOf(m) >= 0; }); }) };
   }
 
+  /* Un émoji par jeu, pour le repérer d'un coup d'œil : d'après le nom quand on le reconnaît, sinon tiré d'une
+     palette, et toujours différent d'un jeu à l'autre dans la liste. */
+  var EMOJIS_JEU = [
+    [/mario ?kart/, "🏎️"], [/yoshi/, "🦖"], [/luigi/, "👻"], [/mario|peach/, "🍄"], [/zelda|link/, "🗡️"], [/kirby/, "🌸"], [/conker/, "🐿️"], [/pok[eé]mon|pikachu/, "⚡"],
+    [/sonic/, "🦔"], [/donkey|diddy/, "🦍"], [/banjo/, "🐻"], [/final fantasy/, "🔮"], [/indiana|jones/, "🤠"], [/metroid/, "🚀"], [/star ?wars|rogue squadron/, "🌌"],
+    [/fifa|pes|foot|soccer/, "⚽"], [/tetris/, "🧱"], [/crash/, "🌀"], [/spyro|dragon/, "🐉"], [/goldeneye|007|bond/, "🕵️"], [/resident evil|zombie/, "🧟"],
+    [/street fighter|tekken|smash/, "🥊"], [/tony hawk|skate/, "🛹"], [/gran turismo|f-?zero|wave race|course|racing/, "🏁"], [/metal gear/, "📦"], [/castlevania/, "🦇"],
+    [/pac-?man/, "🟡"], [/tomb raider/, "🏺"], [/harry potter/, "🧙"], [/lego/, "🧩"], [/rayman/, "✊"], [/animal crossing/, "🍃"], [/pikmin/, "🌱"], [/fire emblem/, "🔥"],
+    [/kingdom hearts/, "🗝️"], [/gta|grand theft/, "🚓"], [/call of duty|battlefield/, "🎖️"], [/minecraft/, "⛏️"], [/splatoon/, "🦑"], [/xenoblade|chrono/, "⏳"],
+  ];
+  var PALETTE = ["🎮", "🕹️", "👾", "🎲", "💎", "🌟", "🍀", "🎯", "🚀", "🦄", "🌈", "🍒", "🐸", "🦊", "🐙", "🌵", "🍉", "🎸", "🛸", "🪐", "🐢", "🦋", "🍩", "🎈", "🧸", "🐳", "🦉", "🌻"];
+  function emojis(l) {
+    var pris = {}, out = {};
+    l.forEach(function (a) {
+      var n = norm(a.titre + " " + (a.nom || "")), e = "";
+      if (a.lot) e = "📦";
+      else if (a.categorie === "consoles") e = "🕹️";
+      var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
+      if (!e || pris[e]) { var h = 0; for (var i = 0; i < String(a.id).length; i++) h = (h * 31 + String(a.id).charCodeAt(i)) >>> 0; for (var j = 0; j < PALETTE.length; j++) { var c = PALETTE[(h + j) % PALETTE.length]; if (!pris[c]) { e = c; break; } } }
+      pris[e] = true; out[a.id] = e;
+    });
+    return out;
+  }
+  var emojiDe = function (a) { if (a && a.lot) return "📦"; if (!etat.emojis) etat.emojis = emojis(etat.annonces || []); return (a && etat.emojis[a.id]) || "🎮"; };
+
   function dessiner() {
+    etat.emojis = emojis(etat.annonces || []);
     var corps = ombre.querySelector(".corps"); corps.textContent = "";
     var l = etat.annonces;
     if (!l.length) { statut("Aucun jeu « En vente » dans RetroRevente. Prépare une annonce dans l'appli, puis reviens ici.", ""); corps.appendChild(el("button", { class: "go", texte: "Ouvrir RetroRevente", onclick: function () { window.open("https://retrorevente.fr/app/", "_blank", "noopener"); } })); return; }
     // Par défaut : la plus récente qui n'a pas encore de lien d'annonce.
-    if (!etat.choisie || !l.some(function (a) { return a.id === etat.choisie.id; })) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
+    if (!etat.choisie || (!etat.choisie.lot && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
     var a = etat.choisie;
     var choix = el("button", { class: "choix", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Annonce à déposer : " + a.titre + ". Changer (" + RACCOURCI + ")", onclick: function () { liste.hidden ? ouvrirListe() : fermerListe(); } }, [
+      el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) }),
       el("span", { class: "q" }, [el("span", { class: "nom", texte: a.titre }), el("span", { class: "meta", texte: metaTxt(a) || "Changer de jeu" })]),
       a.prix != null ? el("span", { class: "px", texte: prixTxt(a) }) : null,
       el("kbd", { class: "k", texte: RACCOURCI }),
@@ -342,7 +376,7 @@
         if (x.publiee) nom.appendChild(el("span", { class: "pub", texte: "publiée" }));
         opts.appendChild(el("li", { class: "opt" + (i === actif ? " actif" : ""), id: "rr-o" + i, role: "option", "aria-selected": String(x.id === a.id),
           onmousedown: function (e) { e.preventDefault(); }, onmousemove: function () { if (actif !== i) { actif = i; marquer(); } }, onclick: function () { prendre(x); } },
-          [el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
+          [el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(x) }), el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
       });
       marquer();
     }
@@ -376,6 +410,7 @@
       var ia = el("div", { class: "ia" });
       corps.appendChild(el("div", { class: "pile" }, [haut, ia, el("p", { class: "grp", texte: "Réponses types" }), reponsesUI(a)]));
       dessinerIA(ia);
+      statut(a.lot ? "Lot de " + a.n + " articles à " + a.prix + " € repéré. Un clic place la réponse dans la zone de message." : "Un clic place la réponse dans la zone de message : relis, puis envoie.", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -395,16 +430,94 @@
   }
 
   /* ===== Réponses types aux acheteurs (messagerie) ===== */
+  // La colonne de la conversation ouverte : on remonte depuis la zone de message tant que la largeur reste celle
+  // d'une colonne (on évite la liste des autres conversations et l'encadré de l'annonce).
+  function colonneConversation() {
+    var z = zoneMessage(); if (!z) return document.querySelector("main") || document.body;
+    var w0 = Math.max(260, (z.closest("form") || z.parentElement || z).getBoundingClientRect().width), c = z;
+    while (c.parentElement && c.parentElement !== document.body && c.parentElement.getBoundingClientRect().width <= w0 * 1.3 + 60) c = c.parentElement;
+    return c;
+  }
+  // L'encadré de l'annonce discutée (à côté de la conversation : « Lot de 2 articles · 203 € » ou titre et prix).
+  function texteEncadre() {
+    var c = colonneConversation(), t = "", x = c.nextElementSibling;
+    while (x) { t += "\n" + (x.innerText || ""); x = x.nextElementSibling; }
+    if (!t.trim() && c.parentElement) { var y = c.parentElement.nextElementSibling; while (y) { t += "\n" + (y.innerText || ""); y = y.nextElementSibling; } }
+    return t.slice(0, 1500);
+  }
+  var entier = function (v) { var n = Math.round(parseFloat(String(v).replace(/\s/g, "").replace(",", "."))); return isFinite(n) && n > 0 ? n : null; };
+  // Contenu d'un lot : quand la fenêtre « Lot de 2 articles » est ouverte, on lit ses lignes (une image et un titre
+  // par jeu). On s'en souvient pour la suite de la conversation (même lot = même nombre d'articles et même prix).
+  var lotsVus = {};
+  try { RR.storage.local.get("lots").then(function (r) { if (r && r.lots) lotsVus = Object.assign(r.lots, lotsVus); }); } catch (e) {}
+  function articlesLotAffiches(n) {
+    var titres = [].filter.call(document.querySelectorAll("h1, h2, h3, h4, p, span, div"), function (x) {
+      return x.childElementCount === 0 && visible(x) && new RegExp("^\\s*lot de " + n + " articles?\\s*$", "i").test(x.textContent || "") && !(hote && hote.contains(x));
+    });
+    for (var i = 0; i < titres.length; i++) {
+      var c = titres[i];
+      for (var k = 0; k < 6 && c.parentElement && c.parentElement !== document.body; k++) {
+        c = c.parentElement;
+        var lignes = [].filter.call(c.querySelectorAll("a, button, li, [role=button], [role=link]"), function (x) {
+          return x.querySelector("img") && !x.parentElement.closest("a, button, li, [role=button], [role=link]") && !x.contains(titres[i]);
+        }).map(function (x) { return (x.innerText || "").replace(/\s+/g, " ").trim(); })
+          .filter(function (t) { return t.length >= 6 && t.length <= 200 && !/€|il y a|\d{1,2}:\d{2}/i.test(t); });
+        if (lignes.length >= n) return lignes.length === n ? lignes : null;
+      }
+    }
+    return null;
+  }
+  // Titre court pour les phrases : « Astérix and the Great Rescue – Sega Mega Drive PAL » → « Astérix and the Great Rescue ».
+  function titreCourt(t) {
+    return String(t || "").split(/\s[–—-]\s|\s\(|\s(?:nintendo|n64|snes|super nintendo|nes|game ?boy|gba|gbc|sega|mega ?drive|master system|dreamcast|saturn|playstation|ps[1-5]|psp|xbox|wii|gamecube|ds|3ds|switch|pal|ntsc|eur|fr|loose|complet|cib)\b/i)[0].trim() || t;
+  }
+  function lotLu() {
+    var m = /lot de (\d{1,2}) articles?\s*\n?\s*(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/i.exec(texteEncadre() + "\n" + colonneConversation().innerText.slice(0, 600));
+    if (!m) return null;
+    var lot = { n: +m[1], prix: entier(m[2]) }, cle = lot.n + "|" + lot.prix, vus = articlesLotAffiches(lot.n);
+    if (vus && (lotsVus[cle] || []).join("|") !== vus.join("|")) {
+      lotsVus[cle] = vus;
+      var garde = {}; Object.keys(lotsVus).slice(-30).forEach(function (k) { garde[k] = lotsVus[k]; });
+      try { RR.storage.local.set({ lots: garde }); } catch (e) {}
+    }
+    if (lotsVus[cle]) lot.articles = lotsVus[cle];
+    return lot;
+  }
+  function offreOfficielle() {
+    var t = colonneConversation().innerText, m, r = null, re = /offre de [^:\n]{1,60}:\s*(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/gi;
+    while ((m = re.exec(t))) r = entier(m[1]);
+    return r;
+  }
+  // Prénom ou pseudo de l'acheteur : « Voici l'offre de Garnier », sinon le nom en tête de l'encadré.
+  function acheteurLu() {
+    var m = /offre de ([^:\n]{1,40}?)\s*:/i.exec(colonneConversation().innerText);
+    if (m) return m[1].trim();
+    var l = texteEncadre().split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+    var n = l.find(function (x) { return /^[\p{L}][\p{L}' .-]{1,28}$/u.test(x) && !/^(lot de|voir|signaler|bloquer|annonce|profil|à propos)/i.test(x); });
+    return n || "";
+  }
+  function personnaliser(t, nom) {
+    if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t)) return t;
+    return t.replace(/^Bonjour\s*([,!]?)\s*/u, function (x, p, i, tout) { var suite = tout.slice(x.length); return "Bonjour " + nom + (p === "!" ? " ! " : /^\p{L}/u.test(suite) ? ", " : " "); });
+  }
   function deviner() {
-    // Le jeu dont le titre apparaît dans la conversation ouverte, sinon le plus récent.
-    var t = norm((document.querySelector("main") || document.body).innerText).slice(0, 40000);
+    var lot = lotLu();
+    if (lot && lot.prix) {
+      var noms = (lot.articles || []).map(titreCourt), liste = noms.length > 1 ? noms.slice(0, -1).join(", ") + " et " + noms[noms.length - 1] : "";
+      return { id: "lot", lot: true, titre: "Lot de " + lot.n + " articles", nom: liste ? "le lot " + liste : "le lot de " + lot.n + " jeux", plateforme: liste, prix: lot.prix, n: lot.n, articles: lot.articles, description: "" };
+    }
+    // Le jeu dont le titre apparaît dans l'encadré ou la conversation ouverte, sinon le plus récent.
+    var t = norm(texteEncadre() + " " + colonneConversation().innerText).slice(0, 40000);
     var l = etat.annonces.slice().sort(function (x, y) { return (y.titre || "").length - (x.titre || "").length; });
     return l.find(function (a) { return a.titre && t.indexOf(norm(a.titre)) >= 0; }) || l.find(function (a) { return a.nom && t.indexOf(norm(a.nom)) >= 0; }) || etat.annonces[0];
   }
+  // Prix ronds : multiples de 5, de 10 à partir de 100 € (vers le haut pour un plancher).
+  function rond(x, haut) { if (x == null || !isFinite(x)) return null; var pas = x >= 100 ? 10 : 5; return Math.max(pas, (haut ? Math.ceil : Math.round)(x / pas) * pas); }
   var CONTENU_TXT = { seul: "la cartouche (ou le disque) seule", boite: "en boîte, sans notice", complet: "complet, avec la boîte et la notice" };
   // Dernière offre en euros lue dans la conversation ouverte (autre que notre prix), pour chiffrer les réponses.
   function offreLue(px) {
-    var t = (document.querySelector("main") || document.body).innerText.slice(-6000), m, r = null, re = /(\d{1,4}(?:[.,]\d{1,2})?)\s?(?:€|euros?\b)/gi;
+    var off = offreOfficielle(); if (off && px && off < px) return off;
+    var t = colonneConversation().innerText.slice(-6000), m, r = null, re = /(\d{1,4}(?:[.,]\d{1,2})?)\s?(?:€|euros?\b)/gi;
     while ((m = re.exec(t))) { var v = Math.round(parseFloat(m[1].replace(",", "."))); if (v > 0 && v !== px) r = v; }
     return px && r && r < px ? r : null;
   }
@@ -412,25 +525,30 @@
   // de la dernière offre lue dans la conversation quand il y en a une.
   function reponses(a) {
     var nom = a.nom || a.titre, px = a.prix, offre = offreLue(px);
-    var milieu = px ? (offre ? Math.round((offre + px) / 2) : Math.round(px * 0.9)) : null;
-    var plancher = px ? Math.round(px * 0.85) : null;
+    var plancher = px ? rond(px * 0.85, true) : null;
+    var milieu = px ? Math.max(plancher, rond(offre ? (offre + px) / 2 : px * 0.9)) : null;
     var lePrix = px ? px + " €" : "le prix affiché";
     var detail = [a.contenu && CONTENU_TXT[a.contenu] ? "C'est " + CONTENU_TXT[a.contenu] : "", a.etat && ETAT_TXT[a.etat] ? (a.contenu ? ", " : "Il est en ") + ETAT_TXT[a.etat].toLowerCase() : ""].join("");
     var det = detail ? detail + ". " : "";
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
+    // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
+    var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux jeux" : "des " + (a.n || "") + " jeux").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
+      : "de la valeur du jeu : il se vend autour de " + lePrix + " en ce moment.";
     return [
       // Disponibilité
       { g: "Disponibilité", t: "Toujours disponible", m: "Bonjour, oui, " + nom + " est toujours disponible ! " + det + "Je peux l'envoyer ou le remettre en main propre, comme vous préférez." },
       { g: "Disponibilité", t: "Réservé pour quelqu'un", m: "Bonjour, merci pour votre message ! " + nom + " est réservé pour le moment. Si la vente ne se fait pas, je reviens vers vous en priorité, promis." },
       { g: "Disponibilité", t: "Déjà vendu", m: "Bonjour, désolé, " + nom + " vient de partir. Merci beaucoup pour votre intérêt, et bonne chasse pour la suite !" },
       // Négociation
-      { g: "Négociation", t: "Offre vraiment trop basse", m: "Bonjour, merci pour votre proposition ! Je comprends l'envie de faire une bonne affaire, mais " + votre + ", c'est vraiment trop loin de la valeur du jeu : il se vend autour de " + lePrix + " en ce moment. " + (milieu ? "Je peux faire un geste à " + milieu + " € si ça vous tente." : "Je peux faire un petit geste si vous me faites une autre proposition.") },
+      { g: "Négociation", t: "Offre vraiment trop basse", m: "Bonjour, merci pour votre proposition ! Je comprends l'envie de faire une bonne affaire, mais " + votre + ", c'est vraiment trop loin " + valeur + " " + (milieu ? "Je peux faire un geste à " + milieu + " € si ça vous tente." : "Je peux faire un petit geste si vous me faites une autre proposition.") },
       { g: "Négociation", t: "Offre un peu basse : on coupe la poire en deux", m: "Bonjour, merci pour l'offre ! On n'est pas si loin." + (milieu ? " Je vous propose de couper la poire en deux : " + milieu + " € et il est à vous." : " Faites-moi une proposition un peu plus haute et on devrait s'entendre.") },
       { g: "Négociation", t: "Prix ferme, poliment", m: "Bonjour, merci pour votre message ! Le prix de " + lePrix + " est déjà calé sur la cote actuelle (ventes réelles constatées), je préfère le garder tel quel. Il est en très bonne place, je ne suis pas pressé." },
       { g: "Négociation", t: "« C'est quoi votre dernier prix ? »", m: "Bonjour ! " + (plancher ? "Mon dernier prix serait " + plancher + " €, " : "Je peux faire un petit geste, ") + "envoi ou remise en main propre au choix. Ça vous irait ?" },
       { g: "Négociation", t: "Accepter l'offre", m: "Bonjour, c'est d'accord pour " + (offre ? offre + " €" : "votre offre") + " ! Envoyez-moi la demande d'achat sur Le Bon Coin et je m'en occupe rapidement." },
-      { g: "Négociation", t: "Offre sans même un bonjour", m: "Bonjour 🙂 Merci pour l'intérêt ! Le jeu est à " + lePrix + ". Si vous avez une proposition raisonnable, je l'étudie volontiers." },
+      { g: "Négociation", t: "Offre sans même un bonjour", m: "Bonjour 🙂 Merci pour l'intérêt ! " + (a.lot ? "Le lot" : "Le jeu") + " est à " + lePrix + ". Si vous avez une proposition raisonnable, je l'étudie volontiers." },
       { g: "Négociation", t: "Offre groupée bien trop basse", m: "Bonjour, merci pour votre intérêt pour plusieurs de mes jeux, ça me fait plaisir ! Par contre, votre proposition est vraiment loin de leur valeur : chacun est déjà au prix du marché. Pour un lot, je peux faire un vrai geste sur le total, dites-moi lesquels vous intéressent et je vous fais une proposition honnête." },
+      { g: "Négociation", t: "Nouvelle contre-offre, la dernière", m: "Je comprends, merci d'avoir fait un pas ! " + (plancher ? "Je peux descendre une dernière fois à " + plancher + " €, " : "Je peux faire un dernier petit geste, ") + "mais ce sera vraiment mon minimum. Dites-moi si ça vous va." },
+      { g: "Négociation", t: "Couper court poliment", m: "Merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur le prix, je préfère en rester là. Bonne recherche à vous, et peut-être à une prochaine fois." },
       { g: "Négociation", t: "Lot de plusieurs jeux", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quels jeux vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
       { g: "Négociation", t: "Proposition d'échange", m: "Bonjour, merci pour la proposition d'échange ! Pour l'instant je préfère vendre plutôt qu'échanger, mais si vous êtes intéressé à " + lePrix + ", je vous le réserve avec plaisir." },
       // Le jeu
@@ -454,22 +572,25 @@
   }
   /* ===== Réponse proposée par l'IA (lit la conversation ouverte) ===== */
   function texteConversation() {
-    var racine = document.querySelector("main") || document.body, t = racine.innerText || "";
-    var z = zoneMessage(); if (z && !(z instanceof HTMLTextAreaElement) && z.innerText) t = t.split(z.innerText).join(" ");
-    return t.replace(/\n{3,}/g, "\n\n").trim().slice(-4000);
+    var t = colonneConversation().innerText || "", enc = texteEncadre().trim();
+    var z = zoneMessage(); if (z && !(z instanceof HTMLTextAreaElement) && !(z instanceof HTMLInputElement) && z.innerText) t = t.split(z.innerText).join(" ");
+    t = t.replace(/\n{3,}/g, "\n\n").trim().slice(-4200);
+    return (enc ? "[Annonce concernée]\n" + enc.slice(0, 600) + "\n\n[Conversation]\n" : "") + t;
   }
-  function cleConversation() { var t = texteConversation(); return location.pathname + "|" + t.length + "|" + t.slice(-300); }
+  function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
   async function proposerIA(force) {
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
     etat.ia = { cle: cle, charge: true }; rafraichirIA();
     try {
-      var r = await rrDemander({ type: "reponse", annonce: etat.choisie ? etat.choisie.id : "", conversation: texteConversation() });
+      var c = etat.choisie || {}, lot = lotLu() || (c.lot ? { n: c.n, prix: c.prix } : null);
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu() });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [] };
     } catch (e) { if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message }; }
     rafraichirIA();
   }
+  var APPROCHES = { contre_offre: "Contre-offre", ferme: "Ferme", couper_court: "Couper court", accepter: "Accepter" };
   function rafraichirIA() { var z = ombre && ombre.querySelector(".ia"); if (z) dessinerIA(z); }
   function dessinerIA(z) {
     z.textContent = "";
@@ -480,8 +601,14 @@
     if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: "Je lis le dernier message de l'acheteur…" })); return; }
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); return; }
     if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
+    var qui = acheteurLu();
     (i.reponses || []).forEach(function (r) {
-      z.appendChild(el("button", { class: "rep fort", type: "button", title: "Placer dans la zone de message", onclick: function () { inserer(smiley(r.texte)); } }, [el("b", { texte: r.titre || "Réponse" }), el("span", { class: "plein", texte: r.texte })]));
+      var ap = APPROCHES[r.approche];
+      r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)) };
+      z.appendChild(el("button", { class: "rep fort", type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
+        el("span", { class: "ico" }, [icone(ICONE_APPROCHE[r.approche] || "question")]),
+        el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte)])]),
+      ]));
     });
   }
   // Nouveau message reçu ou autre conversation : nouvelles propositions (une seule demande à la fois, espacées).
@@ -492,20 +619,23 @@
       if (mode() !== "messages" || !ouvert || !etat.annonces) return;
       if (muts.every(function (m) { return hote && (m.target === hote || hote.contains(m.target)); })) return;
       clearTimeout(minuterieMsg);
-      minuterieMsg = setTimeout(function () { if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
+      minuterieMsg = setTimeout(function () {
+        var c = etat.choisie;
+        if (c && c.lot) { var d = deviner(); if (d.lot && (d.articles || []).join("|") !== (c.articles || []).join("|")) { etat.choisie = d; dessiner(); } }
+        if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
     });
     veilleMsg.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
   function zoneMessage() {
-    var l = [].filter.call(document.querySelectorAll("textarea, [contenteditable=''], [contenteditable=true], [role=textbox]"), function (x) { return visible(x) && !x.disabled; });
+    var l = [].filter.call(document.querySelectorAll("textarea, input:not([type]), input[type=text], [contenteditable=''], [contenteditable=true], [role=textbox]"), function (x) { return visible(x) && !x.disabled; });
     var bons = l.filter(function (x) { return /message|repon|ecri|reply|write/.test(description(x) + " " + norm(x.getAttribute("placeholder") || x.getAttribute("data-placeholder") || "")); });
-    return bons[bons.length - 1] || l[l.length - 1] || null;
+    return bons[bons.length - 1] || l.filter(function (x) { return !(x instanceof HTMLInputElement); }).pop() || null;
   }
   function inserer(texte) {
     var z = zoneMessage();
     if (!z) return copier(texte, "Réponse") ;
-    if (z instanceof HTMLTextAreaElement) {
+    if (z instanceof HTMLTextAreaElement || z instanceof HTMLInputElement) {
       ecrire(z, z.value.trim() ? z.value.replace(/\s+$/, "") + "\n" + texte : texte);
     } else {
       z.focus();
@@ -518,8 +648,54 @@
   }
   // Toujours un smiley, du genre 🙂, à la fin d'une réponse qui n'en a pas.
   function smiley(t) { return /\p{Extended_Pictographic}/u.test(t) ? t : t.replace(/\s*[.!]?\s*$/, function (f) { return f.trim() === "!" ? " ! 🙂" : " 🙂"; }); }
+  /* Icônes (tracés au trait, 24 × 24) pour repérer les réponses d'un coup d'œil. */
+  var ICONES = {
+    ok: "M20 6 9 17l-5-5", horloge: "M12 7v5l3 2|c12,12,9", croix: "m15 9-6 6M9 9l6 6|c12,12,9", baisse: "M12 5v14M5 12l7 7 7-7",
+    ciseaux: "M8.1 8.1 20 20M14.5 9.5 20 4M8.1 15.9l3-3|c6,6,3|c6,18,3", cadenas: "M7 11V7a5 5 0 0 1 10 0v4|r5,11,14,10", question: "M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01|c12,12,9",
+    main: "M7 11V6a1.5 1.5 0 0 1 3 0v5M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V12M16 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-2.7L3.5 15a1.5 1.5 0 0 1 2.6-1.6L7 15",
+    paquet: "M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5 12 12l9-4.5M12 12v9", echange: "M4 9h14l-3-3M20 15H6l3 3", manette: "M6 9h12a4 4 0 0 1 4 4v1a3 3 0 0 1-5.2 2L15 14H9l-1.8 2A3 3 0 0 1 2 14v-1a4 4 0 0 1 4-4zM8 11v4M6 13h4M16 12h.01M18 14h.01",
+    photo: "M4 8h3l2-3h6l2 3h3v11H4z|c12,13,3.5", globe: "M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18|c12,12,9", video: "M15 10l5-3v10l-5-3z|r3,7,12,10",
+    etiquette: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z|c8,8,1.6", camion: "M3 6h11v10H3zM14 9h4l3 3v4h-7|c7,18,2|c17,18,2", repere: "M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z|c12,10,2.5",
+    pieces: "M4 8c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3zM4 8v4c0 1.7 3.6 3 8 3s8-1.3 8-3V8M4 12v4c0 1.7 3.6 3 8 3s8-1.3 8-3v-4", envoi: "M22 2 11 13M22 2l-7 20-4-9-9-4z",
+    bouclier: "M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z", lien: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1M4 4l16 16",
+    cloche: "M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 21a1.9 1.9 0 0 0 3.4 0", calendrier: "M3 9h18M8 3v4M16 3v4M10 13l4 4M14 13l-4 4|r3,5,18,16", coeur: "M12 20s-7.5-4.6-9.2-9.3A5 5 0 0 1 12 6a5 5 0 0 1 9.2 4.7C19.5 15.4 12 20 12 20z",
+    stop: "M8 3h8l5 5v8l-5 5H8l-5-5V8zM8 12h8", relance: "M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.3L3 16M3 21v-5h5",
+  };
+  function icone(nom) {
+    var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"), d = ICONES[nom] || ICONES.question;
+    [["viewBox", "0 0 24 24"], ["fill", "none"], ["stroke", "currentColor"], ["stroke-width", "2"], ["stroke-linecap", "round"], ["stroke-linejoin", "round"], ["aria-hidden", "true"], ["class", "ic"]].forEach(function (x) { svg.setAttribute(x[0], x[1]); });
+    d.split("|").forEach(function (part) {
+      var e, v;
+      if (part[0] === "c") { v = part.slice(1).split(","); e = document.createElementNS(ns, "circle"); e.setAttribute("cx", v[0]); e.setAttribute("cy", v[1]); e.setAttribute("r", v[2]); }
+      else if (part[0] === "r") { v = part.slice(1).split(","); e = document.createElementNS(ns, "rect"); e.setAttribute("x", v[0]); e.setAttribute("y", v[1]); e.setAttribute("width", v[2]); e.setAttribute("height", v[3]); e.setAttribute("rx", "2"); }
+      else { e = document.createElementNS(ns, "path"); e.setAttribute("d", part); }
+      svg.appendChild(e);
+    });
+    return svg;
+  }
+  var ICONE_DE = {
+    "Toujours disponible": "ok", "Réservé pour quelqu'un": "horloge", "Déjà vendu": "croix", "Offre vraiment trop basse": "baisse",
+    "Offre un peu basse : on coupe la poire en deux": "ciseaux", "Prix ferme, poliment": "cadenas", "« C'est quoi votre dernier prix ? »": "question",
+    "Accepter l'offre": "ok", "Offre sans même un bonjour": "main", "Offre groupée bien trop basse": "paquet", "Nouvelle contre-offre, la dernière": "relance",
+    "Couper court poliment": "stop", "Lot de plusieurs jeux": "paquet", "Proposition d'échange": "echange", "État et fonctionnement": "manette",
+    "Plus de photos": "photo", "Version et région": "globe", "Demande de test en vidéo": "video", "Pourquoi ce prix ?": "etiquette",
+    "Envoi sécurisé": "camion", "Remise en main propre": "repere", "Frais de port": "pieces", "Colis envoyé": "envoi",
+    "Paiement hors Le Bon Coin : refus poli": "bouclier", "Lien ou site suspect": "lien", "Acheteur qui ne répond plus": "cloche",
+    "Rendez-vous manqué": "calendrier", "Merci après la vente": "coeur",
+  };
+  var ICONE_APPROCHE = { contre_offre: "relance", ferme: "cadenas", couper_court: "stop", accepter: "ok", info: "question" };
+  // Mots importants en gras dans les aperçus (le texte inséré, lui, reste normal).
+  var IMPORTANT = /(\d[\d\s]*(?:[.,]\d+)?\s?€|toujours disponible|réservé|vendu|prix ferme|dernier prix|minimum|paiement sécurisé(?: Le Bon Coin)?|pas de virement|lien(?:s)? externes?|main propre|livraison Le Bon Coin|expédié sous 48 h|d'origine, testé et fonctionnel|couper la poire en deux|geste|lot|échanger|d'autres photos|vidéo|avis|remettrai en vente|en rester là|c'est d'accord|trop loin|PAL européenne|ventes réellement conclues)/gi;
+  function apercu(texte) {
+    var f = document.createDocumentFragment(), i = 0, m; IMPORTANT.lastIndex = 0;
+    while ((m = IMPORTANT.exec(texte))) { f.appendChild(document.createTextNode(texte.slice(i, m.index))); f.appendChild(el("strong", { texte: m[0] })); i = m.index + m[0].length; }
+    f.appendChild(document.createTextNode(texte.slice(i)));
+    return f;
+  }
+
   function reponsesUI(a) {
-    var tout = reponses(a).map(function (r) { return { g: r.g, t: r.t, m: smiley(r.m) }; });
+    var qui = acheteurLu();
+    var tout = reponses(a).map(function (r) { return { g: r.g, t: r.t, m: smiley(personnaliser(r.m, qui)) }; });
     var champ = el("input", { type: "text", placeholder: "Chercher une réponse (offre, envoi, photos…)", "aria-label": "Chercher une réponse", autocomplete: "off", spellcheck: "false" });
     var zone = el("div", { class: "reps" });
     function rendre() {
@@ -527,7 +703,10 @@
       zone.textContent = "";
       tout.filter(function (r) { var h = norm(r.g + " " + r.t + " " + r.m); return mots.every(function (m) { return h.indexOf(m) >= 0; }); }).forEach(function (r) {
         if (r.g !== g) { g = r.g; zone.appendChild(el("p", { class: "grp", texte: g })); }
-        zone.appendChild(el("button", { class: "rep", type: "button", title: r.m, onclick: function () { inserer(r.m); } }, [el("b", {}, [surligne(r.t, mots)]), el("span", { texte: r.m })]));
+        zone.appendChild(el("button", { class: "rep", type: "button", "aria-label": r.t + " : " + r.m, onclick: function () { inserer(r.m); } }, [
+          el("span", { class: "ico" }, [icone(ICONE_DE[r.t])]),
+          el("span", { class: "q" }, [el("b", {}, [surligne(r.t, mots)]), el("span", { class: "ap2" }, [apercu(r.m)])]),
+        ]));
       });
       if (!zone.children.length) zone.appendChild(el("p", { class: "vide", texte: "Aucune réponse ne correspond." }));
     }
@@ -563,11 +742,51 @@
     } catch (e) { statut(e.message, "bad"); }
   }
 
+  /* ===== Lien des annonces publiées, repris tout seul dans la fiche RetroRevente =====
+     - juste après un dépôt : la page de l'annonce (ou le lien de la confirmation) est associée au jeu déposé ;
+     - sur « Mes annonces » : chaque annonce dont le titre correspond à un jeu sans lien est associée. */
+  var AD = /\/ad\/[a-z_]+\/\d{6,}/, liesSession = {}, annoncesCache = null, minuterieLiens = null;
+  function urlAnnonce(href) { try { var u = new URL(href, location.href); var m = AD.exec(u.pathname); return u.hostname === "www.leboncoin.fr" && m ? "https://www.leboncoin.fr" + m[0] : ""; } catch (e) { return ""; } }
+  function lier(id, url, titre) {
+    if (!id || !url || liesSession[id] === url) return;
+    liesSession[id] = url;
+    rrDemander({ type: "lien", annonce: id, url: url }).then(function () {
+      if (hote && ouvert && ombre) statut("Lien de l'annonce « " + titre + " » enregistré dans RetroRevente.", "ok");
+      (annoncesCache || []).forEach(function (a) { if (a.id === id) a.publiee = true; });
+    }).catch(function () { delete liesSession[id]; });
+  }
+  async function liensAuto() {
+    var p = location.pathname;
+    var mesAnnonces = /mes-annonces|\/compte\/|\/annonces\/(en-ligne|actives)/.test(p), pageAnnonce = AD.test(p), depot = DEPOT.test(p);
+    if (!mesAnnonces && !pageAnnonce && !depot) return;
+    var st = {}; try { st = (await RR.storage.local.get("depot")) || {}; } catch (e) {}
+    var d = st.depot && Date.now() - st.depot.at < 3 * 3600e3 ? st.depot : null;
+    if (d && (pageAnnonce || depot)) {
+      var url = pageAnnonce ? urlAnnonce(location.href) : "";
+      if (pageAnnonce) { var t = norm(document.title + " " + ((document.querySelector("h1") || {}).textContent || "")); if (t.indexOf(norm(d.titre).slice(0, 40)) < 0) url = ""; }
+      if (!url && depot) { var a = [].find.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }); if (a) url = urlAnnonce(a.href); }
+      if (url) { lier(d.id, url, d.titre); try { RR.storage.local.remove("depot"); } catch (e) {} return; }
+    }
+    if (!mesAnnonces) return;
+    if (!annoncesCache) { try { annoncesCache = (await rrDemander({ type: "annonces" })).annonces || []; } catch (e) { return; } }
+    var sans = annoncesCache.filter(function (a) { return !a.publiee && a.titre; });
+    if (!sans.length) return;
+    [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
+      var url = urlAnnonce(x.href); if (!url) return;
+      var carte = x.closest("li, article, [data-test-id], [data-qa-id]") || x, t = norm(x.innerText + " " + (x.title || "") + " " + (x.getAttribute("aria-label") || "") + " " + carte.innerText.slice(0, 400));
+      var a = sans.find(function (y) { return t.indexOf(norm(y.titre)) >= 0; });
+      if (a) lier(a.id, url, a.titre);
+    });
+  }
+  new MutationObserver(function () { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(function () { liensAuto().catch(function () {}); }, 1200); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
     if (location.pathname === vu) return;
     vu = location.pathname;
+    liensAuto().catch(function () {});
     var m = mode();
     if (m && !hote) construire();
     if (hote) hote.style.display = m ? "" : "none";

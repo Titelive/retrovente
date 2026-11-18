@@ -330,3 +330,31 @@ test("extension : réponse IA aux acheteurs", async () => {
   assert.equal(r.status, 200); assert.equal(r.json.reponses.length, 3); assert.ok(r.json.reponses[0].texte);
   assert.equal((await call("GET", "/api/moi", null, c)).json.usage.reponse, 1);
 });
+
+test("extension : lien de l'annonce publiée", async () => {
+  const c = await compte("lien@exemple.fr"), d = await compte("lien2@exemple.fr");
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64" } }, c)).json.objet;
+  const autre = (await call("POST", "/api/objets", { objet: { titre: "Pas à moi" } }, d)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://pirate.example/ad/x/123456" }, "", h)).status, 400);
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: autre.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 404);
+  const r = await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890?ref=x" }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
+  const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
+  assert.equal(a.publiee, true);
+});
+
+test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
+  const { contenuLot } = await import("../server/ia.mjs");
+  const autres = [
+    { nom: "Conker's Bad Fur Day", titre: "Conker's Bad Fur Day Nintendo 64", prix: 190, etat: "tres_bon", contenu: "seul" },
+    { nom: "Astérix and the Great Rescue", titre: "Astérix and the Great Rescue Mega Drive", prix: 15, contenu: "boite" },
+    { nom: "Super Mario 64", titre: "Super Mario 64 Nintendo 64", prix: 49 },
+  ];
+  const r = contenuLot(["Conker's Bad Fur Day Nintendo 64 PAL EUR loose", "Astérix and the Great Rescue – Sega Mega Drive PAL – Boîte + cartouche", "Zelda Majora's Mask"], autres);
+  assert.equal(r.length, 3);
+  assert.equal(r[0].annonce.prix, 190);
+  assert.equal(r[1].annonce.prix, 15);
+  assert.equal(r[2].annonce, null);
+  assert.deepEqual(contenuLot(null, autres), []);
+});

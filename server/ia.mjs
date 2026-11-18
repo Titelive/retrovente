@@ -45,7 +45,7 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000 } = {}) {
   for (const b of d.content || []) if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const x of b.content) if (x && x.url) vus.add(norme(x.url));
   for (const b of d.content || []) for (const c of b.citations || []) if (c && c.url) vus.add(norme(c.url));
   const m = /\{[\s\S]*\}/.exec(t);
-  try { const o = m ? JSON.parse(m[0]) : null; if (o && web) Object.defineProperty(o, "_vus", { value: vus }); return o; } catch (e) { return null; }
+  try { const o = m ? JSON.parse(m[0]) : null; if (!o) console.error("IA : pas de JSON", t.slice(0, 300)); if (o && web) Object.defineProperty(o, "_vus", { value: vus }); return o; } catch (e) { console.error("IA : JSON illisible", e.message, t.slice(0, 300)); return null; }
 }
 
 export function checkPhoto(photo) {
@@ -171,47 +171,79 @@ Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, time
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
    La conversation est le texte visible de la page de messagerie, copié par l'extension : on demande au modèle
    de retrouver le dernier message de l'acheteur et de proposer trois réponses du vendeur, sympas et diplomates. */
+// Prix ronds : multiples de 5, de 10 à partir de 100 € (vers le haut pour un plancher, au plus proche sinon).
+export const rond = (x, haut = false) => { if (x == null || !isFinite(x)) return null; const pas = x >= 100 ? 10 : 5; return Math.max(pas, (haut ? Math.ceil : Math.round)(x / pas) * pas); };
 // Toujours au moins un smiley dans une réponse aux acheteurs.
 export const smiley = (t) => (!t || /\p{Extended_Pictographic}/u.test(t) ? t : t.replace(/\s*[.!]?\s*$/, (f) => (f.trim() === "!" ? " ! 🙂" : " 🙂")));
-export async function repondre(conversation, a = {}, autres = []) {
-  const conv = txt(conversation, 4000);
+// Contenu d'un lot vu dans la messagerie (« Conker's Bad Fur Day Nintendo 64 PAL EUR loose », …) : on retrouve chaque
+// jeu parmi les annonces du vendeur (mots du titre en commun) pour donner au modèle son prix, son état et son contenu.
+const VIDES = new Set("the and les des une pour avec sans pal eur ntsc jeu jeux video nintendo sega sony console loose boite cartouche notice complet".split(" "));
+const mots = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter((m) => m.length >= 3 && !VIDES.has(m));
+export function contenuLot(articles, autres = []) {
+  return (Array.isArray(articles) ? articles : []).slice(0, 10).map((t) => txt(t, 160)).filter(Boolean).map((t) => {
+    const a = new Set(mots(t));
+    let meilleur = null, score = 0;
+    for (const x of Array.isArray(autres) ? autres : []) {
+      const m = mots(x.nom || x.titre); if (!m.length) continue;
+      const s = m.filter((w) => a.has(w)).length / m.length;
+      if (s > score) { score = s; meilleur = x; }
+    }
+    return { titre: t, annonce: score >= 0.6 ? meilleur : null };
+  });
+}
+export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
+  const conv = txt(conversation, 5000);
+  const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${rond(prix(contexte.lot.prix) * 0.85, true)} €).` : "";
+  const articles = contexte && contexte.lot ? contenuLot(contexte.lot.articles, autres) : [];
+  const somme = articles.length && articles.every((x) => x.annonce && prix(x.annonce.prix) != null) ? articles.reduce((n, x) => n + prix(x.annonce.prix), 0) : null;
+  const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}` : "";
+  const offre = contexte && prix(contexte.offre) != null ? `Offre officielle reçue par Le Bon Coin : ${prix(contexte.offre)} €.` : "";
+  const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   const px = prix(a.prix);
   const fiche = [
     a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `Console : ${txt(a.plateforme, 60)}` : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
-    px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${Math.round(px * 0.85)} €, ne jamais proposer moins)` : "",
+    px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${rond(px * 0.85, true)} €, ne jamais proposer moins)` : "",
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
   ].filter(Boolean).join("\n");
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
   if (FAKE()) return { resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
-      { titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂" },
-      { titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
-      { titre: "Ouvrir la discussion", texte: "Bonjour, merci pour l'intérêt ! Faites-moi une proposition un peu plus proche du prix et on devrait s'entendre 😊" },
+      { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂" },
+      { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
+      { approche: "couper_court", titre: "Couper court", texte: "Bonjour, merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur ce prix, je préfère en rester là. Bonne recherche à vous 🙂" },
     ] };
   const o = await claude(`Tu aides un particulier qui vend un jeu vidéo d'occasion sur Le Bon Coin à répondre à un acheteur.
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
 
-${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", lot, detailLot, offre].filter(Boolean).join("\n")}${qui || lot || offre ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
 """
 ${conv}
 """
 
 Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
-Propose trois réponses différentes du vendeur, prêtes à envoyer :
+Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
+  1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
+  2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
+  3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
+sinon (question, disponibilité, envoi…), trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
+Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
-- 1 à 4 phrases courtes, qui commencent par « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
+- 1 à 4 phrases courtes ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
+- prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
+- un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Voir l'offre », la refuser ou contre-proposer par message) ;
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
+- lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment.
-Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 900, timeout: 25000 });
-  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
+Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 1600, timeout: 30000 });
+  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
   return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
 }
