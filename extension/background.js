@@ -27,6 +27,12 @@ function base64(buf) {
 }
 
 var ACTIONS = {
+  // Notification système quand la personne doit agir (Chrome, Firefox). Safari n'a pas cette API : la page prend le relais.
+  alerte: async function (m) {
+    if (!RR.notifications || !RR.notifications.create) return { ok: false };
+    await RR.notifications.create("rr-" + Date.now(), { type: "basic", iconUrl: RR.runtime.getURL("icones/icone-128.png"), title: String(m.titre || "RetroRevente").slice(0, 80), message: String(m.texte || "").slice(0, 200), priority: 2 });
+    return { ok: true };
+  },
   etat: async function () { var s = await lire(); return { connecte: !!s.cle, email: s.email || "", serveur: s.serveur || SERVEUR }; },
   cle: async function (m) {
     if (!/^rre_[A-Za-z0-9_-]{20,80}$/.test(String(m.cle || "").trim())) throw new Error("Clé invalide : elle commence par « rre_ ».");
