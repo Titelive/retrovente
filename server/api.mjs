@@ -473,6 +473,7 @@ export async function handleApi(req) {
     iaAllowed(u, "dialogue", req);
     const b = body(); const out = await ia.dialoguer(b.messages, b.fiche || {}); bump(u.id, "dialogue"); return ok({ ok: true, ...out });
   }
+  if (p === "/api/ia/endroit" && method === "POST") { iaAllowed(u, "cadrer", req); const s = await ia.endroit(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, ...s }); }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u, "cadrer", req); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
   if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
 

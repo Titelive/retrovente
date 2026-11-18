@@ -190,6 +190,22 @@ export async function cadrer(photo) {
   return cadreDe(o && o.cadre);
 }
 
+/* Sens de la photo : où pointe le haut des lettres de l'étiquette ? (plus fiable que de demander un angle)
+   haut → 0, gauche → 90 (quart de tour horaire), bas → 180, droite → 270. « incertain » : on ne tourne pas. */
+const SENS = { haut: 0, gauche: 90, bas: 180, droite: 270 };
+export async function endroit(photo) {
+  if (FAKE()) { checkPhoto(photo); const s = process.env.IA_FAKE_SENS || "haut"; return { sens: s, rotation: SENS[s] ?? 0, sur: s !== "incertain" }; }
+  const o = await claude([image(photo), { type: "text", text: `Regarde le texte principal imprimé sur l'objet (titre de l'étiquette, logo, texte de la boîte ou de la carte). Le haut des lettres pointe vers quel bord de la photo ?
+- « haut » : le texte se lit normalement, à l'endroit ;
+- « gauche » : le texte se lit de bas en haut (la photo est couchée sur la gauche) ;
+- « droite » : le texte se lit de haut en bas ;
+- « bas » : le texte est à l'envers, tête en bas ;
+- « incertain » : pas de texte lisible, ou tu hésites.
+Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 60, timeout: 20000, brut: true });
+  const s = String((o && o.sens) || (/"sens"\s*:\s*"(\w+)"/.exec((o && o._texte) || "") || [])[1] || "").toLowerCase();
+  return s in SENS ? { sens: s, rotation: SENS[s], sur: true } : { sens: "incertain", rotation: 0, sur: false };
+}
+
 const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", correct: "état correct", pieces: "pour pièces" };
 const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)", boite_vide: "boîte seule, sans le jeu (code déjà utilisé ou disque absent)" };
 export async function estimerCote(v) {
