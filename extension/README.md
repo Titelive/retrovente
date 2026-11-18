@@ -2,6 +2,12 @@
 
 Sur `leboncoin.fr/deposer-une-annonce`, un bouton **RR** apparaît en bas à droite. Il ouvre un panneau qui affiche les jeux « En vente » de ton compte RetroRevente. À chaque écran du dépôt, **Remplir cette étape** remplit les champs visibles : titre, catégorie proposée (Jeux vidéo, Consoles), description, état, prix et photo. Tu vérifies, tu cliques toi-même sur « Continuer », puis sur « Publier ».
 
+Le sélecteur en haut du panneau a une recherche : **⌘K** (Ctrl K sur Windows) l'ouvre directement depuis la page de dépôt. Elle ignore accents et majuscules et comprend les abréviations des consoles (`n64`, `ps2`, `gba`, `snes`…). Flèches pour naviguer, Entrée pour choisir, Échap pour fermer.
+
+Raccourci global **⌥⇧R** (Alt+Maj+R) : sur la page de dépôt, il ouvre le panneau et la recherche ; ailleurs, il ouvre la page de dépôt. Il se change dans le navigateur (Chrome : `chrome://extensions/shortcuts`, Firefox : Gérer les extensions → roue dentée → Gérer les raccourcis ; Safari ne gère pas encore bien les raccourcis d'extension, ⌘K marche partout).
+
+Le panneau reprend la charte du site (vert anis, Rubik et Figtree embarquées dans `polices/`, thème sombre automatique).
+
 Chaque ligne a aussi un bouton **Copier** (et **Enregistrer** pour la photo) au cas où un champ n'est pas reconnu.
 
 Une seule base de code WebExtensions (Manifest V3) pour Safari, Chrome, Edge et Firefox.

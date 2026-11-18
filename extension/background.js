@@ -51,3 +51,14 @@ RR.runtime.onMessage.addListener(function (m, expediteur, repondre) {
   f(m).then(repondre, function (e) { repondre({ error: e.message || String(e), status: e.status || 0 }); });
   return true;   // réponse asynchrone
 });
+
+// Raccourci global (⌥⇧R par défaut) : sur la page de dépôt, ouvre le panneau et la recherche ; ailleurs, ouvre la page de dépôt.
+var DEPOT_URL = "https://www.leboncoin.fr/deposer-une-annonce";
+if (RR.commands && RR.commands.onCommand) RR.commands.onCommand.addListener(function (cmd) {
+  if (cmd !== "ouvrir-recherche") return;
+  RR.tabs.query({ active: true, currentWindow: true }).then(function (t) {
+    var tab = t && t[0];
+    if (tab && /^https:\/\/www\.leboncoin\.fr\/deposer-une-annonce/.test(tab.url || "")) return RR.tabs.sendMessage(tab.id, { type: "ouvrir-recherche" });
+    return RR.tabs.create({ url: DEPOT_URL });
+  }).catch(function () {});
+});

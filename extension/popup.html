@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <title>RetroRevente</title>
 <style>
+@font-face{font-family:'RR Rubik';src:url(polices/rubik-latin.woff2) format('woff2');font-weight:300 900}
+@font-face{font-family:'RR Figtree';src:url(polices/figtree-latin.woff2) format('woff2');font-weight:300 900}
 :root{color-scheme:light dark;--fond:#fff;--encre:#1A1A1A;--gris:#62625C;--trait:#E6E6DE;--doux:#F6F6F1}
 @media (prefers-color-scheme:dark){:root{--fond:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--doux:#262626}}
 *{box-sizing:border-box}
-body{margin:0;width:320px;padding:16px;background:var(--fond);color:var(--encre);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;gap:12px}
-h1{font-size:16px;margin:0;display:flex;align-items:center;gap:8px}h1 img{width:24px;height:24px;border-radius:6px}
+body{margin:0;width:320px;padding:16px;background:var(--fond);color:var(--encre);font:500 14px/1.45 "RR Figtree","Avenir Next",system-ui,sans-serif;display:flex;flex-direction:column;gap:12px}
+h1{font:700 18px/1 'RR Rubik',ui-rounded,system-ui,sans-serif;letter-spacing:-.3px;margin:0;display:flex;align-items:center;gap:8px}h1 img{width:24px;height:24px;border-radius:6px}
 p{margin:0;color:var(--gris)}
 .go{border:0;border-radius:999px;background:#D4F57A;color:#1A1A1A;font:inherit;font-weight:700;padding:10px 14px;cursor:pointer;text-align:center;text-decoration:none}
 .lien{border:0;background:none;color:var(--gris);font:inherit;text-decoration:underline;cursor:pointer;padding:0;align-self:flex-start}
@@ -21,7 +23,7 @@ input{font:12px ui-monospace,monospace;padding:8px;border:1px solid var(--trait)
 <h1><img src="icones/icone-48.png" alt="">RetroRevente</h1>
 <section id="co" hidden>
   <p>Connecté : <b id="email"></b></p>
-  <p style="margin-top:8px">Sur Le Bon Coin, ouvre « Déposer une annonce » : le bouton <b>RR</b> en bas à droite remplit chaque étape avec ton annonce.</p>
+  <p style="margin-top:8px">Sur Le Bon Coin, ouvre « Déposer une annonce » : le bouton <b>RR</b> en bas à droite remplit chaque étape avec ton annonce. <b>⌘K</b> pour chercher un jeu, <b>⌥⇧R</b> pour ouvrir le dépôt de n'importe où.</p>
 </section>
 <section id="deco" hidden style="display:flex;flex-direction:column;gap:10px">
   <p>Connecte l'extension à ton compte : dans RetroRevente, va dans <b>Mon compte</b> et clique « Connecter l'extension ».</p>
