@@ -72,21 +72,26 @@
 .scene{position:relative;display:grid;place-items:center;perspective:1400px;--rx:9deg;--ry:-24deg;--rz:2deg}
 .scene::after{content:"";position:absolute;left:18%;right:18%;bottom:-6%;height:60px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),transparent);filter:blur(10px);transform:translateX(calc(var(--ry) * -1.2px));z-index:-1;pointer-events:none}
 /* téléphone imaginaire, « dernière génération » : cadre irisé, bords de 3 px, île vivante */
-@property --irise{syntax:"<angle>";inherits:false;initial-value:0deg}
-.tel{position:relative;width:min(330px,82vw);aspect-ratio:9/19.4;border-radius:58px;padding:3px;transform-style:preserve-3d;background:conic-gradient(from var(--irise),#e9e7ef,#9aa0ad 12%,#f4efe4 25%,#b9a6d9 38%,#eaf3d2 50%,#8f96a3 62%,#f1e6f5 75%,#a9c9c7 88%,#e9e7ef);animation:irise 9s linear infinite;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.7);transform:rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.tel{position:relative;width:min(330px,82vw);aspect-ratio:9/19.4;border-radius:58px;padding:4px;transform-style:preserve-3d;background:linear-gradient(160deg,#d9d6dc,#9c99a3 18%,#c8c5cc 34%,#7f7c86 52%,#b7b4bc 70%,#8d8a94 86%,#cfccd3);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.75),inset 0 0 0 1.5px rgba(0,0,0,.18);transform:rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .tel.suit{transition:transform .12s linear}
 /* épaisseur : tranche en titane, faite de couches empilées */
 .tel .ep{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
-@keyframes irise{to{--irise:360deg}}
-.tel .ep i{position:absolute;inset:0;border-radius:58px;background:linear-gradient(90deg,#8d8c96,#e6e3ec 5%,#a7a4b0 10%,#6c6b74 50%,#a7a4b0 90%,#e6e3ec 95%,#8d8c96)}
+.tel .ep i{position:absolute;inset:0;border-radius:58px;background:linear-gradient(90deg,#86838d,#c9c6cd 4%,#9e9ba5 9%,#77747e 50%,#9e9ba5 91%,#c9c6cd 96%,#86838d)}
+/* tranche plate, arêtes adoucies : plus claires devant et derrière (elles attrapent la lumière), satinée au milieu */
+.tel .ep i:nth-child(1),.tel .ep i:nth-child(13){filter:brightness(1.28)}.tel .ep i:nth-child(2),.tel .ep i:nth-child(12){filter:brightness(1.12)}
+.tel .ep i:nth-child(n+4):nth-child(-n+10){filter:brightness(.94) saturate(.9)}
 .tel .ep i:last-child{background:linear-gradient(150deg,#3b3a42,#1b1a20 55%,#2c2b33);box-shadow:0 50px 90px -20px rgba(0,0,0,.95),0 0 120px -10px rgba(var(--anis-rgb),.45)}
 .scene::before{content:"";position:absolute;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,rgba(var(--anis-rgb),.28),transparent);filter:blur(30px);z-index:-1;pointer-events:none;animation:respire 5s ease-in-out infinite}
 @keyframes respire{50%{transform:scale(1.12);opacity:.7}}
-.tel .bt{position:absolute;width:5px;border-radius:3px;background:linear-gradient(90deg,#77757f,#f0edf5 45%,#86848e);transform:translateZ(-7px)}
-.tel .bt.v1{left:-3.5px;top:19%;height:5%}.tel .bt.v2{left:-3.5px;top:27%;height:9%}.tel .bt.v3{left:-3.5px;top:38%;height:9%}.tel .bt.on{right:-3.5px;top:25%;height:12%}.tel .bt.cam{right:-3.5px;top:56%;height:8%;background:linear-gradient(90deg,#1d2a20,#5d7a4e 45%,#20301f);box-shadow:0 0 6px rgba(var(--anis-rgb),.5)}
+.tel .bt{position:absolute;width:3px;border-radius:2px;background:linear-gradient(90deg,#6f6c76,#d8d5dc 50%,#7d7a84);transform:translateZ(-7px);box-shadow:0 0 0 .5px rgba(0,0,0,.25)}
+.tel .bt.v1{left:-2px;top:18%;height:4.5%}.tel .bt.v2{left:-2px;top:26%;height:8%}.tel .bt.v3{left:-2px;top:36%;height:8%}.tel .bt.on{right:-2px;top:25%;height:11%}.tel .bt.cam{right:-1px;top:57%;height:7%;width:2px;background:linear-gradient(90deg,#2a2930,#4b4a55 50%,#2a2930);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.25)}
+/* lignes d'antenne sur la tranche */
+.tel .bt.ant{width:3px;height:3px;border-radius:0;background:#4a4851;box-shadow:none}.tel .bt.ant.a1{left:-1.5px;top:9%}.tel .bt.ant.a2{right:-1.5px;top:9%}.tel .bt.ant.a3{left:-1.5px;bottom:9%}.tel .bt.ant.a4{right:-1.5px;bottom:9%}
 .ecran{position:relative;height:100%;border-radius:55px;border:3px solid #050505;overflow:hidden;background:#F6F6F1;color:var(--nuit);display:flex;flex-direction:column;transform:translateZ(.6px)}
 /* reflet sur la vitre, qui glisse avec l'inclinaison */
 .ecran .vitre{position:absolute;inset:0;z-index:4;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.38) 44%,rgba(255,255,255,.08) 50%,rgba(255,255,255,0) 62%);background-size:260% 100%;background-position:calc(50% + var(--ry) * 3) 0;mix-blend-mode:soft-light}
+/* barre d'accueil en bas de l'écran */
+.ecran .barre{position:absolute;left:50%;bottom:8px;width:34%;height:5px;border-radius:3px;background:rgba(17,17,17,.88);transform:translateX(-50%);z-index:5;pointer-events:none}
 .ecran .vitre::after{content:"";position:absolute;inset:0;border-radius:52px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25),inset 0 1px 0 1px rgba(255,255,255,.35)}
 .ecran .ile{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:26px;border-radius:20px;background:#000;z-index:3;display:flex;align-items:center;gap:7px;padding:0 6px 0 9px;overflow:hidden;color:#fff;font:600 10px/1 var(--texte);white-space:nowrap;transition:width .5s cubic-bezier(.3,1.4,.5,1),height .5s cubic-bezier(.3,1.4,.5,1);box-shadow:0 0 0 1px #111}
 .ecran .ile .pt{flex:none;width:8px;height:8px;border-radius:50%;background:var(--anis);box-shadow:0 0 8px var(--anis);animation:clig 1s steps(1) infinite}
@@ -439,8 +444,8 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <div class="flotte a"><i>✓</i><span>Article reconnu<small id="tReco">Zelda · N64 · PAL</small></span></div>
       <div class="flotte b"><i>€</i><span>Prix conseillé<small>eBay, LBC, PriceCharting</small></span></div>
       <div class="flotte c"><i>✦</i><span>Photo nettoyée<small>Fond, reflets, redressée</small></span></div>
-      <div class="tel" id="tel"><div class="ep"><i style="transform:translateZ(-1px)"></i><i style="transform:translateZ(-2px)"></i><i style="transform:translateZ(-3px)"></i><i style="transform:translateZ(-4px)"></i><i style="transform:translateZ(-5px)"></i><i style="transform:translateZ(-6px)"></i><i style="transform:translateZ(-7px)"></i><i style="transform:translateZ(-8px)"></i><i style="transform:translateZ(-9px)"></i><i style="transform:translateZ(-10px)"></i><i style="transform:translateZ(-11px)"></i><i style="transform:translateZ(-12px)"></i><i style="transform:translateZ(-13px)"></i><i style="transform:translateZ(-14px)"></i></div><span class="bt v1"></span><span class="bt v2"></span><span class="bt v3"></span><span class="bt on"></span><span class="bt cam"></span><div class="ecran">
-        <span class="ile" id="tIle"><i class="pt"></i><b id="tIleTx">Analyse en cours…</b><i class="cam"></i></span><span class="vitre"></span>
+      <div class="tel" id="tel"><div class="ep"><i style="transform:translateZ(-1px)"></i><i style="transform:translateZ(-2px)"></i><i style="transform:translateZ(-3px)"></i><i style="transform:translateZ(-4px)"></i><i style="transform:translateZ(-5px)"></i><i style="transform:translateZ(-6px)"></i><i style="transform:translateZ(-7px)"></i><i style="transform:translateZ(-8px)"></i><i style="transform:translateZ(-9px)"></i><i style="transform:translateZ(-10px)"></i><i style="transform:translateZ(-11px)"></i><i style="transform:translateZ(-12px)"></i><i style="transform:translateZ(-13px)"></i><i style="transform:translateZ(-14px)"></i></div><span class="bt v1"></span><span class="bt v2"></span><span class="bt v3"></span><span class="bt on"></span><span class="bt cam"></span><span class="bt ant a1"></span><span class="bt ant a2"></span><span class="bt ant a3"></span><span class="bt ant a4"></span><div class="ecran">
+        <span class="ile" id="tIle"><i class="pt"></i><b id="tIleTx">Analyse en cours…</b><i class="cam"></i></span><span class="vitre"></span><span class="barre" aria-hidden="true"></span>
         <div class="hd"><img src="/img/logo-couleur.svg" alt=""><span>3 / 30 articles</span></div>
         <div class="ph"><img class="cart" id="tPhoto" src="/img/exemples/zelda-avant.jpg?v=4" alt="Photo d'une cartouche de jeu Nintendo 64 prise au téléphone" width="720" height="720" decoding="async"><div class="viseur"><i></i><i></i><i></i><i></i></div><div class="scan"></div></div>
         <div class="fiche">
