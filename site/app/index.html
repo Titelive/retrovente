@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Mes jeux · RetroRevente</title>
+<title>Mes articles · RetroRevente</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#1A1A1A">
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="/css/polices.css">
 <link rel="stylesheet" href="/css/rr.css?v=13">
 <script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=8" defer></script>
+<script src="/js/rr.js?v=9" defer></script>
 <style>
 [hidden]{display:none!important}
 body{min-height:100vh;font-size:16px;line-height:1.5}
@@ -451,7 +451,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   </div>
 </header>
 <div class="sous-barre"><div class="wrap">
-  <nav aria-label="Fil d'Ariane"><ol class="fil" id="fil"><li><a href="/">Accueil</a></li><li aria-current="page">Mes jeux</li></ol></nav>
+  <nav aria-label="Fil d'Ariane"><ol class="fil" id="fil"><li><a href="/">Accueil</a></li><li aria-current="page">Mes articles</li></ol></nav>
   <span class="pill" id="quota" hidden></span>
   <button class="btn clair petit" id="bCompte" type="button" hidden><span class="av-mini" id="bAvatar" aria-hidden="true"></span><span id="bNom">Mon compte</span></button>
 </div></div>
@@ -467,7 +467,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     </div>
     <form id="fAuth" class="zone" novalidate>
       <h1 id="aTitre" style="font-size:30px">Content de te revoir</h1>
-      <p id="aSous" style="color:var(--gris)">Connecte-toi pour retrouver tes jeux.</p>
+      <p id="aSous" style="color:var(--gris)">Connecte-toi pour retrouver tes articles.</p>
       <label class="f" id="lEmail">E-mail<input type="email" id="aEmail" autocomplete="email" required></label>
       <label class="f" id="lMdp">Mot de passe<input type="password" id="aMdp" autocomplete="current-password" minlength="8" required></label>
       <label class="case" id="lCgv" hidden><input type="checkbox" id="aCgv"><span>J'accepte les <a href="/cgv/" target="_blank">conditions générales</a> et la <a href="/confidentialite/" target="_blank">politique de confidentialité</a>.</span></label>
@@ -481,9 +481,9 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 <!-- ========== Mes jeux ========== -->
 <main class="app wrap vue" id="accueil" hidden>
   <div class="tete">
-    <div><p class="pixel">Mes jeux</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
+    <div><p class="pixel">Mes articles</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
     <div class="ajout">
-      <label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter un jeu en photo</label>
+      <label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label>
       <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
       <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
@@ -517,13 +517,13 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
 <!-- ========== Fiche d'un jeu ========== -->
 <section id="fiche" class="vue" hidden aria-labelledby="fTitre">
-  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouveau jeu</h2><button class="btn clair petit" type="button" id="fFermer">← Mes jeux</button></div></div>
+  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button class="btn clair petit" type="button" id="fFermer">← Mes articles</button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
      <section class="carte bloc photos-carte" aria-labelledby="tPhotos">
       <header><h3 id="tPhotos">Photos</h3></header>
       <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span></div></div>
-      <ol class="galerie" id="fGal" aria-label="Photos du jeu (glisse pour changer l'ordre)"></ol>
+      <ol class="galerie" id="fGal" aria-label="Photos de l'article (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
       <div class="rangee">
         <label class="btn clair petit" for="fPhotoIn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter des photos</label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
@@ -535,7 +535,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer les photos numérotées</button>
         <button class="lien" type="button" id="fPhotoSuppr" hidden>Retirer cette photo</button>
       </div>
-      <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts du jeu restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
+      <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts de l'article restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
      </section>
 
     </div>
@@ -602,8 +602,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div></div>
   <a class="cta-jeux" href="/app/" id="cRetour">
     <span class="cj-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15.5" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="13" r=".6" fill="currentColor"/></svg></span>
-    <span class="cj-tx"><b>Mes jeux</b><small id="cJeuxTx">Tes annonces, tes prix et tes ventes</small></span>
-    <span class="btn cj-bt">Ouvrir mes jeux <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="cj-tx"><b>Mes articles</b><small id="cJeuxTx">Tes annonces, tes prix et tes ventes</small></span>
+    <span class="btn cj-bt">Ouvrir mes articles <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
   </a>
   <section class="carte zone">
     <h2>Ta formule : <span id="cFormule"></span></h2>
@@ -615,8 +615,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Changer de formule</h2>
       <div class="bascule" role="group" aria-label="Période"><button type="button" data-p="mois" aria-pressed="true">Au mois</button><button type="button" data-p="an" aria-pressed="false">À l'année (−35 %)</button></div></div>
     <div class="offres">
-      <article class="offre" data-o="vendeur"><h3>Vendeur</h3><p class="p" data-mois="4,99 €<small> /mois</small>" data-an="39 €<small> /an</small>">4,99 €<small> /mois</small></p><ul><li>30 jeux par mois</li><li>Annonce, prix et photo automatiques</li><li>Suivi des ventes et temps gagné</li></ul><button class="btn" type="button">Choisir Vendeur</button></article>
-      <article class="offre" data-o="collectionneur"><h3>Collectionneur</h3><p class="p" data-mois="9,99 €<small> /mois</small>" data-an="79 €<small> /an</small>">9,99 €<small> /mois</small></p><ul><li>Jeux illimités</li><li>Alerte de seuil fiscal</li><li>Export de tes ventes (tableur)</li></ul><button class="btn" type="button">Choisir Collectionneur</button></article>
+      <article class="offre" data-o="vendeur"><h3>Vendeur</h3><p class="p" data-mois="4,99 €<small> /mois</small>" data-an="39 €<small> /an</small>">4,99 €<small> /mois</small></p><ul><li>30 articles par mois</li><li>Annonce, prix et photo automatiques</li><li>Suivi des ventes et temps gagné</li></ul><button class="btn" type="button">Choisir Vendeur</button></article>
+      <article class="offre" data-o="collectionneur"><h3>Collectionneur</h3><p class="p" data-mois="9,99 €<small> /mois</small>" data-an="79 €<small> /an</small>">9,99 €<small> /mois</small></p><ul><li>Articles illimités</li><li>Alerte de seuil fiscal</li><li>Export de tes ventes (tableur)</li></ul><button class="btn" type="button">Choisir Collectionneur</button></article>
       <article class="offre" data-o="pass"><h3>Pass Grand ménage</h3><p class="p">9,90 €<small> une fois</small></p><ul><li>Illimité pendant 30 jours</li><li>Tout Collectionneur inclus</li><li>Sans abonnement</li></ul><button class="btn" type="button">Prendre le pass</button></article>
     </div>
     <p style="font-size:13px;color:var(--gris)">Paiement sécurisé par Stripe. Prix TTC. Sans engagement : tu résilies quand tu veux avec le bouton « Résilier votre contrat » de cette page. Voir les <a href="/cgv/" target="_blank">conditions générales</a>.</p>
@@ -678,7 +678,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 <dialog id="dIa" aria-labelledby="dIaT"><form method="dialog">
   <h2 id="dIaT">Garde l'IA à tes côtés</h2>
   <p id="dIaTx" style="color:var(--gris)"></p>
-  <p style="margin:0;font-size:14.5px">Avec <b>Vendeur</b> (4,99 € par mois), l'IA reconnaît, décrit, estime et retouche <b>tous tes jeux</b>. Et tu peux toujours remplir cette fiche à la main.</p>
+  <p style="margin:0;font-size:14.5px">Avec <b>Vendeur</b> (4,99 € par mois), l'IA reconnaît, décrit, estime et retouche <b>tous tes articles</b>. Et tu peux toujours remplir cette fiche à la main.</p>
   <button class="btn" type="button" id="dIaFormules">Voir les formules</button>
   <button class="btn" type="button" id="dIaRenv" hidden>Renvoyer le lien de confirmation</button>
   <button class="lien" value="x">Plus tard</button>
@@ -687,7 +687,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <h2>Tu as bien vendu ce mois-ci !</h2>
   <p id="dQuotaTx" style="color:var(--gris)"></p>
   <button class="btn" value="pass" type="button" data-o="pass">Pass Grand ménage, 9,90 € pour 30 jours</button>
-  <button class="btn clair" value="vendeur" type="button" data-o="vendeur">Vendeur, 4,99 € par mois (30 jeux)</button>
+  <button class="btn clair" value="vendeur" type="button" data-o="vendeur">Vendeur, 4,99 € par mois (30 articles)</button>
   <button class="lien" value="x">Plus tard</button>
 </form></dialog>
 <dialog id="dTemps" aria-labelledby="tTemps"><form method="dialog">
@@ -699,7 +699,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 </form></dialog>
 <dialog id="dQuitter"><form method="dialog">
   <h2>Tu as des modifications non enregistrées</h2>
-  <p style="color:var(--gris)">Elles sont gardées en <b>brouillon</b> sur cet appareil : tu les retrouveras en haut de <b>Mes jeux</b>.</p>
+  <p style="color:var(--gris)">Elles sont gardées en <b>brouillon</b> sur cet appareil : tu les retrouveras en haut de <b>Mes articles</b>.</p>
   <button class="btn" type="button" id="qEnreg">Enregistrer maintenant</button>
   <button class="btn clair" type="button" id="qGarder">Quitter, garder le brouillon</button>
   <button class="btn clair" type="button" id="qJeter">Abandonner les modifications</button>
@@ -721,7 +721,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 </form></dialog>
 <dialog id="dSuppr"><form method="dialog">
   <h2>Supprimer ton compte ?</h2>
-  <p style="color:var(--gris)">Tous tes jeux, photos et statistiques seront effacés définitivement.</p>
+  <p style="color:var(--gris)">Tous tes articles, photos et statistiques seront effacés définitivement.</p>
   <label class="f">Ton mot de passe pour confirmer<input type="password" id="sMdp" autocomplete="current-password"></label>
   <p class="err" id="sErr"></p>
   <div class="rangee"><button class="btn" type="button" id="sGo">Tout supprimer</button><button class="btn clair" value="x">Annuler</button></div>
@@ -776,9 +776,9 @@ var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vid
 var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
-   On compte ce qui a vraiment été fait sur chaque jeu, pas les appels à l'IA. */
+   On compte ce qui a vraiment été fait sur chaque article, pas les appels à l'IA. */
 var TEMPS_DEF={photos:3,texte:4,prix:4,lbc:2,suivi:1},TEMPS=(function(){var t={};try{t=JSON.parse(localStorage.getItem("rr-temps")||"{}")||{}}catch(e){}var o={};for(var k in TEMPS_DEF)o[k]=isFinite(+t[k])&&t[k]!==""&&t[k]!=null?Math.max(0,Math.min(120,+t[k])):TEMPS_DEF[k];return o})(),
-  TEMPS_LIB={photos:["Photos","retouche et recadrage, par jeu photographié"],texte:["Texte de l'annonce","titre et description, par jeu"],prix:["Recherche du prix","par jeu dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, par annonce remplie"],suivi:["Suivi des ventes","par jeu vendu"]};
+  TEMPS_LIB={photos:["Photos","retouche et recadrage, par article photographié"],texte:["Texte de l'annonce","titre et description, par article"],prix:["Recherche du prix","par article dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, par annonce remplie"],suivi:["Suivi des ventes","par article vendu"]};
 function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:u.lbc||0,suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length}}
 var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
 
@@ -800,15 +800,15 @@ function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===4
 /* IA réservée aux formules payantes : essai unique en Découverte */
 function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton annonce offerte t'attend":"Garde l'IA à tes côtés";
   $("dIaTx").textContent=e.message;$("dIaRenv").hidden=!v;$("dIaFormules").hidden=v;if(!$("dIa").open)$("dIa").showModal();if(ME){ME.ia=v?"verif":"utilise";iaNote()}}
-function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>première annonce par l'IA est offerte</b> : prends un jeu en photo, elle s'occupe du reste.",en_cours:"🎁 Ton annonce offerte par l'IA est en cours : profites-en sur ce jeu.",verif:"🎁 Ta <b>première annonce par l'IA est offerte</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton annonce offerte par l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes jeux, dès 4,99 €</button>"}[ME.ia];
+function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>première annonce par l'IA est offerte</b> : prends un article en photo, elle s'occupe du reste.",en_cours:"🎁 Ton annonce offerte par l'IA est en cours : profites-en sur cet article.",verif:"🎁 Ta <b>première annonce par l'IA est offerte</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton annonce offerte par l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes articles, dès 4,99 €</button>"}[ME.ia];
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
 function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
   $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
-  var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes jeux",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouveau jeu"])}
+  var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
-  document.title=(v==="fiche"?(titre||"Nouveau jeu"):v==="compte"?"Mon compte":v==="auth"?"Connexion":"Mes jeux")+" · RetroRevente";
+  document.title=(v==="fiche"?(titre||"Nouvel article"):v==="compte"?"Mon compte":v==="auth"?"Connexion":"Mes articles")+" · RetroRevente";
   window.scrollTo(0,0)}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();
@@ -818,14 +818,14 @@ function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();r
   if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
 function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
-  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote();pubs()}
+  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> articles ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote();pubs()}
 function renvoyerVerif(b){if(b)busy(b,true);api("POST","/api/verifier/renvoyer").then(function(j){toast(j.deja?"Ton adresse est déjà confirmée.":"Lien envoyé : regarde ta boîte mail (et les indésirables).","ok")}).catch(function(e){toast(e.message,"bad")}).then(function(){if(b)busy(b,false)})}
 $("dIaRenv").onclick=function(){renvoyerVerif(this)};
 $("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche, puis va dans Mon compte.","bad");return}compte()};
 $("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv]"))renvoyerVerif(e.target.closest("[data-renv]"));if(e.target.closest("[data-formules]"))compte()});
 function tempsGagne(){var e=tempsEtapes(),n=0;for(var k in e)n+=e[k]*TEMPS[k];return n}
 function dessinerTemps(){var e=tempsEtapes();$("tpsL").innerHTML=Object.keys(TEMPS_DEF).map(function(k){return '<div class="tps-r"><span><b>'+TEMPS_LIB[k][0]+'</b><small>'+e[k]+' × '+TEMPS_LIB[k][1]+'</small></span><label><input type="number" min="0" max="120" step="1" inputmode="numeric" data-k="'+k+'" value="'+TEMPS[k]+'" aria-label="Minutes pour '+TEMPS_LIB[k][0].toLowerCase()+'">min</label><span class="s">'+hm(e[k]*TEMPS[k])+'</span></div>'}).join("");majTot()}
-function majTot(){var e=tempsEtapes();[].forEach.call($("tpsL").querySelectorAll(".tps-r"),function(r){var k=r.querySelector("input").dataset.k;r.querySelector(".s").textContent=hm(e[k]*TEMPS[k])});$("tpsTot").textContent="Total : "+hm(tempsGagne())+" gagnées sur "+OBJ.length+" jeu"+(OBJ.length>1?"x":"")+"."}
+function majTot(){var e=tempsEtapes();[].forEach.call($("tpsL").querySelectorAll(".tps-r"),function(r){var k=r.querySelector("input").dataset.k;r.querySelector(".s").textContent=hm(e[k]*TEMPS[k])});$("tpsTot").textContent="Total : "+hm(tempsGagne())+" gagnées sur "+OBJ.length+" article"+(OBJ.length>1?"s":"")+"."}
 function garderTemps(){try{localStorage.setItem("rr-temps",JSON.stringify(TEMPS))}catch(e){}$("cTemps").textContent=hm(tempsGagne());$("cTemps").dataset.v=tempsGagne()}
 $("cTempsBt").onclick=function(){dessinerTemps();$("dTemps").showModal()};
 $("tpsL").addEventListener("input",function(e){var i=e.target.closest("input");if(!i)return;var v=i.value===""?0:Math.max(0,Math.min(120,Math.round(+i.value)||0));TEMPS[i.dataset.k]=v;majTot();garderTemps()});
@@ -852,8 +852,8 @@ function dessiner(){if(typeof dessinerBrouillons==="function")dessinerBrouillons
     $("fUp").onclick=compte;
   }
   var l=OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")});
-  if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun jeu pour l\'instant</b><span>Prends ton premier jeu en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter un jeu en photo</label></div>';return}
-  if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun jeu dans cette catégorie.</p>';return}
+  if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
+  if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun article dans cette catégorie.</p>';return}
   $("liste").innerHTML=l.map(function(o,i){
     var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
     return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
@@ -878,7 +878,7 @@ function modeAuth(m){MODE=m;$("aErr").textContent="";
   $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
   $("lCgv").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
   $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
-  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes jeux.","Me connecter"],ins:["Crée ton compte","5 jeux offerts chaque mois, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
+  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ta première annonce par l'IA offerte, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
   $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
   (m==="reset"?$("aMdp"):$("aEmail")).focus()}
 $("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};
@@ -1088,7 +1088,7 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("lbcFeui
 
 /* ===== Publicités (formule Découverte uniquement) ===== */
 var PUBS=[
-  {i:"✨",t:"L'IA sur tous tes jeux",d:"Photo, texte, bon prix et retouche pour chaque jeu, avec Vendeur à 4,99 € par mois.",b:"Voir les formules",a:"compte"},
+  {i:"✨",t:"L'IA sur tous tes articles",d:"Photo, texte, bon prix et retouche pour chaque article, avec Vendeur à 4,99 € par mois.",b:"Voir les formules",a:"compte"},
   {i:"📦",t:"Un gros carton à vider ?",d:"Pass Grand ménage : 30 jours illimités, avec l'IA, pour 9,90 € une seule fois.",b:"Prendre le pass",a:"pass"},
   {i:"📖",t:"Bien vendre sur Le Bon Coin",d:"Photos, prix, envoi : notre guide pour vendre tes jeux vite et au bon prix.",b:"Lire le guide",a:"/guides/vendre-jeux-video-leboncoin/"},
   {i:"🧩",t:"Le Bon Coin se remplit tout seul",d:"Avec l'extension RetroRevente, chaque écran du dépôt d'annonce se remplit pour toi.",b:"Installer",a:"compte"}
@@ -1166,10 +1166,10 @@ $("f_statut").onchange=majVente;
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
   F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();PARTIC=[];puces();
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
-  $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
+  $("fTitre").textContent=o?o.titre:"Nouvel article";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos()}
-  montrer("fiche",o?o.titre:"Nouveau jeu");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer()}
+  montrer("fiche",o?o.titre:"Nouvel article");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -1185,7 +1185,7 @@ function uid(){return ME&&(ME.email||ME.id)||""}
 function cle(){return uid()+"|"+CLE}
 function garder(){if(!CLE||$("fiche").hidden)return Promise.resolve();if(!sale())return BR.del(cle());
   var ch={};F.forEach(function(k){ch[k]=$("f_"+k).value});
-  return BR.put({k:cle(),u:uid(),cle:CLE,id:ED?ED.id:null,titre:ch.titre||(ED&&ED.titre)||"Nouveau jeu",maj:Date.now(),champs:ch,cote:COTE,dels:DELS.slice(),
+  return BR.put({k:cle(),u:uid(),cle:CLE,id:ED?ED.id:null,titre:ch.titre||(ED&&ED.titre)||"Nouvel article",maj:Date.now(),champs:ch,cote:COTE,dels:DELS.slice(),
     photos:GAL.map(function(g){return{pid:g.pid||null,data:g.data||null,src:g.pid?null:(g.data||g.src),legende:g.legende||""}})})}
 function planifier(){clearTimeout(TBR);TBR=setTimeout(garder,600)}
 $("fiche").addEventListener("input",planifier,true);$("fiche").addEventListener("change",planifier,true);
@@ -1200,19 +1200,19 @@ $("qEnreg").onclick=function(){SUITE=null;$("dQuitter").close();$("fSave").click
 function depuisMaintenant(t){var m=Math.round((Date.now()-t)/60000);return m<1?"à l'instant":m<60?"il y a "+m+" min":m<1440?"il y a "+Math.round(m/60)+" h":"le "+new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}
 function dessinerBrouillons(){BR.tous().then(function(l){var z=$("brouillons");z.hidden=!l.length;
   $("brListe").innerHTML=l.map(function(d,i){var p=d.photos&&d.photos[0],im=p?(p.src||(d.id&&p.pid?"/api/photo/"+d.id+"/"+p.pid:"")):"";
-    return '<div class="br" style="--i:'+i+'"><span class="vg"'+(im?' style="background-image:url('+esc(im)+')"':'')+'>'+(im?"":"Photo")+'</span><span class="tx"><b>'+esc(d.titre)+'</b><small>'+(d.id?"Modifications non enregistrées":"Nouveau jeu")+" · "+depuisMaintenant(d.maj)+'</small><span class="ac"><button type="button" data-rep="'+esc(d.k)+'">Reprendre</button><button type="button" data-jet="'+esc(d.k)+'">Supprimer</button></span></span></div>'}).join("")})}
+    return '<div class="br" style="--i:'+i+'"><span class="vg"'+(im?' style="background-image:url('+esc(im)+')"':'')+'>'+(im?"":"Photo")+'</span><span class="tx"><b>'+esc(d.titre)+'</b><small>'+(d.id?"Modifications non enregistrées":"Nouvel article")+" · "+depuisMaintenant(d.maj)+'</small><span class="ac"><button type="button" data-rep="'+esc(d.k)+'">Reprendre</button><button type="button" data-jet="'+esc(d.k)+'">Supprimer</button></span></span></div>'}).join("")})}
 $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-rep]"),j=e.target.closest("[data-jet]");
   if(j){BR.del(j.dataset.jet).then(dessinerBrouillons);return}
   if(!r)return;BR.tous().then(function(l){var d=l.filter(function(x){return x.k===r.dataset.rep})[0];if(!d)return;
-    var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:null;if(d.id&&!o){BR.del(d.k).then(dessinerBrouillons);toast("Ce jeu n'existe plus.","bad");return}
+    var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:null;if(d.id&&!o){BR.del(d.k).then(dessinerBrouillons);toast("Cet article n'existe plus.","bad");return}
     ouvrirFiche(o||null);CLE=d.cle;
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:null}});SEL=0;afficher();
-    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouveau jeu");majLbc();toast("Brouillon repris.","ok")})});
+    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();toast("Brouillon repris.","ok")})});
 $("fFermer").onclick=fermerFiche;
 $("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvrirFiche(null);$("f_titre").focus()};
 $("fSave").onclick=function(){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
-  if(!o.titre.trim()){toast("Indique le nom du jeu.","bad");$("f_titre").focus();return}
+  if(!o.titre.trim()){toast("Indique le nom de l'article.","bad");$("f_titre").focus();return}
   var corps={objet:o};
   busy(b,true,"Enregistrement…");
   (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
@@ -1229,7 +1229,7 @@ function syncGalerie(obj,o){var id=obj.id,ch=Promise.resolve(),der={objet:obj};
   return ch.then(function(){DELS=[];o.photos=GAL.map(function(g){return{id:g.pid,legende:g.legende}});return api("PUT","/api/objets/"+id,{objet:o})})}
 var confirmeSuppr=0;
 $("fSuppr").onclick=function(){var b=$("fSuppr");if(Date.now()-confirmeSuppr>4000){confirmeSuppr=Date.now();b.textContent="Sûr ? Re-clique";setTimeout(function(){b.textContent="Supprimer"},4000);return}
-  api("DELETE","/api/objets/"+ED.id).then(function(){OBJ=OBJ.filter(function(x){return x.id!==ED.id});BR.del(cle());figer();fermerFiche();dessiner();toast("Jeu supprimé.","ok")}).catch(function(e){erreur(e,"Suppression impossible.")})};
+  api("DELETE","/api/objets/"+ED.id).then(function(){OBJ=OBJ.filter(function(x){return x.id!==ED.id});BR.del(cle());figer();fermerFiche();dessiner();toast("Article supprimé.","ok")}).catch(function(e){erreur(e,"Suppression impossible.")})};
 
 /* ===== Formules et compte ===== */
 /* ===== Plusieurs cartes Pokémon sur une photo (classeur, cartes étalées) =====
@@ -1263,7 +1263,7 @@ $("dInvOk").onclick=function(){if(!INV)return;var b=this,seules=INV.cartes.filte
   if(lot)ch=ch.then(function(){return api("POST","/api/objets",{objet:{titre:lot.titre,categorie:"cartes",titreAnnonce:lot.titre,texteAnnonce:lot.description,prixDemande:lot.prix,ia:true,notes:"Lot créé depuis une photo de plusieurs cartes."},photo:versData(INV.img,null,1400)})});
   ch.then(function(){$("dInv").close();toast(n+" fiche"+(n>1?"s":"")+" créée"+(n>1?"s":"")+". Vérifie-les, puis publie sur Le Bon Coin 🃏","ok");INV=null;return charger()})
     .catch(function(e){erreur(e,"Création impossible.");charger()}).then(function(){busy(b,false,"Créer les fiches")})};
-function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.max+" jeux de ce mois avec la formule "+ME.formule.nom+". Continue tout de suite avec une autre formule, ou attends le mois prochain.";$("dQuota").showModal()}
+function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.max+" articles de ce mois avec la formule "+ME.formule.nom+". Continue tout de suite avec une autre formule, ou attends le mois prochain.";$("dQuota").showModal()}
 $("dQuota").addEventListener("click",function(e){var b=e.target.closest("[data-o]");if(b){$("dQuota").close();payer(b.dataset.o,"mois",b)}});
 function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arrive très bientôt.","bad");return}var t=b&&b.textContent;if(b)busy(b,true,"Redirection…");
   api("POST","/api/paiement",{offre:offre,periode:periode}).then(function(j){location.href=j.url}).catch(function(e){erreur(e,"Paiement indisponible.");if(b)busy(b,false,t)})}
@@ -1271,8 +1271,8 @@ function modeTest(){var z=$("cTest");z.hidden=!ME.admin;if(!ME.admin)return;var 
   $("cTestBt").innerHTML=F2.map(function(x){return '<button class="btn clair petit" type="button" data-test="'+x[0]+'" aria-pressed="'+((ME.formuleTest||"")===x[0])+'">'+x[1]+'</button>'}).join("")}
 $("cTestBt").addEventListener("click",function(e){var b=e.target.closest("[data-test]");if(!b)return;var t=b.textContent;busy(b,true,"…");
   api("POST","/api/admin/formule",{formule:b.dataset.test}).then(function(j){ME=Object.assign(ME,j.moi);entete();compte();toast("Formule de test : "+ME.formule.nom+".","ok")}).catch(function(e){erreur(e,"Changement impossible.");busy(b,false,t)})});
-function compte(){var f=ME.formule;montrer("compte");(function(){var v=OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,n=OBJ.length;$("cJeuxTx").textContent=n?n+(n>1?" jeux":" jeu")+(v?", dont "+v+" en vente":"")+(ME.bilan&&ME.bilan.vendus?" · "+ME.bilan.vendus+" vendu"+(ME.bilan.vendus>1?"s":""):""):"Ajoute ton premier jeu en une photo"})();modeTest();$("cEmail").textContent=ME.nom||ME.email;profil();$("cFormule").textContent=f.nom;
-  var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" jeux":" jeu")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
+function compte(){var f=ME.formule;montrer("compte");(function(){var v=OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,n=OBJ.length;$("cJeuxTx").textContent=n?n+(n>1?" articles":" article")+(v?", dont "+v+" en vente":"")+(ME.bilan&&ME.bilan.vendus?" · "+ME.bilan.vendus+" vendu"+(ME.bilan.vendus>1?"s":""):""):"Ajoute ton premier article en une photo"})();modeTest();$("cEmail").textContent=ME.nom||ME.email;profil();$("cFormule").textContent=f.nom;
+  var tx=f.id==="gratuit"?ME.quota.utilise+(ME.quota.utilise>1?" articles":" article")+" sur 5 utilisés ce mois-ci. Le compteur repart à zéro le 1er du mois.":
     f.id==="pass"?"Illimité jusqu'au "+dfr(f.pass)+". Aucun renouvellement automatique.":
     (f.statut==="past_due"?"Le dernier paiement n'est pas passé : mets à jour ta carte pour garder ta formule. ":"")+(f.periode==="an"?"Abonnement annuel":"Abonnement mensuel")+(f.resiliation?", résilié : il s'arrête le "+dfr(f.resiliation)+".":f.fin?", prochaine échéance le "+dfr(f.fin)+".":".");
   if(ME.formuleTest)tx="Formule de test, sans paiement : visible seulement par toi.";

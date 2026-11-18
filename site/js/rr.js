@@ -53,7 +53,7 @@
       if (fid !== "gratuit") { var bd = d.createElement("span"); bd.className = "badge-formule"; bd.textContent = { vendeur: "Vendeur", collectionneur: "Collectionneur", pass: "Pass" }[fid] || ""; lienCx.appendChild(bd); }
       lienCx.classList.add("nav-moi"); lienCx.href = "/app/?compte"; lienCx.title = "Mon compte";
       var cta = d.querySelectorAll(".nav-cta, .nav-cta-court");
-      cta.forEach(function (c) { c.href = "/app/"; var s = c.querySelector("span"); if (s) s.textContent = "Mes jeux"; else c.lastChild.textContent = "Mes jeux"; });
+      cta.forEach(function (c) { c.href = "/app/"; var s = c.querySelector("span"); if (s) s.textContent = "Mes articles"; else c.lastChild.textContent = "Mes articles"; });
     };
     if (/(?:^|;\s*)rr_co=1/.test(d.cookie) && !d.getElementById("app-rr")) {
       fetch("/api/moi", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(window.rrMoi).catch(function () {});
