@@ -38,7 +38,7 @@ function nettoyer(v, avant) {
     remise: parmi(v.remise, REMISES, ""),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
     annonce: lien(v.annonce), notes: txt(v.notes, 1000),
-    origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160),
+    origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
     cote: ia.coteDe(v.cote),
     ia: !!(v.ia || (avant && avant.ia)),
     photo: !!(avant && photosDe(avant).length),
@@ -123,7 +123,7 @@ function csv(items) {
 // Le Bon Coin n'a pas d'API publique : l'extension lit ici les annonces prêtes et remplit le formulaire de dépôt
 // dans l'onglet de la personne, qui vérifie chaque étape et publie elle-même.
 const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état.", correct: "État correct.", pieces: "Pour pièces." };
-const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice." };
+const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice.", boite_vide: "Boîte seule, sans le jeu." };
 export function annonceLbc(v) {
   const nom = [v.titre, v.plateforme].filter(Boolean).join(" ");
   const description = v.texteAnnonce || [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."].filter(Boolean).join("\n");
