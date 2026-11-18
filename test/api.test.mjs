@@ -519,3 +519,12 @@ test("IA en formule Découverte : un seul essai, e-mail confirmé, pas de compte
   for (let i = 0; i < 3; i++) assert.equal((await call("POST", "/api/ia/cote", { objet: { titre: "Jeu " + i } }, c4, app)).status, 200);
   assert.equal((await call("GET", "/api/moi", null, c4)).json.ia, null);
 });
+
+test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {
+  const { analyseOffre } = await import("../server/ia.mjs");
+  const a = analyseOffre(190, 140);
+  assert.equal(a.ecart, 26); assert.equal(a.plancher, 170); assert.equal(a.contre, 180); assert.equal(a.basse, true);
+  const b = analyseOffre(190, 175);
+  assert.equal(b.basse, false); assert.equal(b.acceptable, true);
+  assert.equal(analyseOffre(null, 140), null);
+});

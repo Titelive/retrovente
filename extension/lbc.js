@@ -598,6 +598,7 @@
     ".rep{display:flex;flex-direction:row;align-items:flex-start;gap:10px;text-align:left;border:1px solid var(--trait);background:var(--papier);border-radius:14px;padding:9px 12px;cursor:pointer;transition:border-color .2s,background .2s}.rep:hover{border-color:var(--anis);background:var(--anis-p)}" +
     ".ia{display:flex;flex-direction:column;gap:7px;background:var(--nuit);color:#fff;border-radius:18px;padding:12px;--papier:rgba(255,255,255,.06);--trait:rgba(255,255,255,.14);--gris:#B8B8B0;--encre:#fff}" +
     ".ia-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.ia-t b{font:700 14px/1.2 var(--titre);display:flex;gap:6px;align-items:center}.etoile{color:var(--anis)}" +
+    ".ia-offre{margin:0;font-size:12.5px;line-height:1.4;border-radius:10px;padding:7px 9px;background:rgba(255,255,255,.07);color:#E8E8E2}.ia-offre.basse{background:rgba(246,196,185,.14);color:#F6D3CB}.ia-offre.ok{background:rgba(191,232,200,.12);color:#CBEBD3}.ia-offre b{font-weight:700}" +
     ".ia .mini{color:#fff}.ia .mini:hover:not(:disabled){background:var(--anis);border-color:var(--anis);color:var(--nuit)}.mini:disabled{opacity:.55;cursor:default}.ia-r{margin:0;font-size:12.5px;color:#B8B8B0}.ia-r.charge{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}" +
     ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
     ".ap{font-style:normal;font:700 10.5px/1 var(--texte);letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:3px 7px;margin-right:7px;vertical-align:1px;background:rgba(255,255,255,.12);color:#fff}.ap-contre_offre{background:var(--anis);color:var(--nuit)}.ap-couper_court{background:#F3B9AE;color:#5A1A10}.ap-accepter{background:#BFE8C8;color:#14401F}" +
@@ -1059,6 +1060,22 @@
     t = t.replace(/\n{3,}/g, "\n\n").trim().slice(-4200);
     return (enc ? "[Annonce concernée]\n" + enc.slice(0, 600) + "\n\n[Conversation]\n" : "") + t;
   }
+  // Messages déjà envoyés par le vendeur : les bulles calées à droite de la conversation (pour que l'IA ne répète pas
+  // ses arguments ni sa présentation).
+  function mesMessages() {
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), vus = [];
+    if (cr.width < 200) return [];
+    [].forEach.call(col.querySelectorAll("div, p, li, article, section"), function (x) {
+      if ((hote && hote.contains(x)) || (z && (x.contains(z) || z.contains(x)))) return;
+      var t = (x.innerText || "").trim(); if (t.length < 20 || t.length > 1500) return;
+      var r = x.getBoundingClientRect();
+      if (r.width < 120 || r.width > cr.width * 0.85) return;
+      if (r.left - cr.left < cr.width * 0.2 || cr.right - r.right > 40) return;   // calée à droite
+      if (vus.some(function (v) { return v.contains(x); })) return;
+      vus = vus.filter(function (v) { return !x.contains(v); }); vus.push(x);
+    });
+    return vus.map(function (x) { return x.innerText.trim().replace(/\n{2,}/g, "\n").slice(0, 600); }).filter(function (t) { return !/^(offre|vous avez|message automatique)/i.test(t); }).slice(-4);
+  }
   function conversationActuelle() { return location.pathname + "|" + texteEncadre().slice(0, 160); }
   function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
   async function proposerIA(force, consigne) {
@@ -1069,9 +1086,9 @@
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [] });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages() });
       if (etat.ia.cle !== cle) return;
-      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "" };
+      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
       if (consigne) etat.brouillonIA = "";
     } catch (e) {
       if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message, status: e.status };
@@ -1102,6 +1119,11 @@
       return;
     }
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); z.appendChild(parlerIA()); return; }
+    if (i.offre && i.offre.ecart > 0) {
+      var of = i.offre;
+      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "📉 Offre trop basse : " : "🤝 Offre correcte : ") + of.offre + " €" }),
+        " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
+    }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
     else if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
     var qui = acheteurLu();
