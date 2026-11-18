@@ -118,7 +118,6 @@ html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::a
 .vers-haut svg.anneau circle{fill:none;stroke:var(--anis);stroke-width:2.5;stroke-linecap:round}
 .vers-haut svg.fleche{width:20px;height:20px;transition:transform .3s var(--ease)}
 .vers-haut:hover svg.fleche{transform:translateY(-3px)}
-body.fiche-ouverte .vers-haut{bottom:96px}
 
 /* ---------- apparitions au défilement (contenu visible sans JS) ---------- */
 .js .rv{opacity:0;transform:translateY(28px);transition:opacity .85s var(--ease),transform .85s var(--ease),filter .85s var(--ease)}
