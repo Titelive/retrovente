@@ -312,3 +312,10 @@ test("menu du site : l'indice de connexion est rattrapé pour les anciennes sess
   assert.match(indiceConnexion({ headers: { cookie: "rr_co=1" } }), /^rr_co=; .*Max-Age=0/);
   assert.equal(indiceConnexion({ headers: { cookie: "" } }), "");
 });
+
+test("légendes déjà enregistrées : les formules de doute disparaissent à la lecture", async () => {
+  const c = await compte("vieilles-legendes@exemple.fr");
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker" }, photo: PHOTO }, c)).json.objet;
+  const r = await call("PUT", "/api/objets/" + o.id + "/photos/p0", { legende: "Connecteur doré : contacts apparemment propres, pas de défaut visible" }, c);
+  assert.equal(r.json.objet.photos[0].legende, "Connecteur doré : pas de défaut");
+});
