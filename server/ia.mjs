@@ -157,12 +157,13 @@ export async function legender(photos, v = {}) {
   l.forEach(checkPhoto);
   if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut"));
   const quoi = [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
-  const contenu = [];
-  l.forEach((p, i) => { contenu.push({ type: "text", text: "Photo " + (i + 1) + " :" }); contenu.push(image(p)); });
-  contenu.push({ type: "text", text: `Ces ${l.length} photos montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Pour chaque photo, dans l'ordre, écris une légende courte en français (12 mots au plus) qui dit ce qu'elle montre (face avant, dos, étiquette, boîte, notice, tranche, connecteur…) et, s'il y en a un, le défaut visible (rayure, étiquette décollée, coin abîmé…). Sois honnête, n'invente rien. ${CERTAIN} Pas de point final.
-Réponds uniquement par un objet JSON : {"legendes": ["…", "…"]} avec exactement ${l.length} légendes.` });
-  const o = await claude(contenu, { max: 900, timeout: 60000 });
-  const out = o && Array.isArray(o.legendes) ? o.legendes.map((x) => affirme(txt(x, 200))) : [];
-  if (!out.length) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
-  return l.map((_, i) => out[i] || "");
+  // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
+  const une = async (p) => {
+    const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (rayure, étiquette décollée, coin abîmé…). ${CERTAIN} Pas de point final.
+Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, timeout: 45000 });
+    return affirme(txt(o && o.legende, 200)).replace(/\.$/, "");
+  };
+  const out = await Promise.all(l.map((p) => une(p).catch(() => "")));
+  if (!out.some(Boolean)) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
+  return out;
 }

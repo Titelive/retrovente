@@ -838,7 +838,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
-  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher()}
+  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos()}
   montrer("fiche",o?o.titre:"Nouveau jeu");majLbc()}
 function fermerFiche(){ED=null;montrer("accueil")}
 $("fFermer").onclick=fermerFiche;
