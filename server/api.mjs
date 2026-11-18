@@ -465,7 +465,7 @@ export async function handleApi(req) {
 
   /* --- IA --- */
   if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
-  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
+  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, ...l }); }
   if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }

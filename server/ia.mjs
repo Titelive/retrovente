@@ -6,7 +6,7 @@ export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
 export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
-export const MAX_PHOTO = 700_000;   // data URL ; la page réduit la photo à 1000 px avant l'envoi
+export const MAX_PHOTO = 2_100_000;   // data URL ; photos en haute définition (2000 à 2400 px) pour la retouche et la galerie
 
 export const txt = (v, n) => String(v ?? "").replace(/\u0000/g, "").trim().slice(0, n);
 export const prix = (v) => { if (v == null || String(v).trim() === "") return null; const n = Number(String(v).replace(/\s/g, "").replace(",", ".")); return isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) / 100 : null; };
@@ -336,11 +336,12 @@ export function affirme(t) {
 }
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
+const carte0 = (v) => v.categorie === "cartes";
 export async function legender(photos, v = {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
-  if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut"));
+  if (FAKE()) return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) ? process.env.IA_FAKE_JAUNI : "non")) };
   const carte = v.categorie === "cartes";
   const quoi = carte ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
@@ -350,12 +351,17 @@ export async function legender(photos, v = {}) {
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
-Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, timeout: 45000 });
-    return affirme(txt(o && o.legende, 200)).replace(/\.$/, "");
+${carte ? "" : `
+Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
+Réponds uniquement par un objet JSON : {"legende": "…"${carte ? "" : `, "jauni": "non" | "leger" | "net"`}}` }], { max: 200, timeout: 45000 });
+    const leg = affirme(txt(o && o.legende, 200)).replace(/\.$/, "");
+    const j = carte ? "non" : parmi(o && o.jauni, ["non", "leger", "net"], /nettement jauni/i.test(leg) ? "net" : /jauni/i.test(leg) ? "leger" : "non");
+    const dit = j === "non" || /jaun/i.test(leg) ? leg : (leg ? leg + ", " : "") + (j === "net" ? "plastique nettement jauni" : "plastique légèrement jauni");
+    return { legende: dit.slice(0, 200), jauni: j };
   };
-  const out = await Promise.all(l.map((p) => une(p).catch(() => "")));
-  if (!out.some(Boolean)) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
-  return out;
+  const out = await Promise.all(l.map((p) => une(p).catch(() => ({ legende: "", jauni: "non" }))));
+  if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
+  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni) };
 }
 
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
