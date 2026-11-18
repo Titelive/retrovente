@@ -40,7 +40,7 @@ var ACTIONS = {
   annonces: async function () { return (await appel("/api/extension/annonces")).json(); },
   photo: async function (m) {
     if (!/^[a-f0-9]{16}$/.test(m.id || "")) throw new Error("Photo inconnue.");
-    var r = await appel("/api/extension/photo/" + m.id);
+    var r = await appel("/api/extension/photo/" + m.id + (/^(p0|[a-f0-9]{8})$/.test(m.photo || "") ? "/" + m.photo : ""));
     return { type: r.headers.get("content-type") || "image/jpeg", base64: base64(await r.arrayBuffer()) };
   },
   reponse: async function (m) {

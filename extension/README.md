@@ -1,6 +1,6 @@
 # Extension RetroRevente pour Le Bon Coin
 
-Sur `leboncoin.fr/deposer-une-annonce`, le panneau RetroRevente s'ouvre tout seul avec le jeu le plus récent pas encore publié, et **chaque écran du dépôt se remplit automatiquement** dès qu'il apparaît : titre, catégorie proposée (Jeux vidéo, Consoles), description, état, prix et photo. Tu relis, tu cliques « Continuer » puis « Publier » : l'extension ne clique jamais dessus.
+Sur `leboncoin.fr/deposer-une-annonce`, le panneau RetroRevente s'ouvre tout seul avec le jeu le plus récent pas encore publié, et **chaque écran du dépôt se remplit automatiquement** dès qu'il apparaît : titre, catégorie proposée (Jeux vidéo, Consoles), description, état (y compris la liste déroulante « Choisissez »), prix et **toutes les photos** de la fiche, dans l'ordre. Un texte pré-rempli par l'IA de Le Bon Coin est remplacé par le tien ; ce que tu tapes toi-même n'est jamais réécrit. Tu relis, tu cliques « Continuer » puis « Publier » : l'extension ne clique jamais dessus.
 
 Un champ n'est rempli qu'une fois par jeu : si tu le corriges, ta correction est gardée. Un état déjà choisi n'est pas changé. L'interrupteur « Remplissage automatique » met en pause, « Remplir à nouveau » réécrit l'écran avec le jeu choisi.
 
