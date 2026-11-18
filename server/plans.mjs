@@ -23,4 +23,4 @@ export const rights = (u) => ({ id: effectivePlan(u), ...PLANS[effectivePlan(u)]
 export const SEUIL_VENTES = 30, SEUIL_MONTANT = 2000;
 
 // Version des conditions générales en vigueur (date de mise à jour affichée sur /cgv/). À changer à chaque modification.
-export const CGV_VERSION = "2026-11-17";
+export const CGV_VERSION = "2026-11-18";
