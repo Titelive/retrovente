@@ -192,6 +192,16 @@ export async function handleApi(req) {
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
     }
     if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
+    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
+    if (p === "/api/extension/reponse" && method === "POST") {
+      const r = rights(eu), n = usageOf(eu.id).reponse || 0, cap = r.quota === Infinity ? FAIR_USE : r.quota * 6 + 20;
+      if (n >= cap || !allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
+      const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
+      const tous = listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve").map(annonceLbc);
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous);
+      bump(eu.id, "reponse");
+      return { status: 200, json: { ok: true, ...out }, headers: CORS };
+    }
     return { status: 404, json: { error: "Adresse inconnue." }, headers: CORS };
   }
 

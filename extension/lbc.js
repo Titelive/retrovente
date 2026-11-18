@@ -212,6 +212,10 @@
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
     ".reps{display:flex;flex-direction:column;gap:6px;max-height:min(46vh,380px);overflow:auto;margin:0 -4px;padding:0 4px}" +
     ".rep{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--trait);background:var(--papier);border-radius:14px;padding:9px 12px;cursor:pointer;transition:border-color .2s,background .2s}.rep:hover{border-color:var(--anis);background:var(--anis-p)}" +
+    ".ia{display:flex;flex-direction:column;gap:7px;background:var(--nuit);color:#fff;border-radius:18px;padding:12px;--papier:rgba(255,255,255,.06);--trait:rgba(255,255,255,.14);--gris:#B8B8B0;--encre:#fff}" +
+    ".ia-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.ia-t b{font:700 14px/1.2 var(--titre);display:flex;gap:6px;align-items:center}.etoile{color:var(--anis)}" +
+    ".ia .mini{color:#fff}.ia .mini:hover{color:var(--nuit)}.ia-r{margin:0;font-size:12.5px;color:#B8B8B0}.ia-r.charge{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}" +
+    ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     ".rep b{font:600 13.5px/1.3 var(--titre)}.rep span{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
     "button:focus-visible{outline:2px solid var(--anis);outline-offset:2px}.cherche input:focus{outline:none}.cherche:focus-within{box-shadow:inset 0 0 0 1.5px var(--anis-f,#BFE54C)}";
@@ -368,7 +372,13 @@
     etat.ouvrirRecherche = ouvrirListe;
 
     var haut = el("div", { class: "sel" }, [choix, liste]);
-    if (mode() === "messages") { corps.appendChild(el("div", { class: "pile" }, [haut, reponsesUI(a)])); statut("Choisis une réponse : elle se place dans la zone de message.", ""); return; }
+    if (mode() === "messages") {
+      var ia = el("div", { class: "ia" });
+      corps.appendChild(el("div", { class: "pile" }, [haut, ia, el("p", { class: "grp", texte: "Réponses types" }), reponsesUI(a)]));
+      dessinerIA(ia);
+      if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
+      return;
+    }
     var ligne = function (nom, val) { return el("div", { class: "l", title: val }, [el("b", { texte: nom + " : " }), val || "—"]); };
     var grille = el("div", { class: "c" }, [
       ligne("Titre", a.titre), ligne("Description", a.description.replace(/\n/g, " ")), ligne("Prix", prixTxt(a)), ligne("État", ETAT_TXT[a.etat] || ""),
@@ -420,6 +430,7 @@
       { g: "Négociation", t: "« C'est quoi votre dernier prix ? »", m: "Bonjour ! " + (plancher ? "Mon dernier prix serait " + plancher + " €, " : "Je peux faire un petit geste, ") + "envoi ou remise en main propre au choix. Ça vous irait ?" },
       { g: "Négociation", t: "Accepter l'offre", m: "Bonjour, c'est d'accord pour " + (offre ? offre + " €" : "votre offre") + " ! Envoyez-moi la demande d'achat sur Le Bon Coin et je m'en occupe rapidement." },
       { g: "Négociation", t: "Offre sans même un bonjour", m: "Bonjour 🙂 Merci pour l'intérêt ! Le jeu est à " + lePrix + ". Si vous avez une proposition raisonnable, je l'étudie volontiers." },
+      { g: "Négociation", t: "Offre groupée bien trop basse", m: "Bonjour, merci pour votre intérêt pour plusieurs de mes jeux, ça me fait plaisir ! Par contre, votre proposition est vraiment loin de leur valeur : chacun est déjà au prix du marché. Pour un lot, je peux faire un vrai geste sur le total, dites-moi lesquels vous intéressent et je vous fais une proposition honnête." },
       { g: "Négociation", t: "Lot de plusieurs jeux", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quels jeux vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
       { g: "Négociation", t: "Proposition d'échange", m: "Bonjour, merci pour la proposition d'échange ! Pour l'instant je préfère vendre plutôt qu'échanger, mais si vous êtes intéressé à " + lePrix + ", je vous le réserve avec plaisir." },
       // Le jeu
@@ -441,6 +452,51 @@
       { g: "Sécurité et suivi", t: "Merci après la vente", m: "Merci beaucoup pour votre achat ! Bon jeu avec " + nom + ", et n'hésitez pas à laisser un avis, ça m'aide beaucoup." },
     ];
   }
+  /* ===== Réponse proposée par l'IA (lit la conversation ouverte) ===== */
+  function texteConversation() {
+    var racine = document.querySelector("main") || document.body, t = racine.innerText || "";
+    var z = zoneMessage(); if (z && !(z instanceof HTMLTextAreaElement) && z.innerText) t = t.split(z.innerText).join(" ");
+    return t.replace(/\n{3,}/g, "\n\n").trim().slice(-4000);
+  }
+  function cleConversation() { var t = texteConversation(); return location.pathname + "|" + t.length + "|" + t.slice(-300); }
+  async function proposerIA(force) {
+    var cle = cleConversation();
+    if (!force && etat.ia && etat.ia.cle === cle) return;
+    etat.ia = { cle: cle, charge: true }; rafraichirIA();
+    try {
+      var r = await rrDemander({ type: "reponse", annonce: etat.choisie ? etat.choisie.id : "", conversation: texteConversation() });
+      if (etat.ia.cle !== cle) return;
+      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [] };
+    } catch (e) { if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message }; }
+    rafraichirIA();
+  }
+  function rafraichirIA() { var z = ombre && ombre.querySelector(".ia"); if (z) dessinerIA(z); }
+  function dessinerIA(z) {
+    z.textContent = "";
+    var tete = el("div", { class: "ia-t" }, [el("b", {}, [el("span", { class: "etoile", texte: "✦" }), "Réponse proposée par l'IA"]),
+      el("button", { class: "mini", type: "button", texte: "Autres idées", title: "Relire la conversation et proposer d'autres réponses", onclick: function () { proposerIA(true); } })]);
+    z.appendChild(tete);
+    var i = etat.ia || {};
+    if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: "Je lis le dernier message de l'acheteur…" })); return; }
+    if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); return; }
+    if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
+    (i.reponses || []).forEach(function (r) {
+      z.appendChild(el("button", { class: "rep fort", type: "button", title: "Placer dans la zone de message", onclick: function () { inserer(r.texte); } }, [el("b", { texte: r.titre || "Réponse" }), el("span", { class: "plein", texte: r.texte })]));
+    });
+  }
+  // Nouveau message reçu ou autre conversation : nouvelles propositions (une seule demande à la fois, espacées).
+  var veilleMsg = null, minuterieMsg = null;
+  function veillerMessages() {
+    if (veilleMsg) return;
+    veilleMsg = new MutationObserver(function (muts) {
+      if (mode() !== "messages" || !ouvert || !etat.annonces) return;
+      if (muts.every(function (m) { return hote && (m.target === hote || hote.contains(m.target)); })) return;
+      clearTimeout(minuterieMsg);
+      minuterieMsg = setTimeout(function () { if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
+    });
+    veilleMsg.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
   function zoneMessage() {
     var l = [].filter.call(document.querySelectorAll("textarea, [contenteditable=''], [contenteditable=true], [role=textbox]"), function (x) { return visible(x) && !x.disabled; });
     var bons = l.filter(function (x) { return /message|repon|ecri|reply|write/.test(description(x) + " " + norm(x.getAttribute("placeholder") || x.getAttribute("data-placeholder") || "")); });
@@ -516,7 +572,7 @@
     if (!m) { observateur.disconnect(); vuMode = ""; return; }
     if (m !== vuMode) {
       vuMode = m;
-      if (m === "messages") { etat.choisie = null; if (ouvert) replie(false); }
+      if (m === "messages") { etat.choisie = null; veillerMessages(); replie(false); }   // messagerie : panneau ouvert, réponse IA proposée
       else if (!ouvert) replie(false);   // dépôt : le panneau s'ouvre et le remplissage démarre tout seul
       else { dessiner(); demarrerAuto(); }
     } else if (m === "messages" && ouvert && etat.annonces) { etat.choisie = deviner(); dessiner(); }   // autre conversation

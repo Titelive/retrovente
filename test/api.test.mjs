@@ -319,3 +319,14 @@ test("légendes déjà enregistrées : les formules de doute disparaissent à la
   const r = await call("PUT", "/api/objets/" + o.id + "/photos/p0", { legende: "Connecteur doré : contacts apparemment propres, pas de défaut visible" }, c);
   assert.equal(r.json.objet.photos[0].legende, "Connecteur doré : pas de défaut");
 });
+
+test("extension : réponse IA aux acheteurs", async () => {
+  const c = await compte("rep@exemple.fr");
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle;
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 200 } }, c)).json.objet;
+  const h = { authorization: "Bearer " + k };
+  assert.equal((await call("POST", "/api/extension/reponse", { conversation: "" }, "", h)).status, 422);
+  const r = await call("POST", "/api/extension/reponse", { conversation: "Kevin : je vous prends Conker et Kirby pour 60 € les deux", annonce: o.id }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.reponses.length, 3); assert.ok(r.json.reponses[0].texte);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.usage.reponse, 1);
+});
