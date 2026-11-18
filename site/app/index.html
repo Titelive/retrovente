@@ -1105,7 +1105,8 @@ $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
 function analyserImg(){attente("Je regarde la photo…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
   ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});remplirCarte(o);if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
-  if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);ME.usage.identifier=(ME.usage.identifier||0)+1;toast("Fiche remplie.","ok")})
+  if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);ME.usage.identifier=(ME.usage.identifier||0)+1;toast(GAL.length>1?"Fiche remplie. Je décris maintenant chaque photo…":"Fiche remplie.","ok");attente(null);
+    return decrire(true,0,true).then(function(){if(GAL.some(function(g){return g.legende}))toast("Fiche remplie et chaque photo décrite.","ok")})})
   .catch(function(e){erreur(e,"Reconnaissance impossible.")}).then(function(){attente(null)})}
 $("fPhotoDl").onclick=function(){if(!GAL.length){toast("Pas encore de photo.","bad");return}
   var base=($("f_titre").value||"jeu").replace(/[^\wÀ-ÿ -]/g,"").trim().slice(0,50)||"jeu";
@@ -1127,17 +1128,18 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
   var tc=cent.reduce(function(a,x){return a+x.byteLength},0),e=new DataView(new ArrayBuffer(22));
   e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,tc,true);e.setUint32(16,off,true);
   return new Blob(parts.concat(cent,[e]),{type:"application/zip"})})}
-function decrire(auto,essai){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
+/* auto : sans message de réussite ; tout : remplace aussi les légendes déjà écrites ; muet : aucun message, même en cas d'échec */
+function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
-    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
+    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||tout||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
       var rates=GAL.map(function(g,i){return g.legende?0:i+1}).filter(Boolean);
       if(rates.length&&!essai){return new Promise(function(ok){setTimeout(ok,4000)}).then(function(){busy(b,false,t);return decrire(auto,2,false,muet)})}   // on réessaie seulement les photos restées vides
       if(rates.length){if(!muet)toast("Photo"+(rates.length>1?"s ":" ")+rates.join(", ")+" non décrite"+(rates.length>1?"s":"")+((j.erreurs||[]).filter(Boolean)[0]?" ("+(j.erreurs||[]).filter(Boolean)[0]+")":"")+". Clique « Décrire les photos » pour réessayer.","bad");return}
       if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
-      if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2)});   // une seconde tentative, en silence
-      toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}
+      if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)});   // une seconde tentative, en silence
+      if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
 function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});if(n<0)return;
@@ -1262,7 +1264,8 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouvel article";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
-  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos()}
+  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
+    if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
   montrer("fiche",o?o.titre:"Nouvel article");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article")}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
@@ -1302,7 +1305,7 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
     ouvrirFiche(o||null);CLE=d.cle;
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
-    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");refaireAnciennes()})});
+    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)})})});
 $("fFermer").onclick=fermerFiche;
 
 /* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
