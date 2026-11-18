@@ -721,7 +721,9 @@ $("f_modif").addEventListener("input",majOrigine);$("f_categorie").addEventListe
 $("f_etat").addEventListener("change",function(){if(this.value==="pieces"&&$("f_origine").value!=="hs"){$("f_origine").value="hs";zoneModif();majOrigine()}});
 /* Photo numérotée : pastille ronde dans le coin, pour que « photo 3 » de la description se retrouve facilement */
 function numeroter(src,n){return chargerImg(src).then(function(img){var c=document.createElement("canvas");c.width=img.naturalWidth;c.height=img.naturalHeight;var g=c.getContext("2d");g.drawImage(img,0,0);
-  var r=Math.round(Math.min(c.width,c.height)*.055),x=r*1.5,y=r*1.5;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle="#D4F57A";g.fill();g.lineWidth=Math.max(2,r*.14);g.strokeStyle="#1A1A1A";g.stroke();
+  /* Le Bon Coin recadre ses vignettes (4:3 en liste, carré ailleurs) et arrondit les coins : la pastille va dans la zone toujours visible */
+  var W=c.width,H=c.height,sw=Math.min(W,H*4/3,H),sh=Math.min(H,W*3/4,W),ox=(W-sw)/2,oy=(H-sh)/2;
+  var r=Math.round(Math.min(sw,sh)*.055),x=ox+r*1.25+Math.min(sw,sh)*.05,y=oy+r*1.25+Math.min(sw,sh)*.05;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle="#D4F57A";g.fill();g.lineWidth=Math.max(2,r*.14);g.strokeStyle="#1A1A1A";g.stroke();
   g.fillStyle="#1A1A1A";g.font="800 "+Math.round(r*1.15)+"px Rubik, Arial, sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText(String(n),x,y+r*.06);
   return new Promise(function(ok){c.toBlob(ok,"image/jpeg",.9)})})}
 function attente(t){$("fAttente").hidden=!t;if(t)$("fAttenteTx").textContent=t}
