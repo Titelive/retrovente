@@ -1005,7 +1005,7 @@ $("fPivot").onclick=function(){var c=cur();if(!c)return;Promise.all([pivoter(c.s
 var RE_PHOTOS=/\n*Photos :\n(?:\d+\. [^\n]*(?:\n|$))*/;
 function majDescPhotos(){var t=$("f_texteAnnonce"),v=t.value.replace(RE_PHOTOS,"\n").replace(/\n+$/,"");
   var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende.replace(/\s*\.$/,""):""}).filter(Boolean);
-  if(l.length&&GAL.some(function(g){return g.legende}))v=(v?v+"\n\n":"")+"Photos :\n"+GAL.map(function(g,i){return (i+1)+". "+(g.legende||"photo "+(i+1)).replace(/\s*\.$/,"")}).join("\n");
+  if(l.length&&GAL.some(function(g){return g.legende}))v=(v?v+"\n\n":"")+"Photos :\n"+l.join("\n");
   if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
 /* Mention d'origine : par défaut « d'origine, testé et fonctionnel », sauf si l'utilisateur précise autre chose.
    Une seule ligne gérée, placée avant « Remise en main propre ou envoi. » (ou en fin de texte, avant la liste des photos). */
@@ -1130,7 +1130,11 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 function decrire(auto,essai){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
-    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
+    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
+      var rates=GAL.map(function(g,i){return g.legende?0:i+1}).filter(Boolean);
+      if(rates.length&&!essai){return new Promise(function(ok){setTimeout(ok,4000)}).then(function(){busy(b,false,t);return decrire(auto,2,false,muet)})}   // on réessaie seulement les photos restées vides
+      if(rates.length){if(!muet)toast("Photo"+(rates.length>1?"s ":" ")+rates.join(", ")+" non décrite"+(rates.length>1?"s":"")+((j.erreurs||[]).filter(Boolean)[0]?" ("+(j.erreurs||[]).filter(Boolean)[0]+")":"")+". Clique « Décrire les photos » pour réessayer.","bad");return}
+      if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
       if(!essai)return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2)});   // une seconde tentative, en silence
       toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t)})}

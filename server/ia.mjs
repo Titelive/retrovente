@@ -40,7 +40,7 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
       messages: [{ role: "user", content }],
     }),
   });
-  if (!r.ok) { console.error("IA", r.status, (await r.text().catch(() => "")).slice(0, 300)); throw new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); }
+  if (!r.ok) { console.error("IA", r.status, (await r.text().catch(() => "")).slice(0, 300)); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
   const d = await r.json();
   const t = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const vus = new Set();
@@ -353,7 +353,7 @@ export async function legender(photos, v = {}) {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
-Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 400, timeout: 45000, brut: true });
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 400, timeout: 30000, brut: true });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
@@ -361,9 +361,25 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
     const dit = j === "non" || /jaun/i.test(leg) ? leg : (leg ? leg + ", " : "") + (j === "net" ? "plastique nettement jauni" : "plastique légèrement jauni");
     return { legende: dit.slice(0, 200), jauni: j };
   };
-  const out = await Promise.all(l.map((p) => une(p).catch(() => ({ legende: "", jauni: "non" }))));
-  if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
-  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni) };
+  // Deux requêtes à la fois au plus, et jusqu'à 3 essais par photo (limite de débit, service surchargé, réponse vide) :
+  // six requêtes simultanées dépassaient la limite de l'API, seule la première photo était décrite.
+  const out = new Array(l.length);
+  let suivant = 0;
+  const ouvrier = async () => {
+    while (suivant < l.length) {
+      const i = suivant++;
+      let r = null, err = "";
+      for (let essai = 0; essai < 3 && !(r && r.legende); essai++) {
+        if (essai) await new Promise((ok) => setTimeout(ok, 1500 * essai * essai));
+        try { r = await une(l[i]); if (!r.legende) err = "réponse vide"; } catch (e) { err = e.statut ? "erreur " + e.statut : "délai dépassé"; }
+      }
+      if (!(r && r.legende)) console.error("IA : légende de la photo", i + 1, "impossible :", err);
+      out[i] = r && r.legende ? { ...r, erreur: "" } : { legende: "", jauni: "non", erreur: err };
+    }
+  };
+  await Promise.all([ouvrier(), ouvrier()]);
+  if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos (" + (out[0].erreur || "erreur") + "), réessaie.");
+  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur) };
 }
 
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
