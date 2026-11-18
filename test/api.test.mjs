@@ -520,6 +520,13 @@ test("IA en formule Découverte : un seul essai, e-mail confirmé, pas de compte
   assert.equal((await call("GET", "/api/moi", null, c4)).json.ia, null);
 });
 
+test("un au revoir ne reparle pas du budget", async () => {
+  const { sansSujet } = await import("../server/ia.mjs");
+  assert.equal(sansSujet("Je comprends tout à fait votre budget, Garnier. Merci pour l'échange et bonne soirée à vous 😊"), "Merci pour l'échange et bonne soirée à vous 😊");
+  assert.doesNotMatch(sansSujet("Merci Garnier, je comprends pour le budget 🙂"), /budget|comprends/);
+  assert.equal(sansSujet("Merci à vous, bonne soirée 🙂"), "Merci à vous, bonne soirée 🙂");
+});
+
 test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {
   const { analyseOffre } = await import("../server/ia.mjs");
   const a = analyseOffre(190, 140);
