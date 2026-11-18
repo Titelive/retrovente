@@ -370,11 +370,11 @@
      Le Bon Coin propose quelques catégories d'après le titre (« Électronique › Jeux vidéo », boutons radio), puis
      « Ou choisissez une autre catégorie » (liste déroulante). On coche la bonne suggestion ; sinon on ouvre la liste
      et on y choisit la catégorie. Un choix déjà fait par la personne est respecté. */
-  var CAT_DESC = /categorie/, CAT_LIB = /^(ou )?(choisissez (une autre |la )?)?categorie\s*\*?$/;
+  var CAT_DESC = /categorie|category/, CAT_LIB = /^(ou )?(choisissez )?(une |la )?autre categorie\s*\*?$|^categorie\s*\*?$/;
   function feuille(t) { var x = String(t || "").split(/[›>»\/]/); return norm(x[x.length - 1]); }
   function zoneCategorie() {
     return [].some.call(document.querySelectorAll("h1, h2, h3, h4, legend, label, p, span"), function (x) {
-      return (x.textContent || "").length < 60 && !(hote && hote.contains(x)) && /^(ou )?(choisissez (une autre |la )?)?categorie\b/.test(norm(x.textContent)) && visible(x);
+      return (x.textContent || "").length < 60 && !(hote && hote.contains(x)) && /^(ou )?(choisissez )?(une |la )?(autre )?categorie\b/.test(norm(x.textContent)) && visible(x);
     });
   }
   function optionsCategorie() {
@@ -383,11 +383,20 @@
       return t.length < 90 && visible(el) && !el.closest("a[href], nav, header, footer") && !/^(publier|continuer|valider|suivant|deposer)/.test(norm(t));
     });
   }
+  // « Électronique › Jeux vidéo » : sur Le Bon Coin le chevron est une icône, le texte devient « Électronique Jeux vidéo »
+  // (voire « ÉlectroniqueJeux vidéo ») et le dernier niveau est en gras. On accepte le dernier niveau séparé, un
+  // élément enfant qui porte exactement le libellé, ou un texte qui finit par le libellé.
+  function correspond(x, cible) {
+    if (feuille(x.textContent) === cible) return true;
+    if ([].some.call(x.querySelectorAll("b, strong, span, p, div"), function (y) { return y.childElementCount === 0 && norm(y.textContent) === cible; })) return true;
+    var t = norm(x.textContent);
+    return t.length > cible.length && t.slice(-cible.length) === cible && t.length - cible.length < 30;
+  }
   function cocherCategorie(cibles, garde) {
     var cand = optionsCategorie();
     for (var i = 0; i < cibles.length; i++) {
       // Le plus petit élément qui porte le libellé (le label plutôt que la ligne entière).
-      var el = cand.filter(function (x) { return feuille(x.textContent) === cibles[i]; }).sort(function (x, y) { return x.textContent.length - y.textContent.length || (x.contains(y) ? 1 : -1); })[0];
+      var el = cand.filter(function (x) { return correspond(x, cibles[i]); }).sort(function (x, y) { return x.textContent.length - y.textContent.length || (x.contains(y) ? 1 : -1); })[0];
       if (!el) continue;
       var radio = el.matches("label") ? (el.control || el.querySelector("input")) : el.querySelector("input[type=radio]");
       if ((radio && radio.checked) || el.getAttribute("aria-checked") === "true" || el.getAttribute("aria-selected") === "true") return "deja";
