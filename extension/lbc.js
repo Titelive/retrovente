@@ -345,7 +345,9 @@
   function ouvrirDeroulantEtat(a, force) { return ouvrirDeroulant(/^etat\b/, /^etat\s*\*?$/, force); }
   // Liste déroulante maison (pas un <select>) repérée par son libellé : on l'ouvre comme un clic de la personne.
   function deroulant(reDesc, reLibelle) {
-    var cand = [].filter.call(document.querySelectorAll("[role=combobox], [aria-haspopup], select, button, input[readonly], div[tabindex]"), function (x) { return visible(x) && !(hote && hote.contains(x)) && !/^(publier|continuer|valider|suivant|deposer)/.test(norm(x.textContent)); });
+    var cand = [].filter.call(document.querySelectorAll("[role=combobox], [aria-haspopup], select, button, input[readonly], div[tabindex]"), function (x) { return visible(x) && !(hote && hote.contains(x)) && !/^(publier|continuer|valider|suivant|deposer)/.test(norm(x.textContent))
+      // une vraie liste : pas un bloc qui contient des boutons radio ou tout un formulaire
+      && (x.textContent || "").length < 80 && !x.querySelector("input[type=radio], [role=radio], input:not([type=hidden]):not([readonly]), textarea"); });
     return cand.find(function (el) {
       if (reDesc.test(description(el))) return true;
       for (var p = el.parentElement, n = 0; p && n < 4; p = p.parentElement, n++) {
@@ -366,6 +368,36 @@
     return true;
   }
 
+  /* ===== Diagnostic =====
+     Résumé de la structure de l'écran (balises, rôles, noms, libellés courts), sans les valeurs des champs : la
+     personne le colle dans la discussion quand un écran n'est pas reconnu. */
+  function diagnostic() {
+    var lignes = ["RetroRevente " + RR.runtime.getManifest().version + " · " + location.pathname + " · " + navigator.userAgent.replace(/.*(Version\/[\d.]+|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, "$1"),
+      "zoneCategorie=" + zoneCategorie() + " categorieVide=" + categorieVide() + " choisie=" + !!etat.choisie + " cat=" + (etat.choisie && etat.choisie.categorie)];
+    var main = document.querySelector("main") || document.body;
+    (function parcours(n, prof) {
+      if (lignes.length > 260 || prof > 22 || (hote && n === hote)) return;
+      var tag = n.tagName.toLowerCase();
+      if (/^(script|style|svg|path|noscript|link|meta)$/.test(tag)) { if (tag === "svg") lignes.push(" ".repeat(prof) + "<svg>"); return; }
+      var a = [];
+      ["role", "type", "name", "id", "for", "data-qa-id", "data-test-id", "data-testid", "aria-label", "aria-checked", "aria-selected", "aria-expanded", "aria-haspopup", "aria-labelledby", "tabindex"].forEach(function (k) { var v = n.getAttribute(k); if (v != null) a.push(k + "=" + String(v).slice(0, 40)); });
+      if (n.matches("input[type=radio], input[type=checkbox]")) a.push("checked=" + n.checked);
+      var cls = (n.getAttribute("class") || "").split(/\s+/)[0]; if (cls) a.push("." + cls.slice(0, 24));
+      var txt = [].filter.call(n.childNodes, function (c) { return c.nodeType === 3; }).map(function (c) { return c.textContent.trim(); }).join(" ").trim();
+      if (n.matches("input, textarea")) txt = "";   // jamais ce que la personne a tapé
+      var vis = visible(n) ? "" : " (caché)";
+      if (a.length || txt || n.children.length) lignes.push(" ".repeat(prof) + "<" + tag + (a.length ? " " + a.join(" ") : "") + ">" + vis + (txt ? " « " + txt.slice(0, 50) + " »" : ""));
+      [].forEach.call(n.children, function (c) { parcours(c, prof + 1); });
+    })(main, 0);
+    return lignes.join("\n");
+  }
+  function copierDiagnostic() {
+    var t = diagnostic();
+    var fini = function () { statut("Diagnostic copié : colle-le dans la discussion (⌘V).", "ok"); };
+    try { navigator.clipboard.writeText(t).then(fini, function () { secours(); }); } catch (e) { secours(); }
+    function secours() { var z = document.createElement("textarea"); z.value = t; z.style.position = "fixed"; z.style.opacity = "0"; document.body.appendChild(z); z.select(); try { document.execCommand("copy"); fini(); } catch (e) { statut("Copie impossible.", "bad"); } z.remove(); }
+  }
+
   /* ===== Catégorie =====
      Le Bon Coin propose quelques catégories d'après le titre (« Électronique › Jeux vidéo », boutons radio), puis
      « Ou choisissez une autre catégorie » (liste déroulante). On coche la bonne suggestion ; sinon on ouvre la liste
@@ -373,7 +405,7 @@
   var CAT_DESC = /categorie|category/, CAT_LIB = /^(ou )?(choisissez )?(une |la )?autre categorie\s*\*?$|^categorie\s*\*?$/;
   function feuille(t) { var x = String(t || "").split(/[›>»\/]/); return norm(x[x.length - 1]); }
   function zoneCategorie() {
-    return [].some.call(document.querySelectorAll("h1, h2, h3, h4, legend, label, p, span"), function (x) {
+    return [].some.call((document.querySelector("main") || document.body).querySelectorAll("h1, h2, h3, h4, h5, legend, label, p, span, div, strong, b"), function (x) {
       return (x.textContent || "").length < 60 && !(hote && hote.contains(x)) && /^(ou )?(choisissez )?(une |la )?(autre )?categorie\b/.test(norm(x.textContent)) && visible(x);
     });
   }
@@ -392,7 +424,35 @@
     var t = norm(x.textContent);
     return t.length > cible.length && t.slice(-cible.length) === cible && t.length - cible.length < 30;
   }
+  // Ligne qui porte le texte d'un bouton radio : son libellé, sinon le plus petit parent qui a du texte.
+  function ligneRadio(r) {
+    if (r.labels && r.labels.length && norm(r.labels[0].textContent)) return r.labels[0];
+    var lb = r.getAttribute("aria-labelledby"), x = lb && document.getElementById(lb.split(/\s+/)[0]);
+    if (x && norm(x.textContent)) return x;
+    for (var p = r.parentElement, n = 0; p && n < 4; p = p.parentElement, n++) {
+      var t = norm(p.textContent);
+      if (t) return t.length < 90 ? p : null;
+    }
+    return null;
+  }
+  function cocherRadio(cibles, garde) {
+    var radios = [].filter.call(document.querySelectorAll("input[type=radio], [role=radio]"), function (r) { return !(hote && hote.contains(r)) && !r.disabled && !r.closest("nav, header, footer"); });
+    for (var i = 0; i < cibles.length; i++) {
+      for (var j = 0; j < radios.length; j++) {
+        var r = radios[j], ligne = ligneRadio(r);
+        if (!ligne || !(visible(ligne) || visible(r)) || !correspond(ligne, cibles[i])) continue;
+        if (r.checked || r.getAttribute("aria-checked") === "true") return "deja";
+        if (garde && garde(r)) return "deja";
+        if (visible(r)) r.click(); else ligne.click();
+        if (r.matches("input") && !r.checked) r.click();
+        return "ok";
+      }
+    }
+    return "";
+  }
   function cocherCategorie(cibles, garde) {
+    var parRadio = cocherRadio(cibles, garde);
+    if (parRadio) return parRadio;
     var cand = optionsCategorie();
     for (var i = 0; i < cibles.length; i++) {
       // Le plus petit élément qui porte le libellé (le label plutôt que la ligne entière).
@@ -723,7 +783,7 @@
       el("span", { class: "rail" }), "Me prévenir (son + notification)",
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
