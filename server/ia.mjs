@@ -26,14 +26,14 @@ export function coteDe(c) {
   return o.conseille != null || o.bas != null ? o : null;
 }
 
-async function claude(content, { web = 0, max = 1500, timeout = 30000 } = {}) {
+async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "" } = {}) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new IaError("Le service d'IA n'est pas configuré.");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: AbortSignal.timeout(timeout),
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || "claude-haiku-5-5", max_tokens: max,
+      model: model || process.env.CLAUDE_MODEL || "claude-haiku-5-5", max_tokens: max,
       ...(web ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: web }] } : {}),
       messages: [{ role: "user", content }],
     }),
@@ -69,9 +69,7 @@ const FAKE = () => process.env.IA_FAKE === "1";
 
 export async function identifier(photo) {
   if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
-  const o = await claude([
-    image(photo),
-    { type: "text", text: `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console ou un accessoire). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »).
+  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console ou un accessoire). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
 "titre" (nom exact et officiel, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards »),
@@ -89,8 +87,17 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})` },
-  ], { max: 1200 });
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})`;
+  let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1200 });
+  // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
+  if (!o || !o.trouve) {
+    o = await claude([image(photo), { type: "text", text: consigne + `
+
+Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre, logos, console, classification d'âge, références) ; si besoin, fais une recherche web pour confirmer le titre exact et la plateforme, surtout pour un jeu récent. Termine ta réponse par l'objet JSON demandé.` }], { max: 2500, timeout: 60000, web: 3, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" })
+      // recherche web indisponible sur le compte : même modèle fort, sans le web
+      .catch(() => claude([image(photo), { type: "text", text: consigne }], { max: 1500, timeout: 45000, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" }))
+      .catch((e) => { console.error("IA secours", e.message); return null; });
+  }
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
   return {
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),

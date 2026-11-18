@@ -358,3 +358,21 @@ test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
   assert.equal(r[2].annonce, null);
   assert.deepEqual(contenuLot(null, autres), []);
 });
+
+test("identification : si le premier modèle ne reconnaît pas, un modèle plus fort avec recherche web prend le relais", async () => {
+  const { identifier } = await import("../server/ia.mjs");
+  const vrai = globalThis.fetch, appels = [];
+  process.env.IA_FAKE = "0"; process.env.ANTHROPIC_API_KEY = "test";
+  globalThis.fetch = async (url, o) => {
+    const b = JSON.parse(o.body); appels.push(b);
+    const rep = appels.length === 1 ? { trouve: false } : { trouve: true, titre: "Grand Theft Auto VI", categorie: "jeux", plateforme: "PlayStation 5", region: "PAL EUR", contenu: "boite", description: "GTA VI sur PlayStation 5." };
+    return new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(rep) }] }), { status: 200 });
+  };
+  try {
+    const o = await identifier(PHOTO.replace("data:image/jpeg", "data:image/jpeg"));
+    assert.equal(o.titre, "Grand Theft Auto VI"); assert.equal(o.plateforme, "PlayStation 5");
+    assert.equal(appels.length, 2);
+    assert.ok(appels[1].tools && appels[1].tools[0].type.startsWith("web_search"));
+    assert.notEqual(appels[1].model, appels[0].model);
+  } finally { globalThis.fetch = vrai; process.env.IA_FAKE = "1"; delete process.env.ANTHROPIC_API_KEY; }
+});
