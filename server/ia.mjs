@@ -167,3 +167,48 @@ Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, time
   if (!out.some(Boolean)) throw new IaError("Je n'ai pas pu décrire les photos, réessaie.");
   return out;
 }
+
+/* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
+   La conversation est le texte visible de la page de messagerie, copié par l'extension : on demande au modèle
+   de retrouver le dernier message de l'acheteur et de proposer trois réponses du vendeur, sympas et diplomates. */
+export async function repondre(conversation, a = {}, autres = []) {
+  const conv = txt(conversation, 4000);
+  if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
+  const px = prix(a.prix);
+  const fiche = [
+    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `Console : ${txt(a.plateforme, 60)}` : "",
+    LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
+    px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${Math.round(px * 0.85)} €, ne jamais proposer moins)` : "",
+    a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
+  ].filter(Boolean).join("\n");
+  const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
+  if (FAKE()) return { resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
+    reponses: [
+      { titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va." },
+      { titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel." },
+      { titre: "Ouvrir la discussion", texte: "Bonjour, merci pour l'intérêt ! Faites-moi une proposition un peu plus proche du prix et on devrait s'entendre." },
+    ] };
+  const o = await claude(`Tu aides un particulier qui vend un jeu vidéo d'occasion sur Le Bon Coin à répondre à un acheteur.
+
+Ce que vend le vendeur :
+${fiche || "(pas de fiche, reste général sur l'objet)"}
+
+${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+"""
+${conv}
+"""
+
+Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
+Propose trois réponses différentes du vendeur, prêtes à envoyer :
+- en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
+- 1 à 4 phrases courtes, qui commencent par « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
+- n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
+- prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
+- offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
+- refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
+- si le message est une arnaque probable, une des réponses le décline poliment.
+Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 900, timeout: 25000 });
+  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ titre: txt(r && r.titre, 40), texte: txt(r && r.texte, 700) })).filter((r) => r.texte).slice(0, 3);
+  if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
+  return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
+}

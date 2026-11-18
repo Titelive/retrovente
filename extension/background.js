@@ -18,6 +18,8 @@ async function appel(chemin, opts) {
   return r;
 }
 
+async function entetes() { var s = await lire(); return { Authorization: "Bearer " + s.cle, "Content-Type": "application/json" }; }
+
 function base64(buf) {
   var b = new Uint8Array(buf), s = "";
   for (var i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
@@ -40,6 +42,10 @@ var ACTIONS = {
     if (!/^[a-f0-9]{16}$/.test(m.id || "")) throw new Error("Photo inconnue.");
     var r = await appel("/api/extension/photo/" + m.id);
     return { type: r.headers.get("content-type") || "image/jpeg", base64: base64(await r.arrayBuffer()) };
+  },
+  reponse: async function (m) {
+    var r = await appel("/api/extension/reponse", { method: "POST", headers: await entetes(), body: JSON.stringify({ annonce: m.annonce || "", conversation: String(m.conversation || "").slice(-4000) }) });
+    return r.json();
   },
   rempli: async function () { await appel("/api/extension/rempli", { method: "POST" }); return { ok: true }; },
 };
