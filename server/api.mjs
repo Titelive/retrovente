@@ -85,7 +85,7 @@ function quota(u) {
 }
 function needQuota(u) {
   const q = quota(u);
-  if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} jeux de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
+  if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} articles de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
 /* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
 const MSG_ESSAI_FINI = "Tu as profité de ton annonce offerte par l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
@@ -402,7 +402,7 @@ export async function handleApi(req) {
   }
   const mo = /^\/api\/objets\/([a-f0-9]{16})$/.exec(p);
   if (mo) {
-    const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Jeu introuvable.");
+    const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
     if (method === "PUT") {
       const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
       if (typeof b.photo === "string") {
@@ -424,11 +424,11 @@ export async function handleApi(req) {
   // Galerie : ajouter, remplacer (retouche) ou retirer une photo
   const mg = /^\/api\/objets\/([a-f0-9]{16})\/photos(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
   if (mg) {
-    const avant = getItem(u.id, mg[1]); if (!avant) fail(404, "Jeu introuvable.");
+    const avant = getItem(u.id, mg[1]); if (!avant) fail(404, "Article introuvable.");
     const liste = photosDe(avant), b = method === "DELETE" ? {} : body();
     let photos = liste;
     if (method === "POST" && !mg[2]) {
-      if (liste.length >= MAX_PHOTOS) fail(400, "12 photos au plus par jeu.");
+      if (liste.length >= MAX_PHOTOS) fail(400, "12 photos au plus par article.");
       const pid = liste.some((x) => x.id === "p0") || liste.length ? crypto.randomBytes(4).toString("hex") : "p0";
       if (!savePhoto(u.id, avant.id, String(b.photo || ""), pid)) fail(400, "Photo manquante.");
       photos = [...liste, { id: pid, legende: txt(b.legende, 200) }];
