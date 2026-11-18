@@ -23,7 +23,8 @@ jobs:
         env:
           KEY: ${{ secrets.IONOS_SSH_KEY }}
           HOST: ${{ secrets.IONOS_HOST }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
         run: |
           install -m 600 /dev/null ~/key && printf '%s\n' "$KEY" > ~/key
           tar czf - --exclude=.git --exclude=test . | ssh -i ~/key -o StrictHostKeyChecking=accept-new root@"$HOST" \
-            'set -e; rm -rf /srv/incoming/retrorevente; mkdir -p /srv/incoming/retrorevente; tar xzf - -C /srv/incoming/retrorevente; bash /srv/incoming/retrorevente/deploy/deploy.sh /srv/incoming/retrorevente'
+            "set -e; rm -rf /srv/incoming/retrorevente; mkdir -p /srv/incoming/retrorevente; tar xzf - -C /srv/incoming/retrorevente; ADMIN_EMAILS=$(printf %q "${ADMIN_EMAILS:-}") bash /srv/incoming/retrorevente/deploy/deploy.sh /srv/incoming/retrorevente"
