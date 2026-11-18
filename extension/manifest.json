@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin",
   "short_name": "RetroRevente",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Remplit le dépôt d'annonce Le Bon Coin avec l'annonce préparée dans RetroRevente. Tu vérifies et tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
@@ -67,5 +67,24 @@
         ]
       }
     }
-  }
+  },
+  "commands": {
+    "ouvrir-recherche": {
+      "suggested_key": {
+        "default": "Alt+Shift+R",
+        "mac": "Alt+Shift+R"
+      },
+      "description": "Ouvrir RetroRevente et chercher une annonce (sur Le Bon Coin)"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "polices/*.woff2"
+      ],
+      "matches": [
+        "https://www.leboncoin.fr/*"
+      ]
+    }
+  ]
 }
