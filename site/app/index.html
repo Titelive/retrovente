@@ -152,7 +152,7 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
    À la souris, on peut aussi glisser les vignettes. */
 .galerie .dep{display:none}
 .galerie li.sel .dep{display:flex}
-@media(hover:hover) and (pointer:fine){.galerie li.sel .dep{display:none}.galerie li.sel:hover .dep,.galerie li.sel:focus-within .dep{display:flex}}
+@media(hover:hover) and (pointer:fine){.galerie li.sel .dep{display:none}.galerie li.sel:focus-within .dep{display:flex}}   /* à la souris : glisser-déposer, pas de flèches sur la vignette */
 .galerie .ajout{display:grid;place-items:center;cursor:pointer;color:var(--gris);font-size:26px;font-weight:300;background:transparent;box-shadow:none;border:1.5px dashed var(--trait);transition:color .2s,border-color .2s,background .2s}
 .galerie .ajout:hover,.galerie .ajout:focus-visible{color:var(--encre);border-color:var(--anis-f);background:rgba(var(--anis-rgb),.12);outline:none}
 .leg{margin-top:10px}.leg b{background:var(--anis);color:var(--nuit);border-radius:999px;padding:0 7px;font-size:12px}
@@ -276,7 +276,7 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche .photos-carte{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:16px 18px}
   html.etabli #fiche .photos-carte>header{display:none}
   html.etabli #fiche .photos-carte .photo{flex:1 1 auto;min-height:120px;aspect-ratio:auto}
-  html.etabli #fiche .galerie{margin:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 2px 6px;flex:none}
+  html.etabli #fiche .galerie{margin:0 -6px;flex-wrap:nowrap;overflow-x:auto;padding:6px;flex:none;scrollbar-width:thin}
   html.etabli #fiche .galerie li{width:60px;height:60px;flex:none;border-radius:13px}
   html.etabli #fiche .photos-carte .note{display:none}
   html.etabli #fiche .photos-carte .rangee{gap:6px}html.etabli #fiche .photos-carte .rangee .btn{padding:7px 12px;font-size:13px}
@@ -980,7 +980,7 @@ function setPhoto(d){if(d===null){GAL=[];SEL=0;DELS=[];afficher();return}
   if(!cur()){GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1}else{cur().src=d;cur().data=d}afficher()}
 function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.call(b.querySelectorAll("img,.pixel"),function(x){x.remove()});
   if(c){var i=new Image();i.alt="Photo "+(SEL+1)+" du jeu";i.src=c.src;b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}
-  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" title="'+esc(g.legende||"Photo "+(i+1))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span>'+
+  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" aria-label="'+esc("Photo "+(i+1)+(g.legende?" : "+g.legende:""))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span>'+
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
     (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
