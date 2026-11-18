@@ -131,7 +131,7 @@ export function annonceLbc(v) {
     id: v.id, nom: v.titre, titre: (v.titreAnnonce || nom).slice(0, 100), description,
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
-    photo: !!v.photo, publiee: !!v.annonce, modifie: v.modifie,
+    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, modifie: v.modifie,
   };
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
@@ -185,9 +185,10 @@ export async function handleApi(req) {
       const l = listItems(eu.id).filter((v) => v.statut === "en_vente").map(annonceLbc);
       return { status: 200, json: { email: eu.email, annonces: l }, headers: CORS };
     }
-    const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})$/.exec(p);
+    const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
     if (mx && method === "GET") {
-      const it = getItem(eu.id, mx[1]), f = it && photosDe(it)[0] ? fichierPhoto(eu.id, it.id, photosDe(it)[0].id) : "";
+      const it = getItem(eu.id, mx[1]), ph = it ? photosDe(it) : [], x = mx[2] ? ph.find((y) => y.id === mx[2]) : ph[0];
+      const f = it && x ? fichierPhoto(eu.id, it.id, x.id) : "";
       if (!it || !f || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
     }
