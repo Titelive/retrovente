@@ -509,7 +509,7 @@ ${deja ? `Messages DÉJÀ envoyés par le vendeur dans cette conversation (du pl
 ${deja}
 
 ` : ""}Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
-SI L'ACHETEUR SE RETIRE (il dit qu'il ne donnera pas suite, que c'est trop cher pour lui, qu'il laisse tomber, qu'il a trouvé ailleurs, ou il remercie pour l'échange et salue pour clore) : la négociation est finie. Mets "intention": "fin" et propose uniquement trois au revoir, approche « au_revoir » : une ou deux phrases courtes et cordiales (merci pour l'échange, bonne soirée ou bonne journée, éventuellement « n'hésitez pas si vous changez d'avis »), sans prix, sans contre-offre, sans argument, sans relancer. Trois variantes : une très courte, une chaleureuse, une qui laisse la porte ouverte.
+SI L'ACHETEUR SE RETIRE (il dit qu'il ne donnera pas suite, que c'est trop cher pour lui, qu'il laisse tomber, qu'il a trouvé ailleurs, ou il remercie pour l'échange et salue pour clore) : la négociation est finie. Mets "intention": "fin" et propose uniquement trois au revoir, approche « au_revoir » : une ou deux phrases courtes et cordiales (merci pour l'échange, bonne soirée ou bonne journée, éventuellement « n'hésitez pas si vous changez d'avis »), sans prix, sans contre-offre, sans argument, sans relancer, et sans reprendre AUCUN sujet déjà abordé (ni budget, ni prix, ni état, ni rareté, ni « je comprends »…) : juste un merci et une salutation. Trois variantes : une très courte, une chaleureuse, une qui laisse la porte ouverte.
 ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
@@ -550,9 +550,21 @@ ${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient
   if (fin) {
     const adieux = l.filter((r) => r.approche === "au_revoir" || !/\d\s?€/.test(r.texte)).map((r) => ({ ...r, approche: "au_revoir" }));
     if (adieux.length) l.splice(0, l.length, ...adieux);
+    l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
   return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+}
+
+// Un au revoir ne reparle de rien (budget, prix, état…) : on retire les phrases qui reprennent un sujet.
+const SUJET = /budget|prix|€|\boffre|\bétat\b|rare|valeur|comprends|compréhensible|dommage|cher\b|moyens/i;
+export function sansSujet(t) {
+  const phrases = String(t).match(/[^.!?…]+[.!?…]*\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/gu) || [t];
+  const garde = phrases.filter((p) => !SUJET.test(p)).join("").trim();
+  if (garde.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").length >= 8) return smiley(garde);
+  const nom = (String(t).match(/\b(?:Merci|Bonsoir|Bonjour)\s+([A-ZÀ-Ý][\wÀ-ÿ-]*)/) || [])[1];
+  const h = Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hour12: false, timeZone: "Europe/Paris" }).format(new Date()));
+  return `Merci${nom ? " " + nom : ""} pour l'échange, ${h >= 18 || h < 4 ? "bonne soirée" : "bonne journée"} 🙂`;
 }
 
 /* ===== Discussion sur une fiche =====
