@@ -80,9 +80,13 @@ const COLS = {
   email_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation
   email_until: "TEXT NOT NULL DEFAULT ''",
   test_plan: "TEXT NOT NULL DEFAULT ''",     // formule de test, prise en compte seulement pour les comptes de ADMIN_EMAILS
+  email_ok: "INTEGER NOT NULL DEFAULT 0",    // adresse confirmée (lien reçu par e-mail) : requis pour l'essai gratuit de l'IA
+  verif_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation d'adresse
 };
 const have = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
 for (const [c, def] of Object.entries(COLS)) if (!have.has(c)) db.exec(`ALTER TABLE users ADD COLUMN ${c} ${def}`);
+// Comptes créés avant la confirmation d'adresse : considérés comme confirmés.
+if (!have.has("email_ok") && have.size) db.exec("UPDATE users SET email_ok = 1");
 
 export const now = () => new Date().toISOString();
 export const month = (d = new Date()) => d.toISOString().slice(0, 7);

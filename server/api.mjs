@@ -7,6 +7,7 @@ import { retoucher } from "./photo.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
 import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
+import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import * as stripe from "./stripe.mjs";
 
@@ -86,12 +87,40 @@ function needQuota(u) {
   const q = quota(u);
   if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} jeux de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
-function iaAllowed(u) {
+/* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
+const MSG_ESSAI_FINI = "Ton essai gratuit de l'IA est terminé : il couvrait un jeu.";
+function iaAllowed(u, kind, req) {
+  if (!allow("ia:" + u.id, 40, 600) || !allow("iaip:" + req.ip, 90, 600)) fail(429, "Trop de demandes à l'IA d'un coup, attends quelques minutes.");
   const r = rights(u), us = usageOf(u.id);
+  if (r.id === "gratuit") {
+    if (!u.email_ok) fail(403, "Confirme d'abord ton adresse e-mail pour essayer l'IA : ouvre le lien qu'on t'a envoyé.", { verif: true });
+    const refus = ouvrirEssai(u, req);
+    if (refus) fail(402, refus, { ia: true });
+    const tot = usageTotal(u.id);
+    if ((tot[kind] || 0) >= (ESSAI[kind] ?? 0)) fail(402, MSG_ESSAI_FINI, { ia: true });
+    if (kind === "identifier") needQuota(u);
+    return;
+  }
+  if (kind === "dialogue") { if ((us.dialogue || 0) >= (r.quota === Infinity ? FAIR_USE * 2 : r.quota * 20 + 30)) fail(429, "Tu as atteint la limite de messages à l'IA pour ce mois."); return; }
+  if (kind === "reponse") { if ((us.reponse || 0) >= (r.quota === Infinity ? FAIR_USE : r.quota * 6 + 20)) fail(429, "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles."); return; }
   const calls = (us.identifier || 0) + (us.cote || 0) + (us.cadrer || 0);
   const cap = r.quota === Infinity ? FAIR_USE : r.quota * 4 + 6;
   if (calls >= cap) fail(429, "Tu as atteint la limite d'utilisation de l'IA pour ce mois.");
   needQuota(u);
+}
+/** Où en est l'essai gratuit (pour l'affichage) : null en formule payante. */
+function iaEtat(u) {
+  if (rights(u).id !== "gratuit") return null;
+  if (!u.email_ok) return "verif";
+  const tot = usageTotal(u.id);
+  if (!essaiOuvert(u.id)) return "dispo";
+  return (tot.identifier || 0) >= ESSAI.identifier ? "utilise" : "en_cours";
+}
+
+async function envoyerVerif(uid, email) {
+  const t = crypto.randomBytes(24).toString("base64url");
+  db.prepare("UPDATE users SET verif_token = ? WHERE id = ?").run(crypto.createHash("sha256").update(t).digest("hex"), uid);
+  return sendMail(email, "Confirme ton adresse RetroRevente", `Bonjour,\n\nBienvenue sur RetroRevente ! Pour confirmer ton adresse (et profiter de ton essai gratuit de l'IA), ouvre ce lien :\n${SITE()}/app/?verifier=${t}\n\nSi tu n'as pas créé de compte, ignore ce message.\n\nRetroRevente`);
 }
 
 /* ===== Bilan (vendus cette année, seuil fiscal) ===== */
@@ -113,7 +142,7 @@ function me(u) {
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
     email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
-    quota: quota(u), usage: usageTotal(u.id), mois: month(),
+    quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
   };
 }
@@ -216,8 +245,8 @@ export async function handleApi(req) {
     }
     // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
     if (p === "/api/extension/reponse" && method === "POST") {
-      const r = rights(eu), n = usageOf(eu.id).reponse || 0, cap = r.quota === Infinity ? FAIR_USE : r.quota * 6 + 20;
-      if (n >= cap || !allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
+      if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
+      try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       const tous = listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve").map(annonceLbc);
       const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur });
@@ -235,14 +264,16 @@ export async function handleApi(req) {
 
   /* --- comptes --- */
   if (p === "/api/inscription" && method === "POST") {
-    if (!allow("ins:" + ip, 10, 3600)) fail(429, "Trop d'inscriptions depuis cette connexion, réessaie plus tard.");
+    if (!allow("ins:" + ip, 10, 3600) || !allow("insj:" + ip, 20, 86400)) fail(429, "Trop d'inscriptions depuis cette connexion, réessaie plus tard.");
     const b = body(), email = txt(b.email, 254).toLowerCase(), mdp = String(b.motdepasse || "");
     if (!validEmail(email)) fail(400, "Adresse e-mail invalide.");
+    if (jetable(email)) fail(400, "Les adresses e-mail jetables ne sont pas acceptées : utilise ta vraie adresse.");
     if (mdp.length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     if (!b.cgv) fail(400, "Accepte les conditions générales pour créer ton compte.");
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte existe déjà avec cette adresse. Connecte-toi.");
     const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
-    const t = createSession(Number(r.lastInsertRowid));
+    const uid = Number(r.lastInsertRowid), t = createSession(uid);
+    envoyerVerif(uid, email).catch(() => {});
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(t, secure()) });
   }
   if (p === "/api/connexion" && method === "POST") {
@@ -260,11 +291,18 @@ export async function handleApi(req) {
     if (u) await sendMail(u.email, "Ton nouveau mot de passe RetroRevente", `Bonjour,\n\nPour choisir un nouveau mot de passe, ouvre ce lien (valable une heure) :\n${SITE()}/app/?reinitialiser=${makeReset(u.id)}\n\nSi tu n'as rien demandé, ignore ce message.\n\nRetroRevente`);
     return ok({ ok: true });
   }
+  if (p === "/api/verifier" && method === "POST") {
+    const j = String(body().jeton || ""); if (!/^[A-Za-z0-9_-]{20,64}$/.test(j)) fail(400, "Lien invalide.");
+    const h = crypto.createHash("sha256").update(j).digest("hex"), v = db.prepare("SELECT id FROM users WHERE verif_token = ?").get(h);
+    if (!v) fail(400, "Ce lien a déjà servi ou n'est plus valable.");
+    db.prepare("UPDATE users SET email_ok = 1, verif_token = '' WHERE id = ?").run(v.id);
+    return ok({ ok: true });
+  }
   if (p === "/api/reinitialiser" && method === "POST") {
     const b = body(), mdp = String(b.motdepasse || "");
     if (mdp.length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     const u = useReset(txt(b.jeton, 100)); if (!u) fail(400, "Ce lien a expiré. Refais une demande.");
-    db.prepare("UPDATE users SET pass = ? WHERE id = ?").run(hashPass(mdp), u.id);
+    db.prepare("UPDATE users SET pass = ?, email_ok = 1 WHERE id = ?").run(hashPass(mdp), u.id);   // le lien reçu prouve l'adresse
     endAllSessions(u.id);
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(createSession(u.id), secure()) });
   }
@@ -301,11 +339,18 @@ export async function handleApi(req) {
     for (const [k, v] of Object.entries(maj)) db.prepare(`UPDATE users SET ${k} = ? WHERE id = ?`).run(v, u.id);
     return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
   }
+  if (p === "/api/verifier/renvoyer" && method === "POST") {
+    if (u.email_ok) return ok({ ok: true, deja: true });
+    if (!allow("verif:" + u.id, 3, 3600)) fail(429, "Lien déjà renvoyé plusieurs fois : regarde aussi dans les courriers indésirables.");
+    if (!(await envoyerVerif(u.id, u.email))) fail(503, "L'envoi d'e-mails est momentanément indisponible, réessaie plus tard.");
+    return ok({ ok: true });
+  }
   if (p === "/api/compte/email" && method === "POST") {
     const b = body(), email = txt(b.email, 254).toLowerCase();
     if (!checkPass(String(b.motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");
     if (!validEmail(email)) fail(400, "Adresse e-mail invalide.");
     if (email === u.email.toLowerCase()) fail(400, "C'est déjà ton adresse.");
+    if (jetable(email)) fail(400, "Les adresses e-mail jetables ne sont pas acceptées.");
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte utilise déjà cette adresse.");
     if (!allow("mail:" + u.id, 5, 3600)) fail(429, "Trop de demandes, réessaie plus tard.");
     const t = crypto.randomBytes(24).toString("base64url"), h = crypto.createHash("sha256").update(t).digest("hex");
@@ -323,11 +368,11 @@ export async function handleApi(req) {
     const h = crypto.createHash("sha256").update(txt(body().jeton, 100)).digest("hex");
     if (!u.email_token || u.email_token !== h || u.email_until < now()) fail(400, "Ce lien a expiré. Refais la demande depuis ton compte.");
     if (db.prepare("SELECT 1 FROM users WHERE email = ? AND id != ?").get(u.email_new, u.id)) fail(409, "Un compte utilise déjà cette adresse.");
-    db.prepare("UPDATE users SET email = email_new, email_new = '', email_token = '', email_until = '' WHERE id = ?").run(u.id);
+    db.prepare("UPDATE users SET email = email_new, email_new = '', email_token = '', email_until = '', email_ok = 1 WHERE id = ?").run(u.id);
     return ok(me(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)));
   }
   if (p === "/api/ia/nettoyer" && method === "POST") {
-    iaAllowed(u); const b = body(); const jpg = await retoucher(b.photo, b.rotation); bump(u.id, "nettoyer"); return ok({ ok: true, photo: jpg });
+    iaAllowed(u, "nettoyer", req); const b = body(); const jpg = await retoucher(b.photo, b.rotation); bump(u.id, "nettoyer"); return ok({ ok: true, photo: jpg });
   }
   if (p === "/api/compte/supprimer" && method === "POST") {
     if (!checkPass(String(body().motdepasse || ""), u.pass)) fail(400, "Mot de passe incorrect.");
@@ -419,17 +464,16 @@ export async function handleApi(req) {
   }
 
   /* --- IA --- */
-  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
-  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
-  if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
+  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
+  if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
-  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
+  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {
-    const r = rights(u), n = usageOf(u.id).dialogue || 0, cap = r.quota === Infinity ? FAIR_USE * 2 : r.quota * 20 + 30;
-    if (n >= cap) fail(429, "Tu as atteint la limite de messages à l'IA pour ce mois.");
+    iaAllowed(u, "dialogue", req);
     const b = body(); const out = await ia.dialoguer(b.messages, b.fiche || {}); bump(u.id, "dialogue"); return ok({ ok: true, ...out });
   }
-  if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
+  if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u, "cadrer", req); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
   if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
 
   /* --- export --- */

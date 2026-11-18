@@ -303,6 +303,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .tps-r .s{font-weight:700;font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
 .tps-tot{margin:0;font-weight:700}
 .jauges.trois{grid-template-columns:1fr 1fr 1fr}@media(max-width:860px){.jauges.trois{grid-template-columns:1fr}}
+.ia-note{margin:-6px 0 0;font-size:13.5px;color:var(--gris);flex-basis:100%}.ia-note b{color:var(--encre)}
 /* Mes jeux : animations */
 #accueil h1 .m{display:inline-block;white-space:pre}
 #accueil.entre h1 .m{animation:mot-in .7s var(--ease) both;animation-delay:calc(var(--k) * 70ms + .08s)}
@@ -477,6 +478,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <input type="file" id="photoIn" accept="image/*" hidden>
     </div>
+    <p class="ia-note" id="iaNote" hidden></p>
   </div>
   <div class="chiffres">
     <button type="button" class="tps" id="cTempsBt" aria-haspopup="dialog"><small>Temps gagné <span class="tps-i" aria-hidden="true">?</span></small><b id="cTemps">0 min</b><span class="tps-c">Voir le calcul</span></button>
@@ -660,6 +662,14 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <button class="btn" type="button" id="dInvOk" hidden>Créer les fiches</button>
   <button class="lien" value="x">Annuler</button>
 </form></dialog>
+<dialog id="dIa" aria-labelledby="dIaT"><form method="dialog">
+  <h2 id="dIaT">L'IA est comprise dans les formules payantes</h2>
+  <p id="dIaTx" style="color:var(--gris)"></p>
+  <p style="margin:0;font-size:14.5px">Tu peux toujours remplir la fiche à la main : tout le reste fonctionne.</p>
+  <button class="btn" type="button" id="dIaFormules">Voir les formules</button>
+  <button class="btn" type="button" id="dIaRenv" hidden>Renvoyer le lien de confirmation</button>
+  <button class="lien" value="x">Plus tard</button>
+</form></dialog>
 <dialog id="dQuota"><form method="dialog">
   <h2>Tu as bien vendu ce mois-ci !</h2>
   <p id="dQuotaTx" style="color:var(--gris)"></p>
@@ -767,11 +777,18 @@ function dfr(s){if(!s)return"";var d=new Date(s);return d.toLocaleDateString("fr
 var tt;function toast(t,k){var e=$("toast");e.textContent=t;e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"?6500:3500)}
 function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){var sp=b.id==="fSave"&&b.querySelector("span");if(sp)sp.textContent=t;else b.textContent=t}}
 
-function api(method,path,body){
-  return fetch(path,{method:method,credentials:"same-origin",cache:"no-store",headers:body?{"content-type":"application/json"}:{},body:body?JSON.stringify(body):undefined})
-    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.quota=j.quota;throw e}return j})});
+/* Identifiant de l'appareil (anti comptes en série pour l'essai gratuit de l'IA) */
+var APP=(function(){var a="";try{a=localStorage.getItem("rr-app")||"";if(!/^[a-z0-9]{16,40}$/.test(a)){a=(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,"").slice(0,32);localStorage.setItem("rr-app",a)}}catch(e){}return a})();
+function api(method,path,body){var h=body?{"content-type":"application/json"}:{};if(APP)h["x-rr-app"]=APP;
+  return fetch(path,{method:method,credentials:"same-origin",cache:"no-store",headers:h,body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||"Erreur "+r.status);e.status=r.status;e.quota=j.quota;e.ia=j.ia;e.verif=j.verif;throw e}return j})});
 }
-function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}toast(e.message||def,"bad")}
+function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}if((e.status===402&&e.ia)||(e.status===403&&e.verif)){iaBloquee(e);return}toast(e.message||def,"bad")}
+/* IA réservée aux formules payantes : essai unique en Découverte */
+function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Confirme ton adresse e-mail":"L'IA est comprise dans les formules payantes";
+  $("dIaTx").textContent=e.message;$("dIaRenv").hidden=!v;$("dIaFormules").hidden=v;if(!$("dIa").open)$("dIa").showModal();if(ME){ME.ia=v?"verif":"utilise";iaNote()}}
+function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"Essai offert : l'IA reconnaît, décrit et estime <b>un jeu</b>.",en_cours:"Ton essai de l'IA est en cours : il couvre <b>un jeu</b>.",verif:"Confirme ton adresse e-mail pour essayer l'IA sur <b>un jeu</b>. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Essai de l'IA utilisé. <button class='lien' type='button' data-formules>Passer à une formule avec l'IA</button>"}[ME.ia];
+  n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
 function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
@@ -788,7 +805,11 @@ function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();r
   if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
 function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
-  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0)}
+  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote()}
+function renvoyerVerif(b){if(b)busy(b,true);api("POST","/api/verifier/renvoyer").then(function(j){toast(j.deja?"Ton adresse est déjà confirmée.":"Lien envoyé : regarde ta boîte mail (et les indésirables).","ok")}).catch(function(e){toast(e.message,"bad")}).then(function(){if(b)busy(b,false)})}
+$("dIaRenv").onclick=function(){renvoyerVerif(this)};
+$("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche, puis va dans Mon compte.","bad");return}compte()};
+$("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv]"))renvoyerVerif(e.target.closest("[data-renv]"));if(e.target.closest("[data-formules]"))compte()});
 function tempsGagne(){var e=tempsEtapes(),n=0;for(var k in e)n+=e[k]*TEMPS[k];return n}
 function dessinerTemps(){var e=tempsEtapes();$("tpsL").innerHTML=Object.keys(TEMPS_DEF).map(function(k){return '<div class="tps-r"><span><b>'+TEMPS_LIB[k][0]+'</b><small>'+e[k]+' × '+TEMPS_LIB[k][1]+'</small></span><label><input type="number" min="0" max="120" step="1" inputmode="numeric" data-k="'+k+'" value="'+TEMPS[k]+'" aria-label="Minutes pour '+TEMPS_LIB[k][0].toLowerCase()+'">min</label><span class="s">'+hm(e[k]*TEMPS[k])+'</span></div>'}).join("");majTot()}
 function majTot(){var e=tempsEtapes();[].forEach.call($("tpsL").querySelectorAll(".tps-r"),function(r){var k=r.querySelector("input").dataset.k;r.querySelector(".s").textContent=hm(e[k]*TEMPS[k])});$("tpsTot").textContent="Total : "+hm(tempsGagne())+" gagnées sur "+OBJ.length+" jeu"+(OBJ.length>1?"x":"")+"."}
@@ -1332,6 +1353,8 @@ $("eGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/emai
 $("cMdp2").onclick=function(){$("cMdp").click()};
 $("pAnim").onchange=function(){var on=this.checked;document.documentElement.classList.toggle("sans-anim",!on);try{on?localStorage.removeItem("rr-anim"):localStorage.setItem("rr-anim","off")}catch(e){}toast(on?"Animations activées.":"Animations désactivées.","ok")};
 $("pSombre").onchange=function(){var bt=document.querySelector(".theme-bt");if(bt&&(document.documentElement.getAttribute("data-theme")==="dark")!==this.checked)bt.click()};
+(function(){var j=new URLSearchParams(location.search).get("verifier");if(!j)return;history.replaceState(null,"","/app/");
+  api("POST","/api/verifier",{jeton:j}).then(function(){if(ME){ME.emailOk=true;if(ME.ia==="verif")ME.ia="dispo";iaNote()}toast("Adresse confirmée, merci !","ok")}).catch(function(e){toast(e.message||"Lien expiré.","bad")})})();
 (function(){var q=new URLSearchParams(location.search),j=q.get("email");if(!j)return;history.replaceState(null,"","/app/");
   api("POST","/api/compte/email/confirmer",{jeton:j}).then(function(m){ME&&majMoi(m);toast("Nouvelle adresse confirmée.","ok")}).catch(function(e){toast(e.message||"Lien expiré.","bad")})})();
 

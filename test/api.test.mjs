@@ -26,9 +26,11 @@ async function call(method, p, body, cookie, extra = {}) {
     if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) } }; throw e; }
 }
 const cookieOf = (r) => /rr_session=([^;]+)/.exec(r.headers["Set-Cookie"])[0];
-async function compte(email) {
+async function compte(email, payant = false) {
   const r = await call("POST", "/api/inscription", { email, motdepasse: "motdepasse123", cgv: true });
   assert.equal(r.status, 200, JSON.stringify(r.json));
+  // Adresse confirmée (lien e-mail) ; « payant » : formule Collectionneur active, l'IA sans limite d'essai.
+  db.prepare("UPDATE users SET email_ok = 1" + (payant ? ", plan = 'collectionneur', plan_status = 'active'" : "") + " WHERE email = ?").run(email.toLowerCase());
   return cookieOf(r);
 }
 
@@ -80,7 +82,7 @@ test("quota gratuit : 5 jeux par mois, puis 402", async () => {
 });
 
 test("IA simulée : identifier et cote comptent pour le temps gagné", async () => {
-  const c = await compte("ia@exemple.fr");
+  const c = await compte("ia@exemple.fr", true);
   const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
   assert.equal(r.json.objet.plateforme, "Nintendo 64");
   const k = await call("POST", "/api/ia/cote", { objet: r.json.objet }, c);
@@ -266,7 +268,7 @@ test("galerie : ajout, légende, ordre, suppression, plafond de 12", async () =>
 });
 
 test("légendes IA simulées : une par photo", async () => {
-  const c = await compte("legende@exemple.fr");
+  const c = await compte("legende@exemple.fr", true);
   const r = await call("POST", "/api/ia/legender", { photos: [PHOTO, PHOTO, PHOTO], objet: { titre: "Zelda" } }, c);
   assert.equal(r.status, 200);
   assert.equal(r.json.legendes.length, 3);
@@ -329,7 +331,7 @@ test("légendes déjà enregistrées : les formules de doute disparaissent à la
 });
 
 test("extension : réponse IA aux acheteurs", async () => {
-  const c = await compte("rep@exemple.fr");
+  const c = await compte("rep@exemple.fr", true);
   const k = (await call("POST", "/api/extension/cle", null, c)).json.cle;
   const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 200 } }, c)).json.objet;
   const h = { authorization: "Bearer " + k };
@@ -392,7 +394,7 @@ test("JSON du modèle : lu même avec des retours à la ligne bruts ou une virgu
 });
 
 test("discussion avec l'IA : réponse, changements filtrés, message requis", async () => {
-  const c = await compte("dial" + Date.now() + "@t.fr");
+  const c = await compte("dial" + Date.now() + "@t.fr", true);
   let r = await call("POST", "/api/ia/dialoguer", { messages: [{ role: "vendeur", texte: "baisse à 25 €" }], fiche: { titre: "GTA VI", prixDemande: "40" } }, c);
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.equal(r.json.changements.prixDemande, 25);
@@ -407,7 +409,7 @@ test("discussion avec l'IA : réponse, changements filtrés, message requis", as
 });
 
 test("cartes Pokémon : reconnaissance, fiche, cote, annonce pour l'extension", async () => {
-  const c = await compte("carte" + Date.now() + "@t.fr");
+  const c = await compte("carte" + Date.now() + "@t.fr", true);
   process.env.IA_FAKE_OBJET = "carte";
   try {
     const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
@@ -467,7 +469,7 @@ test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", a
 });
 
 test("cartes Pokémon : photo d'un classeur, cartes de valeur à part, le reste en lot", async () => {
-  const c = await compte("classeur" + Date.now() + "@t.fr");
+  const c = await compte("classeur" + Date.now() + "@t.fr", true);
   const r = await call("POST", "/api/ia/inventaire", { photo: PHOTO }, c);
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.equal(r.json.cartes.length, 4);
@@ -481,4 +483,39 @@ test("cartes Pokémon : photo d'un classeur, cartes de valeur à part, le reste 
   assert.match(l2.json.lot.titre, /^Lot de 5 cartes Pokémon dont 2 holo et 1 reverse$/);
   assert.equal(l2.json.lot.prix, 140);   // (120 + 1,2 + 0,8 + 14 + 40) × 0,8 = 140,8
   assert.equal((await call("POST", "/api/lot-cartes", { cartes: [] }, c)).json.lot, null);
+});
+
+test("IA en formule Découverte : un seul essai, e-mail confirmé, pas de comptes en série", async () => {
+  const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
+  // adresse jetable refusée à l'inscription
+  assert.equal((await call("POST", "/api/inscription", { email: "x@yopmail.com", motdepasse: "motdepasse123", cgv: true })).status, 400);
+  // adresse pas encore confirmée : refus explicite
+  const r0 = await call("POST", "/api/inscription", { email: "jean.dupont+a@gmail.com", motdepasse: "motdepasse123", cgv: true });
+  const c = cookieOf(r0);
+  let r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+  assert.equal(r.status, 403); assert.equal(r.json.verif, true);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.ia, "verif");
+  // confirmation par le lien
+  db.prepare("UPDATE users SET verif_token = ? WHERE email = ?").run(sha("jeton-de-test-0123456789abc"), "jean.dupont+a@gmail.com");
+  assert.equal((await call("POST", "/api/verifier", { jeton: "jeton-de-test-0123456789abc" })).status, 200);
+  assert.equal((await call("POST", "/api/verifier", { jeton: "jeton-de-test-0123456789abc" })).status, 400);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.ia, "dispo");
+  // l'essai : un jeu reconnu, une cote, puis c'est fini
+  const app = { "x-rr-app": "appareil0123456789ab" };
+  assert.equal((await call("POST", "/api/ia/identifier", { photo: PHOTO }, c, app)).status, 200);
+  assert.equal((await call("POST", "/api/ia/cote", { objet: { titre: "Super Mario 64" } }, c, app)).status, 200);
+  r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c, app);
+  assert.equal(r.status, 402); assert.equal(r.json.ia, true);
+  assert.equal((await call("POST", "/api/ia/cote", { objet: { titre: "Zelda" } }, c, app)).status, 402);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.ia, "utilise");
+  // nouveau compte avec une variante Gmail de la même adresse : pas de nouvel essai
+  const c2 = await compte("JeanDupont@googlemail.com");
+  assert.equal((await call("POST", "/api/ia/identifier", { photo: PHOTO }, c2)).status, 402);
+  // nouveau compte, autre adresse, même appareil : pas de nouvel essai
+  const c3 = await compte("autre.personne@exemple.fr");
+  assert.equal((await call("POST", "/api/ia/identifier", { photo: PHOTO }, c3, app)).status, 402);
+  // formule payante : l'IA sans essai
+  const c4 = await compte("payant-ia@exemple.fr", true);
+  for (let i = 0; i < 3; i++) assert.equal((await call("POST", "/api/ia/cote", { objet: { titre: "Jeu " + i } }, c4, app)).status, 200);
+  assert.equal((await call("GET", "/api/moi", null, c4)).json.ia, null);
 });
