@@ -69,10 +69,20 @@
 @media(max-width:960px){.heros{padding:120px 0 80px}.heros .wrap{grid-template-columns:minmax(0,1fr);gap:64px}}
 
 /* téléphone */
-.scene{position:relative;display:grid;place-items:center;perspective:1600px}
-.tel{position:relative;width:min(330px,82vw);aspect-ratio:9/19;border-radius:52px;padding:12px;background:linear-gradient(145deg,#3a3a3a,#0d0d0d 40%,#262626);box-shadow:0 0 0 1px rgba(255,255,255,.08),0 60px 120px -30px rgba(0,0,0,.9),0 30px 80px -40px rgba(var(--anis-rgb),.35);transform:rotateY(-14deg) rotateX(6deg) rotateZ(1deg);transition:transform .8s var(--ease)}
-.scene:hover .tel{transform:rotateY(-6deg) rotateX(3deg)}
-.ecran{position:relative;height:100%;border-radius:41px;overflow:hidden;background:#F6F6F1;color:var(--nuit);display:flex;flex-direction:column}
+.scene{position:relative;display:grid;place-items:center;perspective:1400px;--rx:9deg;--ry:-24deg;--rz:2deg}
+.scene::after{content:"";position:absolute;left:18%;right:18%;bottom:-6%;height:60px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),transparent);filter:blur(10px);transform:translateX(calc(var(--ry) * -1.2px));z-index:-1;pointer-events:none}
+.tel{position:relative;width:min(330px,82vw);aspect-ratio:9/19;border-radius:54px;padding:11px;transform-style:preserve-3d;background:#0b0b0b;box-shadow:inset 0 0 0 2px #2b2b2b,inset 0 0 0 3.5px #6d6d6a,inset 0 0 0 5px #1a1a1a;transform:rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.tel.suit{transition:transform .12s linear}
+/* épaisseur : tranche en titane, faite de couches empilées */
+.tel .ep{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
+.tel .ep i{position:absolute;inset:0;border-radius:54px;background:linear-gradient(90deg,#5c5c58,#9a9a94 6%,#3e3e3b 12%,#2a2a28 50%,#3e3e3b 88%,#9a9a94 94%,#5c5c58)}
+.tel .ep i:last-child{background:linear-gradient(150deg,#2f2f2d,#141413 55%,#262624);box-shadow:0 50px 90px -20px rgba(0,0,0,.95),0 30px 80px -40px rgba(var(--anis-rgb),.35)}
+.tel .bt{position:absolute;width:5px;border-radius:3px;background:linear-gradient(90deg,#3a3a37,#a5a59f 45%,#4a4a47);transform:translateZ(-7px)}
+.tel .bt.v1{left:-3.5px;top:19%;height:5%}.tel .bt.v2{left:-3.5px;top:27%;height:9%}.tel .bt.v3{left:-3.5px;top:38%;height:9%}.tel .bt.on{right:-3.5px;top:29%;height:14%}
+.ecran{position:relative;height:100%;border-radius:44px;overflow:hidden;background:#F6F6F1;color:var(--nuit);display:flex;flex-direction:column;transform:translateZ(.6px)}
+/* reflet sur la vitre, qui glisse avec l'inclinaison */
+.ecran .vitre{position:absolute;inset:0;z-index:4;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.38) 44%,rgba(255,255,255,.08) 50%,rgba(255,255,255,0) 62%);background-size:260% 100%;background-position:calc(50% + var(--ry) * 3) 0;mix-blend-mode:soft-light}
+.ecran .vitre::after{content:"";position:absolute;inset:0;border-radius:44px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25),inset 0 1px 0 1px rgba(255,255,255,.35)}
 .ecran .ile{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:96px;height:28px;border-radius:20px;background:#000;z-index:3}
 .ecran .hd{padding:48px 18px 10px;display:flex;justify-content:space-between;align-items:center}
 .ecran .hd img{height:18px;width:auto}
@@ -417,11 +427,11 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     </div>
     <div class="scene rv zoom flou" aria-hidden="true">
       <span class="chrono" id="chrono">01:48</span>
-      <div class="flotte a"><i>✓</i><span>Jeu reconnu<small>Zelda, N64, PAL</small></span></div>
+      <div class="flotte a"><i>✓</i><span>Article reconnu<small id="tReco">Zelda · N64 · PAL</small></span></div>
       <div class="flotte b"><i>€</i><span>Prix conseillé<small>eBay, LBC, PriceCharting</small></span></div>
       <div class="flotte c"><i>✦</i><span>Photo nettoyée<small>Fond, reflets, redressée</small></span></div>
-      <div class="tel"><div class="ecran">
-        <span class="ile"></span>
+      <div class="tel" id="tel"><div class="ep"><i style="transform:translateZ(-1px)"></i><i style="transform:translateZ(-2px)"></i><i style="transform:translateZ(-3px)"></i><i style="transform:translateZ(-4px)"></i><i style="transform:translateZ(-5px)"></i><i style="transform:translateZ(-6px)"></i><i style="transform:translateZ(-7px)"></i><i style="transform:translateZ(-8px)"></i><i style="transform:translateZ(-9px)"></i><i style="transform:translateZ(-10px)"></i><i style="transform:translateZ(-11px)"></i><i style="transform:translateZ(-12px)"></i><i style="transform:translateZ(-13px)"></i><i style="transform:translateZ(-14px)"></i></div><span class="bt v1"></span><span class="bt v2"></span><span class="bt v3"></span><span class="bt on"></span><div class="ecran">
+        <span class="ile"></span><span class="vitre"></span>
         <div class="hd"><img src="/img/logo-couleur.svg" alt=""><span>3 / 30 articles</span></div>
         <div class="ph"><img class="cart" id="tPhoto" src="/img/exemples/zelda-avant.jpg" alt="Photo d'une cartouche de jeu Nintendo 64 prise au téléphone" width="720" height="720" decoding="async"><div class="viseur"><i></i><i></i><i></i><i></i></div><div class="scan"></div></div>
         <div class="fiche">
@@ -782,14 +792,26 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
   var icw=document.querySelector(".final .ico-w");
   if(icw&&!calme&&!document.documentElement.classList.contains("sans-anim")){var majIco=function(){var r=icw.getBoundingClientRect(),p=1-(r.top+r.height/2)/innerHeight;icw.style.setProperty("--p",Math.max(0,Math.min(1,p)).toFixed(3))};addEventListener("scroll",majIco,{passive:true});majIco()}
 
+  // Téléphone en 3D : il suit la souris et pivote doucement au défilement.
+  var tel=document.getElementById("tel"),sc=tel&&tel.parentNode;
+  if(tel&&!calme&&!document.documentElement.classList.contains("sans-anim")){
+    var mx=0,my=0,sy=0,f=0;
+    var maj=function(){f=0;sc.style.setProperty("--ry",(-24+mx*16+sy*14).toFixed(2)+"deg");sc.style.setProperty("--rx",(9-my*10-sy*6).toFixed(2)+"deg");sc.style.setProperty("--rz",(2-mx*2).toFixed(2)+"deg")};
+    var plan=function(){if(!f)f=requestAnimationFrame(maj)};
+    if(matchMedia("(hover:hover)").matches)sc.closest("section").addEventListener("pointermove",function(e){var r=sc.getBoundingClientRect();mx=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/(r.width)));my=Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/(r.height)));tel.classList.add("suit");plan()});
+    sc.closest("section").addEventListener("pointerleave",function(){mx=my=0;tel.classList.remove("suit");plan()});
+    addEventListener("scroll",function(){var r=sc.getBoundingClientRect();sy=Math.max(-1,Math.min(1,(innerHeight/2-(r.top+r.height/2))/innerHeight));plan()},{passive:true});
+  }
+
   // Démo du téléphone : la fiche se remplit toute seule.
   var T=document.getElementById("tTitre"),E=document.getElementById("tEtat"),P=document.getElementById("tPrix"),C=document.getElementById("chrono");
-  var jeux=[["Zelda Ocarina of Time · N64 · PAL","Bon état · en boîte",69,"zelda"],["Kirby 64 · Nintendo 64 · PAL","Très bon état · jeu en loose",65,"kirby"],["Conker's Bad Fur Day · N64 · PAL","Bon état · jeu en loose",199,"conker"],["Paper Mario · Nintendo 64 · PAL","Très bon état · jeu en loose",125,"paper-mario"]];
+  var jeux=[["Zelda Ocarina of Time · N64 · PAL","Bon état · en boîte",69,"zelda","Zelda · N64 · PAL"],["Kirby 64 · Nintendo 64 · PAL","Très bon état · jeu en loose",65,"kirby","Kirby 64 · N64 · PAL"],["Conker's Bad Fur Day · N64 · PAL","Bon état · jeu en loose",199,"conker","Conker · N64 · PAL"],["Paper Mario · Nintendo 64 · PAL","Très bon état · jeu en loose",125,"paper-mario","Paper Mario · N64 · PAL"]];
+  var R=document.getElementById("tReco");
   var PH=document.getElementById("tPhoto");jeux.forEach(function(j){new Image().src="/img/exemples/"+j[3]+"-avant.jpg"});
   if(calme){T.textContent=jeux[0][0];T.classList.remove("curs");E.textContent=jeux[0][1];P.textContent=jeux[0][2]+" €";return}
   var k=0;
   function tour(){var j=jeux[k++%jeux.length],i=0,s=0;T.textContent="";E.textContent="";P.textContent="—";
-    if(k>1){PH.classList.add("change");setTimeout(function(){PH.src="/img/exemples/"+j[3]+"-avant.jpg";PH.classList.remove("change")},300)}
+    if(k>1){PH.classList.add("change");setTimeout(function(){PH.src="/img/exemples/"+j[3]+"-avant.jpg";PH.classList.remove("change");R.textContent=j[4]},300)}
     var t=setInterval(function(){i++;T.textContent=j[0].slice(0,i);if(i>=j[0].length){clearInterval(t);setTimeout(function(){E.textContent=j[1]},250);
       var n=0,c=setInterval(function(){n+=Math.max(1,Math.round(j[2]/12));if(n>=j[2]){n=j[2];clearInterval(c)}P.textContent=n+" €"},45);setTimeout(tour,3800)}},38);
     var d=Date.now();var ch=setInterval(function(){var e=Math.min(108,Math.round((Date.now()-d)/30));C.textContent="0"+Math.floor(e/60)+":"+String(e%60).padStart(2,"0");if(e>=108)clearInterval(ch)},40)}
