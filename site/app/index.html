@@ -229,6 +229,31 @@ body.fiche-ouverte #toast{bottom:100px}
 #auth{min-height:calc(100vh - 126px)}
 
 
+
+/* Discussion avec l'IA sur la fiche */
+.dial{gap:10px}
+.dial h3{display:flex;align-items:center;gap:10px}
+.dial-ic{width:30px;height:30px;border-radius:10px;background:var(--anis);color:var(--nuit);display:grid;place-items:center;flex:none}.dial-ic svg{width:17px;height:17px}
+.dial-aide{margin:0;font-size:14px;color:var(--gris)}
+.dial-sug{display:flex;gap:6px;flex-wrap:wrap}
+.dial-sug button{border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 var(--texte);background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);cursor:pointer;text-align:left}
+.dial-sug button:hover{box-shadow:inset 0 0 0 1.5px var(--nuit)}
+.fil{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding:2px}
+.bul{max-width:88%;padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;animation:carte-in .35s var(--ease) backwards}
+.bul.moi{align-self:flex-end;background:var(--nuit);color:#fff;border-bottom-right-radius:6px}
+.bul.ia{align-self:flex-start;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);border-bottom-left-radius:6px}
+.bul.ia.err{box-shadow:inset 0 0 0 1px #D9443A}
+.bul .chg{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;white-space:normal}
+.bul .chg span{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--anis-p);color:#3E4A1C}
+.bul .chg button{font:600 12px/1 var(--texte);padding:4px 9px;border-radius:999px;border:0;background:transparent;color:var(--gris);text-decoration:underline;cursor:pointer}
+.bul.attente{display:flex;gap:4px;padding:14px}
+.bul.attente i{width:7px;height:7px;border-radius:50%;background:var(--gris-c);animation:point 1s ease-in-out infinite}
+.bul.attente i:nth-child(2){animation-delay:.15s}.bul.attente i:nth-child(3){animation-delay:.3s}
+@keyframes point{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+.dial-in{display:flex;gap:8px;align-items:flex-end}
+.dial-in textarea{flex:1;resize:none;min-height:46px;max-height:160px;border-radius:16px;padding:12px 14px;font:inherit;font-size:15px;line-height:1.4}
+.dial-in .btn{width:46px;height:46px;padding:0;flex:none;justify-content:center}.dial-in .btn svg{width:20px;height:20px}
+:root[data-theme="dark"] .bul.moi{background:var(--anis);color:var(--nuit)}
 /* Mes jeux : animations */
 #accueil h1 .m{display:inline-block;white-space:pre}
 #accueil.entre h1 .m{animation:mot-in .7s var(--ease) both;animation-delay:calc(var(--k) * 70ms + .08s)}
@@ -457,6 +482,13 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       </section>
     </div>
     <div class="col g-champs">
+      <section class="carte bloc dial" id="fDial" aria-labelledby="tDial">
+        <header><h3 id="tDial"><span class="dial-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>Dis-le à l'IA</h3></header>
+        <p class="dial-aide">Explique avec tes mots, la fiche et l'annonce se mettent à jour.</p>
+        <div class="dial-sug" id="dSug"><button type="button">Le code a déjà été utilisé, il reste la boîte et le poster</button><button type="button">Rends l'annonce plus courte</button><button type="button">Quel prix tu me conseilles ?</button></div>
+        <div class="fil" id="dFil" hidden aria-live="polite"></div>
+        <form class="dial-in" id="dForm"><textarea id="dTexte" rows="1" maxlength="1500" placeholder="Écris à l'IA…" aria-label="Message à l'IA"></textarea><button class="btn" id="dEnv" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
+      </section>
       <section class="carte bloc">
         <h3>Le jeu</h3>
         <div class="champs">
@@ -781,7 +813,7 @@ function majDescPhotos(){var t=$("f_texteAnnonce"),v=t.value.replace(RE_PHOTOS,"
 /* Mention d'origine : par défaut « d'origine, testé et fonctionnel », sauf si l'utilisateur précise autre chose.
    Une seule ligne gérée, placée avant « Remise en main propre ou envoi. » (ou en fin de texte, avant la liste des photos). */
 var RE_ORIG=/^(?:(?:Jeu|Console|Accessoire|Produit|Boîte) (?:d'origine|modifiée?|non testée?)|Reproduction \(copie non officielle\)|Ne fonctionne pas, vendue? pour pièces)[^\n]*\n?/gm;
-function ligneOrigine(){if($("f_contenu").value==="boite_vide")return"Boîte d'origine, sans le jeu.";var c=$("f_categorie").value,f=c==="consoles"||false,nom={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire"}[c]||"Produit",e=f?"e":"",m=$("f_modif").value.trim().replace(/\s*\.$/,"");
+function ligneOrigine(){if($("f_contenu").value==="boite_vide")return"";var c=$("f_categorie").value,f=c==="consoles"||false,nom={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire"}[c]||"Produit",e=f?"e":"",m=$("f_modif").value.trim().replace(/\s*\.$/,"");
   return{origine:nom+" d'origine (pas une copie), testé"+e+" et fonctionnel"+(f?"le":"")+".",non_teste:nom+" d'origine (pas une copie), non testé"+e+".",
     modifie:nom+" modifié"+e+(m?" : "+m:"")+". "+(f?"Testée":"Testé")+" et fonctionnel"+(f?"le":"")+".",repro:"Reproduction (copie non officielle), testée et fonctionnelle.",hs:"Ne fonctionne pas, vendu"+e+" pour pièces."}[$("f_origine").value||"origine"]}
 /* Dans la phrase du contenu (« Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice. ») */
@@ -789,7 +821,7 @@ var RE_FRAG=/d'origine(?: \(pas une copie\))?, (?:testée? et fonctionnelle?|non
 function fragOrigine(fem){if($("f_contenu").value==="boite_vide")return"d'origine";var e=fem?"e":"",le=fem?"le":"",m=$("f_modif").value.trim().replace(/\s*\.$/,"");
   return{origine:"d'origine, testé"+e+" et fonctionnel"+le,non_teste:"d'origine, non testé"+e,modifie:"modifié"+e+(m?" ("+m+")":"")+", testé"+e+" et fonctionnel"+le,
     repro:"de reproduction (copie non officielle, pas d'origine)",hs:"hors service, vendu"+e+" pour pièces"}[$("f_origine").value||"origine"]}
-function majOrigine(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
+function majOrigine(){if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
   v=v.replace(RE_ORIG,"").replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"");if(!v.trim())return;
   var fm=v.match(RE_FRAG);
   if(fm){var fem=/testée|fonctionnelle|vendue|modifiée/.test(fm[0])||(!/testé |fonctionnel\b|vendu |modifié\b/.test(fm[0])&&/cartouche/i.test(v));v=v.replace(RE_FRAG,fragOrigine(fem))}
@@ -797,8 +829,8 @@ function majOrigine(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PH
   v+=ph;if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
 /* Particularités (code déjà utilisé, poster inclus…) : une ligne « À noter : … » dans l'annonce, avant « Remise en main propre » */
 var RE_PART=/^À noter : [^\n]*\n?/m,PARTIC=[];
-function ligneParticularites(){var t=$("f_particularites").value.trim().replace(/\s*[.;,]\s*$/,"");return t?"À noter : "+t.charAt(0).toLowerCase()+t.slice(1)+".":""}
-function majParticularites(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
+function ligneParticularites(){if($("f_contenu").value==="boite_vide")return"";var t=$("f_particularites").value.trim().replace(/\s*[.;,]\s*$/,"");return t?"À noter : "+t.charAt(0).toLowerCase()+t.slice(1)+".":""}
+function majParticularites(){if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
   v=v.replace(RE_PART,"").replace(/\n+$/,"");if(!v.trim())return;var l=ligneParticularites();
   if(l){var i=v.search(/^Remise en main propre[^\n]*$/m);v=i>=0?v.slice(0,i)+l+"\n"+v.slice(i):v+"\n"+l}
   v+=ph;if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
@@ -807,8 +839,18 @@ function puces(l){if(l)PARTIC=l;var z=$("fPartic"),cur=$("f_particularites").val
 $("fPartic").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var x=b.textContent,f=$("f_particularites"),parts=f.value.split(/\s*,\s*/).filter(Boolean),i=parts.map(function(p){return p.toLowerCase()}).indexOf(x.toLowerCase());
   if(i>=0)parts.splice(i,1);else parts.push(parts.length?x.charAt(0).toLowerCase()+x.slice(1):x);f.value=parts.join(", ");puces();majParticularites()});
 $("f_particularites").addEventListener("input",function(){puces();majParticularites()});
-/* Boîte seule : rien à tester, la mention d'origine porte sur la boîte */
-$("f_contenu").addEventListener("change",function(){if(this.value==="boite_vide"){var t=$("f_texteAnnonce"),v=t.value.replace(/^(?:Jeu en loose|En boîte|Complet en boîte|Complet|Boîte seule)[^\n]*$/m,"Boîte seule, d'origine, sans le jeu.");if(v!==t.value){t.value=v;t.dispatchEvent(new Event("input"))}return}if(RE_ORIG.test($("f_texteAnnonce").value)||RE_FRAG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
+/* Boîte seule : la ligne du contenu dit exactement ce qui est vendu, d'après les particularités
+   (« Poster inclus, code déjà utilisé » → « Contenu : boîte d'origine avec poster, sans le jeu (code déjà utilisé). ») */
+function contenuBoite(){var inc=[],rest=[];$("f_particularites").value.split(/\s*[,;]\s*/).forEach(function(x){x=x.trim().replace(/\.$/,"");if(!x)return;var y=x.charAt(0).toLowerCase()+x.slice(1);
+    if(/\binclu(?:s|se|ses)\b/i.test(y))inc.push(y.replace(/\s*\binclu(?:s|se|ses)\b\s*/i," ").trim());else rest.push(y)});
+  return"Contenu : boîte d'origine"+(inc.length?" avec "+(inc.length>1?inc.slice(0,-1).join(", ")+" et "+inc[inc.length-1]:inc[0]):" seule")+", sans le jeu"+(rest.length?" ("+rest.join(", ")+")":"")+"."}
+var RE_CONT=/^(?:Jeu en loose|En boîte|Complet en boîte|Complet|Boîte seule|Contenu : boîte d'origine)[^\n]*$/m;
+function majBoite(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
+  v=v.replace(RE_PART,"").replace(RE_ORIG,"");RE_ORIG.lastIndex=0;if(!v.trim())return;var l=contenuBoite();
+  if(RE_CONT.test(v))v=v.replace(RE_CONT,l);else{v=v.replace(/\n+$/,"");var i=v.search(/^Remise en main propre[^\n]*$/m);v=i>=0?v.slice(0,i)+l+"\n"+v.slice(i):v+"\n"+l}
+  v=v.replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"")+ph;if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
+$("f_contenu").addEventListener("change",function(){if(this.value==="boite_vide"){majBoite();return}
+  var t=$("f_texteAnnonce");if(/^Contenu : boîte d'origine/m.test(t.value)){t.value=t.value.replace(/^Contenu : boîte d'origine[^\n]*\n?/m,"");majParticularites();majOrigine();return}if(RE_ORIG.test($("f_texteAnnonce").value)||RE_FRAG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
 function zoneModif(){$("fModifZone").hidden=$("f_origine").value!=="modifie"}
 $("f_origine").addEventListener("change",function(){if(this.value==="hs")$("f_etat").value="pieces";zoneModif();majOrigine()});
 $("f_modif").addEventListener("input",majOrigine);$("f_categorie").addEventListener("change",function(){if(RE_ORIG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
@@ -897,9 +939,40 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
 $("fCote").onclick=estimer;
 $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data-px]");if(b){$("f_prixDemande").value=b.dataset.px;toast("Prix : "+eur(+b.dataset.px)+".","ok")}});
 
+
+/* ===== Discussion avec l'IA sur la fiche ===== */
+var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce"],
+  DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite"};
+function ficheDial(){var o={};DCH.forEach(function(k){o[k]=$("f_"+k).value});if(COTE)o.cote=COTE;return o}
+function valLisible(k,v){var e=$("f_"+k);if(e.tagName==="SELECT"){var op=[].filter.call(e.options,function(x){return x.value===String(v)})[0];return op?op.textContent:v}
+  if(k==="prixAchat"||k==="prixDemande")return eur(+v);return String(v).length>40?String(v).slice(0,40)+"…":v}
+function poser(vals){// champs d'abord (leurs événements mettent l'annonce à jour), puis le texte de l'annonce
+  Object.keys(vals).forEach(function(k){if(k==="texteAnnonce")return;var e=$("f_"+k);e.value=vals[k]==null?"":vals[k];e.dispatchEvent(new Event(e.tagName==="SELECT"?"change":"input",{bubbles:true}))});
+  if("texteAnnonce" in vals){var t=$("f_texteAnnonce");t.value=vals.texteAnnonce;t.dispatchEvent(new Event("input",{bubbles:true}))}
+  if(typeof zoneModif==="function")zoneModif();if(typeof puces==="function")puces();if(typeof majLbc==="function")majLbc()}
+function dessinerDial(){var f=$("dFil");f.hidden=!DIAL.length;$("dSug").hidden=!!DIAL.length;
+  f.innerHTML=DIAL.map(function(m,i){if(m.attente)return '<div class="bul ia attente" aria-label="L\'IA écrit"><i></i><i></i><i></i></div>';
+    var c="";if(m.ch&&Object.keys(m.ch).length)c='<div class="chg">'+Object.keys(m.ch).map(function(k){return '<span>'+esc(DLIB[k])+(k==="texteAnnonce"?"":" : "+esc(valLisible(k,m.ch[k])))+'</span>'}).join("")+(m.avant?'<button type="button" data-annule="'+i+'">Annuler</button>':'<span style="background:none;color:var(--gris)">Annulé</span>')+'</div>';
+    return '<div class="bul '+(m.role==="ia"?"ia":"moi")+(m.err?" err":"")+'">'+esc(m.texte)+c+'</div>'}).join("");
+  f.scrollTop=f.scrollHeight}
+function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return;var b=$("dEnv");if(b.disabled)return;
+  DIAL.push({role:"moi",texte:texte});var hist=DIAL.filter(function(m){return !m.err}).map(function(m){return{role:m.role==="ia"?"ia":"vendeur",texte:m.texte}});
+  DIAL.push({attente:true});dessinerDial();$("dTexte").value="";taille();b.disabled=true;
+  api("POST","/api/ia/dialoguer",{messages:hist,fiche:ficheDial()}).then(function(j){DIAL.pop();var ch=j.changements||{},avant={};
+      Object.keys(ch).forEach(function(k){avant[k]=$("f_"+k).value});if(Object.keys(ch).length){avant.texteAnnonce=$("f_texteAnnonce").value;poser(ch)}
+      DIAL.push({role:"ia",texte:j.reponse,ch:ch,avant:Object.keys(ch).length?avant:null});dessinerDial()})
+    .catch(function(e){DIAL.pop();DIAL.push({role:"ia",err:true,texte:e.status===401?"Ta session a expiré, reconnecte-toi.":(e.message||"Je n'ai pas pu répondre, réessaie.")});dessinerDial();if(e.status===401)erreur(e)})
+    .then(function(){b.disabled=false})}
+function taille(){var t=$("dTexte");t.style.height="auto";t.style.height=Math.min(160,t.scrollHeight)+"px"}
+$("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial($("dTexte").value)});
+$("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
+$("dTexte").addEventListener("input",taille);
+$("dSug").addEventListener("click",function(e){var b=e.target.closest("button");if(b)envoyerDial(b.textContent)});
+$("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-annule]");if(!b)return;var m=DIAL[+b.dataset.annule];if(!m||!m.avant)return;poser(m.avant);m.avant=null;dessinerDial();toast("Changements annulés.","ok")});
+
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
 function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
-  if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice.",boite_vide:"Boîte seule, sans le jeu."}[$("f_contenu").value]||"",ligneOrigine(),ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice.",boite_vide:contenuBoite()}[$("f_contenu").value]||"",ligneOrigine(),ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
 function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
 /* Le Bon Coin demande les champs un par un : un bouton « copier » par champ, dans son ordre. */
@@ -933,7 +1006,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos()}
-  montrer("fiche",o?o.titre:"Nouveau jeu");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];figer()}
+  montrer("fiche",o?o.titre:"Nouveau jeu");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;

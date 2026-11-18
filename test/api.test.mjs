@@ -382,3 +382,18 @@ test("JSON du modèle : lu même avec des retours à la ligne bruts ou une virgu
   assert.deepEqual(lireJson('Voici :\n```json\n{"a": "l1\nl2", "b": [1,],}\n```'), { a: "l1\nl2", b: [1] });
   assert.equal(lireJson("pas de json"), null);
 });
+
+test("discussion avec l'IA : réponse, changements filtrés, message requis", async () => {
+  const c = await compte("dial" + Date.now() + "@t.fr");
+  let r = await call("POST", "/api/ia/dialoguer", { messages: [{ role: "vendeur", texte: "baisse à 25 €" }], fiche: { titre: "GTA VI", prixDemande: "40" } }, c);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.changements.prixDemande, 25);
+  assert.match(r.json.reponse, /25/);
+  r = await call("POST", "/api/ia/dialoguer", { messages: [{ role: "ia", texte: "Bonjour" }] }, c);
+  assert.equal(r.status, 422);
+  r = await call("POST", "/api/ia/dialoguer", { messages: [{ role: "vendeur", texte: "salut" }] });
+  assert.equal(r.status, 401);
+  const { changementsSurs } = await import("../server/ia.mjs");
+  assert.deepEqual(changementsSurs({ contenu: "boite_vide", etat: "nul", statut: "vendu", prixDemande: "19,5", particularites: "Poster inclus", texteAnnonce: "Boîte apparemment propre." }),
+    { contenu: "boite_vide", particularites: "Poster inclus", prixDemande: 19.5, texteAnnonce: "" });
+});

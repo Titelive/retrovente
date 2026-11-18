@@ -275,3 +275,67 @@ Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, e
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
   return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
 }
+
+/* ===== Discussion sur une fiche =====
+   Le vendeur écrit librement (« le code a déjà été utilisé », « baisse à 25 € », « annonce plus courte ») ;
+   le modèle répond et renvoie les champs à modifier. Seuls les champs connus, avec des valeurs valides, passent. */
+const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce"];
+const ORIGINES_D = ["origine", "non_teste", "modifie", "repro", "hs"];
+export function changementsSurs(c) {
+  const out = {};
+  if (!c || typeof c !== "object") return out;
+  for (const k of CHAMPS_DIALOGUE) {
+    if (!(k in c)) continue;
+    const v = c[k];
+    if (k === "prixAchat" || k === "prixDemande") { const p = prix(v); if (p != null) out[k] = p; }
+    else if (k === "categorie") { if (CATEGORIES.includes(v)) out[k] = v; }
+    else if (k === "etat") { if (ETATS.includes(v)) out[k] = v; }
+    else if (k === "contenu") { if (CONTENUS.includes(v)) out[k] = v; }
+    else if (k === "origine") { if (ORIGINES_D.includes(v)) out[k] = v; }
+    else if (k === "texteAnnonce") out[k] = affirme(txt(v, 4000));
+    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100 }[k]);
+  }
+  return out;
+}
+export async function dialoguer(messages, fiche = {}) {
+  const l = (Array.isArray(messages) ? messages : []).slice(-12)
+    .map((m) => ({ role: m && m.role === "ia" ? "ia" : "vendeur", texte: txt(m && m.texte, 1500) })).filter((m) => m.texte);
+  if (!l.length || l[l.length - 1].role !== "vendeur") throw new IaError("Écris d'abord ton message.");
+  const f = {};
+  for (const k of CHAMPS_DIALOGUE) if (fiche && fiche[k] != null && fiche[k] !== "") f[k] = k === "texteAnnonce" ? txt(fiche[k], 4000) : txt(fiche[k], 300);
+  if (fiche && fiche.cote) { const c = coteDe(fiche.cote); if (c) f.cote = { conseille: c.conseille, bas: c.bas, haut: c.haut }; }
+  if (FAKE()) {
+    const dit = l[l.length - 1].texte, m = /(\d+(?:[.,]\d+)?)\s*(?:€|euros?)/i.exec(dit);
+    if (m) return { reponse: `C'est noté, je mets le prix à ${m[1]} €.`, changements: { prixDemande: prix(m[1]) } };
+    if (/code/i.test(dit)) return { reponse: "Compris : c'est la boîte seule, sans le code. J'ai mis la fiche et l'annonce à jour.", changements: changementsSurs({ contenu: "boite_vide", particularites: "Code de téléchargement déjà utilisé", texteAnnonce: (f.texteAnnonce || "") + "\nCode de téléchargement déjà utilisé." }) };
+    return { reponse: "D'accord. Dis-moi ce que tu veux changer sur la fiche.", changements: {} };
+  }
+  const prompt = `Tu es l'assistant de RetroRevente. Tu aides un particulier à rédiger la fiche d'un objet (le plus souvent un jeu vidéo rétro) qu'il vend d'occasion sur Le Bon Coin. Il te parle librement : il corrige un détail, te donne une information, te demande un conseil ou un changement de style.
+
+Fiche actuelle (JSON) :
+${JSON.stringify(f, null, 1)}
+
+Signification des champs :
+- etat : « neuf », « tres_bon », « bon », « correct » ou « pieces » ;
+- contenu : « seul » (loose : cartouche ou disque seul), « boite » (boîte sans notice), « complet » (boîte et notice), « boite_vide » (boîte sans le jeu, par exemple code déjà utilisé) ;
+- origine : « origine » (d'origine, testé et fonctionnel), « non_teste », « modifie » (préciser dans modif), « repro » (reproduction), « hs » (pour pièces) ;
+- particularites : ce qui est inclus ou non (ex. « Poster inclus, code déjà utilisé ») ;
+- prixDemande, prixAchat : en euros ;
+- titreAnnonce : titre Le Bon Coin (100 caractères au plus) ; texteAnnonce : texte de l'annonce.
+
+Conversation (le dernier message est celui du vendeur) :
+${l.map((m) => (m.role === "ia" ? "Toi : " : "Vendeur : ") + m.texte).join("\n")}
+
+Règles :
+- Réponds en français, en tutoyant, en une à trois phrases simples. Dis ce que tu as changé.
+- Ce que dit le vendeur sur son objet est vrai : reporte-le dans les champs concernés ET dans texteAnnonce, pour que tout reste cohérent.
+- Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ».
+- Pour un conseil de prix, appuie-toi sur la cote si elle existe ; ne change prixDemande que si le vendeur le demande.
+- Si le message n'appelle aucun changement (question, remerciement), réponds sans rien changer.
+- Ne renvoie que les champs qui changent.
+
+Réponds uniquement par un objet JSON : {"reponse": "…", "changements": {"champ": valeur, …}}`;
+  const o = await claude([{ type: "text", text: prompt }], { max: 2500, timeout: 60000 });
+  if (!o || typeof o.reponse !== "string") throw new IaError("Je n'ai pas compris, reformule ton message.");
+  return { reponse: affirme(txt(o.reponse, 800)) || "C'est fait.", changements: changementsSurs(o.changements) };
+}
