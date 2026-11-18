@@ -12,7 +12,7 @@ import { rappelsAnnuels } from "./stripe.mjs";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = path.resolve(process.env.SITE_DIR || path.join(ROOT, "site"));
 const PORT = +process.env.PORT || 8082, HOST = process.env.HOST || "127.0.0.1";
-const MAX_BODY = 2 * 1024 * 1024;
+const MAX_BODY = 4 * 1024 * 1024;
 
 const MIME = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", json: "application/json; charset=utf-8", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", ico: "image/x-icon", txt: "text/plain; charset=utf-8", xml: "application/xml; charset=utf-8", webmanifest: "application/manifest+json", woff2: "font/woff2" };
 const SECU = {

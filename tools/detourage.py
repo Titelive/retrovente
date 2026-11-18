@@ -19,6 +19,8 @@ import filigrane
 MODELE = os.environ.get("REMBG_MODEL", "isnet-general-use")
 SESSION = new_session(MODELE)
 MAX = 12_000_000
+ENTREE = 2400   # côté max traité : le recadrage autour du jeu garde ainsi assez de pixels
+SORTIE = 1600   # côté max rendu
 
 
 def detourer(data: bytes) -> bytes:
@@ -38,8 +40,8 @@ def detourer(data: bytes) -> bytes:
 
 def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False) -> bytes:
     im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
-    if max(im.size) > 1800:
-        im.thumbnail((1800, 1800), Image.LANCZOS)
+    if max(im.size) > ENTREE:
+        im.thumbnail((ENTREE, ENTREE), Image.LANCZOS)
     img = np.asarray(im).copy()
     H, W = img.shape[:2]
     m = np.asarray(remove(im, session=SESSION, only_mask=True)) > 128
@@ -139,12 +141,12 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
     crop = cv2.addWeighted(crop, 1.35, flou, -.35, 0)   # netteté légère, compense la rotation
     out_im = Image.fromarray(crop)
-    if max(out_im.size) > 1600:
-        out_im.thumbnail((1600, 1600), Image.LANCZOS)
+    if max(out_im.size) > SORTIE:
+        out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
     if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
         out_im = filigrane.poser(out_im)
     out = io.BytesIO()
-    out_im.save(out, "JPEG", quality=88, optimize=True, progressive=True)
+    out_im.save(out, "JPEG", quality=90, optimize=True, progressive=True, subsampling=0)
     return out.getvalue()
 
 

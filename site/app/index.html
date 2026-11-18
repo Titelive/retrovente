@@ -138,7 +138,7 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 @media(min-width:861px){.grille>.g-photo{position:sticky;top:96px}}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .photo{position:relative;aspect-ratio:1;background:var(--carte);border-radius:28px;overflow:hidden;display:grid;place-items:center;box-shadow:0 0 0 1px var(--trait)}
-.photo img{width:100%;height:100%;object-fit:contain}
+.photo>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff}
 .galerie{list-style:none;margin:12px 0 0;padding:0;display:flex;gap:10px;flex-wrap:wrap}
 .galerie li{position:relative;width:76px;height:76px;border-radius:16px;overflow:hidden;cursor:grab;box-shadow:0 0 0 1px var(--trait);background:var(--carte);transition:transform .2s var(--ease),box-shadow .2s}
 .galerie li img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
@@ -153,8 +153,8 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .galerie .dep{display:none}
 .galerie li.sel .dep{display:flex}
 @media(hover:hover) and (pointer:fine){.galerie li.sel .dep{display:none}.galerie li.sel:hover .dep,.galerie li.sel:focus-within .dep{display:flex}}
-.galerie .ajout{display:grid;place-items:center;cursor:pointer;color:var(--gris);font-size:28px;font-weight:300;box-shadow:inset 0 0 0 2px var(--trait)}
-.galerie .ajout:hover{color:var(--encre);box-shadow:inset 0 0 0 2px var(--encre)}
+.galerie .ajout{display:grid;place-items:center;cursor:pointer;color:var(--gris);font-size:26px;font-weight:300;background:transparent;box-shadow:none;border:1.5px dashed var(--trait);transition:color .2s,border-color .2s,background .2s}
+.galerie .ajout:hover,.galerie .ajout:focus-visible{color:var(--encre);border-color:var(--anis-f);background:rgba(var(--anis-rgb),.12);outline:none}
 .leg{margin-top:10px}.leg b{background:var(--anis);color:var(--nuit);border-radius:999px;padding:0 7px;font-size:12px}
 .photo .pixel{color:var(--gris-c)}
 .photo .attente{position:absolute;inset:0;display:grid;place-items:center;background:rgba(18,18,18,.55);backdrop-filter:blur(3px);font-weight:600;text-align:center;padding:20px}
@@ -423,6 +423,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .filtres button:active{transform:scale(.94)}
 .carte{transition:box-shadow .3s}
 .photo.flash::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(var(--anis-rgb),.55) 50%,transparent 70%);background-size:250% 100%;animation:balaye 1s var(--ease) forwards;pointer-events:none}
+.photo.flash.fini::after{display:none}
 @keyframes balaye{from{background-position:120% 0}to{background-position:-60% 0}}
 .btn .i{width:18px;height:18px;flex:none}
 
@@ -968,11 +969,11 @@ $("fAuth").onsubmit=function(e){e.preventDefault();var b=$("aGo"),t=b.textConten
 function ouvrirImage(f){return new Promise(function(ok,ko){var img=new Image(),u=URL.createObjectURL(f);
   img.onload=function(){URL.revokeObjectURL(u);ok(img)};img.onerror=function(){URL.revokeObjectURL(u);ko(new Error("Cette photo ne s'ouvre pas. Essaie en JPEG (réglage « Le plus compatible » de l'appareil photo de l'iPhone)."))};img.src=u})}
 /* Recadrage carré autour de l'objet (format des vignettes Le Bon Coin), réduction et JPEG. */
-function versData(img,cadre,max){var W=img.naturalWidth,H=img.naturalHeight,sx=0,sy=0,sw=W,sh=H;
+function versData(img,cadre,max,poids){poids=poids||650000;var W=img.naturalWidth,H=img.naturalHeight,sx=0,sy=0,sw=W,sh=H;
   if(cadre&&cadre.w>0&&cadre.h>0){var cx=(cadre.x+cadre.w/2)*W,cy=(cadre.y+cadre.h/2)*H,side=Math.min(Math.max(cadre.w*W,cadre.h*H)*1.15,W,H);sw=sh=Math.round(side);sx=Math.round(Math.max(0,Math.min(W-sw,cx-sw/2)));sy=Math.round(Math.max(0,Math.min(H-sh,cy-sh/2)))}
   var k=Math.min(1,max/Math.max(sw,sh)),c=document.createElement("canvas");c.width=Math.round(sw*k);c.height=Math.round(sh*k);
   var g=c.getContext("2d");g.imageSmoothingQuality="high";g.filter="contrast(1.04) saturate(1.06)";g.drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
-  var q=.85,d=c.toDataURL("image/jpeg",q);while(d.length>650000&&q>.4){q-=.1;d=c.toDataURL("image/jpeg",q)}return d}
+  var q=.85,d=c.toDataURL("image/jpeg",q);while(d.length>poids&&q>.5){q-=.1;d=c.toDataURL("image/jpeg",q)}return d}
 /* ===== Galerie : plusieurs photos par jeu ===== */
 function cur(){return GAL[SEL]||null}
 function setPhoto(d){if(d===null){GAL=[];SEL=0;DELS=[];afficher();return}
@@ -981,7 +982,7 @@ function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.
   if(c){var i=new Image();i.alt="Photo "+(SEL+1)+" du jeu";i.src=c.src;b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}
   $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" title="'+esc(g.legende||"Photo "+(i+1))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span>'+
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
-    (GAL.length<12?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
+    (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
   $("fOrig").hidden=!(c&&c.orig);if(c&&c.orig)$("fOrig").textContent=c.vueOrig?"Revenir à la photo retouchée":"Voir l'original";
   $("fPhotoSuppr").hidden=!c;$("fDecrire").hidden=!GAL.length;$("fPhotoDl").textContent=GAL.length>1?"Enregistrer les "+GAL.length+" photos numérotées":"Enregistrer la photo numérotée";
@@ -998,8 +999,8 @@ $("fGal").addEventListener("drop",function(e){var li=e.target.closest("li[data-i
 $("fGal").addEventListener("dragend",function(){GLISSE=-1;afficher()});
 $("fLeg").addEventListener("input",function(){var c=cur();if(!c)return;c.legende=this.value;var li=$("fGal").querySelector('li[data-i="'+SEL+'"]');if(li)li.title=c.legende;majDescPhotos()});
 $("fPhotoSuppr").onclick=function(){var c=cur();if(!c)return;if(c.pid)DELS.push(c.pid);GAL.splice(SEL,1);SEL=Math.max(0,Math.min(SEL,GAL.length-1));IMG=null;afficher();majDescPhotos();toast("Photo retirée (enregistre pour valider).","ok")};
-$("fPivot").onclick=function(){var c=cur();if(!c)return;chargerImg(c.src).then(function(img){var cv=document.createElement("canvas");cv.width=img.naturalHeight;cv.height=img.naturalWidth;var g=cv.getContext("2d");g.translate(cv.width,0);g.rotate(Math.PI/2);g.drawImage(img,0,0);
-  var d=cv.toDataURL("image/jpeg",.9);c.src=c.data=d;IMG=null;afficher()}).catch(function(e){erreur(e,"Rotation impossible.")})};
+function pivoter(src){return chargerImg(src).then(function(img){var cv=document.createElement("canvas");cv.width=img.naturalHeight;cv.height=img.naturalWidth;var g=cv.getContext("2d");g.translate(cv.width,0);g.rotate(Math.PI/2);g.drawImage(img,0,0);return cv.toDataURL("image/jpeg",.92)})}
+$("fPivot").onclick=function(){var c=cur();if(!c)return;Promise.all([pivoter(c.src),c.orig?pivoter(c.orig):null]).then(function(r){c.src=c.data=r[0];if(r[1])c.orig=r[1];IMG=null;afficher()}).catch(function(e){erreur(e,"Rotation impossible.")})};
 /* Description : bloc « Photos : 1. … » tenu à jour avec l'ordre et les légendes */
 var RE_PHOTOS=/\n*Photos :\n(?:\d+\. [^\n]*(?:\n|$))*/;
 function majDescPhotos(){var t=$("f_texteAnnonce"),v=t.value.replace(RE_PHOTOS,"\n").replace(/\n+$/,"");
@@ -1080,16 +1081,18 @@ $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.valu
   if(vide){var prem=fs.shift();analyser(prem).then(function(){ajouterPhotos(fs)});return}
   ajouterPhotos(fs)};
 function ajouterPhotos(fs){if(!fs.length)return Promise.resolve();var debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
-  return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,1400);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
+  return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,2000,1100000);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
 function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});modeCarte()}
+$("fPhoto").addEventListener("animationend",function(e){if(e.animationName==="balaye")this.classList.add("fini")});
+var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la première analyse finie
 function analyser(f){
-  attente("Je regarde la photo…");
-  return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,1400));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
+  ANALYSE=true;attente("Je regarde la photo…");
+  return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
     .then(function(j){var o=j.objet;IA_FAITE=true;
-      ROT=o.rotation||0;
+      ROT=0;   // le quart de tour deviné par l'IA se trompait trop souvent : seul « Pivoter » tourne la photo
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
       remplirCarte(o);
       if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
@@ -1097,7 +1100,7 @@ function analyser(f){
       if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
       $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
       attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");return Promise.all([nettoyerPhoto(true,0,ROT),estimer()])})
-    .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null)})}
+    .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null);ANALYSE=false;afficher()})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
 function analyserImg(){attente("Je regarde la photo…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
@@ -1127,13 +1130,14 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 function decrire(auto){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
-    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[]);if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
+    .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Description impossible.");else console.warn(e)}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
-function jauniVu(l){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){if(n<0&&/jaun/i.test(x||"")){n=i;net=/nettement|très|fort/i.test(x)}});if(n<0)return;
-  var p=$("f_particularites");if(!/jaun/i.test(p.value)){p.value=(p.value.trim()?p.value.trim().replace(/[.,;]$/,"")+", ":"")+(net?"plastique nettement jauni":"plastique légèrement jauni");majParticularites()}
-  var e=$("f_etat");if(e.value==="neuf"||(net&&e.value==="tres_bon"))e.value=net?"bon":"tres_bon";
+function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});if(n<0)return;
+  var p=$("f_particularites");if(net&&/légèrement jauni/i.test(p.value)){p.value=p.value.replace(/plastique légèrement jauni/i,"plastique nettement jauni");majParticularites()}
+  if(!/jaun/i.test(p.value)){p.value=(p.value.trim()?p.value.trim().replace(/[.,;]$/,"")+", ":"")+(net?"plastique nettement jauni":"plastique légèrement jauni");majParticularites()}
+  var e=$("f_etat");if(e.value==="neuf"||(net&&e.value==="tres_bon")){e.value=net?"bon":"tres_bon";e.dispatchEvent(new Event("change",{bubbles:true}))}
   toast("Plastique jauni repéré sur la photo "+(n+1)+" : je l'ai indiqué dans l'annonce.","ok")}
 
 /* ===== Cote ===== */
@@ -1264,7 +1268,7 @@ function cle(){return uid()+"|"+CLE}
 function garder(){if(!CLE||$("fiche").hidden)return Promise.resolve();if(!sale())return BR.del(cle());
   var ch={};F.forEach(function(k){ch[k]=$("f_"+k).value});
   return BR.put({k:cle(),u:uid(),cle:CLE,id:ED?ED.id:null,titre:ch.titre||(ED&&ED.titre)||"Nouvel article",maj:Date.now(),champs:ch,cote:COTE,dels:DELS.slice(),
-    photos:GAL.map(function(g){return{pid:g.pid||null,data:g.data||null,src:g.pid?null:(g.data||g.src),legende:g.legende||""}})})}
+    photos:GAL.map(function(g){return{pid:g.pid||null,data:g.data||null,src:g.pid?null:(g.data||g.src),legende:g.legende||"",orig:g.orig||null,rv:g.rv||0,vueOrig:!!g.vueOrig}})})}
 function planifier(){clearTimeout(TBR);TBR=setTimeout(garder,600)}
 $("fiche").addEventListener("input",planifier,true);$("fiche").addEventListener("change",planifier,true);
 var _afficher=afficher;afficher=function(){_afficher.apply(this,arguments);planifier()};
@@ -1285,15 +1289,15 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
     var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:null;if(d.id&&!o){BR.del(d.k).then(dessinerBrouillons);toast("Cet article n'existe plus.","bad");return}
     ouvrirFiche(o||null);CLE=d.cle;
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
-    DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:null}});SEL=0;afficher();
-    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();toast("Brouillon repris.","ok")})});
+    DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
+    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");refaireAnciennes()})});
 $("fFermer").onclick=fermerFiche;
 
 /* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
 (function(){var mq=matchMedia("(min-width:1100px) and (min-height:620px)"),O=$("fOnglets");
   function sections(){return [].slice.call(document.querySelectorAll("#fiche [data-onglet]"))}
   function choisir(o){sections().forEach(function(s){s.classList.toggle("actif",s.dataset.onglet===o)});[].forEach.call(O.querySelectorAll("button"),function(b){var on=b.dataset.o===o;b.setAttribute("aria-pressed",on?"true":"false");if(on)b.classList.remove("neuf")})}
-  window.ongletFiche=choisir;
+  window.ongletFiche=function(o){choisir(o);[].forEach.call(O.querySelectorAll("button.neuf"),function(b){b.classList.remove("neuf")});photo();OUVERT=Date.now()};var OUVERT=0;
   function dispo(){if(!mq.matches||$("fiche").hidden)return;var g=document.querySelector("#fiche .grille"),F=$("fiche"),haut=g.getBoundingClientRect().top+scrollY,h=Math.max(480,innerHeight-haut);F.style.setProperty("--dispo",h+"px");
     var trop=document.documentElement.scrollHeight-innerHeight;if(trop>0&&h-trop>=480)F.style.setProperty("--dispo",(h-trop)+"px")}
   function maj(){document.documentElement.classList.toggle("etabli",mq.matches);dispo()}
@@ -1306,7 +1310,7 @@ $("fFermer").onclick=fermerFiche;
   document.addEventListener("invalid",function(e){var s=e.target.closest&&e.target.closest("#fiche [data-onglet]");if(s)choisir(s.dataset.onglet)},true);
   /* l'IA ou l'estimation remplissent un autre onglet : petit point pour le signaler */
   var vals={};function photo(){sections().forEach(function(s){[].forEach.call(s.querySelectorAll("input,select,textarea"),function(x){vals[x.id]=x.value})})}
-  setInterval(function(){if($("fiche").hidden||!document.documentElement.classList.contains("etabli"))return;sections().forEach(function(s){if(s.classList.contains("actif"))return;var ch=[].some.call(s.querySelectorAll("input,select,textarea"),function(x){return x.id in vals&&vals[x.id]!==x.value});if(ch){var b=O.querySelector('[data-o="'+s.dataset.onglet+'"]');b&&b.classList.add("neuf")}});photo()},700);
+  setInterval(function(){if($("fiche").hidden||!document.documentElement.classList.contains("etabli"))return;if(Date.now()-OUVERT<1500){photo();return}sections().forEach(function(s){if(s.classList.contains("actif"))return;var ch=[].some.call(s.querySelectorAll("input,select,textarea"),function(x){return x.id in vals&&vals[x.id]!==x.value});if(ch){var b=O.querySelector('[data-o="'+s.dataset.onglet+'"]');b&&b.classList.add("neuf")}});photo()},700);
 })();
 /* Menu « Nouvel article » : un article en cours de modification est gardé en brouillon avant d'en commencer un autre */
 function fermerAjout(){var m=$("ajoutMenu");if(m&&!m.hidden){m.hidden=true;$("bNouveau").setAttribute("aria-expanded","false")}}
@@ -1452,11 +1456,16 @@ charger();
    On ne retouche jamais l'objet lui-même : les défauts restent visibles. L'original reste disponible. */
 function chargerImg(src){return new Promise(function(ok,ko){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ko(new Error("Photo illisible."))};i.src=src})}
 function sourceImg(){return IMG?Promise.resolve(IMG):PHOTO?chargerImg(PHOTO):Promise.reject(new Error("Ajoute d'abord une photo."))}
+/* Version de la retouche : une photo retouchée par une version plus ancienne (recadrage hasardeux) est refaite depuis l'original */
+var RV=2;
+function refaireAnciennes(){var ch=Promise.resolve(),n=0;GAL.forEach(function(g,k){if(g.orig&&!g.vueOrig&&(g.rv||0)<RV){n++;ch=ch.then(function(){return nettoyerPhoto(true,k)})}});
+  if(n)ch.then(function(){toast(n>1?n+" photos retouchées à nouveau avec la nouvelle retouche.":"Photo retouchée à nouveau avec la nouvelle retouche.","ok")});return ch}
 function nettoyerPhoto(auto,idx,rot){var k=idx==null?SEL:idx,g=GAL[k];if(!g)return Promise.resolve();var b=$("fNet"),t=b.innerHTML;
   busy(b,true);if(k===SEL)attente("Je retouche la photo…");
-  return chargerImg(g.orig||g.src).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,1600),rotation:rot||0})})
-    .then(function(j){if(!g.orig)g.orig=g.src;g.src=g.data=j.photo;g.vueOrig=false;IMG=null;afficher();LBC_FAIT.photo=false;
-      $("fPhoto").classList.remove("flash");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo retouchée. L'original est gardé.","ok")})
+  var base=g.vueOrig?g.src:(g.orig||g.src);   // toujours depuis la photo d'origine
+  return chargerImg(base).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,2400,1500000),rotation:rot||0})})
+    .then(function(j){g.orig=base;g.src=g.data=j.photo;g.vueOrig=false;g.rv=RV;IMG=null;afficher();LBC_FAIT.photo=false;
+      $("fPhoto").classList.remove("flash","fini");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo retouchée. L'original est gardé.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Retouche impossible.");else console.warn(e)})
     .then(function(){attente(null);b.classList.remove("busy");b.disabled=false;b.innerHTML=t})}
 $("fNet").onclick=function(){nettoyerPhoto(false,SEL,SEL===0?ROT:0)};
