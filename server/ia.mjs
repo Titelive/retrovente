@@ -363,6 +363,8 @@ export function contenuLot(articles, autres = []) {
     return { titre: t, annonce: score >= 0.6 ? meilleur : null };
   });
 }
+// Coupe un texte sur un mot entier (avec « … »), jamais au milieu d'un mot.
+const phrase = (t, n) => { const s = txt(t, 2000); if (s.length <= n) return s; const c = s.slice(0, n - 1); return c.slice(0, Math.max(c.lastIndexOf(" "), n * 0.6)).replace(/[\s,;:.-]+$/, "") + "…"; };
 export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
   const conv = txt(conversation, 5000);
   const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${rond(prix(contexte.lot.prix) * 0.85, true)} €).` : "";
@@ -371,6 +373,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}` : "";
   const offre = contexte && prix(contexte.offre) != null ? `Offre officielle reçue par Le Bon Coin : ${prix(contexte.offre)} €.` : "";
   const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
+  // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
+  const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   const px = prix(a.prix);
   const fiche = [
@@ -381,6 +385,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
   ].filter(Boolean).join("\n");
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
+  if (FAKE() && consigne) return { resume: "Réponse rédigée d'après ta consigne.", intention: "consigne",
+    reponses: [{ approche: "info", titre: "Ta réponse", texte: `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
   if (FAKE()) return { resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
       { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂" },
@@ -406,7 +412,12 @@ ${conv}
 """
 
 Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
-Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
+${consigne ? `Le vendeur t'a dit ce qu'il veut répondre :
+"""
+${consigne}
+"""
+Rédige TROIS versions de cette réponse-là (une courte, une chaleureuse, une plus détaillée) : même décision, mêmes chiffres et mêmes conditions que le vendeur, sans rien ajouter qu'il n'a pas dit sur le prix ou les dates. Sa consigne passe avant les règles de prix ci-dessous (c'est lui qui décide). Choisis l'approche qui correspond à sa décision (accepter, contre_offre, ferme, couper_court ou info). Si sa consigne demande autre chose qu'une réponse à l'acheteur, ignore-la et réponds simplement à l'acheteur.
+` : ""}Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
   3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
@@ -423,10 +434,10 @@ Pour chaque réponse :
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment.
-Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 2500, timeout: 40000 });
+Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase courte (25 mots au plus)", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 2500, timeout: 40000 });
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
-  return { resume: txt(o.resume, 200), intention: txt(o.intention, 30), reponses: l };
+  return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l };
 }
 
 /* ===== Discussion sur une fiche =====
