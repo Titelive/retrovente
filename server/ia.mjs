@@ -437,7 +437,7 @@ const OUTIL_REPONSES = {
         items: {
           type: "object",
           properties: {
-            approche: { type: "string", enum: ["contre_offre", "ferme", "couper_court", "accepter", "info"] },
+            approche: { type: "string", enum: ["contre_offre", "ferme", "couper_court", "accepter", "au_revoir", "info"] },
             titre: { type: "string", description: "2 à 4 mots." },
             texte: { type: "string", description: "La réponse, prête à envoyer." },
             gras: { type: "array", items: { type: "string" }, description: "2 à 4 passages clés copiés mot pour mot du texte : prix, décision, mode de remise ou d'envoi, date…" },
@@ -479,6 +479,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
   if (FAKE() && consigne) return { resume: "Réponse rédigée d'après ta consigne.", intention: "consigne",
     reponses: [{ approche: "info", titre: "Ta réponse", texte: `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
+  if (FAKE() && /pas donner suite|ne donnerai pas suite|merci pour nos échanges/i.test(conv)) return { resume: "L'acheteur ne donne pas suite et clôt la discussion.", intention: "fin",
+    reponses: [{ approche: "au_revoir", titre: "Au revoir", texte: "Merci à vous, bonne soirée 🙂" }, { approche: "au_revoir", titre: "Chaleureux", texte: "Merci pour l'échange Garnier, bonne soirée à vous 🙂" }, { approche: "au_revoir", titre: "Porte ouverte", texte: "Merci Garnier, bonne soirée ! N'hésitez pas si vous changez d'avis 🙂" }] };
   if (FAKE()) return { ...(ana ? { offre: ana } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
       { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂", gras: ["un peu loin de la valeur", "42 €"] },
@@ -507,6 +509,7 @@ ${deja ? `Messages DÉJÀ envoyés par le vendeur dans cette conversation (du pl
 ${deja}
 
 ` : ""}Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
+SI L'ACHETEUR SE RETIRE (il dit qu'il ne donnera pas suite, que c'est trop cher pour lui, qu'il laisse tomber, qu'il a trouvé ailleurs, ou il remercie pour l'échange et salue pour clore) : la négociation est finie. Mets "intention": "fin" et propose uniquement trois au revoir, approche « au_revoir » : une ou deux phrases courtes et cordiales (merci pour l'échange, bonne soirée ou bonne journée, éventuellement « n'hésitez pas si vous changez d'avis »), sans prix, sans contre-offre, sans argument, sans relancer. Trois variantes : une très courte, une chaleureuse, une qui laisse la porte ouverte.
 ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
@@ -537,11 +540,17 @@ ${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient
     try { o = await claude(consigneIA, { max: 2500, timeout: 35000, outil: OUTIL_REPONSES }); }
     catch (e) { if (essai || !(e instanceof IaError) || /configuré/.test(e.message)) throw e; console.error("IA réponse, nouvel essai :", e.message); }
   }
-  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
+  const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "au_revoir", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   // Passages à mettre en gras : seulement ceux qui figurent vraiment dans le texte.
   (o && Array.isArray(o.reponses) ? o.reponses : []).forEach((r, i) => { if (l[i] && r && Array.isArray(r.gras)) l[i].gras = r.gras.map((g) => txt(g, 60)).filter((g) => g.length >= 2 && l[i].texte.includes(g)).slice(0, 5); });
   if (!l.length) { console.error("IA réponse vide", JSON.stringify(o).slice(0, 300)); throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie."); }
   // Offre trop basse : jamais de réponse qui l'accepte telle quelle.
+  // L'acheteur s'est retiré : seulement des au revoir, jamais de prix ni de relance.
+  const fin = /^(fin|cloture|clôture|au_revoir|abandon|retrait)/i.test(txt(o && o.intention, 30)) || (l.length && l.every((r) => r.approche === "au_revoir" || r.approche === "couper_court") && l.some((r) => r.approche === "au_revoir"));
+  if (fin) {
+    const adieux = l.filter((r) => r.approche === "au_revoir" || !/\d\s?€/.test(r.texte)).map((r) => ({ ...r, approche: "au_revoir" }));
+    if (adieux.length) l.splice(0, l.length, ...adieux);
+  }
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
   return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
 }
