@@ -6,6 +6,8 @@
     var d = e.data;
     if (e.source !== window || e.origin !== location.origin || !d || d.source !== "retrorevente-app") return;
     if (d.type === "cle") rrDemander({ type: "cle", cle: d.cle, serveur: location.origin }).then(function (r) { dire("cle-ok", { email: r.email }); }, function (err) { dire("cle-erreur", { message: err.message }); });
+    // Bouton « Le Bon Coin » d'une fiche : l'article à déposer, repris par l'extension sur la page de dépôt.
+    if (d.type === "deposer" && /^[a-f0-9]{16}$/.test(String(d.id || ""))) { try { RR.storage.local.set({ aDeposer: { id: d.id, at: Date.now() } }); } catch (err) {} }
     if (d.type === "deconnecter") rrDemander({ type: "deconnecter" }).catch(function () {});
   });
   function presente() { dire("present", { version: RR.runtime.getManifest().version }); }

@@ -679,10 +679,25 @@
   }
   function statut(t, k) { var s = ombre.querySelector(".s"); if (s) { s.textContent = t; s.className = "s " + (k || ""); } }
 
+  // Article à déposer : celui de la fiche d'où l'on vient (#rr=<id> ou message du site, moins de 2 h),
+  // sinon le plus récemment modifié qui n'est pas encore publié. Jamais un vieil article par défaut.
+  async function cibleDepot() {
+    var l = etat.annonces || [], id = (/[#&]rr=([a-f0-9]{16})/.exec(location.hash) || [])[1], st = {};
+    try { st = (await RR.storage.local.get("aDeposer")) || {}; } catch (e) {}
+    var s = st.aDeposer && Date.now() - st.aDeposer.at < 2 * 3600e3 ? st.aDeposer : null;
+    if (!id && s) id = s.id;
+    var a = id && l.find(function (x) { return x.id === id; });
+    if (id && !a) { try { var j = await rrDemander({ type: "annonces" }); etat.annonces = l = j.annonces || l; a = l.find(function (x) { return x.id === id; }); } catch (e) {} }
+    if (a && !(a.publiee && !(location.hash.indexOf("rr=") >= 0))) { etat.choisie = a; etat.cible = a.id; return; }
+    var t = function (x) { return Date.parse(x.modifie || "") || 0; };
+    etat.choisie = l.filter(function (x) { return !x.publiee; }).sort(function (x, y) { return t(y) - t(x); })[0] || l[0] || null;
+  }
+
   async function charger() {
     try {
       var j = await rrDemander({ type: "annonces" });
       etat.annonces = j.annonces || [];
+      if (mode() === "depot") await cibleDepot();
       if (mode() === "messages" && !etat.choisie) { etat.choisie = deviner(); if (deviner(true)) { etat.convPour = etat.choisiePour = idConversation(); etat.convDepuis = Date.now(); } }
       dessiner();
       if (mode() === "depot") demarrerAuto();
