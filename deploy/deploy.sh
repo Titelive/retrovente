@@ -15,6 +15,11 @@ mkdir -p "$BASE/releases" /var/lib/retrorevente /var/backups/retrorevente
 cp -a "$SRC" "$REL"; rm -rf "$REL/.git"
 chown -R titelive:titelive "$REL" /var/lib/retrorevente
 [ -f /etc/retrorevente.env ] || install -m 600 /dev/null /etc/retrorevente.env
+# Comptes propriétaires (secret GitHub ADMIN_EMAILS) : remplace la ligne du fichier d'environnement s'il est fourni
+if [ -n "${ADMIN_EMAILS:-}" ]; then
+  sed -i '/^ADMIN_EMAILS=/d' /etc/retrorevente.env
+  printf 'ADMIN_EMAILS=%s\n' "$ADMIN_EMAILS" >> /etc/retrorevente.env
+fi
 
 # Sauvegarde quotidienne de la base et des photos (30 jours gardés)
 cat > /usr/local/bin/retrorevente-backup <<'B'

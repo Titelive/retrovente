@@ -274,6 +274,8 @@ test("mode test des formules : réservé aux adresses ADMIN_EMAILS", async () =>
     assert.equal((await call("POST", "/api/admin/formule", { formule: "pass" }, n)).status, 404);
     const mn = (await call("GET", "/api/moi", null, n)).json;
     assert.equal(mn.admin, undefined); assert.equal(mn.formuleTest, undefined);
+    assert.equal((await call("GET", "/api/moi", null, a)).json.formule.id, "collectionneur");   // propriétaire : formule la plus complète d'office
+    assert.equal((await call("GET", "/api/moi", null, n)).json.formule.id, "gratuit");
     assert.equal((await call("POST", "/api/admin/formule", { formule: "nimporte" }, a)).status, 400);
     const r = await call("POST", "/api/admin/formule", { formule: "collectionneur" }, a);
     assert.equal(r.status, 200);
