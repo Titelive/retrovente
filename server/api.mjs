@@ -413,6 +413,11 @@ export async function handleApi(req) {
   if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
+  if (p === "/api/ia/dialoguer" && method === "POST") {
+    const r = rights(u), n = usageOf(u.id).dialogue || 0, cap = r.quota === Infinity ? FAIR_USE * 2 : r.quota * 20 + 30;
+    if (n >= cap) fail(429, "Tu as atteint la limite de messages à l'IA pour ce mois.");
+    const b = body(); const out = await ia.dialoguer(b.messages, b.fiche || {}); bump(u.id, "dialogue"); return ok({ ok: true, ...out });
+  }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
   if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
 
