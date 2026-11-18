@@ -28,7 +28,7 @@ export function coteDe(c) {
   return o.conseille != null || o.bas != null ? o : null;
 }
 
-async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false } = {}) {
+async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null } = {}) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new IaError("Le service d'IA n'est pas configuré.");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -37,6 +37,8 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
     body: JSON.stringify({
       model: model || process.env.CLAUDE_MODEL || "claude-haiku-5-5", max_tokens: max,
       ...(web ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: web }] } : {}),
+      // Sortie structurée : le modèle remplit un outil au schéma imposé (pas de JSON à relire dans du texte).
+      ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: { type: "tool", name: outil.name } } : {}),
       messages: [{ role: "user", content }],
     }),
   });
@@ -47,6 +49,11 @@ async function claude(content, { web = 0, max = 1500, timeout = 30000, model = "
   for (const b of d.content || []) if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const x of b.content) if (x && x.url) vus.add(norme(x.url));
   for (const b of d.content || []) for (const c of b.citations || []) if (c && c.url) vus.add(norme(c.url));
   if (d.stop_reason === "max_tokens") console.error("IA : réponse coupée (max_tokens)", max);
+  if (outil) {
+    const u = (d.content || []).find((b) => b.type === "tool_use" && b.name === outil.name);
+    if (u && u.input && typeof u.input === "object") return u.input;
+    console.error("IA : outil non rempli", d.stop_reason, t.slice(0, 300));
+  }
   const o = lireJson(t);
   if (!o) { console.error("IA : JSON illisible", t.slice(0, 400)); if (brut) return { _texte: t }; }
   if (o && web) Object.defineProperty(o, "_vus", { value: vus });
@@ -391,18 +398,60 @@ export function contenuLot(articles, autres = []) {
 }
 // Coupe un texte sur un mot entier (avec « … »), jamais au milieu d'un mot.
 const phrase = (t, n) => { const s = txt(t, 2000); if (s.length <= n) return s; const c = s.slice(0, n - 1); return c.slice(0, Math.max(c.lastIndexOf(" "), n * 0.6)).replace(/[\s,;:.-]+$/, "") + "…"; };
+// Offre d'un acheteur face au prix affiché : écart en %, plancher (85 %), et contre-offre conseillée (≈ 95 % du prix,
+// jamais sous le plancher, toujours au-dessus de l'offre). « basse » : sous le plancher.
+export function analyseOffre(prixAffiche, offre) {
+  const px = prix(prixAffiche), of = prix(offre);
+  if (px == null || of == null || px <= 0) return null;
+  const ecart = Math.round(((px - of) / px) * 100), plancher = rond(px * 0.85, true);
+  let contre = Math.max(plancher, rond(px * 0.95));
+  if (contre >= px) contre = px;
+  return { prix: px, offre: of, ecart, plancher, contre, basse: of < plancher, acceptable: of >= plancher };
+}
+const OUTIL_REPONSES = {
+  name: "proposer_reponses",
+  description: "Propose les réponses du vendeur à l'acheteur.",
+  schema: {
+    type: "object",
+    properties: {
+      resume: { type: "string", description: "Ce que demande l'acheteur, en une phrase courte (25 mots au plus)." },
+      intention: { type: "string", description: "Un mot-clé (offre_basse, disponibilite, envoi…)." },
+      reponses: {
+        type: "array", minItems: 1, maxItems: 3,
+        items: {
+          type: "object",
+          properties: {
+            approche: { type: "string", enum: ["contre_offre", "ferme", "couper_court", "accepter", "info"] },
+            titre: { type: "string", description: "2 à 4 mots." },
+            texte: { type: "string", description: "La réponse, prête à envoyer." },
+            gras: { type: "array", items: { type: "string" }, description: "2 à 4 passages clés copiés mot pour mot du texte : prix, décision, mode de remise ou d'envoi, date…" },
+          },
+          required: ["approche", "titre", "texte"],
+        },
+      },
+    },
+    required: ["resume", "reponses"],
+  },
+};
 export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
   const conv = txt(conversation, 5000);
   const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${rond(prix(contexte.lot.prix) * 0.85, true)} €).` : "";
   const articles = contexte && contexte.lot ? contenuLot(contexte.lot.articles, autres) : [];
   const somme = articles.length && articles.every((x) => x.annonce && prix(x.annonce.prix) != null) ? articles.reduce((n, x) => n + prix(x.annonce.prix), 0) : null;
   const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}` : "";
-  const offre = contexte && prix(contexte.offre) != null ? `Offre officielle reçue par Le Bon Coin : ${prix(contexte.offre)} €.` : "";
+  // L'offre officielle (« Voici l'offre de mm : 140 €. »), envoyée par l'extension ou relue dans la conversation.
+  const mOffre = /offre de [^:\n]{1,60}:\s*(\d[\d\s\u00a0\u202f]{0,6})\s?€/gi; let vueOffre = null, mo;
+  while ((mo = mOffre.exec(String(conversation || "")))) vueOffre = prix(mo[1].replace(/[\s\u00a0\u202f]/g, ""));
+  const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
+  const ana = !(contexte && contexte.lot) ? analyseOffre(a.prix, montantOffre) : null;
+  const offre = montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
   const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
   // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
   const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
   const precedentes = consigne && Array.isArray(contexte.precedentes) ? contexte.precedentes.slice(0, 3).map((x) => "- " + txt(x, 500).replace(/"""/g, "")).filter((x) => x.length > 3).join("\n") : "";
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
+  // Ce que le vendeur a déjà écrit dans cette conversation (bulles de droite) : à ne pas répéter.
+  const deja = Array.isArray(contexte && contexte.mesMessages) ? contexte.mesMessages.slice(-4).map((x) => "- " + txt(x, 600).replace(/"""/g, "").replace(/\s*\n\s*/g, " ")).filter((x) => x.length > 5).join("\n") : "";
   const px = prix(a.prix);
   const fiche = [
     a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : "Console"} : ${txt(a.plateforme, 60)}` : "",
@@ -414,7 +463,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
   if (FAKE() && consigne) return { resume: "Réponse rédigée d'après ta consigne.", intention: "consigne",
     reponses: [{ approche: "info", titre: "Ta réponse", texte: `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
-  if (FAKE()) return { resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
+  if (FAKE()) return { ...(ana ? { offre: ana } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
       { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂", gras: ["un peu loin de la valeur", "42 €"] },
       { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
@@ -428,7 +477,7 @@ Particularités des cartes Pokémon :
 - état : parle avec les mots des collectionneurs (Near Mint, bords, coins, surface, centrage) sans rien ajouter à la fiche ;
 - un acheteur qui demande une photo « avec son pseudo sur un papier » est une demande normale : accepte volontiers.
 ` : "";
-  const o = await claude(`Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}
+  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
@@ -438,7 +487,10 @@ ${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur 
 ${conv}
 """
 
-Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
+${deja ? `Messages DÉJÀ envoyés par le vendeur dans cette conversation (du plus ancien au plus récent) :
+${deja}
+
+` : ""}Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
 ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
@@ -447,10 +499,11 @@ sinon (question, disponibilité, envoi…), trois formulations utiles et différ
 `}Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
-- 1 à 4 phrases courtes ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
+- tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
+- 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon commence directement (« Merci Garnier, … ») ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
-- un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Voir l'offre », la refuser ou contre-proposer par message) ;
+- un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ; si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), salue-la gentiment sans pour autant brader ;
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
 - lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
@@ -462,12 +515,19 @@ LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est 
 ${consigne}
 """
 ${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; les deux autres sont des variantes tout aussi fidèles (une plus courte, une plus chaleureuse). Garde le vouvoiement, le prénom et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
-` : ""}Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase courte (25 mots au plus)", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse", "gras": ["2 à 4 passages clés copiés mot pour mot du texte : prix, décision, mode de remise ou d'envoi, date…"]}, …3]}`, { max: 2500, timeout: 40000 });
+` : ""}Donne ta proposition avec l'outil « proposer_reponses » (trois réponses).`;
+  let o = null;
+  for (let essai = 0; essai < 2 && !(o && Array.isArray(o.reponses) && o.reponses.length); essai++) {
+    try { o = await claude(consigneIA, { max: 2500, timeout: 35000, outil: OUTIL_REPONSES }); }
+    catch (e) { if (essai || !(e instanceof IaError) || /configuré/.test(e.message)) throw e; console.error("IA réponse, nouvel essai :", e.message); }
+  }
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   // Passages à mettre en gras : seulement ceux qui figurent vraiment dans le texte.
   (o && Array.isArray(o.reponses) ? o.reponses : []).forEach((r, i) => { if (l[i] && r && Array.isArray(r.gras)) l[i].gras = r.gras.map((g) => txt(g, 60)).filter((g) => g.length >= 2 && l[i].texte.includes(g)).slice(0, 5); });
-  if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
-  return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l };
+  if (!l.length) { console.error("IA réponse vide", JSON.stringify(o).slice(0, 300)); throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie."); }
+  // Offre trop basse : jamais de réponse qui l'accepte telle quelle.
+  if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
+  return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
 }
 
 /* ===== Discussion sur une fiche =====
