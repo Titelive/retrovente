@@ -683,7 +683,7 @@
     try {
       var j = await rrDemander({ type: "annonces" });
       etat.annonces = j.annonces || [];
-      if (mode() === "messages" && !etat.choisie) etat.choisie = deviner();
+      if (mode() === "messages" && !etat.choisie) { etat.choisie = deviner(); if (deviner(true)) { etat.convPour = etat.choisiePour = idConversation(); etat.convDepuis = Date.now(); } }
       dessiner();
       if (mode() === "depot") demarrerAuto();
     } catch (e) {
@@ -784,7 +784,7 @@
     function prendre(x) {
       etat.choisie = x; dessiner();
       if (mode() === "depot") { statut("« " + x.titre + " » choisi : les champs se remplissent.", "ok"); demarrerAuto(); }
-      else { etat.manuel = conversationActuelle(); statut("Réponses complétées pour « " + x.titre + " ».", "ok"); }
+      else { etat.manuel = conversationActuelle(); etat.choisiePour = idConversation(); statut("Réponses complétées pour « " + x.titre + " ».", "ok"); }
       var f = ombre.querySelector(".rep, .go"); if (f) f.focus();
     }
     function ouvrirListe() {
@@ -890,9 +890,7 @@
   function lotLu() {
     var re = /lot de (\d{1,2}) articles?[\s·•|-]*(\d[\d\s\u202f\u00a0]{0,6}(?:[.,]\d{1,2})?)\s?€/i;
     var m = re.exec(texteEncadre() + "\n" + colonneConversation().innerText.slice(0, 600));
-    // Mise en page inattendue : on cherche « Lot de N articles · prix » dans toute la page, hors liste des conversations
-    // (là, le lot n'est pas suivi d'un prix).
-    if (!m) m = re.exec(document.body.innerText.slice(0, 60000));
+    // Seulement l'annonce de CETTE conversation : jamais la liste des conversations ni le reste de la page.
     if (!m) return null;
     var lot = { n: +m[1], prix: entier(m[2]) }, cle = lot.n + "|" + lot.prix, vus = articlesLotAffiches(lot.n);
     if (vus && (lotsVus[cle] || []).join("|") !== vus.join("|")) {
@@ -1079,13 +1077,17 @@
   function conversationActuelle() { return location.pathname + "|" + texteEncadre().slice(0, 160); }
   function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
   async function proposerIA(force, consigne) {
+    if (!choixAJour()) {
+      if (recaler()) { dessiner(); return; }        // dessiner relance la proposition avec le bon article
+      if (!choixAJour()) { clearTimeout(etat.minRecal); etat.minRecal = setTimeout(function () { proposerIA(force, consigne); }, 1200); return; }
+    }
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
     if (!force && colonneConversation().innerText.trim().length < 40) return;   // conversation en cours de chargement
     var precedentes = ((etat.ia && etat.ia.reponses) || []).map(function (r) { return r.texte; });
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
-      var c = etat.choisie || {}, lot = lotLu() || (c.lot ? { n: c.n, prix: c.prix } : null);
+      var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
       var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages() });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
@@ -1099,7 +1101,7 @@
     }
     rafraichirIA();
   }
-  var APPROCHES = { contre_offre: "Contre-offre", ferme: "Ferme", couper_court: "Couper court", accepter: "Accepter" };
+  var APPROCHES = { contre_offre: "Contre-offre", ferme: "Ferme", couper_court: "Couper court", accepter: "Accepter", au_revoir: "Au revoir" };
   function rafraichirIA() { var z = ombre && ombre.querySelector(".ia"); if (z) dessinerIA(z); }
   function dessinerIA(z) {
     z.textContent = "";
@@ -1163,16 +1165,28 @@
         if (occupe() || colonneConversation().innerText.trim().length < 40) return;
         // Autre conversation (ou encadré chargé après coup) : le panneau se cale tout seul sur le jeu dont on parle,
         // sauf si la personne a choisi elle-même un jeu pour cette conversation.
-        var c = etat.choisie, ici = conversationActuelle();
-        if (etat.manuel !== ici) {
-          var d = deviner(true);
-          if (d && (!c || d.id !== c.id || d.titre !== c.titre || (d.articles || []).join("|") !== (c.articles || []).join("|"))) { etat.choisie = d; dessiner(); }
-        }
+        if (recaler()) dessiner();
         if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
     });
     veilleMsg.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
+  /* Une conversation = un article. En changeant de conversation, on oublie l'article (ou le lot) de la précédente :
+     on recale sur l'annonce affichée à côté de CETTE conversation, et l'IA attend que ce soit fait. */
+  function idConversation() { return location.pathname + location.search; }
+  function choixAJour() { return etat.choisiePour === idConversation(); }
+  // Renvoie true si l'article choisi a changé (à redessiner).
+  function recaler() {
+    var id = idConversation(), c = etat.choisie;
+    if (etat.convPour !== id) { etat.convPour = id; etat.convDepuis = Date.now(); etat.choisiePour = null; etat.manuel = null; if (etat.ia && !etat.ia.charge) etat.ia = null; }
+    if (etat.manuel && etat.manuel === conversationActuelle()) { etat.choisiePour = id; return false; }
+    var d = deviner(true);
+    if (!d && !choixAJour() && Date.now() - (etat.convDepuis || 0) > 5000) d = deviner(false);   // rien de repéré : l'article par défaut
+    if (!d) return false;
+    etat.choisiePour = id;
+    if (!c || d.id !== c.id || d.titre !== c.titre || (d.articles || []).join("|") !== (c.articles || []).join("|")) { etat.choisie = d; return true; }
+    return false;
+  }
   function occupe() {
     var f = ombre && ombre.activeElement;
     return !!(etat.ia && etat.ia.charge) || !!(f && f.matches && f.matches(".parler textarea")) || !!(etat.brouillonIA || "").trim();
@@ -1249,8 +1263,8 @@
     if (/c'est d'accord|j'accepte|avec plaisir|toujours disponible/.test(t)) return "plus";
     return "";
   }
-  var SENS_APPROCHE = { accepter: "plus", ferme: "moins", couper_court: "moins" };
-  var ICONE_APPROCHE = { contre_offre: "relance", ferme: "cadenas", couper_court: "stop", accepter: "ok", info: "question" };
+  var SENS_APPROCHE = { accepter: "plus", ferme: "moins", couper_court: "moins", au_revoir: "plus" };
+  var ICONE_APPROCHE = { contre_offre: "relance", ferme: "cadenas", couper_court: "stop", accepter: "ok", au_revoir: "ok", info: "question" };
   // Mots importants en gras dans les aperçus (le texte inséré, lui, reste normal).
   var IMPORTANT = /(\d[\d\s]*(?:[.,]\d+)?\s?€|toujours disponible|réservé|vendu|prix ferme|dernier prix|minimum|paiement sécurisé(?: Le Bon Coin)?|pas de virement|lien(?:s)? externes?|main propre|livraison Le Bon Coin|expédié sous 48 h|d'origine, testé et fonctionnel|couper la poire en deux|geste|lot|échanger|d'autres photos|vidéo|avis|remettrai en vente|en rester là|c'est d'accord|trop loin|PAL européenne|ventes réellement conclues)/gi;
   // gras : passages clés choisis par l'IA (copiés du texte), en plus des mots importants habituels.
