@@ -259,7 +259,7 @@ body:has(#ajoutMenu:not([hidden])) .fab-save{visibility:hidden}
 
 
 /* Fiche harmonisée : la colonne photo est une carte comme les autres */
-.photos-carte .photo{border-radius:18px;box-shadow:none;background:var(--papier)}
+.photos-carte .photo{border-radius:18px;box-shadow:none;background:#fff}
 .photos-carte .note{margin:0}
 /* Fiche : fond neutre, sans les lueurs qui passaient derrière les photos */
 body.fiche-ouverte .lueurs{display:none}
@@ -422,9 +422,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .filtres button{transition:background-color .25s,color .25s,transform .2s var(--ease)}
 .filtres button:active{transform:scale(.94)}
 .carte{transition:box-shadow .3s}
-.photo.flash::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(var(--anis-rgb),.55) 50%,transparent 70%);background-size:250% 100%;animation:balaye 1s var(--ease) forwards;pointer-events:none}
-.photo.flash.fini::after{display:none}
-@keyframes balaye{from{background-position:120% 0}to{background-position:-60% 0}}
+.photo.flash>img{animation:nette .6s var(--ease)}@keyframes nette{from{opacity:.35;filter:blur(6px)}to{opacity:1;filter:none}}   /* photo retouchée : simple fondu, sans lueur */
 .btn .i{width:18px;height:18px;flex:none}
 
 /* Le Bon Coin guidé */
@@ -1080,26 +1078,35 @@ $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.valu
   var vide=!GAL.length&&!$("f_titre").value.trim();
   if(vide){var prem=fs.shift();analyser(prem).then(function(){ajouterPhotos(fs)});return}
   ajouterPhotos(fs)};
-function ajouterPhotos(fs){if(!fs.length)return Promise.resolve();var debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
+function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g){return!g.legende})?decrire(true):Promise.resolve();   // une seule photo : elle est décrite aussivar debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
   return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,2000,1100000);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
 function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});modeCarte()}
-$("fPhoto").addEventListener("animationend",function(e){if(e.animationName==="balaye")this.classList.add("fini")});
+/* Remise à l'endroit : l'IA dit où pointe le haut du texte de l'étiquette ; on ne tourne que si, une fois la photo
+   tournée, elle confirme que le texte est à l'endroit (sinon on laisse la photo telle quelle). */
+function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.round(img.naturalWidth*k),h=Math.round(img.naturalHeight*k),q=deg%180!==0;
+  c.width=q?h:w;c.height=q?w:h;var g=c.getContext("2d");g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);g.drawImage(img,-w/2,-h/2,w,h);return c.toDataURL("image/jpeg",.85)}
+function sens(d){return api("POST","/api/ia/endroit",{photo:d}).catch(function(){return{sur:false,rotation:0,sens:"incertain"}})}
+function trouverSens(img){if(!img)return Promise.resolve(0);
+  return sens(tourne(img,0)).then(function(a){if(!a.sur||!a.rotation)return 0;
+    return sens(tourne(img,a.rotation)).then(function(b){if(b.sens==="haut")return a.rotation;
+      if(!b.sur||!b.rotation)return 0;var r=(a.rotation+b.rotation)%360;if(!r)return 0;
+      return sens(tourne(img,r)).then(function(c){return c.sens==="haut"?r:0})})})}
 var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la première analyse finie
 function analyser(f){
   ANALYSE=true;attente("Je regarde la photo…");
   return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
     .then(function(j){var o=j.objet;IA_FAITE=true;
-      ROT=0;   // le quart de tour deviné par l'IA se trompait trop souvent : seul « Pivoter » tourne la photo
+      ROT=0;   // le sens est vérifié à part (trouverSens), pas deviné avec le reste
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
       remplirCarte(o);
       if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
       if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);
       if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
       $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
-      attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");return Promise.all([nettoyerPhoto(true,0,ROT),estimer()])})
+      attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");var im0=IMG;return Promise.all([trouverSens(im0).then(function(r){ROT=r;return nettoyerPhoto(true,0,ROT)}),estimer()])})
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null);ANALYSE=false;afficher()})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
@@ -1480,7 +1487,7 @@ function nettoyerPhoto(auto,idx,rot){var k=idx==null?SEL:idx,g=GAL[k];if(!g)retu
   var base=g.vueOrig?g.src:(g.orig||g.src);   // toujours depuis la photo d'origine
   return chargerImg(base).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,2400,1500000),rotation:rot||0})})
     .then(function(j){g.orig=base;g.src=g.data=j.photo;g.vueOrig=false;g.rv=RV;IMG=null;afficher();LBC_FAIT.photo=false;
-      $("fPhoto").classList.remove("flash","fini");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo retouchée. L'original est gardé.","ok")})
+      $("fPhoto").classList.remove("flash");void $("fPhoto").offsetWidth;$("fPhoto").classList.add("flash");if(!auto)toast("Photo retouchée. L'original est gardé.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Retouche impossible.");else console.warn(e)})
     .then(function(){attente(null);b.classList.remove("busy");b.disabled=false;b.innerHTML=t})}
 $("fNet").onclick=function(){nettoyerPhoto(false,SEL,SEL===0?ROT:0)};
