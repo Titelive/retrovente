@@ -1,7 +1,7 @@
 // Sur leboncoin.fr : panneau RetroRevente.
 // - Dépôt d'annonce : le jeu choisi (par défaut le plus récent pas encore publié) remplit tout seul chaque écran
-//   (titre, catégorie, description, état, prix, photo), comme si la personne tapait. L'extension ne clique jamais
-//   sur « Continuer » ni « Publier » : relire et publier restent à la personne.
+//   (titre, catégorie, description, état, prix, photo), comme si la personne tapait, puis clique « Continuer » (option
+//   « Continuer tout seul »). Elle ne clique jamais sur « Publier » : la publication reste à la personne.
 // - Messagerie : réponses types aux acheteurs, complétées avec l'annonce, insérées dans la zone de message
 //   d'un clic. L'envoi reste à la personne.
 // L'extension ne lit pas les annonces des autres et n'envoie rien à Le Bon Coin elle-même.
@@ -24,7 +24,8 @@
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
-  try { RR.storage.local.get("auto").then(function (r) { if (r && r.auto === false) etat.auto = false; }); } catch (e) {}
+  etat.continuer = true;
+  try { RR.storage.local.get(["auto", "continuer"]).then(function (r) { if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -162,7 +163,8 @@
     if (fait.length && !etat.compte[k("compte")]) { etat.compte[k("compte")] = true; rrDemander({ type: "rempli" }).catch(function () {}); }
     if (fait.length) {
       etat.journal = (etat.journal || []).concat(fait.filter(function (x) { return (etat.journal || []).indexOf(x) < 0; }));
-      statut("Rempli automatiquement : " + fait.join(", ") + ". Relis, puis clique « Continuer » sur Le Bon Coin.", "ok");
+      statut("Rempli automatiquement : " + fait.join(", ") + (etat.continuer ? ". Je passe à l'écran suivant dans un instant." : ". Relis, puis clique « Continuer » sur Le Bon Coin."), "ok");
+      if (fait.some(function (x) { return /photo/.test(x); })) etat.photosA = Date.now();
     }
     return fait;
   }
@@ -174,16 +176,62 @@
     clearTimeout(minuterie);
     minuterie = setTimeout(function () {
       if (enCours) return; enCours = true;
-      remplir(false).catch(function () {}).then(function () { enCours = false; });
+      remplir(false).catch(function () {}).then(function () { enCours = false; planifierContinuer(); });
     }, 350);
   });
+
+  /* ===== « Continuer » tout seul =====
+     Quand l'écran est rempli et que la page ne bouge plus, l'extension clique « Continuer », une seule fois par écran.
+     Elle s'abstient s'il reste un champ obligatoire vide, si une erreur est affichée, si la personne est en train
+     d'agir sur la page, ou pendant l'envoi des photos. Jamais « Publier » : sur l'écran final, la main revient à la personne. */
+  var derniereAction = 0, minuterieSuite = null, ecransPasses = {};
+  ["keydown", "pointerdown", "wheel"].forEach(function (t) {
+    document.addEventListener(t, function (e) { if (e.isTrusted && !(hote && e.composedPath && e.composedPath().indexOf(hote) >= 0)) derniereAction = Date.now(); }, true);
+  });
+  function boutons(re) {
+    return [].filter.call(document.querySelectorAll("button, [role=button], input[type=submit]"), function (b) {
+      return visible(b) && re.test(norm(b.textContent || b.value || "")) && !b.closest("nav, header, footer");
+    });
+  }
+  function cleEcran() {
+    var h = [].find.call(document.querySelectorAll("main h1, main h2, h1, h2"), visible);
+    var champs = [].filter.call(document.querySelectorAll("input, textarea, select, [role=combobox]"), function (x) { return visible(x) && !(hote && hote.contains(x)); }).slice(0, 6).map(description).join("/");
+    return location.pathname + "|" + (h ? norm(h.textContent).slice(0, 80) : "") + "|" + champs.slice(0, 200);
+  }
+  function obligatoireVide() {
+    return [].some.call(document.querySelectorAll("input[required], textarea[required], select[required], [aria-required=true]"), function (x) {
+      return visible(x) && !(hote && hote.contains(x)) && x.type !== "file" && x.type !== "radio" && x.type !== "checkbox" && "value" in x && !String(x.value || "").trim();
+    });
+  }
+  function erreurAffichee() {
+    return [].some.call(document.querySelectorAll("[role=alert], [aria-invalid=true]"), function (x) { return visible(x) && (x.getAttribute("aria-invalid") === "true" || (x.textContent || "").trim().length > 3); });
+  }
+  function planifierContinuer() {
+    clearTimeout(minuterieSuite);
+    if (!etat.auto || !etat.continuer || !etat.choisie || !DEPOT.test(location.pathname)) return;
+    minuterieSuite = setTimeout(continuerSiPret, 1600 + Math.round(Math.random() * 600));
+  }
+  function continuerSiPret() {
+    if (!etat.auto || !etat.continuer || !etat.choisie || enCours) return;
+    var cle = cleEcran();
+    if (ecransPasses[cle]) return;
+    if (boutons(/^(publier|deposer mon annonce|valider et publier|mettre en ligne)/).length) { statut("Dernier écran : relis l'annonce, puis clique « Publier » toi-même.", "ok"); return; }
+    var b = boutons(/^continuer$/)[0];
+    if (!b || b.disabled || b.getAttribute("aria-disabled") === "true") return;
+    var attente = Math.max(derniereAction + 4000, (etat.photosA || 0) + 4000) - Date.now();
+    if (attente > 0 || [].some.call(document.querySelectorAll("[role=progressbar], [aria-busy=true]"), visible)) { minuterieSuite = setTimeout(continuerSiPret, Math.max(attente, 800)); return; }
+    if (obligatoireVide()) { statut("Il reste un champ obligatoire à remplir sur cet écran, puis clique « Continuer ».", "bad"); return; }
+    if (erreurAffichee()) { statut("Le Bon Coin signale un champ à corriger : corrige-le, puis clique « Continuer ».", "bad"); return; }
+    ecransPasses[cle] = true;
+    b.click();
+  }
   function demarrerAuto() {
     observateur.disconnect();
     // Mémorise le jeu en cours de dépôt : son lien sera repris tout seul une fois l'annonce publiée.
     if (etat.choisie && !etat.choisie.lot) { try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
     if (!etat.auto || !etat.choisie) return;
     observateur.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style"] });
-    remplir(false).catch(function () {});
+    remplir(false).catch(function () {}).then(planifierContinuer);
   }
 
   var attendre = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
@@ -343,7 +391,7 @@
       el("div", { class: "t" }, [el("b", {}, [el("span", { class: "logo", texte: "RR" }), "RetroRevente"]), el("button", { class: "x", "aria-label": "Réduire", title: "Réduire (Échap)", texte: "×", onclick: function () { replie(true); } })]),
       el("div", { class: "corps" }),
       el("div", { class: "s", texte: "Chargement de tes annonces…" }),
-      el("div", { class: "n", texte: mode() === "messages" ? "Un clic place la réponse dans la zone de message : relis, puis envoie." : "Chaque écran du dépôt se remplit tout seul. Tu relis, tu cliques « Continuer », puis « Publier »." }),
+      el("div", { class: "n", texte: mode() === "messages" ? "Un clic place la réponse dans la zone de message : relis, puis envoie." : "Chaque écran du dépôt se remplit et passe tout seul. Sur le dernier, tu relis et tu cliques « Publier »." }),
     ]));
     charger().then(function () { if (puis) puis(); });
   }
@@ -490,7 +538,12 @@
       el("span", { class: "rail" }), "Remplissage automatique",
     ]);
     bascule.querySelector("input").checked = etat.auto;
-    var actions = el("div", { class: "actions" }, [bascule, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec ce jeu", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    var suite = el("label", { class: "auto" }, [
+      el("input", { type: "checkbox", role: "switch", onchange: function (e) { etat.continuer = e.target.checked; try { RR.storage.local.set({ continuer: etat.continuer }); } catch (x) {} if (etat.continuer) planifierContinuer(); else { clearTimeout(minuterieSuite); statut("Tu cliques « Continuer » toi-même.", ""); } } }),
+      el("span", { class: "rail" }), "Continuer tout seul",
+    ]);
+    suite.querySelector("input").checked = etat.continuer;
+    var actions = el("div", { class: "actions" }, [bascule, suite, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec ce jeu", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
