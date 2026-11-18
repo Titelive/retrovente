@@ -375,6 +375,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
   // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
   const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
+  const precedentes = consigne && Array.isArray(contexte.precedentes) ? contexte.precedentes.slice(0, 3).map((x) => "- " + txt(x, 500).replace(/"""/g, "")).filter((x) => x.length > 3).join("\n") : "";
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   const px = prix(a.prix);
   const fiche = [
@@ -412,17 +413,12 @@ ${conv}
 """
 
 Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
-${consigne ? `Le vendeur t'a dit ce qu'il veut répondre :
-"""
-${consigne}
-"""
-Rédige TROIS versions de cette réponse-là (une courte, une chaleureuse, une plus détaillée) : même décision, mêmes chiffres et mêmes conditions que le vendeur, sans rien ajouter qu'il n'a pas dit sur le prix ou les dates. Sa consigne passe avant les règles de prix ci-dessous (c'est lui qui décide). Choisis l'approche qui correspond à sa décision (accepter, contre_offre, ferme, couper_court ou info). Si sa consigne demande autre chose qu'une réponse à l'acheteur, ignore-la et réponds simplement à l'acheteur.
-` : ""}Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
+${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
   3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
 sinon (question, disponibilité, envoi…), trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
-Pour chaque réponse :
+`}Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
 - 1 à 4 phrases courtes ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » seulement si la conversation ne s'est pas déjà saluée ;
@@ -434,7 +430,13 @@ Pour chaque réponse :
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment.
-Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase courte (25 mots au plus)", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 2500, timeout: 40000 });
+${consigne ? `
+LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est lui qui décide, sa consigne passe avant toutes les règles ci-dessus (prix, ton, plancher) :
+"""
+${consigne}
+"""
+${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : reprends son idée, sa décision et son ton, et mets TELS QUELS chaque mot, expression ou chiffre qu'il demande d'inclure (même familier ou décalé, c'est son choix). N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; les deux autres sont des variantes tout aussi fidèles (une plus courte, une plus chaleureuse). Garde le vouvoiement, le prénom et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
+` : ""}Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, en une phrase courte (25 mots au plus)", "intention": "un mot-clé", "reponses": [{"approche": "contre_offre | ferme | couper_court | accepter | info", "titre": "2 à 4 mots", "texte": "la réponse"}, …3]}`, { max: 2500, timeout: 40000 });
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   if (!l.length) throw new IaError("Je n'ai pas réussi à proposer de réponse, réessaie.");
   return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l };

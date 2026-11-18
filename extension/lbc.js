@@ -777,10 +777,11 @@
   async function proposerIA(force, consigne) {
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
+    var precedentes = ((etat.ia && etat.ia.reponses) || []).map(function (r) { return r.texte; });
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "" });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [] });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "" };
       if (consigne) etat.brouillonIA = "";
