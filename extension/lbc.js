@@ -328,14 +328,16 @@
     ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
     ".ap{font-style:normal;font:700 10.5px/1 var(--texte);letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:3px 7px;margin-right:7px;vertical-align:1px;background:rgba(255,255,255,.12);color:#fff}.ap-contre_offre{background:var(--anis);color:var(--nuit)}.ap-couper_court{background:#F3B9AE;color:#5A1A10}.ap-accepter{background:#BFE8C8;color:#14401F}" +
     ".rep .ico{flex:none;width:30px;height:30px;border-radius:10px;background:var(--anis-p);color:var(--nuit);display:grid;place-items:center}.rep .ic{width:17px;height:17px}.rep .q{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
-    ".rep .ap2{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rep strong{color:var(--encre);font-weight:700}" +
-    ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:var(--anis)}" +
+    ".rep .ap2{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rep strong{color:var(--encre);font-weight:800}" +
+    ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:#fff;font-weight:800}" +
     ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     // Couleur pastel selon le sens de la réponse : vert quand on va dans le sens de l'acheteur, rouge quand on refuse.
     "details.types>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:600 11px/1 var(--texte);letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:10px 2px}" +
     "details.types>summary::-webkit-details-marker{display:none}details.types>summary::after{content:'';width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 6px 0 0;transition:transform .2s}" +
     "details.types[open]>summary::after{transform:rotate(-135deg);margin-top:3px}details.types>summary:hover{color:var(--encre)}.ia .clair{margin-top:8px;background:var(--anis);color:var(--nuit);border-color:var(--anis)}" +
+    ".rond-ia{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-2px;border:2px solid rgba(212,245,122,.3);border-top-color:var(--anis);border-radius:50%;animation:tourne .8s linear infinite}@keyframes tourne{to{transform:rotate(360deg)}}" +
+    ".ia-r.charge{animation:none}.parler.attente textarea{opacity:.55;cursor:wait}.parler.attente .clair{min-width:74px;cursor:wait}.parler.attente .clair .rond-ia{margin:0;border-color:rgba(26,26,26,.25);border-top-color:var(--nuit)}" +
     ".parler{display:flex;gap:8px;align-items:flex-end;margin-top:4px}.parler textarea{flex:1;min-width:0;resize:vertical;font:13px/1.4 var(--texte);color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px 10px;outline:none}" +
     ".parler textarea::placeholder{color:#9A9A92}.parler textarea:focus{border-color:var(--anis)}.parler .clair{margin:0}" +
     ".s:empty{display:none}.rep.s-plus{background:var(--vert-p);border-color:var(--vert-t)}.rep.s-plus .ico{background:var(--vert-t);color:var(--vert-f)}" +
@@ -645,7 +647,8 @@
     if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t)) return t;
     return t.replace(/^Bonjour\s*([,!]?)\s*/u, function (x, p, i, tout) { var suite = tout.slice(x.length); return "Bonjour " + nom + (p === "!" ? " ! " : /^\p{L}/u.test(suite) ? ", " : " "); });
   }
-  function deviner() {
+  // sur : ne renvoie qu'un jeu vraiment repéré (pas le jeu par défaut pendant qu'une conversation se charge).
+  function deviner(sur) {
     var lot = lotLu();
     if (lot && lot.prix) {
       var noms = (lot.articles || []).map(titreCourt), liste = noms.length > 1 ? noms.slice(0, -1).join(", ") + " et " + noms[noms.length - 1] : "";
@@ -654,7 +657,7 @@
     // Le jeu de l'encadré de l'annonce (à côté de la conversation), sinon celui dont parle la conversation : on compare
     // les mots du titre (apostrophes, accents et « PAL EU… » tronqués ne gênent pas).
     var enc = texteEncadre(), a = meilleurJeu(enc) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
-    return a || jeuDeLEncadre(enc) || etat.annonces[0];
+    return a || jeuDeLEncadre(enc) || (sur ? null : etat.annonces[0]);
   }
   var VIDES = ("the and les des une pour avec sans pal eur ntsc jeu jeux video version edition complet loose boite cartouche notice " +
     "nintendo sony sega microsoft playstation xbox console tres bon etat").split(" ");
@@ -777,6 +780,7 @@
   async function proposerIA(force, consigne) {
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
+    if (!force && colonneConversation().innerText.trim().length < 40) return;   // conversation en cours de chargement
     var precedentes = ((etat.ia && etat.ia.reponses) || []).map(function (r) { return r.texte; });
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
@@ -802,7 +806,11 @@
       el("button", { class: "mini", type: "button", texte: "Autres idées", title: "Relire la conversation et proposer d'autres réponses", onclick: function () { proposerIA(true); } })]);
     z.appendChild(tete);
     var i = etat.ia || {};
-    if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: i.consigne ? "Je rédige ta réponse…" : "Je lis le dernier message de l'acheteur…" })); return; }
+    if (i.charge) {
+      z.appendChild(el("p", { class: "ia-r charge" }, [el("span", { class: "rond-ia", "aria-hidden": "true" }), i.consigne ? "Je rédige ta réponse…" : "Je lis le dernier message de l'acheteur…"]));
+      if (i.consigne) z.appendChild(parlerIA(true));
+      return;
+    }
     if (i.erreur && (i.status === 402 || i.status === 403)) {
       z.appendChild(el("p", { class: "ia-r", texte: i.erreur }));
       z.appendChild(el("button", { class: "mini clair", type: "button", texte: i.status === 403 ? "Confirmer mon e-mail" : "Changer de formule", onclick: function () { window.open("https://retrorevente.fr/app/?compte", "_blank", "noopener"); } }));
@@ -814,18 +822,22 @@
     var qui = acheteurLu();
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
-      r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)) };
-      z.appendChild(el("button", { class: "rep fort" + (SENS_APPROCHE[r.approche] ? " s-" + SENS_APPROCHE[r.approche] : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
+      r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)), gras: r.gras };
+      z.appendChild(el("button", { class: "rep fort" + (sensIA(r) ? " s-" + sensIA(r) : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
         el("span", { class: "ico" }, [icone(ICONE_APPROCHE[r.approche] || "question")]),
-        el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte)])]),
+        el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte, r.gras)])]),
       ]));
     });
     z.appendChild(parlerIA());
   }
   // Aucune proposition ne convient : on dit à l'IA ce qu'on veut répondre, elle le rédige dans le même ton.
-  function parlerIA() {
+  function parlerIA(attente) {
     var champ = el("textarea", { rows: "2", placeholder: "Aucune ne convient ? Dis à l'IA quoi répondre…", "aria-label": "Ce que tu veux répondre", spellcheck: "true" });
     champ.value = etat.brouillonIA || "";
+    if (attente) {   // pendant la rédaction : champ bloqué, bouton qui tourne
+      champ.disabled = true; champ.setAttribute("aria-busy", "true");
+      return el("div", { class: "parler attente" }, [champ, el("button", { class: "mini clair", type: "button", disabled: "", "aria-label": "Rédaction en cours" }, [el("span", { class: "rond-ia" })])]);
+    }
     var envoyer = function () { var t = champ.value.trim(); if (t.length < 3) { champ.focus(); return; } etat.brouillonIA = t; proposerIA(true, t); };
     champ.addEventListener("input", function () { etat.brouillonIA = champ.value; });
     champ.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } });
@@ -840,11 +852,13 @@
       if (muts.every(function (m) { return hote && (m.target === hote || hote.contains(m.target)); })) return;
       clearTimeout(minuterieMsg);
       minuterieMsg = setTimeout(function () {
+        // Jamais pendant que la personne écrit à l'IA (ni pendant qu'une conversation se charge) : on n'interrompt pas.
+        if (occupe() || colonneConversation().innerText.trim().length < 40) return;
         // Autre conversation (ou encadré chargé après coup) : le panneau se cale tout seul sur le jeu dont on parle,
         // sauf si la personne a choisi elle-même un jeu pour cette conversation.
         var c = etat.choisie, ici = conversationActuelle();
         if (etat.manuel !== ici) {
-          var d = deviner();
+          var d = deviner(true);
           if (d && (!c || d.id !== c.id || d.titre !== c.titre || (d.articles || []).join("|") !== (c.articles || []).join("|"))) { etat.choisie = d; dessiner(); }
         }
         if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
@@ -852,6 +866,10 @@
     veilleMsg.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
+  function occupe() {
+    var f = ombre && ombre.activeElement;
+    return !!(etat.ia && etat.ia.charge) || !!(f && f.matches && f.matches(".parler textarea")) || !!(etat.brouillonIA || "").trim();
+  }
   function zoneMessage() {
     var l = [].filter.call(document.querySelectorAll("textarea, input:not([type]), input[type=text], [contenteditable=''], [contenteditable=true], [role=textbox]"), function (x) { return visible(x) && !x.disabled; });
     var bons = l.filter(function (x) { return /message|repon|ecri|reply|write/.test(description(x) + " " + norm(x.getAttribute("placeholder") || x.getAttribute("data-placeholder") || "")); });
@@ -916,13 +934,25 @@
     "Réservé pour quelqu'un": "moins", "Déjà vendu": "moins", "Offre vraiment trop basse": "moins", "Prix ferme, poliment": "moins", "Offre groupée bien trop basse": "moins",
     "Couper court poliment": "moins", "Proposition d'échange": "moins", "Paiement hors Le Bon Coin : refus poli": "moins", "Lien ou site suspect": "moins",
   };
+  // Sens d'une réponse de l'IA : d'après son approche, sinon d'après ses mots (un refus classé « info » reste rouge).
+  function sensIA(r) {
+    if (SENS_APPROCHE[r.approche]) return SENS_APPROCHE[r.approche];
+    var t = norm((r.titre || "") + " " + (r.texte || ""));
+    if (/\brefus|je refuse|ne souhaite pas|pas (donner )?suite|ne me deplacerai pas|en rester la|pas possible/.test(t)) return "moins";
+    if (/c'est d'accord|j'accepte|avec plaisir|toujours disponible/.test(t)) return "plus";
+    return "";
+  }
   var SENS_APPROCHE = { accepter: "plus", ferme: "moins", couper_court: "moins" };
   var ICONE_APPROCHE = { contre_offre: "relance", ferme: "cadenas", couper_court: "stop", accepter: "ok", info: "question" };
   // Mots importants en gras dans les aperçus (le texte inséré, lui, reste normal).
   var IMPORTANT = /(\d[\d\s]*(?:[.,]\d+)?\s?€|toujours disponible|réservé|vendu|prix ferme|dernier prix|minimum|paiement sécurisé(?: Le Bon Coin)?|pas de virement|lien(?:s)? externes?|main propre|livraison Le Bon Coin|expédié sous 48 h|d'origine, testé et fonctionnel|couper la poire en deux|geste|lot|échanger|d'autres photos|vidéo|avis|remettrai en vente|en rester là|c'est d'accord|trop loin|PAL européenne|ventes réellement conclues)/gi;
-  function apercu(texte) {
-    var f = document.createDocumentFragment(), i = 0, m; IMPORTANT.lastIndex = 0;
-    while ((m = IMPORTANT.exec(texte))) { f.appendChild(document.createTextNode(texte.slice(i, m.index))); f.appendChild(el("strong", { texte: m[0] })); i = m.index + m[0].length; }
+  // gras : passages clés choisis par l'IA (copiés du texte), en plus des mots importants habituels.
+  function apercu(texte, gras) {
+    var f = document.createDocumentFragment(), i = 0, m, re = IMPORTANT;
+    var l = (gras || []).filter(function (g) { return g && texte.indexOf(g) >= 0; }).sort(function (a, b) { return b.length - a.length; });
+    if (l.length) re = new RegExp(l.map(function (g) { return g.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") + "|" + IMPORTANT.source, "gi");
+    re.lastIndex = 0;
+    while ((m = re.exec(texte))) { f.appendChild(document.createTextNode(texte.slice(i, m.index))); f.appendChild(el("strong", { texte: m[0] })); i = m.index + m[0].length; }
     f.appendChild(document.createTextNode(texte.slice(i)));
     return f;
   }
@@ -1030,7 +1060,7 @@
       if (m === "messages") { etat.choisie = null; veillerMessages(); replie(false); }   // messagerie : panneau ouvert, réponse IA proposée
       else if (!ouvert) replie(false);   // dépôt : le panneau s'ouvre et le remplissage démarre tout seul
       else { dessiner(); demarrerAuto(); }
-    } else if (m === "messages" && ouvert && etat.annonces) { etat.choisie = deviner(); dessiner(); }   // autre conversation
+    } else if (m === "messages" && ouvert && etat.annonces) { if (!occupe()) { etat.choisie = deviner(true) || etat.choisie || deviner(); dessiner(); } }   // autre conversation
   }
   suivre();
   setInterval(suivre, 800);
