@@ -333,6 +333,9 @@
     ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     // Couleur pastel selon le sens de la réponse : vert quand on va dans le sens de l'acheteur, rouge quand on refuse.
+    "details.types>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:600 11px/1 var(--texte);letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:10px 2px}" +
+    "details.types>summary::-webkit-details-marker{display:none}details.types>summary::after{content:'';width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 6px 0 0;transition:transform .2s}" +
+    "details.types[open]>summary::after{transform:rotate(-135deg);margin-top:3px}details.types>summary:hover{color:var(--encre)}.ia .clair{margin-top:8px;background:var(--anis);color:var(--nuit);border-color:var(--anis)}" +
     ".s:empty{display:none}.rep.s-plus{background:var(--vert-p);border-color:var(--vert-t)}.rep.s-plus .ico{background:var(--vert-t);color:var(--vert-f)}" +
     ".rep.s-moins{background:var(--rouge-p);border-color:var(--rouge-t)}.rep.s-moins .ico{background:var(--rouge-t);color:var(--rouge-f)}" +
     ".rep.s-plus:hover,.rep.s-moins:hover{border-color:var(--encre)}" +
@@ -469,7 +472,7 @@
     var l = etat.annonces;
     if (!l.length) { statut("Aucun jeu « En vente » dans RetroRevente. Prépare une annonce dans l'appli, puis reviens ici.", ""); corps.appendChild(el("button", { class: "go", texte: "Ouvrir RetroRevente", onclick: function () { window.open("https://retrorevente.fr/app/", "_blank", "noopener"); } })); return; }
     // Par défaut : la plus récente qui n'a pas encore de lien d'annonce.
-    if (!etat.choisie || (!etat.choisie.lot && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
+    if (!etat.choisie || (!etat.choisie.lot && !etat.choisie.externe && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
     var a = etat.choisie;
     var choix = el("button", { class: "choix", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Annonce à déposer : " + a.titre + ". Changer (" + RACCOURCI + ")", onclick: function () { liste.hidden ? ouvrirListe() : fermerListe(); } }, [
       el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) }),
@@ -502,7 +505,7 @@
     function prendre(x) {
       etat.choisie = x; dessiner();
       if (mode() === "depot") { statut("« " + x.titre + " » choisi : les champs se remplissent.", "ok"); demarrerAuto(); }
-      else statut("Réponses complétées pour « " + x.titre + " ».", "ok");
+      else { etat.manuel = conversationActuelle(); statut("Réponses complétées pour « " + x.titre + " ».", "ok"); }
       var f = ombre.querySelector(".rep, .go"); if (f) f.focus();
     }
     function ouvrirListe() {
@@ -523,7 +526,11 @@
     var haut = el("div", { class: "sel" }, [choix, liste]);
     if (mode() === "messages") {
       var ia = el("div", { class: "ia" });
-      corps.appendChild(el("div", { class: "pile" }, [haut, ia, el("p", { class: "grp", texte: "Réponses types" }), reponsesUI(a)]));
+      // Réponses types repliées quand l'IA répond ; ouvertes d'office si l'IA n'est pas incluse dans la formule.
+      var types = el("details", { class: "types" }, [el("summary", { texte: "Réponses types" }), reponsesUI(a)]);
+      if (etat.typesOuvert != null ? etat.typesOuvert : etat.iaBloquee) types.open = true;
+      types.addEventListener("toggle", function () { etat.typesOuvert = types.open; });
+      corps.appendChild(el("div", { class: "pile" }, [haut, ia, types]));
       dessinerIA(ia);
       statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les jeux inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
@@ -613,12 +620,24 @@
     return r;
   }
   // Prénom ou pseudo de l'acheteur : « Voici l'offre de Garnier », sinon le nom en tête de l'encadré.
+  // Prénom de l'acheteur : « Voici l'offre de Garnier », sinon la signature de son message (« Cordialement, Evelyne »),
+  // sinon son pseudo, au-dessus de sa note (« EM54Retro · ★ 5 (88) »).
+  var PAS_UN_NOM = /^(aujourd'hui|hier|bonjour|bonsoir|merci|cordialement|envoyer|lu|vu|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|faire une offre|voir plus|description|criteres|signaler|bloquer)$/i;
   function acheteurLu() {
-    var m = /offre de ([^:\n]{1,40}?)\s*:/i.exec(colonneConversation().innerText);
+    var conv = colonneConversation().innerText;
+    var m = /offre de ([^:\n]{1,40}?)\s*:/i.exec(conv);
     if (m) return m[1].trim();
-    var l = texteEncadre().split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
-    var n = l.find(function (x) { return /^[\p{L}][\p{L}' .-]{1,28}$/u.test(x) && !/^(lot de|voir|signaler|bloquer|annonce|profil|à propos)/i.test(x); });
-    return n || "";
+    var l = conv.split("\n").map(function (x) { return x.trim(); }).filter(Boolean), nom = "";
+    for (var i = 1; i < l.length; i++) {
+      if (/^[\p{Lu}][\p{Ll}'’-]+(?: [\p{Lu}][\p{Ll}'’-]+)?$/u.test(l[i]) && !PAS_UN_NOM.test(norm(l[i]))
+        && /(cordialement|salutations|bonne (journee|soiree|fin de journee)|merci( beaucoup| d'avance)?|a bientot|bien a vous|bises|amicalement)[\s.!,]*$/.test(norm(l[i - 1]))) nom = l[i];
+    }
+    if (nom) return nom;
+    var e = (texteEncadre() + "\n" + conv.slice(0, 1500)).split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+    for (var j = 0; j + 1 < e.length; j++) {
+      if (/^[★*]?\s*\d(?:[.,]\d)?\s*\(\d+\)$/.test(e[j + 1]) && /^[\p{L}\p{N}][\p{L}\p{N}' ._-]{1,28}$/u.test(e[j]) && !PAS_UN_NOM.test(norm(e[j]))) return e[j];
+    }
+    return "";
   }
   function personnaliser(t, nom) {
     if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t)) return t;
@@ -630,10 +649,37 @@
       var noms = (lot.articles || []).map(titreCourt), liste = noms.length > 1 ? noms.slice(0, -1).join(", ") + " et " + noms[noms.length - 1] : "";
       return { id: "lot", lot: true, titre: "Lot de " + lot.n + " articles", nom: liste ? "le lot " + liste : "le lot de " + lot.n + " jeux", plateforme: liste, prix: lot.prix, n: lot.n, articles: lot.articles, description: "" };
     }
-    // Le jeu dont le titre apparaît dans l'encadré ou la conversation ouverte, sinon le plus récent.
-    var t = norm(texteEncadre() + " " + colonneConversation().innerText).slice(0, 40000);
-    var l = etat.annonces.slice().sort(function (x, y) { return (y.titre || "").length - (x.titre || "").length; });
-    return l.find(function (a) { return a.titre && t.indexOf(norm(a.titre)) >= 0; }) || l.find(function (a) { return a.nom && t.indexOf(norm(a.nom)) >= 0; }) || etat.annonces[0];
+    // Le jeu de l'encadré de l'annonce (à côté de la conversation), sinon celui dont parle la conversation : on compare
+    // les mots du titre (apostrophes, accents et « PAL EU… » tronqués ne gênent pas).
+    var enc = texteEncadre(), a = meilleurJeu(enc) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
+    return a || jeuDeLEncadre(enc) || etat.annonces[0];
+  }
+  var VIDES = ("the and les des une pour avec sans pal eur ntsc jeu jeux video version edition complet loose boite cartouche notice " +
+    "nintendo sony sega microsoft playstation xbox console tres bon etat").split(" ");
+  function mots(t) {
+    return norm(t).replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter(function (m) { return m.length >= 3 && VIDES.indexOf(m) < 0; });
+  }
+  function meilleurJeu(texte) {
+    var vus = {}; mots(texte).forEach(function (m) { vus[m] = 1; });
+    var meilleur = null, score = 0;
+    (etat.annonces || []).forEach(function (a) {
+      var m = mots(a.nom || a.titre); if (!m.length) return;
+      var s = m.filter(function (x) { return vus[x]; }).length / m.length + m.length / 1000;   // à égalité, le titre le plus précis
+      if (s > score) { score = s; meilleur = a; }
+    });
+    return score >= 0.6 ? meilleur : null;
+  }
+  // Jeu absent de RetroRevente : on reprend le titre et le prix affichés dans l'encadré (« Conker's Bad Fur Day … · 190 € »).
+  function jeuDeLEncadre(enc) {
+    var l = String(enc || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+    for (var i = 0; i + 1 < l.length; i++) {
+      var px = /^(\d[\d\s]{0,6})\s?€$/.exec(l[i + 1]);
+      if (px && /\p{L}{3}/u.test(l[i]) && !/^lot de/i.test(l[i])) {
+        var et = Object.keys(ETAT_TXT).find(function (k) { return ETAT_TXT[k] && enc.indexOf(ETAT_TXT[k]) >= 0; });
+        return { id: "lbc", externe: true, titre: l[i].replace(/\.{3}|…$/, "").trim(), nom: titreCourt(l[i].replace(/\.{3}|…$/, "")), plateforme: "", prix: entier(px[1]), etat: et || "", description: "" };
+      }
+    }
+    return null;
   }
   // Prix ronds : multiples de 5, de 10 à partir de 100 € (vers le haut pour un plancher).
   function rond(x, haut) { if (x == null || !isFinite(x)) return null; var pas = x >= 100 ? 10 : 5; return Math.max(pas, (haut ? Math.ceil : Math.round)(x / pas) * pas); }
@@ -724,6 +770,7 @@
     t = t.replace(/\n{3,}/g, "\n\n").trim().slice(-4200);
     return (enc ? "[Annonce concernée]\n" + enc.slice(0, 600) + "\n\n[Conversation]\n" : "") + t;
   }
+  function conversationActuelle() { return location.pathname + "|" + texteEncadre().slice(0, 160); }
   function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
   async function proposerIA(force) {
     var cle = cleConversation();
@@ -734,7 +781,13 @@
       var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu() });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [] };
-    } catch (e) { if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message }; }
+    } catch (e) {
+      if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message, status: e.status };
+      if (e.status === 402 || e.status === 403) {
+        etat.iaBloquee = true;
+        var d = ombre && ombre.querySelector("details.types"); if (d && etat.typesOuvert == null) d.open = true;
+      }
+    }
     rafraichirIA();
   }
   var APPROCHES = { contre_offre: "Contre-offre", ferme: "Ferme", couper_court: "Couper court", accepter: "Accepter" };
@@ -746,6 +799,11 @@
     z.appendChild(tete);
     var i = etat.ia || {};
     if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: "Je lis le dernier message de l'acheteur…" })); return; }
+    if (i.erreur && (i.status === 402 || i.status === 403)) {
+      z.appendChild(el("p", { class: "ia-r", texte: i.erreur }));
+      z.appendChild(el("button", { class: "mini clair", type: "button", texte: "Voir les formules", onclick: function () { window.open("https://retrorevente.fr/#tarifs", "_blank", "noopener"); } }));
+      return;
+    }
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); return; }
     if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
     var qui = acheteurLu();
@@ -767,8 +825,13 @@
       if (muts.every(function (m) { return hote && (m.target === hote || hote.contains(m.target)); })) return;
       clearTimeout(minuterieMsg);
       minuterieMsg = setTimeout(function () {
-        var c = etat.choisie;
-        if (c && c.lot) { var d = deviner(); if (d.lot && (d.articles || []).join("|") !== (c.articles || []).join("|")) { etat.choisie = d; dessiner(); } }
+        // Autre conversation (ou encadré chargé après coup) : le panneau se cale tout seul sur le jeu dont on parle,
+        // sauf si la personne a choisi elle-même un jeu pour cette conversation.
+        var c = etat.choisie, ici = conversationActuelle();
+        if (etat.manuel !== ici) {
+          var d = deviner();
+          if (d && (!c || d.id !== c.id || d.titre !== c.titre || (d.articles || []).join("|") !== (c.articles || []).join("|"))) { etat.choisie = d; dessiner(); }
+        }
         if (etat.ia && !etat.ia.charge && etat.ia.cle !== cleConversation()) proposerIA(false); }, 1500);
     });
     veilleMsg.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -891,7 +954,7 @@
   }
   async function telecharger() {
     try {
-      var f = await fichierPhoto(etat.choisie), u = URL.createObjectURL(f);
+      var f = (await fichiersPhotos(etat.choisie))[0], u = URL.createObjectURL(f);
       var a = el("a", { href: u, download: f.name }); document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(u); }, 10000);
       statut("Photo enregistrée dans tes téléchargements.", "ok");
