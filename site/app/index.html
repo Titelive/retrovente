@@ -95,7 +95,7 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .ajout .btn:first-child{padding:16px 24px;font-size:16px}
 .ajout svg{width:20px;height:20px}
 .chiffres{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:14px}
-.chiffres div{background:var(--carte);border-radius:22px;padding:18px 20px;box-shadow:0 0 0 1px var(--trait)}
+.chiffres>*{background:var(--carte);border-radius:22px;padding:18px 20px;box-shadow:0 0 0 1px var(--trait)}
 .chiffres small{display:block;font-size:12px;color:var(--gris);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
 .chiffres b{font:800 32px/1 var(--titre);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .chiffres .tps{background:var(--nuit);color:#fff;box-shadow:none;position:relative;overflow:hidden}
@@ -254,6 +254,20 @@ body.fiche-ouverte #toast{bottom:100px}
 .dial-in textarea{flex:1;resize:none;min-height:46px;max-height:160px;border-radius:16px;padding:12px 14px;font:inherit;font-size:15px;line-height:1.4}
 .dial-in .btn{width:46px;height:46px;padding:0;flex:none;justify-content:center}.dial-in .btn svg{width:20px;height:20px}
 :root[data-theme="dark"] .bul.moi{background:var(--anis);color:var(--nuit)}
+
+/* Temps gagné : calcul détaillé et réglable */
+button.tps{border:0;text-align:left;font:inherit;cursor:pointer;display:block;width:100%}
+.tps-i{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:10px;margin-left:4px;vertical-align:1px}
+.tps-c{display:block;margin-top:8px;font-size:12.5px;font-weight:600;color:#A8A8A0;text-decoration:underline;text-underline-offset:3px}
+button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
+.tps-l{display:flex;flex-direction:column;gap:8px}
+.tps-r{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px;border-radius:16px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait)}
+.tps-r b{display:block;font-size:14.5px}.tps-r small{display:block;color:var(--gris);font-size:12.5px}
+.tps-r label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gris)}
+.tps-r input{width:58px;padding:8px;border-radius:10px;text-align:right;font:inherit;font-size:14px}
+.tps-r .s{font-weight:700;font-variant-numeric:tabular-nums;min-width:58px;text-align:right}
+.tps-tot{margin:0;font-weight:700}
+.jauges.trois{grid-template-columns:1fr 1fr 1fr}@media(max-width:860px){.jauges.trois{grid-template-columns:1fr}}
 /* Mes jeux : animations */
 #accueil h1 .m{display:inline-block;white-space:pre}
 #accueil.entre h1 .m{animation:mot-in .7s var(--ease) both;animation-delay:calc(var(--k) * 70ms + .08s)}
@@ -288,10 +302,10 @@ body.fiche-ouverte #toast{bottom:100px}
 @keyframes carte-in{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 .jeu .im img{transition:transform .6s var(--ease)}
 .jeu:hover .im img{transform:scale(1.06)}
-.chiffres>div{animation:carte-in .6s var(--ease) backwards}
-.chiffres>div:nth-child(2){animation-delay:.06s}.chiffres>div:nth-child(3){animation-delay:.12s}.chiffres>div:nth-child(4){animation-delay:.18s}
-.chiffres>div{transition:transform .3s var(--ease),box-shadow .3s}
-.chiffres>div:hover{transform:translateY(-3px)}
+.chiffres>*{animation:carte-in .6s var(--ease) backwards}
+.chiffres>*:nth-child(2){animation-delay:.06s}.chiffres>*:nth-child(3){animation-delay:.12s}.chiffres>*:nth-child(4){animation-delay:.18s}
+.chiffres>*{transition:transform .3s var(--ease),box-shadow .3s}
+.chiffres>*:hover{transform:translateY(-3px)}
 .filtres button{transition:background-color .25s,color .25s,transform .2s var(--ease)}
 .filtres button:active{transform:scale(.94)}
 .carte{transition:box-shadow .3s}
@@ -428,13 +442,13 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     </div>
   </div>
   <div class="chiffres">
-    <div class="tps"><small>Temps gagné</small><b id="cTemps">0 min</b></div>
+    <button type="button" class="tps" id="cTempsBt" aria-haspopup="dialog"><small>Temps gagné <span class="tps-i" aria-hidden="true">?</span></small><b id="cTemps">0 min</b><span class="tps-c">Voir le calcul</span></button>
     <div><small>En vente</small><b id="cVente">0</b></div>
     <div><small>Vendus</small><b id="cVendus">0</b></div>
     <div><small>Encaissé</small><b id="cEnc">0 €</b></div>
   </div>
   <section class="carte fisc" id="fisc" aria-labelledby="tFisc">
-    <header style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 id="tFisc">Seuil fiscal <span id="fAn"></span></h3><small style="color:var(--gris)">Les plateformes déclarent aux impôts les vendeurs au-delà de 30 ventes ou 2 000 € par an.</small></header>
+    <header style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 id="tFisc">Seuil fiscal <span id="fAn"></span></h3><small style="color:var(--gris)">Les plateformes déclarent aux impôts les vendeurs à partir de 30 ventes ou 2 000 € par an. Un objet vendu plus de 5 000 € peut être imposé sur sa plus-value.</small></header>
     <div class="jauges" id="fJauges"></div>
     <p id="fMsg" style="font-size:14px"></p>
   </section>
@@ -609,6 +623,13 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <button class="btn clair" value="vendeur" type="button" data-o="vendeur">Vendeur, 4,99 € par mois (30 jeux)</button>
   <button class="lien" value="x">Plus tard</button>
 </form></dialog>
+<dialog id="dTemps" aria-labelledby="tTemps"><form method="dialog">
+  <h2 id="tTemps" style="margin:0">Ton temps gagné</h2>
+  <p style="margin:0;color:var(--gris);font-size:14.5px">Chacun a sa méthode : indique combien de minutes chaque étape te prendrait sans RetroRevente. Le compteur se recalcule tout de suite.</p>
+  <div class="tps-l" id="tpsL"></div>
+  <p class="tps-tot" id="tpsTot"></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between"><button class="lien" type="button" id="tpsRaz">Valeurs par défaut</button><button class="btn" value="ok">C'est bon</button></div>
+</form></dialog>
 <dialog id="dQuitter"><form method="dialog">
   <h2>Tu as des modifications non enregistrées</h2>
   <p style="color:var(--gris)">Elles sont gardées en <b>brouillon</b> sur cet appareil : tu les retrouveras en haut de <b>Mes jeux</b>.</p>
@@ -676,7 +697,11 @@ var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État c
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
 var F=["titre","plateforme","region","categorie","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
-var TEMPS={identifier:6,cote:10,lbc:2,suivi:2,bilan:3};
+/* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
+   On compte ce qui a vraiment été fait sur chaque jeu, pas les appels à l'IA. */
+var TEMPS_DEF={photos:3,texte:4,prix:4,lbc:2,suivi:1},TEMPS=(function(){var t={};try{t=JSON.parse(localStorage.getItem("rr-temps")||"{}")||{}}catch(e){}var o={};for(var k in TEMPS_DEF)o[k]=isFinite(+t[k])&&t[k]!==""&&t[k]!=null?Math.max(0,Math.min(120,+t[k])):TEMPS_DEF[k];return o})(),
+  TEMPS_LIB={photos:["Photos","retouche et recadrage, par jeu photographié"],texte:["Texte de l'annonce","titre et description, par jeu"],prix:["Recherche du prix","par jeu dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, par annonce remplie"],suivi:["Suivi des ventes","par jeu vendu"]};
+function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:u.lbc||0,suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length}}
 var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -709,7 +734,13 @@ function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();r
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
 function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
   p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0)}
-function tempsGagne(){var u=ME.usage||{},n=0;n+=(u.identifier||0)*TEMPS.identifier+(u.cote||0)*TEMPS.cote+(u.lbc||0)*TEMPS.lbc+OBJ.length*TEMPS.suivi+OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length*TEMPS.bilan;return n}
+function tempsGagne(){var e=tempsEtapes(),n=0;for(var k in e)n+=e[k]*TEMPS[k];return n}
+function dessinerTemps(){var e=tempsEtapes();$("tpsL").innerHTML=Object.keys(TEMPS_DEF).map(function(k){return '<div class="tps-r"><span><b>'+TEMPS_LIB[k][0]+'</b><small>'+e[k]+' × '+TEMPS_LIB[k][1]+'</small></span><label><input type="number" min="0" max="120" step="1" inputmode="numeric" data-k="'+k+'" value="'+TEMPS[k]+'" aria-label="Minutes pour '+TEMPS_LIB[k][0].toLowerCase()+'">min</label><span class="s">'+hm(e[k]*TEMPS[k])+'</span></div>'}).join("");majTot()}
+function majTot(){var e=tempsEtapes();[].forEach.call($("tpsL").querySelectorAll(".tps-r"),function(r){var k=r.querySelector("input").dataset.k;r.querySelector(".s").textContent=hm(e[k]*TEMPS[k])});$("tpsTot").textContent="Total : "+hm(tempsGagne())+" gagnées sur "+OBJ.length+" jeu"+(OBJ.length>1?"x":"")+"."}
+function garderTemps(){try{localStorage.setItem("rr-temps",JSON.stringify(TEMPS))}catch(e){}$("cTemps").textContent=hm(tempsGagne());$("cTemps").dataset.v=tempsGagne()}
+$("cTempsBt").onclick=function(){dessinerTemps();$("dTemps").showModal()};
+$("tpsL").addEventListener("input",function(e){var i=e.target.closest("input");if(!i)return;var v=i.value===""?0:Math.max(0,Math.min(120,Math.round(+i.value)||0));TEMPS[i.dataset.k]=v;majTot();garderTemps()});
+$("tpsRaz").onclick=function(){for(var k in TEMPS_DEF)TEMPS[k]=TEMPS_DEF[k];dessinerTemps();garderTemps()};
 function dessiner(){if(typeof dessinerBrouillons==="function")dessinerBrouillons();
   var vendus=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
   compter($("cTemps"),tempsGagne(),hm);
@@ -721,10 +752,13 @@ function dessiner(){if(typeof dessinerBrouillons==="function")dessinerBrouillons
   $("fAn").textContent=an;
   if(ME.formule.fiscal){
     var j=function(lib,v,max,fmt){var r=v/max,c=r>=1?"depasse":r>=.8?"alerte":"";return '<div class="jauge '+c+'"><small>'+lib+' : <b>'+fmt(v)+'</b> sur '+fmt(max)+'</small><div class="b"><i style="width:'+Math.min(100,r*100)+'%"></i></div></div>'};
-    $("fJauges").innerHTML=j("Ventes",va.length,30,String)+j("Montant",mt,2000,eur);
+    var gros=va.reduce(function(m,o){return Math.max(m,o.prixVente||0)},0);
+    $("fJauges").className="jauges trois";$("fJauges").innerHTML=j("Ventes",va.length,30,String)+j("Montant",mt,2000,eur)+j("Objet le plus cher",gros,5000,eur);
     var r=Math.max(va.length/30,mt/2000);
+    if(gros>5000){$("fMsg").textContent="Un objet vendu plus de 5 000 € n'est plus exonéré : la plus-value éventuelle (prix de vente moins prix d'achat) se déclare et peut être imposée. Garde la preuve de ton prix d'achat."}else{
     $("fMsg").textContent=r>=1?"Tu as dépassé un seuil : la plateforme transmettra tes ventes aux impôts. Ce n'est pas un impôt, garde simplement trace de tes prix d'achat.":r>=.8?"Tu approches d'un seuil. Pas de panique : vendre tes propres affaires n'est en principe pas imposable.":"Tu es loin des seuils, tout va bien.";
-  }else{
+    $("fMsg").textContent+=" Les 5 000 € se comptent objet par objet, pas sur l'année.";}
+  }else{$("fJauges").className="jauges";
     $("fJauges").innerHTML="";$("fMsg").innerHTML="Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre ces seuils. <button class='lien' type='button' id='fUp'>Voir les formules</button>";
     $("fUp").onclick=compte;
   }
