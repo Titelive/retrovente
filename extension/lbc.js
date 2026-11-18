@@ -804,7 +804,7 @@
     if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: i.consigne ? "Je rédige ta réponse…" : "Je lis le dernier message de l'acheteur…" })); return; }
     if (i.erreur && (i.status === 402 || i.status === 403)) {
       z.appendChild(el("p", { class: "ia-r", texte: i.erreur }));
-      z.appendChild(el("button", { class: "mini clair", type: "button", texte: "Voir les formules", onclick: function () { window.open("https://retrorevente.fr/#tarifs", "_blank", "noopener"); } }));
+      z.appendChild(el("button", { class: "mini clair", type: "button", texte: i.status === 403 ? "Confirmer mon e-mail" : "Changer de formule", onclick: function () { window.open("https://retrorevente.fr/app/?compte", "_blank", "noopener"); } }));
       return;
     }
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); z.appendChild(parlerIA()); return; }
