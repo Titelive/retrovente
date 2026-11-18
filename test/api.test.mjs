@@ -303,3 +303,12 @@ test("légendes et annonces : jamais d'« apparemment », on affirme ou on se ta
   assert.equal(affirme("Tranche gauche : plastique lisse, sans rayure ni choc visible"), "Tranche gauche : plastique lisse, sans rayure ni choc");
   assert.equal(affirme("Cartouche visiblement d'origine, probablement testée"), "Cartouche d'origine");
 });
+
+test("menu du site : l'indice de connexion est rattrapé pour les anciennes sessions", async () => {
+  const { indiceConnexion } = await import("../server/auth.mjs");
+  const c = await compte("indice@exemple.fr");
+  assert.match(indiceConnexion({ headers: { cookie: c } }), /^rr_co=1;/);
+  assert.equal(indiceConnexion({ headers: { cookie: c + "; rr_co=1" } }), "");
+  assert.match(indiceConnexion({ headers: { cookie: "rr_co=1" } }), /^rr_co=; .*Max-Age=0/);
+  assert.equal(indiceConnexion({ headers: { cookie: "" } }), "");
+});
