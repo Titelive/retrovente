@@ -1095,12 +1095,14 @@ function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800
 function tourneHD(img,deg){var c=document.createElement("canvas"),w=img.naturalWidth,h=img.naturalHeight,q=deg%180!==0;c.width=q?h:w;c.height=q?w:h;var g=c.getContext("2d");g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);g.drawImage(img,-w/2,-h/2);return c.toDataURL("image/jpeg",.92)}
 function sens(d){return api("POST","/api/ia/endroit",{photo:d}).then(function(j){journal("Sens",j.sens+(j.sur?"":" (pas sûr)"),j.trace);return j}).catch(function(e){journal("Sens","échec : "+e.message,e.trace);return{sur:false,rotation:0,sens:"incertain"}})}
 /* Journal IA : pour les administrateurs, chaque appel de sens et de description s'affiche (réponse brute, durée, erreur) */
-var JOURNAL=[];
-function journal(quoi,res,trace){if(!(ME&&ME.admin))return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
-  JOURNAL.push(new Date().toLocaleTimeString("fr-FR")+" "+quoi+" : "+res+(tr?"\n   "+tr:""));JOURNAL=JOURNAL.slice(-14);
+var JOURNAL=[],DEBUG=/[?&]debug=1/.test(location.search);
+try{if(DEBUG)sessionStorage.setItem("rr-debug","1");else DEBUG=sessionStorage.getItem("rr-debug")==="1"}catch(e){}
+function journal(quoi,res,trace){if(!(DEBUG||(ME&&ME.admin)))return;if(quoi==null&&JOURNAL.length)return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
+  if(quoi!=null){JOURNAL.push(new Date().toLocaleTimeString("fr-FR")+" "+quoi+" : "+res+(tr?"\n   "+tr:""));JOURNAL=JOURNAL.slice(-14)}
+  var vide=!JOURNAL.length;
   var z=$("jIa");if(!z){z=document.createElement("div");z.id="jIa";z.innerHTML='<header><b>Journal IA</b><button type="button" data-j="c">Copier</button><button type="button" data-j="x" aria-label="Fermer">×</button></header><pre></pre>';document.body.appendChild(z);
     z.addEventListener("click",function(e){var b=e.target.closest("[data-j]");if(!b)return;if(b.dataset.j==="x")z.hidden=true;else copier(JOURNAL.join("\n")).then(function(){toast("Journal copié.","ok")})})}
-  z.hidden=false;z.querySelector("pre").textContent=JOURNAL.join("\n")}
+  z.hidden=false;z.querySelector("pre").textContent=vide?"Le journal se remplit dès que l'IA travaille : ajoute une photo (Nouvel article › En photo) ou clique « Décrire les photos ».":JOURNAL.join("\n")}
 function trouverSens(img){if(!img)return Promise.resolve(0);
   return sens(tourne(img,0)).then(function(a){if(!a.sur||!a.rotation)return 0;
     return sens(tourne(img,a.rotation)).then(function(b){if(b.sens==="haut")return a.rotation;
@@ -1287,7 +1289,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article")}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article")}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
