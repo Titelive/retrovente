@@ -8,7 +8,7 @@ function maj() {
   return rrDemander({ type: "etat" }).then(function (e) {
     afficher(e);
     if (e.connecte) return rrDemander({ type: "annonces" }).then(function (j) {
-      statut(j.annonces.length ? j.annonces.length + (j.annonces.length > 1 ? " annonces prêtes." : " annonce prête.") : "Aucun jeu « En vente » pour le moment.");
+      statut(j.annonces.length ? j.annonces.length + (j.annonces.length > 1 ? " annonces prêtes." : " annonce prête.") : "Aucun article « En vente » pour le moment.");
     }, function (err) { if (err.status === 401) { afficher({ connecte: false }); } statut(err.message, true); });
   }).catch(function (err) { statut(err.message, true); });
 }
