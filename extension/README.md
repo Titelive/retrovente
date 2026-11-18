@@ -35,19 +35,18 @@ Chrome affiche un avertissement sur `background.scripts` : c'est normal, cette c
 
 Le module temporaire disparaît au redémarrage de Firefox.
 
-### Safari (Mac)
+### Safari (Mac, iPhone, iPad)
 
-Safari n'accepte une extension que dans une app. Il faut Xcode (gratuit, App Store).
+Safari n'accepte une extension que dans une app. Il faut Xcode (gratuit, App Store), ouvert une fois pour finir son installation.
 
-1. Dans le Terminal :
-   ```sh
-   xcrun safari-web-extension-converter extension/ --project-location ~/RetroRevente-Safari --app-name "RetroRevente" --bundle-identifier fr.retrorevente.extension --macos-only --copy-resources
-   ```
-2. Xcode s'ouvre : choisis la cible macOS, puis **Product → Run** (⌘R). Une petite app RetroRevente se lance : tu peux la fermer.
+1. Dans le Terminal, à la racine du dépôt : `npm run extension:safari` (ou `sh extension/outils/safari.sh`). Le script crée le projet Xcode dans `safari/` (non versionné) et l'ouvre. Le projet pointe vers `extension/` : une modification de l'extension est reprise au prochain lancement.
+2. Dans Xcode, choisis le schéma **RetroRevente (macOS)** et **My Mac**, puis **⌘R**. Une petite app RetroRevente se lance : tu peux la fermer.
 3. Safari → **Réglages → Avancées** → coche « Afficher les fonctionnalités pour les développeurs web ». Puis menu **Développement → Autoriser les extensions non signées** (à refaire à chaque redémarrage de Safari).
 4. Safari → **Réglages → Extensions** → coche **RetroRevente pour Le Bon Coin**, puis **Modifier les sites web…** → « Autoriser » pour leboncoin.fr et retrorevente.fr.
 
-Sans compte développeur payant, Xcode signe l'app pour ta machine seulement : c'est parfait pour essayer, pas pour distribuer.
+**Sur iPhone ou iPad** : branche l'appareil, choisis le schéma **RetroRevente (iOS)** et ton appareil, **⌘R** (Xcode demande de te connecter avec ton identifiant Apple ; un compte gratuit suffit, l'app expire alors au bout de 7 jours). Puis Réglages → Apps → Safari → Extensions → RetroRevente → activer, et autoriser leboncoin.fr et retrorevente.fr. Le bouton **RR** apparaît pendant le dépôt d'annonce dans Safari, comme sur Mac.
+
+Sans compte développeur payant, l'app est signée pour tes appareils seulement : parfait pour essayer, pas pour distribuer.
 
 ### Essayer avec le serveur local
 
@@ -57,17 +56,14 @@ Sans compte développeur payant, Xcode signe l'app pour ta machine seulement : c
 
 | Boutique | Ce qu'il faut | Délai de relecture |
 |---|---|---|
-| **Safari** (Mac App Store) | Compte Apple Developer (99 $/an), Xcode, le projet généré par `safari-web-extension-converter`, un identifiant d'app, une icône d'app, des captures, une politique de confidentialité (`/confidentialite/`). On envoie depuis Xcode (Product → Archive) vers App Store Connect. Peut aussi couvrir iPhone et iPad (enlever `--macos-only`). | 1 à 3 jours |
+| **Safari** (Mac App Store) | Compte Apple Developer (99 $/an), Xcode, le projet généré par `safari-web-extension-converter`, un identifiant d'app, une icône d'app, des captures, une politique de confidentialité (`/confidentialite/`). On envoie depuis Xcode (Product → Archive) vers App Store Connect, une fois pour Mac et une fois pour iPhone/iPad (le même projet contient les deux). Il faut aussi une fiche App Store (nom, description, captures Mac et iPhone, catégorie Productivité) et le formulaire de confidentialité (« aucune donnée collectée » côté app). | 1 à 3 jours |
 | **Chrome Web Store** (aussi Edge, Brave, Arc) | Compte développeur (5 $ une fois), le zip du dossier `extension/`, captures 1280×800, justification de chaque permission (`storage`, accès à leboncoin.fr et retrorevente.fr), formulaire « pratiques de confidentialité ». | quelques jours |
 | **Firefox** (addons.mozilla.org) | Compte gratuit, le zip, éventuellement le code source (inutile ici : rien n'est compilé). L'identifiant `extension@retrorevente.fr` est déjà dans le manifeste. | quelques heures à quelques jours |
 | **Edge Add-ons** | Compte Partner Center gratuit, le même zip que Chrome. | quelques jours |
 
 Les relecteurs regardent surtout l'accès à leboncoin.fr : explique que l'extension ne s'active que sur la page de dépôt, au clic, et n'envoie rien.
 
-Pour fabriquer le zip :
-```sh
-cd extension && zip -r ../retrorevente-extension.zip . -x README.md
-```
+Pour fabriquer le zip : `npm run extension:zip` (il arrive dans `dist/`).
 
 Avant chaque envoi, augmente `version` dans `manifest.json`.
 
