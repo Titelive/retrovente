@@ -513,7 +513,7 @@
   }
   // Prix ronds : multiples de 5, de 10 à partir de 100 € (vers le haut pour un plancher).
   function rond(x, haut) { if (x == null || !isFinite(x)) return null; var pas = x >= 100 ? 10 : 5; return Math.max(pas, (haut ? Math.ceil : Math.round)(x / pas) * pas); }
-  var CONTENU_TXT = { seul: "la cartouche (ou le disque) seule", boite: "en boîte, sans notice", complet: "complet, avec la boîte et la notice" };
+  var CONTENU_TXT = { seul: "la cartouche (ou le disque) seule", boite: "en boîte, sans notice", complet: "complet, avec la boîte et la notice", boite_vide: "la boîte seule, sans le jeu" };
   // Dernière offre en euros lue dans la conversation ouverte (autre que notre prix), pour chiffrer les réponses.
   function offreLue(px) {
     var off = offreOfficielle(); if (off && px && off < px) return off;
