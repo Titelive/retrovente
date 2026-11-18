@@ -166,10 +166,30 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 @keyframes scan{0%,100%{top:16%}50%{top:84%}}
 .photo .attente span{display:inline-flex;gap:10px;align-items:center;background:var(--nuit);color:#fff;border-radius:999px;padding:12px 18px;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
 .photo .attente small{position:absolute;left:0;right:0;bottom:16%;text-align:center;color:#fff;font-size:13px;font-weight:500;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.8);padding:0 16px;transition:opacity .3s}
-.ia-etat{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
-.ia-etat li{display:flex;gap:10px;align-items:center;font-size:13px;line-height:1.35;padding:8px 12px;border-radius:12px;background:var(--carte2,rgba(127,127,127,.12));color:inherit}
-.ia-etat li::before{content:"";flex:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--anis);border-right-color:transparent;animation:t .8s linear infinite}
-.ia-etat li b{font-weight:700}
+/* Encart « l'IA travaille » : une carte par tâche, icône animée, étape en gras, blague en petit, barre de progression en pixels */
+.ia-etat{--ia-a:var(--anis);--ia-b:var(--anis);list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+html[data-formule="collectionneur"] .ia-etat{--ia-a:var(--or-1);--ia-b:var(--or-2)}
+.ia-etat li{position:relative;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 14px 12px 12px;border-radius:18px;overflow:hidden;
+  background:linear-gradient(120deg,color-mix(in srgb,var(--ia-a) 22%,transparent),color-mix(in srgb,var(--ia-b) 6%,transparent) 55%,transparent),var(--carte);
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ia-a) 45%,transparent),0 14px 28px -20px rgba(0,0,0,.6);animation:iaEntre .35s var(--ease,ease) both}
+html[data-formule="pass"] .ia-etat li{background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 60%),var(--carte);box-shadow:inset 0 0 0 1.5px rgba(var(--anis-rgb),.5),0 14px 28px -20px rgba(0,0,0,.6)}
+html[data-formule="pass"] .ia-etat li::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--holo);background-size:300% 100%;animation:holo 5s linear infinite}
+.ia-etat .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;line-height:1;background:linear-gradient(135deg,var(--ia-a),var(--ia-b));box-shadow:3px 3px 0 var(--nuit),inset 0 0 0 2px rgba(255,255,255,.35);animation:iaSaut 1.4s steps(2,end) infinite}
+.ia-etat .tx{min-width:0}
+.ia-etat .tx strong{display:block;font-size:14px;font-weight:700;line-height:1.3}
+.ia-etat .tx small{display:block;margin-top:2px;font-size:12.5px;line-height:1.35;color:var(--gris)}
+.ia-etat .barre{display:flex;gap:3px;margin-top:9px;height:7px}
+.ia-etat .barre i{flex:1;border-radius:2px;background:color-mix(in srgb,var(--ia-a) 20%,transparent)}
+.ia-etat .barre i.ok{background:var(--ia-a)}
+.ia-etat .barre i.en{animation:iaClic .7s steps(2,end) infinite}
+.ia-etat .barre.libre i{animation:iaVague 1.5s steps(3,end) infinite}
+.ia-etat .cpt{align-self:start;font:400 11px/1 var(--pixel);letter-spacing:.06em;padding:7px 8px;border-radius:8px;background:var(--nuit);color:var(--ia-a);white-space:nowrap}
+@keyframes iaEntre{from{opacity:0;transform:translateY(6px)}}
+@keyframes iaSaut{50%{transform:translateY(-3px)}}
+@keyframes iaClic{50%{background:var(--ia-a)}}
+@keyframes iaVague{0%,100%{background:color-mix(in srgb,var(--ia-a) 20%,transparent)}40%{background:var(--ia-a)}}
+html.sans-anim .ia-etat *,html.sans-anim .ia-etat li{animation:none!important}
+@media(prefers-reduced-motion:reduce){.ia-etat *,.ia-etat li{animation:none!important}}
 .photo .attente span::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--anis);border-right-color:transparent;animation:t .8s linear infinite}
 .rangee{display:flex;gap:8px;flex-wrap:wrap}
 .champs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -732,6 +752,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <section class="carte zone" aria-labelledby="tPrefs">
     <h2 id="tPrefs">Paramètres</h2>
     <label class="interrupteur"><input type="checkbox" id="pAnim" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Animations</b><small>Apparitions, transitions et effets. Désactive-les si elles te gênent (réglage gardé sur cet appareil).</small></span></label>
+    <label class="interrupteur" id="pDebugZone" hidden><input type="checkbox" id="pDebug" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Menu de débogage</b><small>Affiche le Journal IA (réponses brutes de l'IA, durées, jetons). Réservé aux administrateurs, gardé sur cet appareil.</small></span></label>
     <label class="interrupteur"><input type="checkbox" id="pSombre" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Mode sombre</b><small>Aussi accessible avec le bouton soleil / lune du menu.</small></span></label>
   </section>
   <section class="carte zone" id="cExt">
@@ -1088,8 +1109,14 @@ var BLAGUES=["Je souffle dans la cartouche, au cas où 🎮","Je règle le track
 function attente(t){$("fAttente").hidden=!t;clearInterval(BLT);$("fAttenteSub").textContent="";if(!t)return;$("fAttenteTx").textContent=t;
   BLT=setInterval(function(){$("fAttenteSub").textContent="Toujours là : "+BLAGUES[BL++%BLAGUES.length].replace(/^./,function(c){return c.toLowerCase()})},3500)}
 var ETATS={};
-function iaEtat(cle,t){if(t)ETATS[cle]=t;else delete ETATS[cle];var l=$("fIaEtat"),k=Object.keys(ETATS);l.hidden=!k.length;
-  l.innerHTML=k.map(function(c){return "<li>"+ETATS[c]+"</li>"}).join("")}
+/* iaEtat(clé, {ico, titre, detail, i, n}) : i/n donne une barre à cases (photo i sur n) ; sans n, la barre ondule. iaEtat(clé) retire la carte. */
+function iaEtat(cle,o){if(o)ETATS[cle]=o;else delete ETATS[cle];var l=$("fIaEtat"),k=Object.keys(ETATS);l.hidden=!k.length;
+  var vu={};[].forEach.call(l.children,function(li){vu[li.dataset.k]=li});
+  k.forEach(function(c){var o=ETATS[c],n=o.n||0,cases="";
+    for(var j=1;j<=(n||10);j++)cases+='<i'+(n?(j<o.i?' class="ok"':j===o.i?' class="en"':""):' style="animation-delay:'+(j*0.12).toFixed(2)+'s"')+'></i>';
+    var h='<span class="ico" aria-hidden="true">'+o.ico+'</span><div class="tx"><strong>'+esc(o.titre)+'</strong>'+(o.detail?'<small>'+esc(o.detail)+'</small>':"")+'<div class="barre'+(n?"":" libre")+'">'+cases+'</div></div>'+(n?'<span class="cpt">'+o.i+'/'+n+'</span>':"");
+    var li=vu[c];if(!li){li=document.createElement("li");li.dataset.k=c;l.appendChild(li)}delete vu[c];if(li._h!==h){li.innerHTML=h;li._h=h}});
+  Object.keys(vu).forEach(function(c){vu[c].remove()})}
 /* Requête au fil de l'eau (événements serveur) : progres(x) à chaque étape, puis le résultat. Sans flux, on retombe sur la réponse finale. */
 function apiFlux(path,body,progres){var h={"content-type":"application/json"};if(APP)h["x-rr-app"]=APP;
   return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:h,body:JSON.stringify(Object.assign({flux:true},body))}).then(function(r){
@@ -1123,19 +1150,20 @@ function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800
 function tourneHD(img,deg){var c=document.createElement("canvas"),w=img.naturalWidth,h=img.naturalHeight,q=deg%180!==0;c.width=q?h:w;c.height=q?w:h;var g=c.getContext("2d");g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);g.drawImage(img,-w/2,-h/2);return c.toDataURL("image/jpeg",.92)}
 function sens(d){return api("POST","/api/ia/endroit",{photo:d}).then(function(j){journal("Sens",j.sens+(j.sur?"":" (pas sûr)"),j.trace);return j}).catch(function(e){journal("Sens","échec : "+e.message,e.trace);return{sur:false,rotation:0,sens:"incertain"}})}
 /* Journal IA : pour les administrateurs, chaque appel de sens et de description s'affiche (réponse brute, durée, erreur) */
+/* Journal IA : caché par défaut, même pour un administrateur ; interrupteur « Menu de débogage » dans le profil (ou ?debug=1). */
 var JOURNAL=[],DEBUG=/[?&]debug=1/.test(location.search);
-try{if(DEBUG)sessionStorage.setItem("rr-debug","1");else DEBUG=sessionStorage.getItem("rr-debug")==="1"}catch(e){}
-function journal(quoi,res,trace){if(!(DEBUG||(ME&&ME.admin)))return;if(quoi==null&&JOURNAL.length)return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.jetons!=null?x.jetons+"/"+x.max+" jetons ":"")+(x.blocs?"["+x.blocs+"] ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
+try{if(DEBUG)localStorage.setItem("rr-debug","1");else DEBUG=localStorage.getItem("rr-debug")==="1"}catch(e){}
+function journal(quoi,res,trace){if(!DEBUG)return;if(quoi==null&&JOURNAL.length)return;var tr=(trace||[]).map(function(x){return (x.statut?x.statut+" ":"")+(x.erreur?"✗ "+x.erreur:"")+(x.fin?"fin "+x.fin+" ":"")+(x.ms!=null?x.ms+" ms ":"")+(x.jetons!=null?x.jetons+"/"+x.max+" jetons ":"")+(x.blocs?"["+x.blocs+"] ":"")+(x.texte!=null?"« "+x.texte.replace(/\s+/g," ")+" »":"")}).join("\n   ");
   if(quoi!=null){JOURNAL.push(new Date().toLocaleTimeString("fr-FR")+" "+quoi+" : "+res+(tr?"\n   "+tr:""));JOURNAL=JOURNAL.slice(-14)}
   var vide=!JOURNAL.length;
   var z=$("jIa");if(!z){z=document.createElement("div");z.id="jIa";z.innerHTML='<header><b>Journal IA</b><button type="button" data-j="c">Copier</button><button type="button" data-j="x" aria-label="Fermer">×</button></header><pre></pre>';document.body.appendChild(z);
     z.addEventListener("click",function(e){var b=e.target.closest("[data-j]");if(!b)return;if(b.dataset.j==="x")z.hidden=true;else copier(JOURNAL.join("\n")).then(function(){toast("Journal copié.","ok")})})}
   z.hidden=false;z.querySelector("pre").textContent=vide?"Le journal se remplit dès que l'IA travaille : ajoute une photo (Nouvel article › En photo) ou clique « Décrire les photos ».":JOURNAL.join("\n")}
-function trouverSens(img){if(!img)return Promise.resolve(0);iaEtat("sens","Je cherche dans quel sens tu as tenu la cartouche 🙃");
+function trouverSens(img){if(!img)return Promise.resolve(0);iaEtat("sens",{ico:"🔄",titre:"Je remets la photo à l'endroit",detail:"Dans quel sens as-tu tenu la cartouche ? 🙃"});
   return trouverSens0(img).then(function(r){iaEtat("sens");return r},function(e){iaEtat("sens");throw e})}
 function trouverSens0(img){
   return sens(tourne(img,0)).then(function(a){if(!a.sur||!a.rotation)return 0;
-    iaEtat("sens","Je penche la tête pour vérifier que l'étiquette est bien à l'endroit…");
+    iaEtat("sens",{ico:"🔄",titre:"Je vérifie le sens de l'étiquette",detail:"Je penche la tête, comme devant une télé posée de travers"});
     return sens(tourne(img,a.rotation)).then(function(b){if(b.sens==="haut")return a.rotation;
       if(!b.sur||!b.rotation)return 0;var r=(a.rotation+b.rotation)%360;if(!r)return 0;
       return sens(tourne(img,r)).then(function(c){return c.sens==="haut"?r:0})})})}
@@ -1185,16 +1213,16 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
 /* auto : sans message de réussite ; tout : remplace aussi les légendes déjà écrites ; muet : aucun message, même en cas d'échec */
 function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
-    .then(function(ph){iaEtat("leg","Je prépare l'album photo…");return apiFlux("/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}},function(x){
-      if(x.etape==="photo")iaEtat("leg","<span><b>Photo "+x.photo+"/"+x.n+"</b> : je la décris, défauts compris, sans enjoliver 🔎</span>");
-      if(x.etape==="jauni")iaEtat("jauni","<span>J'inspecte les tranches à la loupe : le gris a-t-il jauni avec les années ? 🧐</span>")})})
+    .then(function(ph){iaEtat("leg",{ico:"📸",titre:"Je prépare l'album photo",detail:"Je range les photos dans le classeur",i:0,n:ph.length});return apiFlux("/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}},function(x){
+      if(x.etape==="photo")iaEtat("leg",{ico:"🔎",titre:"Je décris la photo "+x.photo,detail:["Défauts compris, sans enjoliver","Je compte les rayures, une par une","Je lis même les petites lignes de l'étiquette","Pas de filtre beauté ici"][(x.photo-1)%4],i:x.photo,n:x.n});
+      if(x.etape==="jauni")iaEtat("jauni",{ico:"🧐",titre:"J'inspecte le plastique à la loupe",detail:"Le gris a-t-il jauni avec les années ?"})})})
     .then(function(j){journal("Légendes",(j.legendes||[]).map(function(l,i){return (i+1)+"="+(l?"ok":"vide"+(j.erreurs&&j.erreurs[i]?" ("+j.erreurs[i]+")":""))}).join(", "),j.trace);(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||tout||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();jauniVu(j.legendes||[],j.jaunis||[]);
       var rates=GAL.map(function(g,i){return g.legende?0:i+1}).filter(Boolean);
       if(rates.length&&!essai){return new Promise(function(ok){setTimeout(ok,4000)}).then(function(){busy(b,false,t);return decrire(auto,2,false,muet)})}   // on réessaie seulement les photos restées vides
       if(rates.length){if(!muet)toast("Photo"+(rates.length>1?"s ":" ")+rates.join(", ")+" non décrite"+(rates.length>1?"s":"")+((j.erreurs||[]).filter(Boolean)[0]?" ("+(j.erreurs||[]).filter(Boolean)[0]+")":"")+". Clique « Décrire les photos » pour réessayer.","bad");return}
       if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){journal("Légendes","échec : "+e.message,e.trace);if(!auto){erreur(e,"Description impossible.");return}console.warn(e);
-      if(!essai){iaEtat("leg","Petit hoquet de l'IA, je relance comme un bouton Reset…");return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)})}   // une seconde tentative, en silence
+      if(!essai){iaEtat("leg",{ico:"🔁",titre:"Petit hoquet de l'IA",detail:"J'appuie sur Reset et je relance"});return new Promise(function(ok){setTimeout(ok,2500)}).then(function(){busy(b,false,t);return decrire(true,2,tout,muet)})}   // une seconde tentative, en silence
       if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t);iaEtat("leg");iaEtat("jauni")})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
@@ -1214,7 +1242,7 @@ function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(functio
 function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
   if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});return o}
 function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
-  busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix","Je fouille les annonces vendues pour le bon prix, sans marchander 💶 (jusqu'à 1 min)");
+  busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
   return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
 function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.innerHTML="";return}
@@ -1532,7 +1560,7 @@ var RV=2;
 function refaireAnciennes(){var ch=Promise.resolve(),n=0;GAL.forEach(function(g,k){if(g.orig&&!g.vueOrig&&(g.rv||0)<RV){n++;ch=ch.then(function(){return nettoyerPhoto(true,k)})}});
   if(n)ch.then(function(){toast(n>1?n+" photos retouchées à nouveau avec la nouvelle retouche.":"Photo retouchée à nouveau avec la nouvelle retouche.","ok")});return ch}
 function nettoyerPhoto(auto,idx,rot){var k=idx==null?SEL:idx,g=GAL[k];if(!g)return Promise.resolve();var b=$("fNet"),t=b.innerHTML;
-  busy(b,true);var rk="ret"+k+"_"+Date.now();iaEtat(rk,"<span><b>Photo "+(k+1)+(GAL.length>1?"/"+GAL.length:"")+"</b> : coup de chiffon numérique, fond et lumière ✨</span>");if(k===SEL&&!auto)attente("Je retouche la photo…");
+  busy(b,true);var rk="ret"+k+"_"+Date.now();iaEtat(rk,{ico:"✨",titre:"Je retouche la photo "+(k+1),detail:"Coup de chiffon numérique : fond et lumière",i:GAL.length>1?k+1:0,n:GAL.length>1?GAL.length:0});if(k===SEL&&!auto)attente("Je retouche la photo…");
   var base=g.vueOrig?g.src:(g.orig||g.src);   // toujours depuis la photo d'origine
   return chargerImg(base).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,2400,1500000),rotation:rot||0})})
     .then(function(j){g.orig=base;g.src=g.data=j.photo;g.vueOrig=false;g.rv=RV;IMG=null;afficher();LBC_FAIT.photo=false;
@@ -1556,7 +1584,7 @@ function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
 function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
 function profil(){$("pPseudo").value=ME.pseudo||"";$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
   $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
-  $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
+  $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
 function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
 $("pPseudoGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{pseudo:$("pPseudo").value}).then(function(m){majMoi(m);toast("Pseudo enregistré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le pseudo")})};
 $("pAvatarIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;ouvrirImage(f).then(function(img){var S=256,c=document.createElement("canvas");c.width=c.height=S;var g=c.getContext("2d"),w=img.naturalWidth,h=img.naturalHeight,m=Math.min(w,h);
@@ -1570,6 +1598,7 @@ $("eGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/emai
   .catch(function(e){$("eErr").textContent=e.message||"Erreur."}).then(function(){busy(b,false,"Confirmer")})};
 $("cMdp2").onclick=function(){$("cMdp").click()};
 $("pAnim").onchange=function(){var on=this.checked;document.documentElement.classList.toggle("sans-anim",!on);try{on?localStorage.removeItem("rr-anim"):localStorage.setItem("rr-anim","off")}catch(e){}toast(on?"Animations activées.":"Animations désactivées.","ok")};
+$("pDebug").onchange=function(){DEBUG=this.checked;try{DEBUG?localStorage.setItem("rr-debug","1"):localStorage.removeItem("rr-debug")}catch(e){}var z=$("jIa");if(z)z.hidden=!DEBUG;if(DEBUG)journal();toast(DEBUG?"Menu de débogage affiché.":"Menu de débogage masqué.","ok")};
 $("pSombre").onchange=function(){var bt=document.querySelector(".theme-bt");if(bt&&(document.documentElement.getAttribute("data-theme")==="dark")!==this.checked)bt.click()};
 (function(){var j=new URLSearchParams(location.search).get("verifier");if(!j)return;history.replaceState(null,"","/app/");
   api("POST","/api/verifier",{jeton:j}).then(function(){if(ME){ME.emailOk=true;if(ME.ia==="verif")ME.ia="dispo";iaNote()}toast("Adresse confirmée, merci !","ok")}).catch(function(e){toast(e.message||"Lien expiré.","bad")})})();
