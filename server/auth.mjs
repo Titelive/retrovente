@@ -28,6 +28,13 @@ export function sessionCookie(token, secure = true) {
   return [`${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${sec}`, `rr_co=${token ? 1 : ""}; Path=/; SameSite=Lax; Max-Age=${age}${sec}`];
 }
 const tokenOf = (req) => { const m = new RegExp("(?:^|;\\s*)" + COOKIE + "=([A-Za-z0-9_-]+)").exec(req.headers.cookie || ""); return m ? m[1] : ""; };
+/* Indice rr_co pour le menu du site : rattrape les sessions ouvertes avant qu'il existe, et l'efface si la session a expiré. */
+export function indiceConnexion(req, secure = true) {
+  const a = /(?:^|;\s*)rr_co=1/.test(req.headers.cookie || ""), u = tokenOf(req) ? currentUser(req) : null, sec = secure ? "; Secure" : "";
+  if (u && !a) return `rr_co=1; Path=/; SameSite=Lax; Max-Age=${DUREE / 1000}${sec}`;
+  if (!u && a) return `rr_co=; Path=/; SameSite=Lax; Max-Age=0${sec}`;
+  return "";
+}
 export function currentUser(req) {
   const t = tokenOf(req); if (!t) return null;
   return db.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires > ?").get(sha(t), now()) || null;
