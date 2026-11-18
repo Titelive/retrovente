@@ -304,6 +304,17 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .tps-tot{margin:0;font-weight:700}
 .jauges.trois{grid-template-columns:1fr 1fr 1fr}@media(max-width:860px){.jauges.trois{grid-template-columns:1fr}}
 .ia-note{margin:-6px 0 0;font-size:13.5px;color:var(--gris);flex-basis:100%}.ia-note b{color:var(--encre)}
+
+/* Publicités de la formule Découverte (encarts maison ; un réseau publicitaire pourra s'y brancher) */
+.pub{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:16px 18px;border-radius:22px;background:var(--carte);box-shadow:0 0 0 1px var(--trait);overflow:hidden;isolation:isolate}
+.pub[hidden]{display:none}
+.pub::after{content:"";position:absolute;inset:auto -40px -60px auto;width:180px;height:180px;border-radius:50%;background:radial-gradient(closest-side,rgba(212,245,122,.35),transparent);z-index:-1}
+.pub .pi{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:var(--anis)}
+.pub b{display:block;font-size:15.5px}.pub span{font-size:13.5px;color:var(--gris)}
+.pub .btn{white-space:nowrap}
+.pub .pub-l{position:absolute;top:6px;right:14px;font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--gris-c)}
+.pub .pub-l button{font:inherit;letter-spacing:inherit;text-transform:inherit;background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer}
+@media(max-width:600px){.pub{grid-template-columns:auto 1fr;padding-top:24px}.pub .btn{grid-column:1/-1;justify-content:center}}
 /* Mes jeux : animations */
 #accueil h1 .m{display:inline-block;white-space:pre}
 #accueil.entre h1 .m{animation:mot-in .7s var(--ease) both;animation-delay:calc(var(--k) * 70ms + .08s)}
@@ -492,6 +503,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <p id="fMsg" style="font-size:14px"></p>
   </section>
   <section class="brouillons" id="brouillons" hidden aria-labelledby="tBr"><h2 id="tBr">Brouillons <small>gardés sur cet appareil</small></h2><div class="br-liste" id="brListe"></div></section>
+  <aside class="pub" data-pub hidden aria-label="Publicité"></aside>
   <div class="filtres" id="filtres" role="group" aria-label="Filtrer">
     <span class="pastille" aria-hidden="true"></span>
     <button type="button" data-f="tout" aria-pressed="true">Tous</button>
@@ -579,6 +591,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
           <label class="f l2">Notes perso<textarea id="f_notes" maxlength="1000" style="min-height:70px"></textarea></label>
         </div>
       </section>
+      <aside class="pub" data-pub hidden aria-label="Publicité"></aside>
     </div>
   </div>
   <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button></div></div>
@@ -805,7 +818,7 @@ function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();r
   if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
 function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
-  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote()}
+  p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> jeux ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote();pubs()}
 function renvoyerVerif(b){if(b)busy(b,true);api("POST","/api/verifier/renvoyer").then(function(j){toast(j.deja?"Ton adresse est déjà confirmée.":"Lien envoyé : regarde ta boîte mail (et les indésirables).","ok")}).catch(function(e){toast(e.message,"bad")}).then(function(){if(b)busy(b,false)})}
 $("dIaRenv").onclick=function(){renvoyerVerif(this)};
 $("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche, puis va dans Mon compte.","bad");return}compte()};
@@ -1072,6 +1085,23 @@ function panneauLbc(on){var f=$("lbcFeuille");f.hidden=!on;$("fLbcBt").setAttrib
 $("fLbcBt").onclick=function(){panneauLbc($("lbcFeuille").hidden)};
 $("lbcFeuille").addEventListener("click",function(e){if(e.target.closest("[data-ferme]"))panneauLbc(false)});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("lbcFeuille").hidden)panneauLbc(false)});
+
+/* ===== Publicités (formule Découverte uniquement) ===== */
+var PUBS=[
+  {i:"✨",t:"L'IA sur tous tes jeux",d:"Photo, texte, bon prix et retouche pour chaque jeu, avec Vendeur à 4,99 € par mois.",b:"Voir les formules",a:"compte"},
+  {i:"📦",t:"Un gros carton à vider ?",d:"Pass Grand ménage : 30 jours illimités, avec l'IA, pour 9,90 € une seule fois.",b:"Prendre le pass",a:"pass"},
+  {i:"📖",t:"Bien vendre sur Le Bon Coin",d:"Photos, prix, envoi : notre guide pour vendre tes jeux vite et au bon prix.",b:"Lire le guide",a:"/guides/vendre-jeux-video-leboncoin/"},
+  {i:"🧩",t:"Le Bon Coin se remplit tout seul",d:"Avec l'extension RetroRevente, chaque écran du dépôt d'annonce se remplit pour toi.",b:"Installer",a:"compte"}
+],PUB_I=Math.floor(Math.random()*PUBS.length);
+function pubs(){var gratuit=ME&&ME.formule&&ME.formule.id==="gratuit";
+  [].forEach.call(document.querySelectorAll("[data-pub]"),function(z,k){z.hidden=!gratuit;if(!gratuit){z.innerHTML="";return}
+    var x=PUBS[(PUB_I+k)%PUBS.length];
+    z.innerHTML='<span class="pi" aria-hidden="true">'+x.i+'</span><div><b>'+esc(x.t)+'</b><span>'+esc(x.d)+'</span></div>'+
+      (x.a.charAt(0)==="/"?'<a class="btn clair petit" href="'+x.a+'">'+esc(x.b)+'</a>':'<button class="btn clair petit" type="button" data-pa="'+x.a+'">'+esc(x.b)+'</button>')+
+      '<small class="pub-l">Publicité · <button type="button" data-pa="compte">Sans pub</button></small>'})}
+document.addEventListener("click",function(e){var b=e.target.closest(".pub [data-pa]");if(!b)return;var a=b.dataset.pa;
+  if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche.","bad");return}
+  if(a==="pass"){payer("pass","mois",b);return}compte()});
 /* ===== Discussion avec l'IA sur la fiche ===== */
 var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte"],
   DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite",numero:"Numéro",rarete:"Rareté",edition:"Édition",gradation:"Gradation",etatCarte:"État de la carte"};
