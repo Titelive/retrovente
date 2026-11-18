@@ -44,7 +44,7 @@
     window.rrMoi = function (m) {
       if (!m) return;
       // la formule change l'habillage (badge, touches dorées ou holographiques) : voir « Habillage selon la formule » dans rr.css
-      var fid = (m.formule && m.formule.id) || "gratuit"; d.documentElement.setAttribute("data-formule", fid);
+      var fid = (m.formule && m.formule.id) || "gratuit"; d.documentElement.setAttribute("data-formule", fid); try { localStorage.setItem("rr-formule", fid); } catch (e) {}
       if (!lienCx) return;
       var nom = m.nom || "Mon compte", av = d.createElement("span");
       av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
