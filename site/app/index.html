@@ -148,6 +148,10 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .galerie .dep{position:absolute;bottom:4px;display:flex;gap:2px;right:4px}
 .galerie .dep button{width:22px;height:22px;border:0;border-radius:7px;background:rgba(26,26,26,.75);color:#fff;font-size:12px;cursor:pointer;padding:0;line-height:22px}
 .galerie .dep button:disabled{opacity:.25}
+.galerie .suppr{position:absolute;right:4px;top:4px;width:22px;height:22px;border:0;border-radius:999px;background:rgba(26,26,26,.8);color:#fff;font:700 13px/22px var(--texte,system-ui);padding:0;cursor:pointer;display:none;box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+.galerie .suppr:hover{background:#c0392b}
+.galerie li.sel .suppr{display:block}
+@media(hover:hover) and (pointer:fine){.galerie li .suppr{display:none}.galerie li:hover .suppr,.galerie li:focus-within .suppr{display:block}}
 /* Flèches de déplacement : seulement sur la photo déjà choisie (et au survol à la souris), pour ne plus les toucher par erreur en choisissant une vignette.
    À la souris, on peut aussi glisser les vignettes. */
 .galerie .dep{display:none}
@@ -982,7 +986,7 @@ function setPhoto(d){if(d===null){GAL=[];SEL=0;DELS=[];afficher();return}
   if(!cur()){GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1}else{cur().src=d;cur().data=d}afficher()}
 function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.call(b.querySelectorAll("img,.pixel"),function(x){x.remove()});
   if(c){var i=new Image();i.alt="Photo "+(SEL+1)+" du jeu";i.src=c.src;b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}
-  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" aria-label="'+esc("Photo "+(i+1)+(g.legende?" : "+g.legende:""))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span>'+
+  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" aria-label="'+esc("Photo "+(i+1)+(g.legende?" : "+g.legende:""))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span><button type="button" class="suppr" data-suppr aria-label="Supprimer la photo '+(i+1)+'" title="Supprimer">✕</button>'+
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
     (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
@@ -992,7 +996,7 @@ function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.
 function deplacer(de,vers){if(vers<0||vers>=GAL.length||de===vers)return;var g=GAL.splice(de,1)[0];GAL.splice(vers,0,g);SEL=vers;afficher();majDescPhotos()}
 $("fGal").addEventListener("click",function(e){var d=e.target.closest("[data-dep]"),li=e.target.closest("li");if(!li)return;
   if(li.classList.contains("ajout")){$("fPhotoIn").click();return}
-  var i=+li.dataset.i;if(d){deplacer(i,i+(+d.dataset.dep));return}SEL=i;IMG=null;afficher()});
+  var i=+li.dataset.i;if(e.target.closest("[data-suppr]")){retirerPhoto(i);return}if(d){deplacer(i,i+(+d.dataset.dep));return}SEL=i;IMG=null;afficher()});
 $("fGal").addEventListener("keydown",function(e){var li=e.target.closest(".ajout");if(li&&(e.key==="Enter"||e.key===" ")){e.preventDefault();$("fPhotoIn").click()}});
 var GLISSE=-1;
 $("fGal").addEventListener("dragstart",function(e){var li=e.target.closest("li[data-i]");if(!li)return;GLISSE=+li.dataset.i;li.classList.add("glisse");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(GLISSE))}catch(_){}});
@@ -1000,7 +1004,8 @@ $("fGal").addEventListener("dragover",function(e){var li=e.target.closest("li[da
 $("fGal").addEventListener("drop",function(e){var li=e.target.closest("li[data-i]");if(GLISSE<0||!li)return;e.preventDefault();var de=GLISSE;GLISSE=-1;deplacer(de,+li.dataset.i)});
 $("fGal").addEventListener("dragend",function(){GLISSE=-1;afficher()});
 $("fLeg").addEventListener("input",function(){var c=cur();if(!c)return;c.legende=this.value;var li=$("fGal").querySelector('li[data-i="'+SEL+'"]');if(li)li.title=c.legende;majDescPhotos()});
-$("fPhotoSuppr").onclick=function(){var c=cur();if(!c)return;if(c.pid)DELS.push(c.pid);GAL.splice(SEL,1);SEL=Math.max(0,Math.min(SEL,GAL.length-1));IMG=null;afficher();majDescPhotos();toast("Photo retirée (enregistre pour valider).","ok")};
+function retirerPhoto(i){var c=GAL[i];if(!c)return;if(c.pid)DELS.push(c.pid);GAL.splice(i,1);if(SEL>i||SEL>=GAL.length)SEL--;SEL=Math.max(0,SEL);IMG=null;afficher();majDescPhotos();toast("Photo retirée (enregistre pour valider).","ok")}
+$("fPhotoSuppr").onclick=function(){if(cur())retirerPhoto(SEL)};
 function pivoter(src){return chargerImg(src).then(function(img){var cv=document.createElement("canvas");cv.width=img.naturalHeight;cv.height=img.naturalWidth;var g=cv.getContext("2d");g.translate(cv.width,0);g.rotate(Math.PI/2);g.drawImage(img,0,0);return cv.toDataURL("image/jpeg",.92)})}
 $("fPivot").onclick=function(){var c=cur();if(!c)return;Promise.all([pivoter(c.src),c.orig?pivoter(c.orig):null]).then(function(r){c.src=c.data=r[0];if(r[1])c.orig=r[1];IMG=null;afficher()}).catch(function(e){erreur(e,"Rotation impossible.")})};
 /* Description : bloc « Photos : 1. … » tenu à jour avec l'ordre et les légendes */

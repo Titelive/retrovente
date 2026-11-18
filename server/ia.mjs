@@ -378,6 +378,16 @@ export function affirme(t) {
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 const carte0 = (v) => v.categorie === "cartes";
+// Jaunissement vu sur l'ensemble des photos, avec un modèle plus attentif et un effort normal.
+async function jauniEnsemble(photos, quoi, trace) {
+  const o = await claude([...photos.slice(0, 6).map(image), { type: "text", text: `Ces ${Math.min(photos.length, 6)} photos (dans l'ordre, numérotées à partir de 1) montrent ${quoi}, vendu d'occasion. Une seule question : le plastique a-t-il jauni ?
+Le plastique gris d'origine (Nintendo 64, Super Nintendo, Game Boy, PlayStation) est un gris neutre, presque sans couleur ; jauni, il tire sur le crème, le beige ou l'orangé. Compare les faces et les photos entre elles : une face, une tranche ou une bande nettement plus crème ou beige que le reste du même plastique, c'est un jaunissement, souvent léger. La lumière n'explique tout que si l'objet entier, sur toutes les photos, a la même teinte que son environnement. Ignore l'étiquette, le bois, la peau.
+Réponds uniquement par un objet JSON : {"jauni": "non", "photos": [], "ou": ""}, où "jauni" vaut exactement "non", "leger" ou "net", "photos" liste les numéros des photos où ça se voit et "ou" dit en quelques mots où (par exemple « tranche supérieure »).` }], { max: 1500, timeout: 60000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+  const b = (o && o._texte) || "";
+  const jauni = parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(b) || [])[1], ["non", "leger", "net"], "non");
+  const ph = (Array.isArray(o && o.photos) ? o.photos : []).map(Number).filter((n) => n >= 1 && n <= photos.length);
+  return { jauni, photos: [...new Set(ph)], ou: txt(o && o.ou, 60) };
+}
 export async function legender(photos, v = {}, trace = null) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
@@ -393,7 +403,7 @@ export async function legender(photos, v = {}, trace = null) {
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
-Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; compare avec la couleur normale de ce modèle et avec les parties à l'abri (sous l'étiquette, dans les rainures). « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer, si l'objet n'est pas en plastique ou si c'est impossible à dire.`}
+Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Compare les faces du plastique entre elles et avec les parties à l'abri (rainures, bords sous l'étiquette) : une face ou une bande qui tire sur le crème ou le beige alors qu'une autre reste grise, c'est un léger jaunissement. Ne réponds « non » à cause de la lumière que si tout l'objet est teinté de la même façon ; « non » aussi si l'objet n'est pas en plastique.`}
 Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
@@ -405,7 +415,7 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
   // Deux requêtes à la fois au plus, et jusqu'à 3 essais par photo (limite de débit, service surchargé, réponse vide) :
   // six requêtes simultanées dépassaient la limite de l'API, seule la première photo était décrite.
   const out = new Array(l.length);
-  let suivant = 0;
+  let suivant = 0, jg = null;
   const ouvrier = async () => {
     while (suivant < l.length) {
       const i = suivant++;
@@ -418,7 +428,20 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
       out[i] = r && r.legende ? { ...r, erreur: "" } : { legende: "", jauni: "non", erreur: err };
     }
   };
-  await Promise.all([ouvrier(), ouvrier()]);
+  await Promise.all([ouvrier(), ouvrier(), carte ? null : jauniEnsemble(l, quoi, trace).then((g) => { jg = g; }, () => {})]);
+  // Avis d'ensemble : en voyant toutes les photos, le modèle compare les faces entre elles, ce qu'une photo seule ne permet pas.
+  if (jg && jg.jauni !== "non" && !out.some((x) => x.jauni !== "non")) {
+    const cibles = jg.photos.filter((n) => out[n - 1] && out[n - 1].legende);
+    for (const n of cibles.length ? cibles : [out.findIndex((x) => x.legende) + 1]) {
+      const x = out[n - 1];
+      x.jauni = jg.jauni;
+      if (!/jaun/i.test(x.legende)) {
+        const base = x.legende.replace(/,?\s*plastique[^,:]*$/i, "").replace(/,?\s*(sans|aucun) défaut.*$/i, "").trim();
+        const dit = (jg.jauni === "net" ? "plastique nettement jauni" : "plastique légèrement jauni") + (jg.ou ? " (" + jg.ou + ")" : "");
+        x.legende = (/:$/.test(base) ? base + " " + dit : base + (base.includes(":") ? ", " : " : ") + dit).slice(0, 200);
+      }
+    }
+  }
   if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos (" + (out[0].erreur || "erreur") + "), réessaie.");
   return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur) };
 }
