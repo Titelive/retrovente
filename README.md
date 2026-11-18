@@ -71,6 +71,10 @@ Ce que fait le code pour le droit de la consommation :
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
 
+## Cartes Pokémon
+
+Catégorie « Carte Pokémon » dans la même appli : la photo d'une carte donne son nom, son extension, son numéro, sa rareté, sa langue, son édition, sa note de gradation (PSA, PCA, CGC…) et son état collectionneur (Mint à Poor, traduit en état Le Bon Coin). La cote part de la **cote Cardmarket du jour**, lue dans la base libre [TCGdex](https://tcgdex.dev) (sans clé ni coût, `server/cartes.mjs`), puis l'IA la recoupe avec les ventes conclues eBay et les annonces Le Bon Coin. Une carte qui vaut moins de 5 € est signalée comme « à mettre en lot ». Le bouton « Plusieurs cartes Pokémon » analyse une photo de classeur ou de cartes étalées : chaque carte est repérée et cotée, celles de 5 € ou plus ont leur propre fiche (photo recadrée sur la carte), les autres forment une fiche « Lot de N cartes » avec son titre, sa description et son prix (80 % des cotes cumulées, 5 € au moins). L'extension propose des réponses propres aux cartes (bords, authenticité, envoi sous toploader). `TCGDEX_URL` (facultatif) change l'adresse de l'API TCGdex.
+
 ## Retouche des photos (vrai fond gardé)
 
 Les photos sont retouchées par un petit service Python installé sur le serveur (`tools/detourage.py`, route `/retoucher`, modèle libre rembg / IS-Net + OpenCV), sans service payant : **aucun coût par photo**. Le jeu est repéré pour **redresser et recadrer** la photo, les **objets posés à côté et les poussières du fond sont effacés**, les **reflets atténués**. **Pas de détourage ni de fond remplacé** : une vraie photo rassure les acheteurs. `deploy/deploy.sh` l'installe tout seul (dans `/opt/retrorevente-py`, service `retrorevente-detourage`, port 7001 en local, 2,5 Go de mémoire au plus). La photo d'origine reste disponible dans la fiche.

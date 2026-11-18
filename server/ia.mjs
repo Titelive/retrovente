@@ -1,7 +1,9 @@
 // IA : reconnaître un jeu sur une photo (fiche + annonce + cadre pour le recadrage) et estimer sa cote.
 // Repris de la section Ventes du backoffice titelive. Clé ANTHROPIC_API_KEY ; modèle CLAUDE_MODEL facultatif.
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
-export const CATEGORIES = ["jeux", "consoles", "accessoires", "autres"];
+import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
+export { ETATS_CARTE };
+export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
 export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
 export const MAX_PHOTO = 700_000;   // data URL ; la page réduit la photo à 1000 px avant l'envoi
@@ -87,13 +89,15 @@ export function cadreDe(c) {
 
 const FAKE = () => process.env.IA_FAKE === "1";
 
+const CARTE_FAKE = { trouve: true, titre: "Dracaufeu", categorie: "cartes", plateforme: "Set de base", region: "Français", numero: "4/102", rarete: "Holo rare", edition: "", gradation: "", etatCarte: "near_mint", remarques: "", particularites: ["Carte mise en sleeve dès l'ouverture du booster"], annonce: "Dracaufeu 4/102 Set de base Holo FR", description: "Carte Pokémon Dracaufeu 4/102, extension Set de base, holo rare, en français.\nCarte authentique en état Near Mint : bords nets, surface holo sans rayure.\nEnvoi soigné sous sleeve et toploader, dans une enveloppe rigide.\nRemise en main propre ou envoi.", cadre: { x: 0.25, y: 0.1, w: 0.5, h: 0.8 } };
 export async function identifier(photo) {
+  if (FAKE() && process.env.IA_FAKE_OBJET === "carte") { checkPhoto(photo); const o = CARTE_FAKE; return { ...champsCarte(o), titre: o.titre, categorie: o.categorie, plateforme: o.plateforme, region: o.region, etat: ETAT_LBC_DE_CARTE[o.etatCarte], contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
-  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console ou un accessoire). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
+  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire ou une carte Pokémon). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
 "titre" (nom exact et officiel, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards »),
-"categorie" (« jeux », « consoles », « accessoires » ou « autres »),
+"categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, ou « autres »),
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (ex. « PAL EUR », « NTSC-J » ; "" si inconnue),
 "etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire),
@@ -108,8 +112,9 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})`;
-  let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1200 });
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
+${consigneCarte()}`;
+  let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1500 });
   // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
   if (!o || !o.trouve) {
     o = await claude([image(photo), { type: "text", text: consigne + `
@@ -120,10 +125,38 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
       .catch((e) => { console.error("IA secours", e.message); return null; });
   }
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
+  const carte = o.categorie === "cartes" ? champsCarte(o) : {};
   return {
+    ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
     etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
+    ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
   };
+}
+
+/* ===== Cartes Pokémon ===== */
+const consigneCarte = () => `
+Si c'est une carte Pokémon (règles qui remplacent celles des jeux pour "titre", "plateforme", "region", "contenu", "annonce" et "description") :
+"categorie" vaut « cartes » ; "titre" est le nom imprimé sur la carte, dans sa langue s'il s'agit du français, sinon son nom français officiel (ex. « Dracaufeu », « Pikachu V », « Mew ex », « Lugia VSTAR ») ; "plateforme" est le nom français de l'extension (ex. « Set de base », « Jungle », « Évolutions Prismatiques », « Flammes Obsidiennes », « 151 »), déduit du symbole, du numéro et du style de la carte ; "region" est la langue de la carte (« Français », « Anglais », « Japonais », « Allemand »…) ; "contenu" vaut "".
+Ajoute les clés :
+"numero" (numéro imprimé en bas de la carte, ex. « 4/102 », « 199/165 », « TG05/TG30 », « SWSH020 » ; "" si illisible),
+"rarete" (une parmi « Commune », « Peu commune », « Rare », « Holo rare », « Reverse », « Double rare », « Ultra rare », « Full art », « Illustration rare », « Illustration spéciale rare », « Hyper rare », « Secrète », « Promo » ; la carte est « Reverse » si tout le fond brille sauf l'illustration),
+"edition" (« 1re édition » si le tampon Édition 1 est présent, « Shadowless » pour un Set de base anglais sans ombre portée, sinon ""),
+"gradation" (si la carte est dans un boîtier gradé : société et note lues sur l'étiquette, ex. « PSA 9 », « PCA 9.5 », « CGC 10 », « Collect Aura 9 » ; sinon ""),
+"etatCarte" (pour une carte non gradée : « mint » (parfaite), « near_mint » (quasi parfaite, au plus un minuscule point blanc), « excellent » (légère usure des bords), « good » (usure nette, petits plis absents), « light_played », « played » (pli, rayures marquées) ou « poor » ; "" si impossible à dire ou si la carte est gradée),
+"etat" (déduit de etatCarte : mint → « neuf », near_mint ou excellent → « tres_bon », good → « bon », light_played ou played → « correct », poor → « pieces » ; carte gradée 9 ou plus → « neuf », sinon « tres_bon »),
+"particularites" (options utiles à un acheteur, ex. « Carte mise en sleeve dès l'ouverture du booster », « Petit point blanc au dos », « Centrage décalé » ; [] sinon),
+"annonce" (titre Le Bon Coin, 70 caractères au plus : nom, numéro, extension, rareté marquante, langue en abrégé FR, EN ou JP, puis « 1re édition » ou la note de gradation s'il y en a une ; ex. « Dracaufeu 4/102 Set de base Holo FR », « Pikachu Illustration rare 173/165 151 FR PSA 10 »),
+"description" (exactement ce style, 4 lignes courtes, sans prix ni émoji :
+« Carte Pokémon Dracaufeu 4/102, extension Set de base, holo rare, en français.
+Carte authentique en état Near Mint : bords nets, surface holo sans rayure.
+Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.
+Remise en main propre ou envoi. »
+Ligne 1 : nom, numéro, extension, rareté, langue, édition. Ligne 2 : « Carte authentique » et l'état (ou « gradée PSA 9, boîtier intact »), avec ce que la photo montre des bords, des coins et de la surface. Ligne 3 : l'envoi protégé. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})`;
+
+function champsCarte(o) {
+  const etatCarte = parmi(o.etatCarte, ETATS_CARTE, "");
+  return { numero: txt(o.numero, 20), rarete: txt(o.rarete, 40), edition: txt(o.edition, 40), gradation: txt(o.gradation, 30), etatCarte };
 }
 
 export async function cadrer(photo) {
@@ -135,6 +168,7 @@ export async function cadrer(photo) {
 const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", correct: "état correct", pieces: "pour pièces" };
 const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)", boite_vide: "boîte seule, sans le jeu (code déjà utilisé ou disque absent)" };
 export async function estimerCote(v) {
+  if (v && v.categorie === "cartes") return estimerCoteCarte(v);
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   if (FAKE()) return coteDe({ bas: 38, haut: 52, conseille: 49, rapide: 42, resume: "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
@@ -157,6 +191,111 @@ Réponds uniquement par un objet JSON avec les clés :
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
   return c;
 }
+
+/* Cote d'une carte Pokémon : la cote Cardmarket (TCGdex) sert d'ancre, puis le modèle relève les ventes conclues
+   eBay et les annonces Le Bon Coin pour la même carte, la même langue et le même état (ou la même note de gradation). */
+export async function estimerCoteCarte(v) {
+  const titre = txt(v.titre, 160);
+  if (!titre) throw new IaError("Indique d'abord le nom de la carte.");
+  const c0 = { titre, plateforme: txt(v.plateforme, 60), region: txt(v.region, 30), numero: txt(v.numero, 20), rarete: txt(v.rarete, 40), edition: txt(v.edition, 40), gradation: txt(v.gradation, 30), etatCarte: parmi(v.etatCarte, ETATS_CARTE, "") };
+  const ref = FAKE() && !process.env.TCGDEX_URL ? null : await carteTcgdex(c0).catch(() => null);
+  const cm = ref && ref.cote;
+  const releveCm = cm ? { site: "Cardmarket", titre: `Cote ${ref.nom} ${ref.numero} ${ref.extension}${cm.variante === "reverse" ? " (reverse)" : ""}, tendance du marché`, prix: cm.tendance ?? cm.moyenne30, date: cm.maj || new Date().toISOString().slice(0, 10), url: lienCardmarket(ref.nom, ref.extension) } : null;
+  const quoi = [`carte Pokémon ${titre}`, c0.numero, c0.plateforme && `extension ${c0.plateforme}`, c0.rarete, c0.region && `en ${c0.region.toLowerCase()}`, c0.edition, c0.gradation ? `gradée ${c0.gradation}` : LIB_ETAT_CARTE[c0.etatCarte] && `état ${LIB_ETAT_CARTE[c0.etatCarte]}`].filter(Boolean).join(", ");
+  if (FAKE()) {
+    const base = releveCm ? releveCm.prix : 120;
+    const c = coteDe({ bas: Math.round(base * 0.85), haut: Math.round(base * 1.2), conseille: rondCarte(base * 1.1), rapide: rondCarte(base * 0.95), resume: `Cote Cardmarket autour de ${Math.round(base)} € ; ventes eBay conclues proches.`, methode: "Cote Cardmarket en Near Mint, recoupée avec les ventes conclues eBay, puis prix affiché un peu au-dessus pour la négociation.", releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: base, date: "2026-11-02", url: "https://www.ebay.fr/" }], sources: ["https://www.ebay.fr/"] });
+    if (releveCm) c.releves.unshift(releveCm);
+    return { ...c, carte: ref ? { id: ref.id, extension: ref.extension, numero: ref.numero, rarete: ref.rarete, image: ref.image } : null, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
+  }
+  const ancre = cm ? `Cote Cardmarket du jour (base TCGdex, toutes langues confondues, carte non gradée) : tendance ${cm.tendance ?? "?"} €, moyenne sur 30 jours ${cm.moyenne30 ?? "?"} €, plus bas ${cm.bas ?? "?"} € (version ${cm.variante}). Sers-t'en comme point de départ, puis ajuste pour la langue, l'édition, l'état ou la gradation.` : "";
+  const o = await claude(`Estime la cote en France, aujourd'hui, de cette carte vendue par un particulier : ${quoi}.
+${ancre}
+Cherche sur le web les prix réellement pratiqués pour CETTE carte (même numéro, même extension, même langue${c0.gradation ? ", même société et même note de gradation" : ", non gradée, dans le même état"}) : ventes conclues sur eBay France (objets vendus), Cardmarket, annonces Le Bon Coin. Une carte française se vend en général un peu moins cher que l'anglaise et plus cher que l'allemande ; une 1re édition et une carte gradée PSA 9 ou 10 valent nettement plus.
+Réponds uniquement par un objet JSON avec les clés :
+"bas" et "haut" (fourchette des prix de vente constatés, en euros),
+"conseille" (prix à afficher sur Le Bon Coin, un peu au-dessus du prix de vente probable pour laisser de la marge à la négociation),
+"rapide" (prix pour vendre en quelques jours),
+"resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
+"methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
+"releves" (3 à 6 prix précis réellement lus pendant ta recherche : objets avec "site", "titre", "prix" (en euros), "date" (AAAA-MM-JJ) et "url" (adresse exacte de la page lue ; n'invente jamais d'adresse)),
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 }).catch((e) => { if (cm) return null; throw e; });
+  let c = coteDe(o);
+  if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
+  // Recherche web vide ou indisponible : la cote Cardmarket seule suffit pour une carte non gradée.
+  if (!c && cm && !c0.gradation) { const b = releveCm.prix; c = coteDe({ bas: cm.bas ?? b * 0.85, haut: Math.max(b, cm.moyenne30 ?? b) * 1.15, conseille: b * 1.1, rapide: b * 0.95, resume: `Cote Cardmarket du jour : ${b} € (tendance du marché, carte non gradée).`, methode: "Tendance Cardmarket, plus 10 % de marge pour la négociation." }); }
+  if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le numéro de la carte ou son extension.");
+  if (releveCm) c.releves = [releveCm, ...c.releves].slice(0, 6);
+  c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
+  return { ...c, carte: ref ? { id: ref.id, extension: ref.extension, numero: ref.numero, rarete: ref.rarete, image: ref.image } : null, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
+}
+/* Plusieurs cartes sur une photo (classeur, pile étalée) : le modèle liste chaque carte et son emplacement,
+   TCGdex donne la cote Cardmarket de chacune (sans recherche web : rapide et gratuit), et on sépare
+   les cartes qui valent le coup d'être vendues seules de celles qui partiront en lot. */
+const INVENTAIRE_FAKE = [
+  { titre: "Dracaufeu", numero: "4/102", plateforme: "Set de base", region: "Français", rarete: "Holo rare", etatCarte: "excellent", cadre: { x: 0.02, y: 0.02, w: 0.3, h: 0.3 }, _cote: 120 },
+  { titre: "Pikachu", numero: "58/102", plateforme: "Set de base", region: "Français", rarete: "Commune", etatCarte: "near_mint", cadre: { x: 0.35, y: 0.02, w: 0.3, h: 0.3 }, _cote: 1.2 },
+  { titre: "Salamèche", numero: "46/102", plateforme: "Set de base", region: "Français", rarete: "Commune", etatCarte: "near_mint", cadre: { x: 0.68, y: 0.02, w: 0.3, h: 0.3 }, _cote: 0.8 },
+  { titre: "Ronflex", numero: "11/64", plateforme: "Jungle", region: "Français", rarete: "Holo rare", etatCarte: "good", cadre: { x: 0.02, y: 0.35, w: 0.3, h: 0.3 }, _cote: 14 },
+];
+export async function inventaire(photo) {
+  checkPhoto(photo);
+  let l;
+  if (FAKE()) l = INVENTAIRE_FAKE.map((x) => ({ ...x }));
+  else {
+    const o = await claude([image(photo), { type: "text", text: `Cette photo montre plusieurs cartes Pokémon (page de classeur, cartes étalées) qu'un particulier veut revendre. Liste CHAQUE carte dont la face est visible, de gauche à droite puis de haut en bas, 60 au plus.
+Pour chaque carte : "titre" (nom français officiel), "numero" (numéro imprimé, ex. « 58/102 » ; "" si illisible), "plateforme" (extension en français, "" si incertaine), "region" (langue : « Français », « Anglais », « Japonais »…), "rarete" (« Commune », « Peu commune », « Rare », « Holo rare », « Reverse », « Ultra rare », « Full art », « Illustration rare », « Illustration spéciale rare », « Secrète », « Promo »), "edition" (« 1re édition » ou ""), "etatCarte" (« mint », « near_mint », « excellent », « good », « light_played », « played », « poor » ou ""), "cadre" (rectangle de la carte : {"x","y","w","h"} en fractions de la largeur et de la hauteur de l'image, origine en haut à gauche).
+N'invente pas une carte dont tu ne vois que le dos. Réponds uniquement par un objet JSON : {"cartes": [ … ]}` }], { max: 8000, timeout: 90000, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+    l = (o && Array.isArray(o.cartes) ? o.cartes : []).slice(0, 60);
+  }
+  l = l.map((c) => ({ titre: txt(c.titre, 160), numero: txt(c.numero, 20), plateforme: txt(c.plateforme, 60), region: txt(c.region, 30), rarete: txt(c.rarete, 40), edition: txt(c.edition, 40), etatCarte: parmi(c.etatCarte, ETATS_CARTE, ""), cadre: cadreLibre(c.cadre), _cote: c._cote })).filter((c) => c.titre);
+  if (!l.length) throw new IaError("Je ne vois pas de carte sur cette photo. Essaie une photo bien éclairée, prise de face, sans reflet.");
+  // Cotes en parallèle, 6 à la fois (TCGdex est gratuit, inutile de le surcharger).
+  const out = [];
+  for (let i = 0; i < l.length; i += 6) {
+    out.push(...(await Promise.all(l.slice(i, i + 6).map(async (c) => {
+      const ref = FAKE() ? null : await carteTcgdex(c).catch(() => null);
+      const cote = FAKE() ? c._cote : ref && ref.cote ? ref.cote.tendance ?? ref.cote.moyenne30 : null;
+      const { _cote, ...reste } = c;
+      return { ...reste, plateforme: reste.plateforme || (ref && ref.extension) || "", numero: (ref && ref.numero) || reste.numero, cote, etat: ETAT_LBC_DE_CARTE[c.etatCarte] || "", seule: cote != null && cote >= PRIX_MINI_SEULE };
+    }))));
+  }
+  return { cartes: out, lot: lotCartes(out.filter((c) => !c.seule)) };
+}
+// Cadre d'une carte dans une photo de groupe : petit, contrairement au cadre d'un objet seul.
+function cadreLibre(c) {
+  if (!c || typeof c !== "object") return null;
+  const n = (v) => { const x = Number(v); return isFinite(x) ? Math.max(0, Math.min(1, x)) : NaN; };
+  const o = { x: n(c.x), y: n(c.y), w: n(c.w), h: n(c.h) };
+  return [o.x, o.y, o.w, o.h].some(isNaN) || o.w < 0.02 || o.h < 0.02 ? null : o;
+}
+// Cote d'une carte sans cote connue, pour estimer un lot (prix courants du « vrac » : quelques centimes la commune).
+const COTE_VRAC = (c) => (/holo|reverse|ultra|full|illustration|secr|gold|promo|rare/i.test(c.rarete || "") && !/^peu commune$/i.test(c.rarete || "") ? 0.3 : 0.05);
+const LANGUE_COURTE = { "français": "FR", francais: "FR", anglais: "EN", japonais: "JP", allemand: "DE", italien: "IT", espagnol: "ES" };
+/* Annonce d'un lot de cartes : titre, description et prix (80 % de la somme des cotes, au moins 5 €). */
+export function lotCartes(cartes) {
+  const l = (Array.isArray(cartes) ? cartes : []).filter((c) => c && c.titre);
+  if (!l.length) return null;
+  const somme = l.reduce((n, c) => n + (prix(c.cote) ?? COTE_VRAC(c)), 0);
+  const holo = l.filter((c) => /holo/i.test(c.rarete || "") && !/reverse/i.test(c.rarete || "")).length, rev = l.filter((c) => /reverse/i.test(c.rarete || "")).length;
+  const langues = [...new Set(l.map((c) => LANGUE_COURTE[String(c.region || "").toLowerCase()]).filter(Boolean))];
+  const dont = [holo && `${holo} holo`, rev && `${rev} reverse`].filter(Boolean).join(" et ");
+  const titre = `Lot de ${l.length} carte${l.length > 1 ? "s" : ""} Pokémon${langues.length === 1 ? " " + langues[0] : ""}${dont ? " dont " + dont : ""}`.slice(0, 100);
+  const notables = l.filter((c) => !/^(commune|peu commune)$/i.test(c.rarete || "")).slice(0, 12);
+  const nomC = (c) => [c.titre, c.numero].filter(Boolean).join(" ") + (c.rarete ? ` (${c.rarete.toLowerCase()})` : "");
+  const desc = [
+    `Lot de ${l.length} carte${l.length > 1 ? "s" : ""} Pokémon${langues.length === 1 ? ` en ${({ FR: "français", EN: "anglais", JP: "japonais", DE: "allemand", IT: "italien", ES: "espagnol" })[langues[0]]}` : ""}, ${l.length > 1 ? "toutes authentiques" : "authentique"}.`,
+    notables.length ? `Dont : ${notables.map(nomC).join(", ")}${l.filter((c) => !/^(commune|peu commune)$/i.test(c.rarete || "")).length > notables.length ? "…" : ""}.` : "",
+    l.length <= 25 ? `Cartes : ${l.map((c) => [c.titre, c.numero].filter(Boolean).join(" ")).join(", ")}.` : "La liste complète se voit sur les photos.",
+    "Envoi soigné, cartes protégées, dans une enveloppe rigide.",
+    "Remise en main propre ou envoi.",
+  ].filter(Boolean).join("\n");
+  return { titre, description: desc, prix: Math.max(PRIX_MINI_SEULE, rondCarte(somme * 0.8)), somme: Math.round(somme * 100) / 100, n: l.length };
+}
+// En dessous de ce prix, une carte se vend mieux dans un lot qu'à l'unité (frais d'envoi, temps passé).
+export const PRIX_MINI_SEULE = 5;
+// Prix ronds pour les cartes : à l'euro sous 10 €, puis multiples de 5, puis de 10 à partir de 100 €.
+export const rondCarte = (x) => { if (x == null || !isFinite(x)) return null; if (x < 10) return Math.max(1, Math.round(x)); return rond(x); };
 
 // Galerie : une courte légende par photo (ce qu'elle montre, défaut visible), dans l'ordre, pour la description « Photo 1 : … ».
 /* Pas d'à-peu-près dans une annonce : on affirme ce que la photo montre, sinon on n'en parle pas.
@@ -184,10 +323,15 @@ export async function legender(photos, v = {}) {
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
   if (FAKE()) return l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut"));
-  const quoi = [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
+  const carte = v.categorie === "cartes";
+  const quoi = carte ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
+    : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
+  const vues = carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
+    : "« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…";
+  const defauts = carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé…";
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
-    const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (rayure, étiquette décollée, coin abîmé…). ${CERTAIN} Pas de point final.
+    const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 Réponds uniquement par un objet JSON : {"legende": "…"}` }], { max: 200, timeout: 45000 });
     return affirme(txt(o && o.legende, 200)).replace(/\.$/, "");
   };
@@ -230,7 +374,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   const px = prix(a.prix);
   const fiche = [
-    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `Console : ${txt(a.plateforme, 60)}` : "",
+    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : "Console"} : ${txt(a.plateforme, 60)}` : "",
+    a.categorie === "cartes" ? [a.numero && `Numéro : ${txt(a.numero, 20)}`, a.region && `Langue : ${txt(a.region, 30)}`, a.gradation ? `Gradée : ${txt(a.gradation, 30)}` : LIB_ETAT_CARTE[a.etatCarte] && `État collectionneur : ${LIB_ETAT_CARTE[a.etatCarte]}`].filter(Boolean).join("\n") : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
     px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${rond(px * 0.85, true)} €, ne jamais proposer moins)` : "",
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
@@ -242,7 +387,15 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
       { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
       { approche: "couper_court", titre: "Couper court", texte: "Bonjour, merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur ce prix, je préfère en rester là. Bonne recherche à vous 🙂" },
     ] };
-  const o = await claude(`Tu aides un particulier qui vend un jeu vidéo d'occasion sur Le Bon Coin à répondre à un acheteur.
+  const carte = a.categorie === "cartes";
+  const conseilsCarte = carte ? `
+Particularités des cartes Pokémon :
+- envoi : la carte part sous sleeve et toploader, dans une enveloppe rigide (lettre suivie conseillée au-delà de 20 €) ;
+- authenticité : la carte est authentique ; pour une carte de valeur, propose une photo supplémentaire (dos, bords, carte en lumière rasante) plutôt qu'un long discours ;
+- état : parle avec les mots des collectionneurs (Near Mint, bords, coins, surface, centrage) sans rien ajouter à la fiche ;
+- un acheteur qui demande une photo « avec son pseudo sur un papier » est une demande normale : accepte volontiers.
+` : "";
+  const o = await claude(`Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
@@ -279,7 +432,7 @@ Réponds uniquement par un objet JSON : {"resume": "ce que demande l'acheteur, e
 /* ===== Discussion sur une fiche =====
    Le vendeur écrit librement (« le code a déjà été utilisé », « baisse à 25 € », « annonce plus courte ») ;
    le modèle répond et renvoie les champs à modifier. Seuls les champs connus, avec des valeurs valides, passent. */
-const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce"];
+const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce", "numero", "rarete", "edition", "gradation", "etatCarte"];
 const ORIGINES_D = ["origine", "non_teste", "modifie", "repro", "hs"];
 export function changementsSurs(c) {
   const out = {};
@@ -292,8 +445,9 @@ export function changementsSurs(c) {
     else if (k === "etat") { if (ETATS.includes(v)) out[k] = v; }
     else if (k === "contenu") { if (CONTENUS.includes(v)) out[k] = v; }
     else if (k === "origine") { if (ORIGINES_D.includes(v)) out[k] = v; }
+    else if (k === "etatCarte") { if (ETATS_CARTE.includes(v)) out[k] = v; }
     else if (k === "texteAnnonce") out[k] = affirme(txt(v, 4000));
-    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100 }[k]);
+    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 40, gradation: 30 }[k]);
   }
   return out;
 }
@@ -321,6 +475,7 @@ Signification des champs :
 - origine : « origine » (d'origine, testé et fonctionnel), « non_teste », « modifie » (préciser dans modif), « repro » (reproduction), « hs » (pour pièces) ;
 - particularites : ce qui est inclus ou non (ex. « Poster inclus, code déjà utilisé ») ;
 - prixDemande, prixAchat : en euros ;
+- pour une carte Pokémon (categorie « cartes ») : titre = nom de la carte, plateforme = extension, region = langue, numero (ex. « 4/102 »), rarete, edition (« 1re édition »…), gradation (ex. « PSA 9 »), etatCarte (« mint », « near_mint », « excellent », « good », « light_played », « played » ou « poor ») ; contenu et origine ne servent pas ;
 - titreAnnonce : titre Le Bon Coin (100 caractères au plus) ; texteAnnonce : texte de l'annonce.
 
 Conversation (le dernier message est celui du vendeur) :

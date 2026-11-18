@@ -7,6 +7,7 @@ import { retoucher } from "./photo.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
 import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
 import * as ia from "./ia.mjs";
+import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import * as stripe from "./stripe.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
@@ -23,14 +24,18 @@ const fail = (status, msg, extra) => { throw new HttpError(status, msg, extra); 
 /* ===== Fiches ===== */
 function nettoyer(v, avant) {
   const titre = txt(v.titre, 160);
-  if (!titre) fail(400, "Indique le nom du jeu.");
+  const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes";
+  if (!titre) fail(400, carte ? "Indique le nom de la carte." : "Indique le nom du jeu.");
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
+  const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
   return {
     titre,
-    categorie: parmi(v.categorie, ia.CATEGORIES, "jeux"),
+    categorie,
+    // Cartes Pokémon : plateforme = extension, region = langue ; l'état Le Bon Coin suit l'état collectionneur s'il manque.
+    ...(carte ? { numero: txt(v.numero, 20), rarete: txt(v.rarete, 40), edition: txt(v.edition, 40), gradation: txt(v.gradation, 30), etatCarte } : {}),
     plateforme: txt(v.plateforme, 60), region: txt(v.region, 30),
-    etat: parmi(v.etat, ia.ETATS, ""), contenu: parmi(v.contenu, ia.CONTENUS, ""),
+    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
@@ -114,7 +119,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "plateforme", "region", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -126,11 +131,14 @@ const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état
 const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice.", boite_vide: "Boîte seule, sans le jeu." };
 export function annonceLbc(v) {
   const nom = [v.titre, v.plateforme].filter(Boolean).join(" ");
-  const description = v.texteAnnonce || [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  const description = v.texteAnnonce || (v.categorie === "cartes"
+    ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
+    : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
   return {
     id: v.id, nom: v.titre, titre: (v.titreAnnonce || nom).slice(0, 100), description,
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
+    ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
     photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, modifie: v.modifie,
   };
 }
@@ -413,6 +421,8 @@ export async function handleApi(req) {
   /* --- IA --- */
   if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u); const b = body(); const l = await ia.legender(b.photos, b.objet || {}); bump(u.id, "legender"); return ok({ ok: true, legendes: l }); }
+  if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
+  if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {
     const r = rights(u), n = usageOf(u.id).dialogue || 0, cap = r.quota === Infinity ? FAIR_USE * 2 : r.quota * 20 + 30;

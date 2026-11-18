@@ -202,6 +202,14 @@ body:not(:has(.vers-haut.on)) .fab-save{right:max(18px,env(safe-area-inset-right
 dialog{border:0;border-radius:28px;padding:28px;max-width:min(470px,calc(100% - 32px));background:var(--carte);color:var(--encre);box-shadow:0 50px 100px -30px rgba(0,0,0,.6)}
 dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(4px)}
 dialog form{display:flex;flex-direction:column;gap:14px}
+#dInv{max-width:min(560px,calc(100% - 32px))}
+.inv{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
+.inv li{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:var(--fond,rgba(0,0,0,.04));box-shadow:inset 0 0 0 1px var(--trait)}
+.inv li .n{flex:1;min-width:0}.inv li .n b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inv li .n small{color:var(--gris)}
+.inv li .px{font-weight:700;white-space:nowrap}
+.inv li button{border:0;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:var(--trait);color:var(--encre)}
+.inv li button[aria-pressed=true]{background:#D4F57A;color:#1A1A1A}
+.inv-lot{padding:12px 14px;border-radius:16px;background:#1A1A1A;color:#fff;font-size:14px}.inv-lot b{color:#D4F57A}
 #qEtape2[hidden],#qEtape1[hidden]{display:none!important}
 .recap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}.recap dt{color:var(--gris)}.recap dd{margin:0;font-weight:600}
 #toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
@@ -439,6 +447,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <div><p class="pixel">Mes jeux</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
     <div class="ajout">
       <label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter un jeu en photo</label>
+      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
+      <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <input type="file" id="photoIn" accept="image/*" hidden>
     </div>
@@ -506,15 +516,21 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <form class="dial-in" id="dForm"><textarea id="dTexte" rows="1" maxlength="1500" placeholder="Écris à l'IA…" aria-label="Message à l'IA"></textarea><button class="btn" id="dEnv" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
       </section>
       <section class="carte bloc">
-        <h3>Le jeu</h3>
+        <h3 id="fBlocTitre">Le jeu</h3>
         <div class="champs">
-          <label class="f l2">Nom du jeu<input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
-          <label class="f">Console<input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
-          <label class="f">Région<input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
-          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="autres">Autre</option></select></label>
-          <label class="f">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Jeu en loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet en boîte (CIB : boîte et notice)</option><option value="boite_vide">Boîte seule, sans le jeu (code utilisé, disque absent)</option></select></label>
+          <label class="f l2"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
+          <label class="f"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
+          <label class="f"><span id="lRegion">Région</span><input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
+          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="cartes">Carte Pokémon</option><option value="autres">Autre</option></select></label>
+          <label class="f pkm" hidden>Numéro<input type="text" id="f_numero" maxlength="20" placeholder="ex. 4/102"></label>
+          <label class="f pkm" hidden>Rareté<input type="text" id="f_rarete" maxlength="40" placeholder="ex. Holo rare, Reverse, Full art" list="lRaretes"></label>
+          <datalist id="lRaretes"><option value="Commune"><option value="Peu commune"><option value="Rare"><option value="Holo rare"><option value="Reverse"><option value="Double rare"><option value="Ultra rare"><option value="Full art"><option value="Illustration rare"><option value="Illustration spéciale rare"><option value="Hyper rare"><option value="Secrète"><option value="Promo"></datalist>
+          <label class="f pkm" hidden>Édition<input type="text" id="f_edition" maxlength="40" placeholder="ex. 1re édition (vide sinon)"></label>
+          <label class="f pkm" hidden>Gradation<input type="text" id="f_gradation" maxlength="30" placeholder="ex. PSA 9 (vide si non gradée)"></label>
+          <label class="f pkm l2" hidden>État de la carte<select id="f_etatCarte"><option value="">—</option><option value="mint">Mint : parfaite, comme sortie du booster</option><option value="near_mint">Near Mint : quasi parfaite, au plus un point blanc</option><option value="excellent">Excellent : légère usure des bords</option><option value="good">Good : usure nette, sans pli</option><option value="light_played">Light Played : bien jouée, petits défauts</option><option value="played">Played : pli ou rayures marquées</option><option value="poor">Poor : très abîmée</option></select></label>
+          <label class="f nopkm">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Jeu en loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet en boîte (CIB : boîte et notice)</option><option value="boite_vide">Boîte seule, sans le jeu (code utilisé, disque absent)</option></select></label>
           <label class="f">État<select id="f_etat"><option value="">—</option><option value="neuf">Neuf</option><option value="tres_bon">Très bon état</option><option value="bon">Bon état</option><option value="correct">État correct</option><option value="pieces">Pour pièces</option></select></label>
-          <label class="f l2">Origine et fonctionnement<select id="f_origine"><option value="origine">D'origine, testé et fonctionnel</option><option value="non_teste">D'origine, non testé</option><option value="modifie">Modifié (je précise)</option><option value="repro">Reproduction (copie non officielle)</option><option value="hs">Ne fonctionne pas, pour pièces</option></select></label>
+          <label class="f l2 nopkm">Origine et fonctionnement<select id="f_origine"><option value="origine">D'origine, testé et fonctionnel</option><option value="non_teste">D'origine, non testé</option><option value="modifie">Modifié (je précise)</option><option value="repro">Reproduction (copie non officielle)</option><option value="hs">Ne fonctionne pas, pour pièces</option></select></label>
           <div class="f l2 partic"><label for="f_particularites">Particularités (ce qui est inclus ou non)</label><input type="text" id="f_particularites" maxlength="300" placeholder="ex. code de téléchargement déjà utilisé, poster inclus"><div class="puces-partic" id="fPartic" hidden></div></div>
           <label class="f l2" id="fModifZone" hidden>Ce qui a été modifié<input type="text" id="f_modif" maxlength="160" placeholder="ex. pile de sauvegarde changée, coque de remplacement, région dézonée"></label>
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
@@ -618,6 +634,14 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   </section>
 </main>
 
+<dialog id="dInv" aria-labelledby="tInv"><form method="dialog">
+  <h2 id="tInv" style="margin:0">Tes cartes</h2>
+  <p id="dInvTx" style="color:var(--gris);margin:0"></p>
+  <ul class="inv" id="dInvL"></ul>
+  <div class="inv-lot" id="dInvLot" hidden></div>
+  <button class="btn" type="button" id="dInvOk" hidden>Créer les fiches</button>
+  <button class="lien" value="x">Annuler</button>
+</form></dialog>
 <dialog id="dQuota"><form method="dialog">
   <h2>Tu as bien vendu ce mois-ci !</h2>
   <p id="dQuotaTx" style="color:var(--gris)"></p>
@@ -697,7 +721,7 @@ var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites"];
+var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque jeu, pas les appels à l'IA. */
@@ -770,7 +794,7 @@ function dessiner(){if(typeof dessinerBrouillons==="function")dessinerBrouillons
   $("liste").innerHTML=l.map(function(o,i){
     var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
     return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
-      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc([o.plateforme,CON[o.contenu]].filter(Boolean).join(" · "))+'</span></div>'+
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}).join("");
 }
 $("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
@@ -857,7 +881,7 @@ var RE_FRAG=/d'origine(?: \(pas une copie\))?, (?:testée? et fonctionnelle?|non
 function fragOrigine(fem){if($("f_contenu").value==="boite_vide")return"d'origine";var e=fem?"e":"",le=fem?"le":"",m=$("f_modif").value.trim().replace(/\s*\.$/,"");
   return{origine:"d'origine, testé"+e+" et fonctionnel"+le,non_teste:"d'origine, non testé"+e,modifie:"modifié"+e+(m?" ("+m+")":"")+", testé"+e+" et fonctionnel"+le,
     repro:"de reproduction (copie non officielle, pas d'origine)",hs:"hors service, vendu"+e+" pour pièces"}[$("f_origine").value||"origine"]}
-function majOrigine(){if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
+function majOrigine(){if(estCarte())return;if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
   v=v.replace(RE_ORIG,"").replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"");if(!v.trim())return;
   var fm=v.match(RE_FRAG);
   if(fm){var fem=/testée|fonctionnelle|vendue|modifiée/.test(fm[0])||(!/testé |fonctionnel\b|vendu |modifié\b/.test(fm[0])&&/cartouche/i.test(v));v=v.replace(RE_FRAG,fragOrigine(fem))}
@@ -887,10 +911,21 @@ function majBoite(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOT
   v=v.replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"")+ph;if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
 $("f_contenu").addEventListener("change",function(){if(this.value==="boite_vide"){majBoite();return}
   var t=$("f_texteAnnonce");if(/^Contenu : boîte d'origine/m.test(t.value)){t.value=t.value.replace(/^Contenu : boîte d'origine[^\n]*\n?/m,"");majParticularites();majOrigine();return}if(RE_ORIG.test($("f_texteAnnonce").value)||RE_FRAG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
-function zoneModif(){$("fModifZone").hidden=$("f_origine").value!=="modifie"}
+function zoneModif(){$("fModifZone").hidden=estCarte()||$("f_origine").value!=="modifie"}
+/* Cartes Pokémon : mêmes champs, autres libellés (extension, langue), champs de collectionneur, pas de contenu ni d'origine */
+function estCarte(){return $("f_categorie").value==="cartes"}
+var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
+function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c});
+  $("fBlocTitre").textContent=c?"La carte":"Le jeu";$("lTitre").textContent=c?"Nom de la carte":"Nom du jeu";$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
+  $("f_titre").placeholder=c?"ex. Dracaufeu":"ex. Super Mario 64";$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
+  if(c)$("f_contenu").value="";zoneModif();
+  var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
+  [].forEach.call($("dSug").querySelectorAll("button"),function(b,i){if(sug[i])b.textContent=sug[i]})}
+$("f_categorie").addEventListener("change",modeCarte);
+$("f_etatCarte").addEventListener("change",function(){var e=ETAT_LBC_CARTE[this.value];if(e){$("f_etat").value=e;$("f_etat").dispatchEvent(new Event("change"))}});
 $("f_origine").addEventListener("change",function(){if(this.value==="hs")$("f_etat").value="pieces";zoneModif();majOrigine()});
 $("f_modif").addEventListener("input",majOrigine);$("f_categorie").addEventListener("change",function(){if(RE_ORIG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
-$("f_etat").addEventListener("change",function(){if(this.value==="pieces"&&$("f_origine").value!=="hs"){$("f_origine").value="hs";zoneModif();majOrigine()}});
+$("f_etat").addEventListener("change",function(){if(this.value==="pieces"&&!estCarte()&&$("f_origine").value!=="hs"){$("f_origine").value="hs";zoneModif();majOrigine()}});
 /* Photo numérotée : pastille ronde dans le coin, pour que « photo 3 » de la description se retrouve facilement */
 function numeroter(src,n){return chargerImg(src).then(function(img){var c=document.createElement("canvas");c.width=img.naturalWidth;c.height=img.naturalHeight;var g=c.getContext("2d");g.drawImage(img,0,0);
   /* Le Bon Coin recadre ses vignettes (4:3 en liste, carré ailleurs) et arrondit les coins : la pastille va dans la zone toujours visible */
@@ -913,22 +948,24 @@ function ajouterPhotos(fs){if(!fs.length)return Promise.resolve();var debut=GAL.
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
+function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});modeCarte()}
 function analyser(f){
   attente("Je regarde la photo…");
   return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,1400));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
     .then(function(j){var o=j.objet;IA_FAITE=true;
       ROT=o.rotation||0;
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
+      remplirCarte(o);
       if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
       if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);
       if(o.remarques&&!$("f_notes").value)$("f_notes").value=o.remarques;
       $("fTitre").textContent=o.titre;ME.usage.identifier=(ME.usage.identifier||0)+1;
-      attente(null);toast("Reconnu : "+o.titre+". Je retouche la photo et je cherche le bon prix…","ok");return Promise.all([nettoyerPhoto(true,0,ROT),estimer()])})
+      attente(null);toast("Reconnu : "+o.titre+(o.numero?" "+o.numero:"")+". Je retouche la photo et je cherche le bon prix…","ok");return Promise.all([nettoyerPhoto(true,0,ROT),estimer()])})
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null)})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
   if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
 function analyserImg(){attente("Je regarde la photo…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
-  ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
+  ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});remplirCarte(o);if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
   if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);ME.usage.identifier=(ME.usage.identifier||0)+1;toast("Fiche remplie.","ok")})
   .catch(function(e){erreur(e,"Reconnaissance impossible.")}).then(function(){attente(null)})}
 $("fPhotoDl").onclick=function(){if(!GAL.length){toast("Pas encore de photo.","bad");return}
@@ -953,14 +990,15 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
   return new Blob(parts.concat(cent,[e]),{type:"application/zip"})})}
 function decrire(auto){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
-    .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value}})})
+    .then(function(ph){return api("POST","/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}})})
     .then(function(j){(j.legendes||[]).forEach(function(l,i){if(GAL[i]&&l&&(!auto||!GAL[i].legende))GAL[i].legende=l});afficher();majDescPhotos();if(!auto)toast("Photos décrites et ajoutées à la description.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Description impossible.");else console.warn(e)}).then(function(){busy(b,false,t)})}
 $("fDecrire").onclick=function(){decrire(false)};
 
 /* ===== Cote ===== */
-function objetCote(){return{titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value}}
-function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast("Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
+function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
+  if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});return o}
+function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");
   return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){busy(b,false,"Trouver le bon prix")})}
@@ -969,6 +1007,7 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
     (c.releves&&c.releves.length?'<div class="releves"><span class="rl-t">Les prix sur lesquels je m\'appuie</span><ul>'+c.releves.map(function(r){return '<li><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer"><span class="rl-s">'+esc(r.site||"Lien")+'</span><span class="rl-n">'+esc(r.titre||"")+'</span><b>'+eur(r.prix)+'</b><small>'+(r.date?dfr(r.date):"")+'</small></a></li>'}).join("")+'</ul></div>':"")+
+    (c.lot?'<p class="rl-m">💡 <b>Astuce :</b> à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).</p>':"")+
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     (c.sources&&c.sources.length?'<div class="src">Sources : '+c.sources.map(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(h)+'</a>'}).join(" · ")+'</div>':"");
   e.hidden=false}
@@ -977,8 +1016,8 @@ $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data
 
 
 /* ===== Discussion avec l'IA sur la fiche ===== */
-var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce"],
-  DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite"};
+var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte"],
+  DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite",numero:"Numéro",rarete:"Rareté",edition:"Édition",gradation:"Gradation",etatCarte:"État de la carte"};
 function ficheDial(){var o={};DCH.forEach(function(k){o[k]=$("f_"+k).value});if(COTE)o.cote=COTE;return o}
 function valLisible(k,v){var e=$("f_"+k);if(e.tagName==="SELECT"){var op=[].filter.call(e.options,function(x){return x.value===String(v)})[0];return op?op.textContent:v}
   if(k==="prixAchat"||k==="prixDemande")return eur(+v);return String(v).length>40?String(v).slice(0,40)+"…":v}
@@ -1008,12 +1047,13 @@ $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-ann
 
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
 function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
+  if(!d&&estCarte())d=["Carte Pokémon "+[$("f_titre").value.trim(),$("f_numero").value.trim()].filter(Boolean).join(" ")+($("f_plateforme").value.trim()?", extension "+$("f_plateforme").value.trim():"")+($("f_region").value.trim()?", en "+$("f_region").value.trim().toLowerCase():"")+".",$("f_gradation").value.trim()?"Carte gradée "+$("f_gradation").value.trim()+".":ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.","Remise en main propre ou envoi."].filter(Boolean).join("\n");
   if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice.",boite_vide:contenuBoite()}[$("f_contenu").value]||"",ligneOrigine(),ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
 function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
 /* Le Bon Coin demande les champs un par un : un bouton « copier » par champ, dans son ordre. */
 var LBC_ETATS={neuf:"État neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État satisfaisant",pieces:"Pour pièces"};
-var LBC_CAT={jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
+var LBC_CAT={cartes:"Loisirs › Collection (cartes à collectionner)",jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
 var LBC_FAIT={};
 function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" ")).slice(0,200),
   tx=texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").slice(0,4000),px=$("f_prixDemande").value;
@@ -1037,7 +1077,7 @@ function majVente(){var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value}
 $("f_statut").onchange=majVente;
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
-  F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";zoneModif();PARTIC=[];puces();
+  F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();PARTIC=[];puces();
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouveau jeu";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
@@ -1079,7 +1119,7 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
   if(!r)return;BR.tous().then(function(l){var d=l.filter(function(x){return x.k===r.dataset.rep})[0];if(!d)return;
     var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:null;if(d.id&&!o){BR.del(d.k).then(dessinerBrouillons);toast("Ce jeu n'existe plus.","bad");return}
     ouvrirFiche(o||null);CLE=d.cle;
-    F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});zoneModif();puces();majVente();if(d.cote)montrerCote(d.cote);
+    F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:null}});SEL=0;afficher();
     $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouveau jeu");majLbc();toast("Brouillon repris.","ok")})});
 $("fFermer").onclick=fermerFiche;
@@ -1105,6 +1145,37 @@ $("fSuppr").onclick=function(){var b=$("fSuppr");if(Date.now()-confirmeSuppr>400
   api("DELETE","/api/objets/"+ED.id).then(function(){OBJ=OBJ.filter(function(x){return x.id!==ED.id});BR.del(cle());figer();fermerFiche();dessiner();toast("Jeu supprimé.","ok")}).catch(function(e){erreur(e,"Suppression impossible.")})};
 
 /* ===== Formules et compte ===== */
+/* ===== Plusieurs cartes Pokémon sur une photo (classeur, cartes étalées) =====
+   L'IA repère chaque carte, TCGdex donne sa cote : celles qui valent 5 € ou plus ont leur propre fiche (photo recadrée sur la carte),
+   les autres partent dans une fiche « Lot de N cartes ». La personne peut changer le tri d'un clic. */
+var INV=null,ETQ_LANGUE={"français":"FR",francais:"FR",anglais:"EN",japonais:"JP",allemand:"DE",italien:"IT",espagnol:"ES"};
+function rondC(x){if(x==null||!isFinite(x))return null;if(x<10)return Math.max(1,Math.round(x));var p=x>=100?10:5;return Math.round(x/p)*p}
+$("cartesIn").onchange=function(){var f=this.files&&this.files[0];this.value="";if(!f)return;if(ME.quota.reste===0){quotaPlein();return}
+  INV=null;$("dInvTx").textContent="Je repère chaque carte et je cherche sa cote… (jusqu'à 1 min)";$("dInvL").innerHTML="";$("dInvLot").hidden=true;$("dInvOk").hidden=true;$("dInv").showModal();
+  ouvrirImage(f).then(function(img){INV={img:img};return api("POST","/api/ia/inventaire",{photo:versData(img,null,1600)})})
+    .then(function(j){INV.cartes=j.cartes;INV.lot=j.lot;ME.usage.identifier=(ME.usage.identifier||0)+1;dessinerInv()})
+    .catch(function(e){$("dInv").close();erreur(e,"Analyse impossible.")})};
+function dessinerInv(){var l=INV.cartes,s=l.filter(function(c){return c.seule}).length;
+  $("dInvTx").textContent=l.length+" carte"+(l.length>1?"s":"")+" repérée"+(l.length>1?"s":"")+". Celles qui valent 5 € ou plus se vendent mieux seules ; touche « Seule » ou « Lot » pour changer.";
+  $("dInvL").innerHTML=l.map(function(c,i){return '<li><div class="n"><b>'+esc(c.titre+(c.numero?" "+c.numero:""))+'</b><small>'+esc([c.plateforme,c.rarete,c.region].filter(Boolean).join(" · "))+'</small></div><span class="px">'+(c.cote!=null?eur(c.cote):"—")+'</span><button type="button" data-i="'+i+'" aria-pressed="'+!!c.seule+'">'+(c.seule?"Seule":"Lot")+'</button></li>'}).join("");
+  var lot=INV.lot;$("dInvLot").hidden=!lot;if(lot)$("dInvLot").innerHTML="📦 <b>"+esc(lot.titre)+"</b><br>Prix conseillé du lot : <b>"+eur(lot.prix)+"</b> (cotes cumulées : "+eur(lot.somme)+")";
+  var n=s+(lot?1:0);$("dInvOk").hidden=!n;$("dInvOk").textContent="Créer "+(n>1?"les "+n+" fiches":"la fiche")+(s&&lot?" ("+s+" seule"+(s>1?"s":"")+" + 1 lot)":"")}
+$("dInvL").addEventListener("click",function(e){var b=e.target.closest("button[data-i]");if(!b||!INV)return;var c=INV.cartes[+b.dataset.i];c.seule=!c.seule;
+  api("POST","/api/lot-cartes",{cartes:INV.cartes.filter(function(x){return!x.seule})}).then(function(j){INV.lot=j.lot;dessinerInv()}).catch(function(e){erreur(e,"Calcul du lot impossible.")})});
+function ficheCarteInv(c){var lg=ETQ_LANGUE[String(c.region||"").toLowerCase()]||"",rar=/holo|reverse|full art|illustration|secr|ultra|gold|promo/i.test(c.rarete||"")?c.rarete:"";
+  return{titre:c.titre,categorie:"cartes",plateforme:c.plateforme,region:c.region,numero:c.numero,rarete:c.rarete,edition:c.edition||"",etatCarte:c.etatCarte,etat:c.etat,prixDemande:rondC(c.cote!=null?c.cote*1.1:null),ia:true,
+    titreAnnonce:[c.titre,c.numero,c.plateforme,rar,lg,c.edition].filter(Boolean).join(" ").slice(0,100),
+    texteAnnonce:["Carte Pokémon "+[c.titre,c.numero].filter(Boolean).join(" ")+(c.plateforme?", extension "+c.plateforme:"")+(c.rarete?", "+c.rarete.toLowerCase():"")+(c.region?", en "+c.region.toLowerCase():"")+".",
+      "Carte authentique"+(c.etatCarte&&$("f_etatCarte").querySelector('option[value="'+c.etatCarte+'"]')?" en état "+$("f_etatCarte").querySelector('option[value="'+c.etatCarte+'"]').textContent.split(" :")[0]:"")+".",
+      "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.","Remise en main propre ou envoi."].join("\n")}}
+$("dInvOk").onclick=function(){if(!INV)return;var b=this,seules=INV.cartes.filter(function(c){return c.seule}),lot=INV.lot,n=seules.length+(lot?1:0);
+  if(ME.quota.reste!=null&&ME.quota.reste<n){toast("Il te reste "+ME.quota.reste+" fiche"+(ME.quota.reste>1?"s":"")+" ce mois-ci : mets plus de cartes dans le lot, ou passe à une autre formule.","bad");return}
+  busy(b,true,"Je crée les fiches…");
+  var ch=Promise.resolve();
+  seules.forEach(function(c){ch=ch.then(function(){return api("POST","/api/objets",{objet:ficheCarteInv(c),photo:versData(INV.img,c.cadre,1400)})})});
+  if(lot)ch=ch.then(function(){return api("POST","/api/objets",{objet:{titre:lot.titre,categorie:"cartes",titreAnnonce:lot.titre,texteAnnonce:lot.description,prixDemande:lot.prix,ia:true,notes:"Lot créé depuis une photo de plusieurs cartes."},photo:versData(INV.img,null,1400)})});
+  ch.then(function(){$("dInv").close();toast(n+" fiche"+(n>1?"s":"")+" créée"+(n>1?"s":"")+". Vérifie-les, puis publie sur Le Bon Coin 🃏","ok");INV=null;return charger()})
+    .catch(function(e){erreur(e,"Création impossible.");charger()}).then(function(){busy(b,false,"Créer les fiches")})};
 function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.max+" jeux de ce mois avec la formule "+ME.formule.nom+". Continue tout de suite avec une autre formule, ou attends le mois prochain.";$("dQuota").showModal()}
 $("dQuota").addEventListener("click",function(e){var b=e.target.closest("[data-o]");if(b){$("dQuota").close();payer(b.dataset.o,"mois",b)}});
 function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arrive très bientôt.","bad");return}var t=b&&b.textContent;if(b)busy(b,true,"Redirection…");

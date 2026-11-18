@@ -405,3 +405,80 @@ test("discussion avec l'IA : réponse, changements filtrés, message requis", as
   assert.deepEqual(changementsSurs({ contenu: "boite_vide", etat: "nul", statut: "vendu", prixDemande: "19,5", particularites: "Poster inclus", texteAnnonce: "Boîte apparemment propre." }),
     { contenu: "boite_vide", particularites: "Poster inclus", prixDemande: 19.5, texteAnnonce: "" });
 });
+
+test("cartes Pokémon : reconnaissance, fiche, cote, annonce pour l'extension", async () => {
+  const c = await compte("carte" + Date.now() + "@t.fr");
+  process.env.IA_FAKE_OBJET = "carte";
+  try {
+    const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const o = r.json.objet;
+    assert.equal(o.categorie, "cartes"); assert.equal(o.numero, "4/102"); assert.equal(o.etatCarte, "near_mint");
+    assert.equal(o.etat, "tres_bon"); assert.equal(o.contenu, "");
+    const cote = await call("POST", "/api/ia/cote", { objet: { ...o } }, c);
+    assert.equal(cote.status, 200, JSON.stringify(cote.json));
+    assert.ok(cote.json.cote.conseille > 0);
+    // fiche : champs de carte gardés, contenu ignoré, état LBC déduit de l'état collectionneur
+    const f = await call("POST", "/api/objets", { objet: { titre: "Dracaufeu", categorie: "cartes", plateforme: "Set de base", region: "Français", numero: "4/102", rarete: "Holo rare", gradation: "", etatCarte: "excellent", contenu: "complet", prixDemande: 250 } }, c);
+    assert.equal(f.status, 200, JSON.stringify(f.json));
+    const it = f.json.objet;
+    assert.equal(it.numero, "4/102"); assert.equal(it.etatCarte, "excellent"); assert.equal(it.etat, "tres_bon"); assert.equal(it.contenu, "");
+    const { annonceLbc } = await import("../server/api.mjs");
+    const a = annonceLbc(it);
+    assert.equal(a.categorie, "cartes"); assert.equal(a.numero, "4/102");
+    assert.match(a.description, /Carte Pokémon Dracaufeu 4\/102, extension Set de base, en français\./);
+    assert.match(a.description, /sleeve et toploader/);
+    // un jeu ne reçoit pas les champs de carte
+    const j = await call("POST", "/api/objets", { objet: { titre: "Kirby 64", categorie: "jeux", numero: "4/102" } }, c);
+    assert.equal(j.json.objet.numero, undefined);
+  } finally { delete process.env.IA_FAKE_OBJET; }
+});
+
+test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", async () => {
+  const { carteTcgdex, numLocal } = await import("../server/cartes.mjs");
+  assert.equal(numLocal("004/102"), "4"); assert.equal(numLocal("TG05/TG30"), "TG05");
+  const vrai = globalThis.fetch, vus = [];
+  const cartes = {
+    "base1-4": { id: "base1-4", localId: "4", name: "Dracaufeu", rarity: "Rare Holo", set: { name: "Set de Base", cardCount: { official: 102 } }, variants: { holo: true, firstEdition: true }, pricing: { cardmarket: { updated: "2026-11-17T00:00:00Z", unit: "EUR", avg: 410, low: 250, trend: 432.5, avg30: 420 } } },
+    "base4-4": { id: "base4-4", localId: "4", name: "Dracaufeu", rarity: "Rare Holo", set: { name: "Base Set 2", cardCount: { official: 130 } }, variants: { holo: true }, pricing: { cardmarket: { trend: 150, avg30: 140 } } },
+  };
+  globalThis.fetch = async (url) => {
+    vus.push(String(url));
+    const u = new URL(url);
+    if (u.pathname.endsWith("/cards")) return new Response(JSON.stringify([{ id: "base1-4", localId: "4", name: "Dracaufeu" }, { id: "base4-4", localId: "4", name: "Dracaufeu" }, { id: "xy12-11", localId: "11", name: "Dracaufeu" }]));
+    const id = decodeURIComponent(u.pathname.split("/").pop());
+    return cartes[id] ? new Response(JSON.stringify(cartes[id])) : new Response("", { status: 404 });
+  };
+  try {
+    const r = await carteTcgdex({ titre: "Dracaufeu", numero: "4/102", plateforme: "Set de base", region: "Français" }, { base: "https://tcg.test/v2" });
+    assert.equal(r.id, "base1-4"); assert.equal(r.numero, "4/102"); assert.equal(r.cote.tendance, 432.5); assert.equal(r.cote.variante, "normale");
+    assert.ok(vus[0].includes("/fr/cards?name=Dracaufeu"));
+    // ambigu et rien ne colle : on ne devine pas
+    assert.equal(await carteTcgdex({ titre: "Dracaufeu", numero: "4", plateforme: "Inconnue" }, { base: "https://tcg.test/v2" }), null);
+    // reverse : cote « holo » de Cardmarket
+    cartes["base1-4"].pricing.cardmarket["trend-holo"] = 600;
+    assert.equal((await carteTcgdex({ titre: "Dracaufeu", numero: "4/102", rarete: "Reverse" }, { base: "https://tcg.test/v2" })).cote.tendance, 600);
+    // TCGdex en panne : null, sans erreur
+    globalThis.fetch = async () => { throw new Error("réseau"); };
+    assert.equal(await carteTcgdex({ titre: "Dracaufeu", numero: "4/102" }, { base: "https://tcg.test/v2" }), null);
+  } finally { globalThis.fetch = vrai; }
+  const { rondCarte } = await import("../server/ia.mjs");
+  assert.equal(rondCarte(3.4), 3); assert.equal(rondCarte(0.2), 1); assert.equal(rondCarte(47), 45); assert.equal(rondCarte(476), 480);
+});
+
+test("cartes Pokémon : photo d'un classeur, cartes de valeur à part, le reste en lot", async () => {
+  const c = await compte("classeur" + Date.now() + "@t.fr");
+  const r = await call("POST", "/api/ia/inventaire", { photo: PHOTO }, c);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.cartes.length, 4);
+  assert.deepEqual(r.json.cartes.filter((x) => x.seule).map((x) => x.titre), ["Dracaufeu", "Ronflex"]);
+  assert.equal(r.json.cartes[0].etat, "tres_bon");
+  const lot = r.json.lot;
+  assert.equal(lot.n, 2); assert.equal(lot.titre, "Lot de 2 cartes Pokémon FR");
+  assert.equal(lot.prix, 5);   // 2 € de cote : prix plancher d'un lot
+  assert.match(lot.description, /Cartes : Pikachu 58\/102, Salamèche 46\/102\./);
+  const l2 = await call("POST", "/api/lot-cartes", { cartes: [...r.json.cartes, { titre: "Mew", rarete: "Reverse", region: "Anglais", cote: 40 }] }, c);
+  assert.match(l2.json.lot.titre, /^Lot de 5 cartes Pokémon dont 2 holo et 1 reverse$/);
+  assert.equal(l2.json.lot.prix, 140);   // (120 + 1,2 + 0,8 + 14 + 40) × 0,8 = 140,8
+  assert.equal((await call("POST", "/api/lot-cartes", { cartes: [] }, c)).json.lot, null);
+});

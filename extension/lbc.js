@@ -20,7 +20,7 @@
     correct: ["État satisfaisant", "Satisfaisant", "État correct"],
     pieces: ["Pour pièces", "Pour pièce", "Hors service"],
   };
-  var CATEGORIES_LBC = { jeux: ["Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires"], autres: [] };
+  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], jeux: ["Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires"], autres: [] };
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
@@ -406,6 +406,7 @@
       var n = norm(a.titre + " " + (a.nom || "")), e = "";
       if (a.lot) e = "📦";
       else if (a.categorie === "consoles") e = "🕹️";
+      else if (a.categorie === "cartes") e = "🃏";
       var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
       if (!e || pris[e]) { var h = 0; for (var i = 0; i < String(a.id).length; i++) h = (h * 31 + String(a.id).charCodeAt(i)) >>> 0; for (var j = 0; j < PALETTE.length; j++) { var c = PALETTE[(h + j) % PALETTE.length]; if (!pris[c]) { e = c; break; } } }
       pris[e] = true; out[a.id] = e;
@@ -603,8 +604,8 @@
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
     // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
     var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux jeux" : "des " + (a.n || "") + " jeux").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
-      : "de la valeur du jeu : il se vend autour de " + lePrix + " en ce moment.";
-    return [
+      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
+    var l = [
       // Disponibilité
       { g: "Disponibilité", t: "Toujours disponible", m: "Bonjour, oui, " + nom + " est toujours disponible ! " + det + "Je peux l'envoyer ou le remettre en main propre, comme vous préférez." },
       { g: "Disponibilité", t: "Réservé pour quelqu'un", m: "Bonjour, merci pour votre message ! " + nom + " est réservé pour le moment. Si la vente ne se fait pas, je reviens vers vous en priorité, promis." },
@@ -639,6 +640,29 @@
       { g: "Sécurité et suivi", t: "Rendez-vous manqué", m: "Bonjour, je ne vous ai pas vu au rendez-vous, j'espère que tout va bien ! On peut en refixer un si vous êtes toujours intéressé, sinon pas de souci." },
       { g: "Sécurité et suivi", t: "Merci après la vente", m: "Merci beaucoup pour votre achat ! Bon jeu avec " + nom + ", et n'hésitez pas à laisser un avis, ça m'aide beaucoup." },
     ];
+    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : l;
+  }
+  /* Cartes Pokémon : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
+     par les questions propres aux cartes (état des bords, authenticité, envoi sous toploader). */
+  var ETAT_CARTE_TXT = { mint: "Mint", near_mint: "Near Mint", excellent: "Excellent", good: "Good", light_played: "Light Played", played: "Played", poor: "Poor" };
+  function reponsesCarte(l, a, nom) {
+    var etatC = a.gradation ? "gradée " + a.gradation + ", boîtier intact" : ETAT_CARTE_TXT[a.etatCarte] ? "en état " + ETAT_CARTE_TXT[a.etatCarte] : "";
+    var carte = [
+      { g: "La carte", t: "État des bords et de la surface", m: "Bonjour ! La carte est " + (etatC || "en très bon état") + ". Je peux vous envoyer des photos en gros plan des bords, des coins et de la surface, recto et verso." },
+      { g: "La carte", t: "Authenticité", m: "Bonjour, oui, c'est une carte authentique" + (a.region ? ", en " + String(a.region).toLowerCase() : "") + ". Je peux vous envoyer une photo du dos et une en lumière rasante pour vérifier la texture et l'holo." },
+      { g: "La carte", t: "Photo avec votre pseudo", m: "Bien sûr, pas de souci ! Je vous envoie une photo de la carte à côté d'un papier avec votre pseudo dans la journée." },
+      { g: "La carte", t: "Carte gradée ?", m: a.gradation ? "Bonjour ! Elle est gradée " + a.gradation + ", le boîtier est intact et le numéro de certification se vérifie sur le site de la société de gradation." : "Bonjour ! Elle n'est pas gradée, elle a été rangée sous sleeve. Vous pouvez tout à fait l'envoyer à gradation après l'achat." },
+      { g: "La carte", t: "Pourquoi ce prix ?", m: "Bonjour, bonne question ! Je me base sur la cote Cardmarket du moment et sur les ventes réellement conclues (eBay, Le Bon Coin) pour cette carte, dans cette langue et cet état." },
+      { g: "Envoi et remise", t: "Envoi protégé", m: "La carte part sous sleeve et toploader, dans une enveloppe rigide, avec la livraison Le Bon Coin (paiement sécurisé). Expédiée sous 48 h après la commande." },
+      { g: "Envoi et remise", t: "Remise en main propre", m: "La remise en main propre est possible ! Dites-moi quel jour et quel secteur vous arrangent, et on se retrouve dans un lieu public." },
+      { g: "Envoi et remise", t: "Colis envoyé", m: "C'est parti ! La carte est bien protégée et déposée, vous recevrez le suivi par Le Bon Coin. Merci pour votre achat !" },
+      { g: "Négociation", t: "Lot de plusieurs cartes", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quelles cartes vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
+    ];
+    var garde = l.filter(function (x) { return x.g !== "Le jeu" && x.g !== "Envoi et remise" && x.t !== "Lot de plusieurs jeux"; }).map(function (x) {
+      return { g: x.g, t: x.t, m: x.m.replace(/\bLe jeu\b/g, "La carte").replace(/\ble jeu\b/g, "la carte").replace(/\bBon jeu\b/g, "Bonne collection").replace(/mes jeux/g, "mes cartes").replace(/chacun est/g, "chacune est").replace("Il est en très bonne place, je ne suis pas pressé.", "Je ne suis pas pressé.").replace("je vous le réserve", "je vous la réserve").replace("je le remettrai", "je la remettrai") };
+    });
+    var i = garde.findIndex(function (x) { return x.g === "Sécurité et suivi"; });
+    return garde.slice(0, i < 0 ? garde.length : i).concat(carte, i < 0 ? [] : garde.slice(i));
   }
   /* ===== Réponse proposée par l'IA (lit la conversation ouverte) ===== */
   function texteConversation() {
