@@ -336,6 +336,8 @@
     "details.types>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:600 11px/1 var(--texte);letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:10px 2px}" +
     "details.types>summary::-webkit-details-marker{display:none}details.types>summary::after{content:'';width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 6px 0 0;transition:transform .2s}" +
     "details.types[open]>summary::after{transform:rotate(-135deg);margin-top:3px}details.types>summary:hover{color:var(--encre)}.ia .clair{margin-top:8px;background:var(--anis);color:var(--nuit);border-color:var(--anis)}" +
+    ".parler{display:flex;gap:8px;align-items:flex-end;margin-top:4px}.parler textarea{flex:1;min-width:0;resize:vertical;font:13px/1.4 var(--texte);color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px 10px;outline:none}" +
+    ".parler textarea::placeholder{color:#9A9A92}.parler textarea:focus{border-color:var(--anis)}.parler .clair{margin:0}" +
     ".s:empty{display:none}.rep.s-plus{background:var(--vert-p);border-color:var(--vert-t)}.rep.s-plus .ico{background:var(--vert-t);color:var(--vert-f)}" +
     ".rep.s-moins{background:var(--rouge-p);border-color:var(--rouge-t)}.rep.s-moins .ico{background:var(--rouge-t);color:var(--rouge-f)}" +
     ".rep.s-plus:hover,.rep.s-moins:hover{border-color:var(--encre)}" +
@@ -772,15 +774,16 @@
   }
   function conversationActuelle() { return location.pathname + "|" + texteEncadre().slice(0, 160); }
   function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
-  async function proposerIA(force) {
+  async function proposerIA(force, consigne) {
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
-    etat.ia = { cle: cle, charge: true }; rafraichirIA();
+    etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu() });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "" });
       if (etat.ia.cle !== cle) return;
-      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [] };
+      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "" };
+      if (consigne) etat.brouillonIA = "";
     } catch (e) {
       if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message, status: e.status };
       if (e.status === 402 || e.status === 403) {
@@ -798,14 +801,15 @@
       el("button", { class: "mini", type: "button", texte: "Autres idées", title: "Relire la conversation et proposer d'autres réponses", onclick: function () { proposerIA(true); } })]);
     z.appendChild(tete);
     var i = etat.ia || {};
-    if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: "Je lis le dernier message de l'acheteur…" })); return; }
+    if (i.charge) { z.appendChild(el("p", { class: "ia-r charge", texte: i.consigne ? "Je rédige ta réponse…" : "Je lis le dernier message de l'acheteur…" })); return; }
     if (i.erreur && (i.status === 402 || i.status === 403)) {
       z.appendChild(el("p", { class: "ia-r", texte: i.erreur }));
       z.appendChild(el("button", { class: "mini clair", type: "button", texte: "Voir les formules", onclick: function () { window.open("https://retrorevente.fr/#tarifs", "_blank", "noopener"); } }));
       return;
     }
-    if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); return; }
-    if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
+    if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); z.appendChild(parlerIA()); return; }
+    if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
+    else if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
     var qui = acheteurLu();
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
@@ -815,6 +819,16 @@
         el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte)])]),
       ]));
     });
+    z.appendChild(parlerIA());
+  }
+  // Aucune proposition ne convient : on dit à l'IA ce qu'on veut répondre, elle le rédige dans le même ton.
+  function parlerIA() {
+    var champ = el("textarea", { rows: "2", placeholder: "Aucune ne convient ? Dis à l'IA quoi répondre…", "aria-label": "Ce que tu veux répondre", spellcheck: "true" });
+    champ.value = etat.brouillonIA || "";
+    var envoyer = function () { var t = champ.value.trim(); if (t.length < 3) { champ.focus(); return; } etat.brouillonIA = t; proposerIA(true, t); };
+    champ.addEventListener("input", function () { etat.brouillonIA = champ.value; });
+    champ.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } });
+    return el("div", { class: "parler" }, [champ, el("button", { class: "mini clair", type: "button", texte: "Rédiger", onclick: envoyer })]);
   }
   // Nouveau message reçu ou autre conversation : nouvelles propositions (une seule demande à la fois, espacées).
   var veilleMsg = null, minuterieMsg = null;
