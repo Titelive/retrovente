@@ -1,6 +1,10 @@
 # Extension RetroRevente pour Le Bon Coin
 
-Sur `leboncoin.fr/deposer-une-annonce`, un bouton **RR** apparaît en bas à droite. Il ouvre un panneau qui affiche les jeux « En vente » de ton compte RetroRevente. À chaque écran du dépôt, **Remplir cette étape** remplit les champs visibles : titre, catégorie proposée (Jeux vidéo, Consoles), description, état, prix et photo. Tu vérifies, tu cliques toi-même sur « Continuer », puis sur « Publier ».
+Sur `leboncoin.fr/deposer-une-annonce`, le panneau RetroRevente s'ouvre tout seul avec le jeu le plus récent pas encore publié, et **chaque écran du dépôt se remplit automatiquement** dès qu'il apparaît : titre, catégorie proposée (Jeux vidéo, Consoles), description, état, prix et photo. Tu relis, tu cliques « Continuer » puis « Publier » : l'extension ne clique jamais dessus.
+
+Un champ n'est rempli qu'une fois par jeu : si tu le corriges, ta correction est gardée. Un état déjà choisi n'est pas changé. L'interrupteur « Remplissage automatique » met en pause, « Remplir à nouveau » réécrit l'écran avec le jeu choisi.
+
+Dans la **messagerie** Le Bon Coin, le bouton **RR** ouvre 25 réponses types aux acheteurs (disponibilité, offre trop basse, contre-proposition, dernier prix, lot, échange, photos, envoi, main propre, paiement hors plateforme, acheteur silencieux, remerciements…), au ton sympa et diplomate. Elles sont complétées avec le jeu de la conversation (deviné d'après le titre) et la dernière offre lue : « vos 20 € … je peux faire un geste à 35 € ». Un clic place la réponse dans la zone de message, tu relis et tu envoies.
 
 Le sélecteur en haut du panneau a une recherche : **⌘K** (Ctrl K sur Windows) l'ouvre directement depuis la page de dépôt. Elle ignore accents et majuscules et comprend les abréviations des consoles (`n64`, `ps2`, `gba`, `snes`…). Flèches pour naviguer, Entrée pour choisir, Échap pour fermer.
 
@@ -14,8 +18,8 @@ Une seule base de code WebExtensions (Manifest V3) pour Safari, Chrome, Edge et 
 
 ## Ce que l'extension fait, et ne fait pas
 
-- Elle ne remplit que quand tu cliques, dans ton propre onglet, comme si tu tapais.
-- Elle ne clique jamais sur « Continuer » ni sur « Publier », ne lit pas les autres annonces de Le Bon Coin et n'envoie rien à Le Bon Coin elle-même.
+- Elle remplit les champs dans ton propre onglet, comme si tu tapais, une fois le jeu choisi (choix modifiable, interrupteur pour mettre en pause).
+- Elle ne clique jamais sur « Continuer », « Publier » ni « Envoyer », ne lit pas les autres annonces de Le Bon Coin et n'envoie rien à Le Bon Coin elle-même.
 - Elle ne parle qu'à retrorevente.fr, avec une clé en **lecture seule** (`/api/extension/annonces` et la photo). La clé ne permet ni de modifier ni de supprimer quoi que ce soit, et « Déconnecter l'extension » dans Mon compte la révoque partout.
 - Le Bon Coin n'a pas d'API publique et ses conditions d'utilisation encadrent les outils automatisés. L'extension reste du côté de l'aide à la saisie (pas de publication automatique, pas de collecte), mais Le Bon Coin pourrait changer son formulaire ou s'opposer à ce type d'outil : le copier-coller de l'appli reste toujours disponible.
 

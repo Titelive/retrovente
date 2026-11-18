@@ -399,7 +399,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ouvrir Le Bon Coin (nouvel onglet)</a>
         <ol class="lbc-etapes" id="lbcEtapes"></ol>
         <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
-        <p id="fLbcExt" hidden>Extension installée : sur Le Bon Coin, ouvre le panneau RetroRevente et clique « Remplir cette étape » à chaque écran.</p>
+        <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
       </section>
     </div>
     <div class="col g-champs">
@@ -493,7 +493,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   </section>
   <section class="carte zone" id="cExt">
     <h2>Extension Le Bon Coin</h2>
-    <p style="color:var(--gris)" id="cExtTx">L'extension RetroRevente pour Safari, Chrome et Firefox remplit pour toi chaque étape du dépôt d'annonce sur Le Bon Coin (titre, description, état, prix, photo). Tu vérifies et tu publies toi-même.</p>
+    <p style="color:var(--gris)" id="cExtTx">L'extension RetroRevente pour Safari, Chrome et Firefox remplit tout seul chaque étape du dépôt d'annonce sur Le Bon Coin (titre, description, état, prix, photo) et propose des réponses types aux acheteurs. Tu relis et tu publies toi-même.</p>
     <div class="rangee"><button class="btn" type="button" id="cExtCo">Connecter l'extension</button><button class="btn clair" type="button" id="cExtDeco" hidden>Déconnecter l'extension</button></div>
     <div id="cExtCle" hidden><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
       <div class="rangee"><input type="text" id="cExtCleIn" readonly style="flex:1;min-width:0;font-family:monospace;font-size:13px"><button class="btn clair petit" type="button" id="cExtCopie">Copier</button></div></div>
@@ -896,7 +896,7 @@ window.addEventListener("message",function(e){var d=e.data;if(e.source!==window|
   if(d.type==="cle-ok"){EXT=true;clearTimeout(extT);$("cExtCle").hidden=true;if(ME)ME.extension=(ME.extension||0)+1;extMaj();toast("Extension connectée. Ouvre Le Bon Coin pour déposer une annonce.","ok")}});
 var extT;
 function extMaj(){if(!ME)return;var n=ME.extension||0;$("cExtDeco").hidden=!n;$("cExtCo").textContent=n?"Reconnecter l'extension":"Connecter l'extension";
-  $("cExtTx").textContent=(EXT?"Extension détectée sur ce navigateur. ":"")+(n?"Connectée sur "+n+(n>1?" navigateurs":" navigateur")+". ":"")+"Sur Le Bon Coin, l'extension remplit chaque étape du dépôt (titre, description, état, prix, photo). Tu vérifies et tu publies toi-même."}
+  $("cExtTx").textContent=(EXT?"Extension détectée sur ce navigateur. ":"")+(n?"Connectée sur "+n+(n>1?" navigateurs":" navigateur")+". ":"")+"Sur Le Bon Coin, l'extension remplit tout seul chaque étape du dépôt (titre, description, état, prix, photo). Tu vérifies et tu publies toi-même."}
 $("cExtCo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Connexion…");
   api("POST","/api/extension/cle").then(function(j){busy(b,false,t);$("cExtCleIn").value=j.cle;
     window.postMessage({source:"retrorevente-app",type:"cle",cle:j.cle},location.origin);
