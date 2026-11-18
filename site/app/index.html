@@ -202,6 +202,14 @@ body:not(:has(.vers-haut.on)) .fab-save{right:max(18px,env(safe-area-inset-right
 dialog{border:0;border-radius:28px;padding:28px;max-width:min(470px,calc(100% - 32px));background:var(--carte);color:var(--encre);box-shadow:0 50px 100px -30px rgba(0,0,0,.6)}
 dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(4px)}
 dialog form{display:flex;flex-direction:column;gap:14px}
+#dInv{max-width:min(560px,calc(100% - 32px))}
+.inv{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
+.inv li{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:var(--fond,rgba(0,0,0,.04));box-shadow:inset 0 0 0 1px var(--trait)}
+.inv li .n{flex:1;min-width:0}.inv li .n b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inv li .n small{color:var(--gris)}
+.inv li .px{font-weight:700;white-space:nowrap}
+.inv li button{border:0;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:var(--trait);color:var(--encre)}
+.inv li button[aria-pressed=true]{background:#D4F57A;color:#1A1A1A}
+.inv-lot{padding:12px 14px;border-radius:16px;background:#1A1A1A;color:#fff;font-size:14px}.inv-lot b{color:#D4F57A}
 #qEtape2[hidden],#qEtape1[hidden]{display:none!important}
 .recap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}.recap dt{color:var(--gris)}.recap dd{margin:0;font-weight:600}
 #toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
@@ -439,6 +447,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <div><p class="pixel">Mes jeux</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
     <div class="ajout">
       <label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter un jeu en photo</label>
+      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
+      <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <input type="file" id="photoIn" accept="image/*" hidden>
     </div>
@@ -624,6 +634,14 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   </section>
 </main>
 
+<dialog id="dInv" aria-labelledby="tInv"><form method="dialog">
+  <h2 id="tInv" style="margin:0">Tes cartes</h2>
+  <p id="dInvTx" style="color:var(--gris);margin:0"></p>
+  <ul class="inv" id="dInvL"></ul>
+  <div class="inv-lot" id="dInvLot" hidden></div>
+  <button class="btn" type="button" id="dInvOk" hidden>Créer les fiches</button>
+  <button class="lien" value="x">Annuler</button>
+</form></dialog>
 <dialog id="dQuota"><form method="dialog">
   <h2>Tu as bien vendu ce mois-ci !</h2>
   <p id="dQuotaTx" style="color:var(--gris)"></p>
@@ -1127,6 +1145,37 @@ $("fSuppr").onclick=function(){var b=$("fSuppr");if(Date.now()-confirmeSuppr>400
   api("DELETE","/api/objets/"+ED.id).then(function(){OBJ=OBJ.filter(function(x){return x.id!==ED.id});BR.del(cle());figer();fermerFiche();dessiner();toast("Jeu supprimé.","ok")}).catch(function(e){erreur(e,"Suppression impossible.")})};
 
 /* ===== Formules et compte ===== */
+/* ===== Plusieurs cartes Pokémon sur une photo (classeur, cartes étalées) =====
+   L'IA repère chaque carte, TCGdex donne sa cote : celles qui valent 5 € ou plus ont leur propre fiche (photo recadrée sur la carte),
+   les autres partent dans une fiche « Lot de N cartes ». La personne peut changer le tri d'un clic. */
+var INV=null,ETQ_LANGUE={"français":"FR",francais:"FR",anglais:"EN",japonais:"JP",allemand:"DE",italien:"IT",espagnol:"ES"};
+function rondC(x){if(x==null||!isFinite(x))return null;if(x<10)return Math.max(1,Math.round(x));var p=x>=100?10:5;return Math.round(x/p)*p}
+$("cartesIn").onchange=function(){var f=this.files&&this.files[0];this.value="";if(!f)return;if(ME.quota.reste===0){quotaPlein();return}
+  INV=null;$("dInvTx").textContent="Je repère chaque carte et je cherche sa cote… (jusqu'à 1 min)";$("dInvL").innerHTML="";$("dInvLot").hidden=true;$("dInvOk").hidden=true;$("dInv").showModal();
+  ouvrirImage(f).then(function(img){INV={img:img};return api("POST","/api/ia/inventaire",{photo:versData(img,null,1600)})})
+    .then(function(j){INV.cartes=j.cartes;INV.lot=j.lot;ME.usage.identifier=(ME.usage.identifier||0)+1;dessinerInv()})
+    .catch(function(e){$("dInv").close();erreur(e,"Analyse impossible.")})};
+function dessinerInv(){var l=INV.cartes,s=l.filter(function(c){return c.seule}).length;
+  $("dInvTx").textContent=l.length+" carte"+(l.length>1?"s":"")+" repérée"+(l.length>1?"s":"")+". Celles qui valent 5 € ou plus se vendent mieux seules ; touche « Seule » ou « Lot » pour changer.";
+  $("dInvL").innerHTML=l.map(function(c,i){return '<li><div class="n"><b>'+esc(c.titre+(c.numero?" "+c.numero:""))+'</b><small>'+esc([c.plateforme,c.rarete,c.region].filter(Boolean).join(" · "))+'</small></div><span class="px">'+(c.cote!=null?eur(c.cote):"—")+'</span><button type="button" data-i="'+i+'" aria-pressed="'+!!c.seule+'">'+(c.seule?"Seule":"Lot")+'</button></li>'}).join("");
+  var lot=INV.lot;$("dInvLot").hidden=!lot;if(lot)$("dInvLot").innerHTML="📦 <b>"+esc(lot.titre)+"</b><br>Prix conseillé du lot : <b>"+eur(lot.prix)+"</b> (cotes cumulées : "+eur(lot.somme)+")";
+  var n=s+(lot?1:0);$("dInvOk").hidden=!n;$("dInvOk").textContent="Créer "+(n>1?"les "+n+" fiches":"la fiche")+(s&&lot?" ("+s+" seule"+(s>1?"s":"")+" + 1 lot)":"")}
+$("dInvL").addEventListener("click",function(e){var b=e.target.closest("button[data-i]");if(!b||!INV)return;var c=INV.cartes[+b.dataset.i];c.seule=!c.seule;
+  api("POST","/api/lot-cartes",{cartes:INV.cartes.filter(function(x){return!x.seule})}).then(function(j){INV.lot=j.lot;dessinerInv()}).catch(function(e){erreur(e,"Calcul du lot impossible.")})});
+function ficheCarteInv(c){var lg=ETQ_LANGUE[String(c.region||"").toLowerCase()]||"",rar=/holo|reverse|full art|illustration|secr|ultra|gold|promo/i.test(c.rarete||"")?c.rarete:"";
+  return{titre:c.titre,categorie:"cartes",plateforme:c.plateforme,region:c.region,numero:c.numero,rarete:c.rarete,edition:c.edition||"",etatCarte:c.etatCarte,etat:c.etat,prixDemande:rondC(c.cote!=null?c.cote*1.1:null),ia:true,
+    titreAnnonce:[c.titre,c.numero,c.plateforme,rar,lg,c.edition].filter(Boolean).join(" ").slice(0,100),
+    texteAnnonce:["Carte Pokémon "+[c.titre,c.numero].filter(Boolean).join(" ")+(c.plateforme?", extension "+c.plateforme:"")+(c.rarete?", "+c.rarete.toLowerCase():"")+(c.region?", en "+c.region.toLowerCase():"")+".",
+      "Carte authentique"+(c.etatCarte&&$("f_etatCarte").querySelector('option[value="'+c.etatCarte+'"]')?" en état "+$("f_etatCarte").querySelector('option[value="'+c.etatCarte+'"]').textContent.split(" :")[0]:"")+".",
+      "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.","Remise en main propre ou envoi."].join("\n")}}
+$("dInvOk").onclick=function(){if(!INV)return;var b=this,seules=INV.cartes.filter(function(c){return c.seule}),lot=INV.lot,n=seules.length+(lot?1:0);
+  if(ME.quota.reste!=null&&ME.quota.reste<n){toast("Il te reste "+ME.quota.reste+" fiche"+(ME.quota.reste>1?"s":"")+" ce mois-ci : mets plus de cartes dans le lot, ou passe à une autre formule.","bad");return}
+  busy(b,true,"Je crée les fiches…");
+  var ch=Promise.resolve();
+  seules.forEach(function(c){ch=ch.then(function(){return api("POST","/api/objets",{objet:ficheCarteInv(c),photo:versData(INV.img,c.cadre,1400)})})});
+  if(lot)ch=ch.then(function(){return api("POST","/api/objets",{objet:{titre:lot.titre,categorie:"cartes",titreAnnonce:lot.titre,texteAnnonce:lot.description,prixDemande:lot.prix,ia:true,notes:"Lot créé depuis une photo de plusieurs cartes."},photo:versData(INV.img,null,1400)})});
+  ch.then(function(){$("dInv").close();toast(n+" fiche"+(n>1?"s":"")+" créée"+(n>1?"s":"")+". Vérifie-les, puis publie sur Le Bon Coin 🃏","ok");INV=null;return charger()})
+    .catch(function(e){erreur(e,"Création impossible.");charger()}).then(function(){busy(b,false,"Créer les fiches")})};
 function quotaPlein(){$("dQuotaTx").textContent="Tu as utilisé tes "+ME.quota.max+" jeux de ce mois avec la formule "+ME.formule.nom+". Continue tout de suite avec une autre formule, ou attends le mois prochain.";$("dQuota").showModal()}
 $("dQuota").addEventListener("click",function(e){var b=e.target.closest("[data-o]");if(b){$("dQuota").close();payer(b.dataset.o,"mois",b)}});
 function payer(offre,periode,b){if(!ME.paiement){toast("Le paiement en ligne arrive très bientôt.","bad");return}var t=b&&b.textContent;if(b)busy(b,true,"Redirection…");

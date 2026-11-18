@@ -229,6 +229,69 @@ Réponds uniquement par un objet JSON avec les clés :
   c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
   return { ...c, carte: ref ? { id: ref.id, extension: ref.extension, numero: ref.numero, rarete: ref.rarete, image: ref.image } : null, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
 }
+/* Plusieurs cartes sur une photo (classeur, pile étalée) : le modèle liste chaque carte et son emplacement,
+   TCGdex donne la cote Cardmarket de chacune (sans recherche web : rapide et gratuit), et on sépare
+   les cartes qui valent le coup d'être vendues seules de celles qui partiront en lot. */
+const INVENTAIRE_FAKE = [
+  { titre: "Dracaufeu", numero: "4/102", plateforme: "Set de base", region: "Français", rarete: "Holo rare", etatCarte: "excellent", cadre: { x: 0.02, y: 0.02, w: 0.3, h: 0.3 }, _cote: 120 },
+  { titre: "Pikachu", numero: "58/102", plateforme: "Set de base", region: "Français", rarete: "Commune", etatCarte: "near_mint", cadre: { x: 0.35, y: 0.02, w: 0.3, h: 0.3 }, _cote: 1.2 },
+  { titre: "Salamèche", numero: "46/102", plateforme: "Set de base", region: "Français", rarete: "Commune", etatCarte: "near_mint", cadre: { x: 0.68, y: 0.02, w: 0.3, h: 0.3 }, _cote: 0.8 },
+  { titre: "Ronflex", numero: "11/64", plateforme: "Jungle", region: "Français", rarete: "Holo rare", etatCarte: "good", cadre: { x: 0.02, y: 0.35, w: 0.3, h: 0.3 }, _cote: 14 },
+];
+export async function inventaire(photo) {
+  checkPhoto(photo);
+  let l;
+  if (FAKE()) l = INVENTAIRE_FAKE.map((x) => ({ ...x }));
+  else {
+    const o = await claude([image(photo), { type: "text", text: `Cette photo montre plusieurs cartes Pokémon (page de classeur, cartes étalées) qu'un particulier veut revendre. Liste CHAQUE carte dont la face est visible, de gauche à droite puis de haut en bas, 60 au plus.
+Pour chaque carte : "titre" (nom français officiel), "numero" (numéro imprimé, ex. « 58/102 » ; "" si illisible), "plateforme" (extension en français, "" si incertaine), "region" (langue : « Français », « Anglais », « Japonais »…), "rarete" (« Commune », « Peu commune », « Rare », « Holo rare », « Reverse », « Ultra rare », « Full art », « Illustration rare », « Illustration spéciale rare », « Secrète », « Promo »), "edition" (« 1re édition » ou ""), "etatCarte" (« mint », « near_mint », « excellent », « good », « light_played », « played », « poor » ou ""), "cadre" (rectangle de la carte : {"x","y","w","h"} en fractions de la largeur et de la hauteur de l'image, origine en haut à gauche).
+N'invente pas une carte dont tu ne vois que le dos. Réponds uniquement par un objet JSON : {"cartes": [ … ]}` }], { max: 8000, timeout: 90000, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+    l = (o && Array.isArray(o.cartes) ? o.cartes : []).slice(0, 60);
+  }
+  l = l.map((c) => ({ titre: txt(c.titre, 160), numero: txt(c.numero, 20), plateforme: txt(c.plateforme, 60), region: txt(c.region, 30), rarete: txt(c.rarete, 40), edition: txt(c.edition, 40), etatCarte: parmi(c.etatCarte, ETATS_CARTE, ""), cadre: cadreLibre(c.cadre), _cote: c._cote })).filter((c) => c.titre);
+  if (!l.length) throw new IaError("Je ne vois pas de carte sur cette photo. Essaie une photo bien éclairée, prise de face, sans reflet.");
+  // Cotes en parallèle, 6 à la fois (TCGdex est gratuit, inutile de le surcharger).
+  const out = [];
+  for (let i = 0; i < l.length; i += 6) {
+    out.push(...(await Promise.all(l.slice(i, i + 6).map(async (c) => {
+      const ref = FAKE() ? null : await carteTcgdex(c).catch(() => null);
+      const cote = FAKE() ? c._cote : ref && ref.cote ? ref.cote.tendance ?? ref.cote.moyenne30 : null;
+      const { _cote, ...reste } = c;
+      return { ...reste, plateforme: reste.plateforme || (ref && ref.extension) || "", numero: (ref && ref.numero) || reste.numero, cote, etat: ETAT_LBC_DE_CARTE[c.etatCarte] || "", seule: cote != null && cote >= PRIX_MINI_SEULE };
+    }))));
+  }
+  return { cartes: out, lot: lotCartes(out.filter((c) => !c.seule)) };
+}
+// Cadre d'une carte dans une photo de groupe : petit, contrairement au cadre d'un objet seul.
+function cadreLibre(c) {
+  if (!c || typeof c !== "object") return null;
+  const n = (v) => { const x = Number(v); return isFinite(x) ? Math.max(0, Math.min(1, x)) : NaN; };
+  const o = { x: n(c.x), y: n(c.y), w: n(c.w), h: n(c.h) };
+  return [o.x, o.y, o.w, o.h].some(isNaN) || o.w < 0.02 || o.h < 0.02 ? null : o;
+}
+// Cote d'une carte sans cote connue, pour estimer un lot (prix courants du « vrac » : quelques centimes la commune).
+const COTE_VRAC = (c) => (/holo|reverse|ultra|full|illustration|secr|gold|promo|rare/i.test(c.rarete || "") && !/^peu commune$/i.test(c.rarete || "") ? 0.3 : 0.05);
+const LANGUE_COURTE = { "français": "FR", francais: "FR", anglais: "EN", japonais: "JP", allemand: "DE", italien: "IT", espagnol: "ES" };
+/* Annonce d'un lot de cartes : titre, description et prix (80 % de la somme des cotes, au moins 5 €). */
+export function lotCartes(cartes) {
+  const l = (Array.isArray(cartes) ? cartes : []).filter((c) => c && c.titre);
+  if (!l.length) return null;
+  const somme = l.reduce((n, c) => n + (prix(c.cote) ?? COTE_VRAC(c)), 0);
+  const holo = l.filter((c) => /holo/i.test(c.rarete || "") && !/reverse/i.test(c.rarete || "")).length, rev = l.filter((c) => /reverse/i.test(c.rarete || "")).length;
+  const langues = [...new Set(l.map((c) => LANGUE_COURTE[String(c.region || "").toLowerCase()]).filter(Boolean))];
+  const dont = [holo && `${holo} holo`, rev && `${rev} reverse`].filter(Boolean).join(" et ");
+  const titre = `Lot de ${l.length} carte${l.length > 1 ? "s" : ""} Pokémon${langues.length === 1 ? " " + langues[0] : ""}${dont ? " dont " + dont : ""}`.slice(0, 100);
+  const notables = l.filter((c) => !/^(commune|peu commune)$/i.test(c.rarete || "")).slice(0, 12);
+  const nomC = (c) => [c.titre, c.numero].filter(Boolean).join(" ") + (c.rarete ? ` (${c.rarete.toLowerCase()})` : "");
+  const desc = [
+    `Lot de ${l.length} carte${l.length > 1 ? "s" : ""} Pokémon${langues.length === 1 ? ` en ${({ FR: "français", EN: "anglais", JP: "japonais", DE: "allemand", IT: "italien", ES: "espagnol" })[langues[0]]}` : ""}, ${l.length > 1 ? "toutes authentiques" : "authentique"}.`,
+    notables.length ? `Dont : ${notables.map(nomC).join(", ")}${l.filter((c) => !/^(commune|peu commune)$/i.test(c.rarete || "")).length > notables.length ? "…" : ""}.` : "",
+    l.length <= 25 ? `Cartes : ${l.map((c) => [c.titre, c.numero].filter(Boolean).join(" ")).join(", ")}.` : "La liste complète se voit sur les photos.",
+    "Envoi soigné, cartes protégées, dans une enveloppe rigide.",
+    "Remise en main propre ou envoi.",
+  ].filter(Boolean).join("\n");
+  return { titre, description: desc, prix: Math.max(PRIX_MINI_SEULE, rondCarte(somme * 0.8)), somme: Math.round(somme * 100) / 100, n: l.length };
+}
 // En dessous de ce prix, une carte se vend mieux dans un lot qu'à l'unité (frais d'envoi, temps passé).
 export const PRIX_MINI_SEULE = 5;
 // Prix ronds pour les cartes : à l'euro sous 10 €, puis multiples de 5, puis de 10 à partir de 100 €.

@@ -459,3 +459,20 @@ test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", a
   const { rondCarte } = await import("../server/ia.mjs");
   assert.equal(rondCarte(3.4), 3); assert.equal(rondCarte(0.2), 1); assert.equal(rondCarte(47), 45); assert.equal(rondCarte(476), 480);
 });
+
+test("cartes Pokémon : photo d'un classeur, cartes de valeur à part, le reste en lot", async () => {
+  const c = await compte("classeur" + Date.now() + "@t.fr");
+  const r = await call("POST", "/api/ia/inventaire", { photo: PHOTO }, c);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.cartes.length, 4);
+  assert.deepEqual(r.json.cartes.filter((x) => x.seule).map((x) => x.titre), ["Dracaufeu", "Ronflex"]);
+  assert.equal(r.json.cartes[0].etat, "tres_bon");
+  const lot = r.json.lot;
+  assert.equal(lot.n, 2); assert.equal(lot.titre, "Lot de 2 cartes Pokémon FR");
+  assert.equal(lot.prix, 5);   // 2 € de cote : prix plancher d'un lot
+  assert.match(lot.description, /Cartes : Pikachu 58\/102, Salamèche 46\/102\./);
+  const l2 = await call("POST", "/api/lot-cartes", { cartes: [...r.json.cartes, { titre: "Mew", rarete: "Reverse", region: "Anglais", cote: 40 }] }, c);
+  assert.match(l2.json.lot.titre, /^Lot de 5 cartes Pokémon dont 2 holo et 1 reverse$/);
+  assert.equal(l2.json.lot.prix, 140);   // (120 + 1,2 + 0,8 + 14 + 40) × 0,8 = 140,8
+  assert.equal((await call("POST", "/api/lot-cartes", { cartes: [] }, c)).json.lot, null);
+});
