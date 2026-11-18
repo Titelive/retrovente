@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=13">
+<link rel="stylesheet" href="/css/rr.css?v=14">
 <script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=9" defer></script>
 <style>
@@ -123,7 +123,7 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .jeu .ln{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--gris)}
 .jeu .px{font:800 22px/1 var(--titre);letter-spacing:-.03em;color:var(--encre)}
 .st{font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;background:var(--papier);white-space:nowrap;color:var(--gris);box-shadow:inset 0 0 0 1px var(--trait)}
-.st.en_vente{background:var(--anis-p);color:#3E4A1C;box-shadow:none}
+.st.en_vente{background:var(--anis-p);color:rgba(26,26,26,.78);box-shadow:none}
 .st.vendu,.st.envoye{background:var(--nuit);color:var(--anis);box-shadow:none}
 .st.reserve{background:#FFF1C9;color:#6F5200;box-shadow:none}
 .vide{padding:56px 24px;text-align:center;color:var(--gris);border-radius:28px;background:var(--carte);box-shadow:0 0 0 1px var(--trait);display:flex;flex-direction:column;gap:14px;align-items:center}
@@ -209,8 +209,8 @@ dialog form{display:flex;flex-direction:column;gap:14px}
 .inv li .n{flex:1;min-width:0}.inv li .n b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inv li .n small{color:var(--gris)}
 .inv li .px{font-weight:700;white-space:nowrap}
 .inv li button{border:0;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:var(--trait);color:var(--encre)}
-.inv li button[aria-pressed=true]{background:#D4F57A;color:#1A1A1A}
-.inv-lot{padding:12px 14px;border-radius:16px;background:#1A1A1A;color:#fff;font-size:14px}.inv-lot b{color:#D4F57A}
+.inv li button[aria-pressed=true]{background:var(--anis);color:#1A1A1A}
+.inv-lot{padding:12px 14px;border-radius:16px;background:#1A1A1A;color:#fff;font-size:14px}.inv-lot b{color:var(--anis)}
 #qEtape2[hidden],#qEtape1[hidden]{display:none!important}
 .recap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}.recap dt{color:var(--gris)}.recap dd{margin:0;font-weight:600}
 #toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:80;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
@@ -279,7 +279,7 @@ body.panneau-ouvert{overflow:hidden}
 .bul.ia{align-self:flex-start;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);border-bottom-left-radius:6px}
 .bul.ia.err{box-shadow:inset 0 0 0 1px #D9443A}
 .bul .chg{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;white-space:normal}
-.bul .chg span{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--anis-p);color:#3E4A1C}
+.bul .chg span{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--anis-p);color:rgba(26,26,26,.78)}
 .bul .chg button{font:600 12px/1 var(--texte);padding:4px 9px;border-radius:999px;border:0;background:transparent;color:var(--gris);text-decoration:underline;cursor:pointer}
 .bul.attente{display:flex;gap:4px;padding:14px}
 .bul.attente i{width:7px;height:7px;border-radius:50%;background:var(--gris-c);animation:point 1s ease-in-out infinite}

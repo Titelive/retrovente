@@ -188,17 +188,17 @@ html.menu-ouvert{overflow:hidden}
 .logo:hover .logo-svg .eclair,.logo:focus-visible .logo-svg .eclair{animation:zap .6s var(--ease)}
 .logo-svg .manette{transform-box:fill-box;transform-origin:50% 60%;transition:transform .5s var(--ease)}
 .logo:hover .logo-svg .manette{transform:rotate(-6deg)}
-@keyframes zap-entree{0%{transform:scale(0) rotate(-40deg);opacity:0}45%{transform:scale(1.5) rotate(8deg);opacity:1;filter:drop-shadow(0 0 6px #D4F57A) brightness(1.4)}70%{transform:scale(.9)}100%{transform:none;filter:drop-shadow(0 0 0 rgba(var(--anis-rgb),0))}}
-@keyframes zap{0%{transform:none}25%{transform:scale(1.45) rotate(-10deg);filter:drop-shadow(0 0 7px #D4F57A) brightness(1.5)}50%{transform:scale(.85) rotate(6deg)}100%{transform:none}}
-@keyframes zap-veille{0%,90%,100%{opacity:1;filter:none}92%{opacity:.25}93%{opacity:1;filter:drop-shadow(0 0 6px #D4F57A) brightness(1.5)}95%{opacity:.4}96.5%{opacity:1;filter:drop-shadow(0 0 4px #D4F57A)}}
+@keyframes zap-entree{0%{transform:scale(0) rotate(-40deg);opacity:0}45%{transform:scale(1.5) rotate(8deg);opacity:1;filter:drop-shadow(0 0 6px var(--anis)) brightness(1.4)}70%{transform:scale(.9)}100%{transform:none;filter:drop-shadow(0 0 0 rgba(var(--anis-rgb),0))}}
+@keyframes zap{0%{transform:none}25%{transform:scale(1.45) rotate(-10deg);filter:drop-shadow(0 0 7px var(--anis)) brightness(1.5)}50%{transform:scale(.85) rotate(6deg)}100%{transform:none}}
+@keyframes zap-veille{0%,90%,100%{opacity:1;filter:none}92%{opacity:.25}93%{opacity:1;filter:drop-shadow(0 0 6px var(--anis)) brightness(1.5)}95%{opacity:.4}96.5%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}}
 /* néon fatigué : lueur continue, grésillements irréguliers puis rallumage */
 @keyframes neon{0%,100%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
  8%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 9%{opacity:.15;filter:none}10%{opacity:1;filter:drop-shadow(0 0 4px #D4F57A)}11%{opacity:.25;filter:none}11.6%{opacity:.9;filter:drop-shadow(0 0 2px #D4F57A)}
- 12.4%{opacity:.1;filter:none}15%{opacity:.1;filter:none}15.6%{opacity:.8}16.2%{opacity:.2}17%{opacity:1;filter:drop-shadow(0 0 6px #D4F57A) drop-shadow(0 0 14px rgba(var(--anis-rgb),.7)) brightness(1.3)}
+ 9%{opacity:.15;filter:none}10%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}11%{opacity:.25;filter:none}11.6%{opacity:.9;filter:drop-shadow(0 0 2px var(--anis))}
+ 12.4%{opacity:.1;filter:none}15%{opacity:.1;filter:none}15.6%{opacity:.8}16.2%{opacity:.2}17%{opacity:1;filter:drop-shadow(0 0 6px var(--anis)) drop-shadow(0 0 14px rgba(var(--anis-rgb),.7)) brightness(1.3)}
  20%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
  55%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 56%{opacity:.35;filter:none}56.8%{opacity:1;filter:drop-shadow(0 0 4px #D4F57A)}
+ 56%{opacity:.35;filter:none}56.8%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}
  58%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}}
 @media (prefers-reduced-motion:reduce){.js .logo-svg .eclair,.logo:hover .logo-svg .eclair{animation:none}.logo:hover .logo-svg .manette{transform:none}}
 .theme-bt{margin-left:4px}
@@ -293,10 +293,10 @@ html[data-formule="pass"] .lecture{background:var(--holo);background-size:300% 1
 html[data-formule="pass"] .logo-svg .eclair{filter:drop-shadow(0 0 5px rgba(185,140,255,.9))}
 
 /* ===== Couleurs du site selon la formule : l'accent (--anis) change pour tout le site =====
-   Découverte : vert anis · Vendeur : menthe pastel · Collectionneur : champagne pastel et or · Pass : lilas pastel */
-html[data-formule="vendeur"]{--anis:#A9EBD8;--anis-f:#7FD9BF;--anis-p:#E4F8F1;--anis-rgb:169,235,216;--anis-t:#1D6B55}
-html[data-formule="collectionneur"]{--anis:#F6E0A4;--anis-f:#E8C46A;--anis-p:#FBF4DF;--anis-rgb:246,224,164;--anis-t:#8A6416;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
-html[data-formule="pass"]{--anis:#D8CBFF;--anis-f:#BBA5FF;--anis-p:#F0EBFF;--anis-rgb:216,203,255;--anis-t:#5B3FB0}
+   Découverte : vert anis · Vendeur : menthe vive · Collectionneur : or éclatant · Pass : lilas vif */
+html[data-formule="vendeur"]{--anis:#5EF0C6;--anis-f:#2FD9A9;--anis-p:#DDFBF1;--anis-rgb:94,240,198;--anis-t:#0E6B50}
+html[data-formule="collectionneur"]{--anis:#FFD23F;--anis-f:#F5A90A;--anis-p:#FFF4CC;--anis-rgb:255,210,63;--anis-t:#8A5A00;--or-1:#FFE27A;--or-2:#F0A500;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
+html[data-formule="pass"]{--anis:#C4A8FF;--anis-f:#A07BFF;--anis-p:#EEE6FF;--anis-rgb:196,168,255;--anis-t:#5B2FD0}
 @media (prefers-color-scheme:dark){
   html[data-formule="vendeur"]:not([data-theme="light"]){--anis-p:#12271F;--anis-t:var(--anis)}
   html[data-formule="collectionneur"]:not([data-theme="light"]){--anis-p:#2A2312;--anis-t:var(--anis)}
@@ -305,7 +305,16 @@ html[data-formule="vendeur"][data-theme="dark"]{--anis-p:#12271F;--anis-t:var(--
 html[data-formule="collectionneur"][data-theme="dark"]{--anis-p:#2A2312;--anis-t:var(--anis)}
 html[data-formule="pass"][data-theme="dark"]{--anis-p:#211B35;--anis-t:var(--anis)}
 /* Collectionneur : boutons pastel bordés d'or, liseré doré */
-html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,#FBEFC8 0%,#F6E0A4 45%,#F9DCE4 100%);box-shadow:inset 0 0 0 1.5px rgba(201,150,43,.55),0 10px 24px -14px rgba(201,150,43,.7)}
+html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,#FFF3B0 0%,#FFD23F 38%,#FFB800 70%,#FFE27A 100%);background-size:200% 100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 1.5px rgba(240,165,0,.6),0 12px 28px -12px rgba(255,184,0,.75);transition:background-position .6s var(--ease),transform .2s}
+html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien):hover{background-position:100% 0}
+html[data-formule="collectionneur"] .heros h1 .vert{background:linear-gradient(100deg,#FFE27A,#FFC21A 40%,#FFF0A8 58%,#FFC21A 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
 html[data-formule="collectionneur"] .logo-svg .manette{color:inherit}
 @keyframes holo{to{background-position:300% 0}}
 html.sans-anim .badge-formule,html.sans-anim .lecture{animation:none}
+
+/* Accents écrits en dur dans les SVG (traits, remplissages) : ils suivent aussi la couleur de la formule */
+svg[stroke="#D4F57A" i],svg [stroke="#D4F57A" i]{stroke:var(--anis)}
+svg[fill="#D4F57A" i],svg [fill="#D4F57A" i]{fill:var(--anis)}
+/* Menu : jamais sur deux lignes ; sur les écrans moyens, on retire les petites icônes pour faire de la place */
+.nav-liens a{white-space:nowrap}
+@media(min-width:1021px) and (max-width:1360px){.nav-liens a:not(.nav-cta) .i{display:none}.nav-liens a{padding:10px 10px}}

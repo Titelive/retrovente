@@ -23,7 +23,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=13">
+<link rel="stylesheet" href="/css/rr.css?v=14">
 <script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}document.documentElement.classList.add("js")</script>
 <script src="/js/rr.js?v=9" defer></script>
 <script type="application/ld+json">
@@ -181,7 +181,7 @@ h2:has(.surligne){line-height:1.12}
 .tuile .vis{margin-top:auto;padding-top:20px}
 .t1{grid-column:span 4}.t2{grid-column:span 2}.t3{grid-column:span 2}.t4{grid-column:span 2}.t5{grid-column:span 2}.t6{grid-column:span 6}
 .tuile.noire{background:var(--nuit);color:#fff;box-shadow:none}.tuile.noire p{color:#A8A8A0}
-.tuile.anis{background:var(--anis);color:var(--nuit);box-shadow:none}.tuile.anis p{color:#3E4A1C}
+.tuile.anis{background:var(--anis);color:var(--nuit);box-shadow:none}.tuile.anis p{color:rgba(26,26,26,.78)}
 @media(max-width:980px){.bento{grid-template-columns:repeat(2,minmax(0,1fr))}.t1,.t6{grid-column:span 2}.t2,.t3,.t4,.t5{grid-column:span 1}}
 @media(max-width:600px){.bento{grid-template-columns:1fr}.t1,.t2,.t3,.t4,.t5,.t6{grid-column:span 1}}
 .annonce{background:rgba(255,255,255,.05);border-radius:18px;padding:18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font-size:14.5px;color:#D9D9D2;line-height:1.55}
@@ -194,7 +194,7 @@ h2:has(.surligne){line-height:1.12}
 .annonce .caret{display:inline-block;width:2px;height:1.05em;background:var(--anis);vertical-align:-2px;margin-left:1px;animation:clig 1s steps(1) infinite}
 .annonce{min-height:150px}
 .seuil{display:flex;flex-direction:column;gap:16px;margin-top:auto}
-.seuil .sl{display:flex;flex-direction:column;gap:7px;font-size:14px;color:#3E4A1C;position:relative}
+.seuil .sl{display:flex;flex-direction:column;gap:7px;font-size:14px;color:rgba(26,26,26,.78);position:relative}
 .seuil .sl b{color:var(--nuit);font-weight:800}
 .seuil .b{position:relative;height:14px;border-radius:999px;background:rgba(26,26,26,.12)}
 .seuil .b i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--nuit)}
@@ -215,7 +215,7 @@ h2:has(.surligne){line-height:1.12}
 html.sans-anim .seuil .cloche svg{animation:none}
 .t5{transition:background-color .45s ease}
 .tuile.anis.t5>p,.t5 .seuil .sl{color:#25251F}
-.jauge{display:flex;flex-direction:column;gap:8px;font-size:14px;color:#3E4A1C}
+.jauge{display:flex;flex-direction:column;gap:8px;font-size:14px;color:rgba(26,26,26,.78)}
 .jauge .b{height:14px;border-radius:999px;background:rgba(26,26,26,.12);overflow:hidden}
 .jauge .b i{display:block;height:100%;width:73%;border-radius:999px;background:var(--nuit)}
 
@@ -268,8 +268,8 @@ html.sans-anim .seuil .cloche svg{animation:none}
 .final{padding:40px 0 130px}
 .final .bloc{position:relative;overflow:hidden;isolation:isolate;border-radius:40px;background:var(--anis);color:var(--nuit);padding:80px 56px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:40px;align-items:center}
 .final h2{font-size:clamp(40px,6vw,80px);font-weight:800;letter-spacing:-.055em;line-height:.92;max-width:13ch}
-.final p{font-size:19px;margin-top:18px;color:#3E4A1C}
-.final .ico{width:clamp(150px,19vw,250px);display:block;filter:drop-shadow(0 30px 40px rgba(60,80,10,.35))}
+.final p{font-size:19px;margin-top:18px;color:rgba(26,26,26,.78)}
+.final .ico{width:clamp(150px,19vw,250px);display:block;filter:drop-shadow(0 30px 40px rgba(40,30,0,.35))}
 .final .ico-w{transform:rotate(calc(-14deg + var(--p,0.5) * 14deg)) translateY(calc((var(--p,0.5) - .5) * -40px));transition:transform .2s linear;justify-self:center}
 .final .ico{transform:none;animation:ico-flotte 6s ease-in-out infinite}
 @keyframes ico-flotte{0%,100%{translate:0 0;rotate:0deg}50%{translate:0 -14px;rotate:3deg}}
@@ -357,7 +357,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
 .pd-haut{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .prix-demo .px{font:800 42px/1 var(--titre);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
 .pd-delai{font-size:13.5px;font-weight:700;color:var(--anis-t);text-align:right}
-.curseur{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:999px;background:linear-gradient(90deg,#9BC93A,#D4F57A 50%,#E8E8E0);outline:0;cursor:pointer;margin:6px 0}
+.curseur{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:999px;background:linear-gradient(90deg,var(--anis-f),var(--anis) 50%,#E8E8E0);outline:0;cursor:pointer;margin:6px 0}
 .curseur::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--nuit);box-shadow:0 0 0 5px var(--anis),0 6px 14px rgba(0,0,0,.3);cursor:grab;transition:transform .2s var(--ease)}
 .curseur::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:var(--nuit);box-shadow:0 0 0 5px var(--anis),0 6px 14px rgba(0,0,0,.3);cursor:grab}
 .curseur:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
