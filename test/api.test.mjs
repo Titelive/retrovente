@@ -228,6 +228,12 @@ test("extension navigateur : clé, annonces en vente, photo, isolation, révocat
 
   assert.equal((await call("GET", "/api/extension/photo/" + o.id, null, "", bearer(k))).status, 200);
   assert.equal((await call("GET", "/api/extension/photo/" + autre.id, null, "", bearer(k))).status, 404);   // photo d'un autre compte
+  // Toutes les photos de la galerie, dans l'ordre
+  const g = (await call("POST", "/api/objets/" + o.id + "/photos", { photo: PHOTO }, c)).json.objet;
+  const ids = (await call("GET", "/api/extension/annonces", null, "", bearer(k))).json.annonces[0].photos;
+  assert.deepEqual(ids, g.photos.map((x) => x.id)); assert.equal(ids.length, 2);
+  assert.equal((await call("GET", "/api/extension/photo/" + o.id + "/" + ids[1], null, "", bearer(k))).status, 200);
+  assert.equal((await call("GET", "/api/extension/photo/" + o.id + "/abcdef12", null, "", bearer(k))).status, 404);
   assert.equal((await call("OPTIONS", "/api/extension/annonces", null, "", { origin: "chrome-extension://abc" })).status, 204);
   assert.equal((await call("POST", "/api/extension/rempli", null, "", { ...bearer(k), origin: "chrome-extension://abc" })).status, 200);
   assert.equal((await call("GET", "/api/moi", null, c)).json.usage.lbc, 1);

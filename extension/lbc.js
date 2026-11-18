@@ -94,14 +94,30 @@
      dès qu'il apparaît à l'écran. Un champ n'est rempli qu'une fois par jeu : ce que la personne corrige
      ensuite n'est jamais réécrit, et un choix déjà fait (état…) est respecté. « Continuer » et « Publier »
      restent à la personne. */
-  var dejaRempli = new WeakMap();   // champ → id du jeu qui l'a rempli
-  function aRemplir(el, a, force) {
+  // Un texte déjà présent qui ne vient ni de nous ni de la personne (Le Bon Coin pré-remplit la description avec son
+  // IA, souvent fausse) est remplacé par celui de RetroRevente. Ce que la personne tape est toujours gardé, même
+  // quand Le Bon Coin réaffiche le champ sur l'écran suivant (aperçu avant publication).
+  var dejaRempli = new WeakMap();   // champ → { id du jeu, nature du champ }
+  var tapeParLaPersonne = new WeakSet(), corrige = {};
+  document.addEventListener("input", function (e) {
+    if (!e.target || (hote && hote.contains(e.target))) return;
+    if (!e.isTrusted) {   // Le Bon Coin réécrit un champ que nous avions rempli : on repasse dessus
+      var x = dejaRempli.get(e.target);
+      if (x && e.target.value !== x.v && etat.auto) setTimeout(function () { if (!enCours) { enCours = true; remplir(false).catch(function () {}).then(function () { enCours = false; }); } }, 300);
+      return;
+    }
+    tapeParLaPersonne.add(e.target);
+    var d = dejaRempli.get(e.target); if (d) corrige[d.id + ":" + d.nature] = true;
+  }, true);
+  function aRemplir(el, a, force, nature) {
     if (force) return true;
     var par = dejaRempli.get(el);
-    if (par === a.id) return false;               // déjà fait pour ce jeu : on ne touche plus (corrections respectées)
-    return !el.value || par !== undefined;       // vide, ou rempli par nous avec un autre jeu
+    if (corrige[a.id + ":" + nature]) return false;        // corrigé par la personne : on ne touche plus
+    if (par && par.id === a.id) return el.value !== par.v && (par.n || 0) < 3; // sauf si Le Bon Coin a réécrit par-dessus (3 fois au plus)
+    if (tapeParLaPersonne.has(el) && !par) return false;   // la personne y a écrit elle-même
+    return true;                                           // vide, pré-rempli par Le Bon Coin, ou rempli avec un autre jeu
   }
-  function poser(el, v, a, force) { if (!aRemplir(el, a, force)) return false; if (el.value !== v) ecrire(el, v); dejaRempli.set(el, a.id); return true; }
+  function poser(el, v, a, force, nature) { if (!aRemplir(el, a, force, nature)) return false; var avant = dejaRempli.get(el); dejaRempli.set(el, { id: a.id, nature: nature, v: v, n: avant && avant.id === a.id ? (avant.n || 0) + 1 : 0 }); if (el.value === v) return false; ecrire(el, v); return true; }
   function groupeDejaChoisi(el) {
     var g = el.closest("fieldset, [role=radiogroup], [role=listbox]") || (el.parentElement && el.parentElement.parentElement);
     return !!(g && g.querySelector("input[type=radio]:checked, [aria-checked=true], [aria-selected=true]"));
@@ -110,12 +126,19 @@
     var a = etat.choisie; if (!a) return [];
     var fait = [], k = function (x) { return a.id + ":" + x; };
     var titre = champ("input:not([type]), input[type=text], input[type=search]", /titre|title|subject|objet de l.annonce/, /recherch|search|ville|adresse|code postal|localisation/);
-    if (titre && poser(titre, a.titre, a, force)) fait.push("titre");
+    if (titre && poser(titre, a.titre, a, force, "titre")) fait.push("titre");
     var desc = champ("textarea", /descr|body|texte|annonce/) || [].filter.call(document.querySelectorAll("textarea"), visible)[0];
-    if (desc && poser(desc, a.description, a, force)) fait.push("description");
+    if (desc && poser(desc, a.description, a, force, "description")) fait.push("description");
     var prix = champ("input", /prix|price/, /livraison|envoi|poids/);
-    if (prix && a.prix != null && poser(prix, String(a.prix), a, force)) fait.push("prix");
-    if (a.etat && ETATS_LBC[a.etat] && choisir(ETATS_LBC[a.etat], force ? null : groupeDejaChoisi) === "ok") fait.push("état");
+    if (prix && a.prix != null && poser(prix, String(a.prix), a, force, "prix")) fait.push("prix");
+    if (a.etat && ETATS_LBC[a.etat]) {
+      var ch = choisir(ETATS_LBC[a.etat], force ? null : groupeDejaChoisi);
+      if (ch === "ok") fait.push("état");
+      else if (!ch && (force || (etat.compte[k("etat")] || 0) < 2)) {
+        etat.compte[k("etat")] = (etat.compte[k("etat")] || 0) + 1;
+        if ((await ouvrirDeroulantEtat(a, force)) && choisir(ETATS_LBC[a.etat]) === "ok") fait.push("état");
+      }
+    }
     if (!titre && !desc && !prix && a.categorie && CATEGORIES_LBC[a.categorie].length && (force || !etat.compte[k("cat")])) {
       if (choisir(CATEGORIES_LBC[a.categorie])) { etat.compte[k("cat")] = true; fait.push("catégorie"); }
     }
@@ -123,13 +146,18 @@
     if (fic && a.photo && (force || !etat.compte[k("photo")])) {
       etat.compte[k("photo")] = true;
       try {
-        var f = await fichierPhoto(a);
-        var dt = new DataTransfer(); dt.items.add(f);
-        fic.files = dt.files;
-        fic.dispatchEvent(new Event("input", { bubbles: true }));
-        fic.dispatchEvent(new Event("change", { bubbles: true }));
-        fait.push("photo");
-      } catch (e) { etat.compte[k("photo")] = false; statut("Photo non ajoutée : " + e.message, "bad"); }
+        var fichiers = await fichiersPhotos(a), n = 0;
+        if (fic.multiple) { deposer(fic, fichiers); n = fichiers.length; }
+        else {
+          // Champ à une seule photo : on les envoie l'une après l'autre, dans l'ordre de la fiche.
+          for (var i = 0; i < fichiers.length; i++) {
+            var f2 = i === 0 ? fic : photoFichier(); if (!f2) break;
+            deposer(f2, [fichiers[i]]); n++;
+            await attendre(900);
+          }
+        }
+        fait.push(n > 1 ? n + " photos" : "photo");
+      } catch (e) { etat.compte[k("photo")] = false; statut("Photos non ajoutées : " + e.message, "bad"); }
     }
     if (fait.length && !etat.compte[k("compte")]) { etat.compte[k("compte")] = true; rrDemander({ type: "rempli" }).catch(function () {}); }
     if (fait.length) {
@@ -158,15 +186,47 @@
     remplir(false).catch(function () {});
   }
 
-  async function fichierPhoto(a) {
+  var attendre = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+  function deposer(champ, fichiers) {
+    var dt = new DataTransfer(); fichiers.forEach(function (f) { dt.items.add(f); });
+    champ.files = dt.files;
+    champ.dispatchEvent(new Event("input", { bubbles: true }));
+    champ.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  // Toutes les photos de la fiche, dans l'ordre de la galerie RetroRevente (la première sert de couverture).
+  async function fichiersPhotos(a) {
     if (!etat.photo || etat.photo.id !== a.id) {
-      var r = await rrDemander({ type: "photo", id: a.id });
-      var bin = atob(r.base64), b = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+      var ids = Array.isArray(a.photos) && a.photos.length ? a.photos : [""];
       var nom = (a.nom || "photo").normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 50) || "photo";
-      etat.photo = { id: a.id, fichier: new File([b], nom + ".jpg", { type: r.type || "image/jpeg" }) };
+      var l = [];
+      for (var j = 0; j < ids.length; j++) {
+        var r = await rrDemander({ type: "photo", id: a.id, photo: ids[j] });
+        var bin = atob(r.base64), b = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+        l.push(new File([b], nom + (ids.length > 1 ? "-" + (j + 1) : "") + ".jpg", { type: r.type || "image/jpeg" }));
+      }
+      etat.photo = { id: a.id, fichiers: l };
     }
-    return etat.photo.fichier;
+    return etat.photo.fichiers;
+  }
+  // « État » en liste déroulante maison (« Choisissez ») : on l'ouvre pour que l'option devienne cliquable.
+  // Une valeur déjà choisie est respectée, sauf « Remplir à nouveau ».
+  async function ouvrirDeroulantEtat(a, force) {
+    var cand = [].filter.call(document.querySelectorAll("[role=combobox], [aria-haspopup], button, input[readonly], div[tabindex]"), visible);
+    var d = cand.find(function (el) {
+      if (/^etat\b/.test(description(el))) return true;
+      for (var p = el.parentElement, n = 0; p && n < 4; p = p.parentElement, n++) {
+        var lab = [].find.call(p.querySelectorAll("label, legend, p, span, div"), function (x) { return x.childElementCount === 0 && !el.contains(x) && /^etat\s*\*?$/.test(norm(x.textContent)); });
+        if (lab) return lab.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING;
+      }
+      return false;
+    });
+    if (!d) return false;
+    var vu = norm(d.value || d.textContent || "");
+    if (!force && vu && !/^choisi/.test(vu)) return false;   // déjà choisi
+    ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach(function (t) { d.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })); });
+    await attendre(350);
+    return true;
   }
 
   /* ===== Panneau (charte RetroRevente : vert anis, noir doux, Rubik + Figtree) ===== */
