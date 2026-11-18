@@ -32,9 +32,9 @@
 {"@type":"SoftwareApplication","name":"RetroRevente","url":"https://retrorevente.fr/","applicationCategory":"BusinessApplication","operatingSystem":"Web, iPhone, Android","inLanguage":"fr-FR",
 "description":"Application web qui prépare en deux minutes les annonces de jeux vidéo à revendre sur Le Bon Coin : remplissage depuis une photo, prix conseillé, galerie de photos retouchées et numérotées, et suivi des ventes.",
 "offers":[
-{"@type":"Offer","name":"Découverte","price":"0","priceCurrency":"EUR","description":"5 jeux par mois, IA à l'essai sur un jeu"},
-{"@type":"Offer","name":"Vendeur","price":"4.99","priceCurrency":"EUR","description":"30 jeux par mois, 39 € par an"},
-{"@type":"Offer","name":"Collectionneur","price":"9.99","priceCurrency":"EUR","description":"Jeux illimités et alerte de seuil fiscal, 79 € par an"},
+{"@type":"Offer","name":"Découverte","price":"0","priceCurrency":"EUR","description":"5 jeux par mois, première annonce par l'IA offerte"},
+{"@type":"Offer","name":"Vendeur","price":"4.99","priceCurrency":"EUR","description":"30 jeux par mois avec l'IA, 39 € par an"},
+{"@type":"Offer","name":"Collectionneur","price":"9.99","priceCurrency":"EUR","description":"Jeux illimités, IA sans compter et alerte de seuil fiscal, 79 € par an"},
 {"@type":"Offer","name":"Pass Grand ménage","price":"9.90","priceCurrency":"EUR","description":"30 jours illimités, sans abonnement"}]},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"RetroRevente publie-t-il l'annonce sur Le Bon Coin à ma place ?","acceptedAnswer":{"@type":"Answer","text":"Non. Le Bon Coin ne propose pas d'accès public pour publier depuis une autre application. RetroRevente prépare tout (titre, description, prix, photo nettoyée), copie le texte en un clic et ouvre la page de dépôt d'annonce : il ne te reste qu'à coller et valider."}},
@@ -42,6 +42,7 @@
 {"@type":"Question","name":"Quels jeux et consoles sont reconnus ?","acceptedAnswer":{"@type":"Answer","text":"Les jeux, consoles et accessoires de toutes les générations, de la NES et de la Master System à la PS5 et la Switch, en passant par la Game Boy, la Mega Drive, la PlayStation et la Nintendo 64. Tu peux toujours corriger ce que l'outil a proposé."}},
 {"@type":"Question","name":"D'où vient le prix conseillé ?","acceptedAnswer":{"@type":"Answer","text":"Des ventes réellement conclues sur eBay, des annonces en ligne sur Le Bon Coin et des cotes PriceCharting, ajustées selon l'état et la présence de la boîte et de la notice. C'est un repère pour vendre vite au bon prix, tu restes libre de le changer."}},
 {"@type":"Question","name":"Est-ce que je dois déclarer mes ventes ?","acceptedAnswer":{"@type":"Answer","text":"Vendre tes propres affaires d'occasion n'est en principe pas imposable. Mais depuis 2023, les plateformes transmettent aux impôts les comptes qui dépassent 30 ventes ou 2 000 euros dans l'année. Avec la formule Collectionneur, RetroRevente te prévient avant d'atteindre ces seuils."}},
+{"@type":"Question","name":"L'IA est-elle comprise dans toutes les formules ?","acceptedAnswer":{"@type":"Answer","text":"Elle est comprise dans toutes les formules payantes, sur tous tes jeux : reconnaissance depuis la photo, texte de l'annonce, prix conseillé, photos retouchées, discussion pour ajuster la fiche et réponses aux acheteurs. Avec Découverte, ta première annonce par l'IA est offerte, de la photo au prix, pour voir ce qu'elle sait faire. Ensuite, tu continues gratuitement à la main, ou tu gardes l'IA à tes côtés dès 4,99 € par mois."}},
 {"@type":"Question","name":"Puis-je arrêter mon abonnement quand je veux ?","acceptedAnswer":{"@type":"Answer","text":"Oui, en un clic depuis ton compte, sans engagement. Tes annonces et ton historique restent consultables avec la formule gratuite."}}
 ]}]}
 </script>
@@ -404,7 +405,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
         <a class="btn aimant" href="/app/?inscription">Préparer ma première annonce <span class="fl" aria-hidden="true">→</span></a>
         <a class="btn verre" href="#comment">Voir comment ça marche</a>
       </div>
-      <div class="preuves rv"><span>5 jeux offerts par mois</span><span>Sans carte bancaire</span><span>Du NES à la PS5</span></div>
+      <div class="preuves rv"><span>1<sup>re</sup> annonce par l'IA offerte</span><span>Sans carte bancaire</span><span>Du NES à la PS5</span></div>
     </div>
     <div class="scene rv zoom flou" aria-hidden="true">
       <span class="chrono" id="chrono">01:48</span>
@@ -587,7 +588,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     <header class="s-tete rv">
       <p class="pixel">Tarifs</p>
       <h2 id="t-tarifs" data-mots>Moins cher qu'un jeu vendu.</h2>
-      <p><strong>Commence gratuitement.</strong> Passe à la vitesse supérieure quand tu vides <strong>vraiment</strong> le grenier.</p>
+      <p><strong>Commence gratuitement</strong>, ta première annonce par l'IA est offerte. Quand tu vides <strong>vraiment</strong> le grenier, l'IA t'accompagne sur <strong>chaque jeu</strong>.</p>
       <div class="bascule" role="group" aria-label="Période de facturation">
         <button type="button" data-p="mois" aria-pressed="true">Au mois</button>
         <button type="button" data-p="an" aria-pressed="false">À l'année <em>−35 %</em></button>
@@ -595,9 +596,9 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     </header>
     <div class="tarifs">
       <article class="offre rv lueur">
-        <h3>Découverte</h3><p class="pour">Pour tester avec quelques jeux.</p>
+        <h3>Découverte</h3><p class="pour">Pour découvrir, avec une annonce par l'IA offerte.</p>
         <p class="p">0 €</p><p class="an">Pour toujours</p>
-        <ul><li><strong>5 jeux</strong> par mois</li><li>L'IA à l'essai sur <strong>1 jeu</strong></li><li>Photos numérotées</li><li>Suivi des ventes</li></ul>
+        <ul><li><strong>5 jeux</strong> par mois</li><li><span>Ta <strong>1<sup>re</sup> annonce par l'IA offerte</strong> : photo, texte et prix</span></li><li>Photos numérotées</li><li>Suivi des ventes</li></ul>
         <a class="btn contour" href="/app/?inscription">Commencer</a>
       </article>
       <article class="offre star rv lueur">
@@ -605,14 +606,14 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
         <h3>Vendeur</h3><p class="pour">Pour écouler une collection tranquillement.</p>
         <p class="p" data-mois="4,99 €<small>/mois</small>" data-an="39 €<small>/an</small>">4,99 €<small>/mois</small></p>
         <p class="an" data-mois="ou 39 € par an" data-an="soit 3,25 € par mois">ou 39 € par an</p>
-        <ul><li><strong>30 jeux</strong> par mois</li><li>L'IA : annonce depuis la photo, prix conseillé, photos retouchées</li><li>Bilan et temps gagné</li></ul>
+        <ul><li><strong>30 jeux</strong> par mois</li><li><span><strong>L'IA sur tous tes jeux</strong> : annonce depuis la photo, bon prix, photos retouchées</span></li><li>Réponses aux acheteurs</li><li>Bilan et temps gagné</li></ul>
         <a class="btn" href="/app/?inscription&amp;offre=vendeur">Choisir Vendeur</a>
       </article>
       <article class="offre rv lueur">
         <h3>Collectionneur</h3><p class="pour">Pour les gros volumes et les chineurs.</p>
         <p class="p" data-mois="9,99 €<small>/mois</small>" data-an="79 €<small>/an</small>">9,99 €<small>/mois</small></p>
         <p class="an" data-mois="ou 79 € par an" data-an="soit 6,58 € par mois">ou 79 € par an</p>
-        <ul><li><strong>Jeux illimités</strong></li><li>Alerte de seuil fiscal</li><li>Export de tes ventes</li></ul>
+        <ul><li><strong>Jeux illimités</strong></li><li><strong>L'IA sans compter</strong></li><li>Alerte de seuil fiscal</li><li>Export de tes ventes</li></ul>
         <a class="btn contour" href="/app/?inscription&amp;offre=collectionneur">Choisir Collectionneur</a>
       </article>
       <article class="offre rv lueur">
@@ -639,6 +640,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
       <details><summary>Quels jeux et consoles sont reconnus ?</summary><p>Les jeux, consoles et accessoires de <strong>toutes les générations</strong>, de la NES et de la Master System à la PS5 et la Switch, en passant par la Game Boy, la Mega Drive, la PlayStation et la Nintendo 64. <strong>Tu peux toujours corriger</strong> ce que l'outil a proposé.</p></details>
       <details><summary>D'où vient le prix conseillé ?</summary><p>Des <strong>ventes réellement conclues</strong> sur eBay, des annonces en ligne sur Le Bon Coin et des cotes PriceCharting, ajustées selon l'état et la présence de la boîte et de la notice. C'est un repère pour vendre vite au bon prix, <strong>tu restes libre</strong> de le changer.</p></details>
       <details><summary>Est-ce que je dois déclarer mes ventes ?</summary><p>Vendre tes propres affaires d'occasion n'est en principe <strong>pas imposable</strong>. Mais depuis 2023, les plateformes transmettent aux impôts les comptes qui dépassent <strong>30 ventes ou 2 000 euros</strong> dans l'année. Avec la formule Collectionneur, RetroRevente te prévient avant d'atteindre ces seuils.</p></details>
+      <details><summary>L'IA est-elle comprise dans toutes les formules ?</summary><p>Elle est comprise dans <strong>toutes les formules payantes</strong>, sur <strong>tous tes jeux</strong> : reconnaissance depuis la photo, texte de l'annonce, prix conseillé, photos retouchées, discussion pour ajuster la fiche et réponses aux acheteurs. Avec Découverte, <strong>ta première annonce par l'IA est offerte</strong>, de la photo au prix, pour voir ce qu'elle sait faire. Ensuite, tu continues gratuitement à la main, ou tu gardes l'IA à tes côtés <strong>dès 4,99 € par mois</strong>.</p></details>
       <details><summary>Puis-je arrêter mon abonnement quand je veux ?</summary><p><strong>Oui, en un clic</strong> depuis ton compte, sans engagement. Tes annonces et ton historique restent consultables avec la formule gratuite.</p></details>
     </div>
   </div>
@@ -649,7 +651,7 @@ html.sans-anim .final .ico,html.sans-anim .final .eclair-cta,html.sans-anim .fin
     <div class="bloc rv zoom">
       <div>
         <h2 data-mots>Ton carton de jeux mérite mieux que le grenier.</h2>
-        <p>Prépare tes <strong>5 premières annonces gratuitement</strong>, ce soir.</p>
+        <p>Ta <strong>première annonce par l'IA est offerte</strong> : prends ton jeu en photo ce soir, et regarde-la s'écrire toute seule.</p>
         <div class="actions" style="margin-top:30px"><a class="btn noir" href="/app/?inscription">Essayer gratuitement <span class="fl" aria-hidden="true">→</span></a></div>
       </div>
       <div class="ico-w" aria-hidden="true"><svg class="ico" viewBox="-6 -6 76 76" overflow="visible"><rect width="64" height="64" rx="16" fill="#1A1A1A"/><path fill="#D4F57A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z"/><g class="etincelles" stroke="#1A1A1A" stroke-width="2.4" stroke-linecap="round"><path d="M52 14 L56 9"/><path d="M55.5 21 L61.5 19.5"/><path d="M45.5 12.5 L46 6.5"/></g><path class="eclair-cta" fill="#1A1A1A" d="M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg></div>
