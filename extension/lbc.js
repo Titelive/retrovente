@@ -27,7 +27,8 @@
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
   etat.continuer = true;
-  try { RR.storage.local.get(["auto", "continuer"]).then(function (r) { if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; }); } catch (e) {}
+  etat.prevenir = true;
+  try { RR.storage.local.get(["auto", "continuer", "prevenir"]).then(function (r) { if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -166,7 +167,7 @@
     if (fait.length && !etat.compte[k("compte")]) { etat.compte[k("compte")] = true; rrDemander({ type: "rempli" }).catch(function () {}); }
     if (fait.length) {
       etat.journal = (etat.journal || []).concat(fait.filter(function (x) { return (etat.journal || []).indexOf(x) < 0; }));
-      statut("Rempli automatiquement : " + fait.join(", ") + (etat.continuer ? ". Je passe à l'écran suivant dans un instant." : ". Relis, puis clique « Continuer » sur Le Bon Coin."), "ok");
+      statut("Rempli automatiquement : " + fait.join(", ") + (boutons(FINAL).length ? "." : etat.continuer && boutons(/^continuer$/).length ? ". Je passe à l'écran suivant dans un instant." : ". Relis, puis clique « Continuer » sur Le Bon Coin."), "ok");
       if (fait.some(function (x) { return /photo/.test(x); })) etat.photosA = Date.now();
     }
     return fait;
@@ -221,20 +222,89 @@
   }
   function planifierContinuer() {
     clearTimeout(minuterieSuite);
-    if (!etat.auto || !etat.continuer || !etat.choisie || !DEPOT.test(location.pathname)) return;
+    if (!etat.auto || !etat.choisie || !DEPOT.test(location.pathname)) return;
     minuterieSuite = setTimeout(continuerSiPret, 1600 + Math.round(Math.random() * 600));
   }
+  /* ===== « À toi » : son + notification quand la personne doit agir =====
+     Écran final (« Publier », « Déposer sans booster mon annonce »…), champ obligatoire resté vide ou erreur affichée.
+     Une seule alerte par écran. Le bouton à cliquer est mis en évidence ; l'extension ne le clique jamais et ne coche
+     jamais d'option payante. */
+  var FINAL = /^(publier|deposer (sans booster )?(mon |l.|votre )?annonce|valider et publier|mettre en ligne)/;
+  var alertesVues = {}, titreAvant = null, clignote = null;
+  function sonner() {
+    try {
+      var C = window.AudioContext || window.webkitAudioContext, c = new C(), t = c.currentTime;
+      [[784, 0], [1175, 0.16]].forEach(function (n) {
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = "sine"; o.frequency.value = n[0];
+        g.gain.setValueAtTime(0.0001, t + n[1]); g.gain.exponentialRampToValueAtTime(0.22, t + n[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.5);
+        o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
+      });
+      setTimeout(function () { c.close(); }, 1500);
+    } catch (e) {}
+  }
+  function clignoterTitre(txt) {
+    if (clignote || document.hasFocus()) return;
+    titreAvant = document.title; var on = false;
+    clignote = setInterval(function () { document.title = (on = !on) ? "🔔 " + txt : titreAvant; }, 1000);
+    var stop = function () { clearInterval(clignote); clignote = null; document.title = titreAvant; window.removeEventListener("focus", stop); };
+    window.addEventListener("focus", stop);
+  }
+  function mettreEnAvant(b) {
+    if (!b || b.__rrVu) return; b.__rrVu = true;
+    try { b.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+    b.style.outline = "3px solid #D4F57A"; b.style.outlineOffset = "4px";
+    try { b.animate([{ boxShadow: "0 0 0 0 rgba(212,245,122,.9)" }, { boxShadow: "0 0 0 14px rgba(212,245,122,0)" }], { duration: 1200, iterations: 6 }); } catch (e) {}
+  }
+  function aToi(cle, titre, texte, bouton) {
+    mettreEnAvant(bouton);
+    if (alertesVues[cle]) return; alertesVues[cle] = true;
+    if (!etat.prevenir) return;
+    sonner();
+    clignoterTitre(titre);
+    rrDemander({ type: "alerte", titre: titre, texte: texte }).then(function (r) {
+      if (r && r.ok) return;
+      // Safari : notification de la page, seulement si la personne l'a autorisée depuis le panneau.
+      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente" }); } catch (e) {} }
+    }).catch(function () {});
+  }
+  function optionPayanteCochee() {
+    return [].some.call(document.querySelectorAll("input[type=checkbox]:checked, [role=checkbox][aria-checked=true]"), function (x) {
+      if (hote && hote.contains(x)) return false;
+      var z = x.closest("label") || x.parentElement; for (var n = 0; z && n < 3 && !/€/.test(z.textContent); n++) z = z.parentElement;
+      return !!(z && /€/.test(z.textContent));
+    });
+  }
+  function verifierFinal() {
+    var f = boutons(FINAL)[0];
+    if (!f) return false;
+    var nom = (f.textContent || f.value || "Publier").trim().replace(/\s+/g, " ");
+    var payant = optionPayanteCochee();
+    statut("À toi : relis l'annonce, puis clique « " + nom + " » toi-même. " + (payant ? "⚠️ Une option payante est cochée : décoche-la si tu n'en veux pas." : "Aucune option payante n'est cochée."), payant ? "bad" : "toi");
+    aToi("final:" + cleEcran(), "À toi de finaliser l'annonce", "Clique « " + nom + " » pour publier" + (etat.choisie ? " « " + etat.choisie.titre + " »" : "") + ".", f);
+    return true;
+  }
+  // Bloqué (champ vide, erreur) : on prévient si c'est encore le cas 4 s plus tard (le temps que tout se remplisse).
+  function bloque(cle, texte) {
+    statut(texte, "bad");
+    clearTimeout(etat.minBloque);
+    etat.minBloque = setTimeout(function () {
+      if (cleEcran() !== cle || ecransPasses[cle] || enCours) return;
+      if (obligatoireVide() || erreurAffichee()) aToi("bloque:" + cle, "RetroRevente a besoin de toi", texte);
+    }, 4000);
+  }
   function continuerSiPret() {
-    if (!etat.auto || !etat.continuer || !etat.choisie || enCours) return;
+    if (!etat.auto || !etat.choisie || enCours) return;
+    if (verifierFinal()) return;
+    if (!etat.continuer) return;
     var cle = cleEcran();
     if (ecransPasses[cle]) return;
-    if (boutons(/^(publier|deposer mon annonce|valider et publier|mettre en ligne)/).length) { statut("Dernier écran : relis l'annonce, puis clique « Publier » toi-même.", "ok"); return; }
     var b = boutons(/^continuer$/)[0];
     if (!b || b.disabled || b.getAttribute("aria-disabled") === "true") return;
     var attente = Math.max(derniereAction + 4000, (etat.photosA || 0) + 4000) - Date.now();
     if (attente > 0 || [].some.call(document.querySelectorAll("[role=progressbar], [aria-busy=true]"), visible)) { minuterieSuite = setTimeout(continuerSiPret, Math.max(attente, 800)); return; }
-    if (obligatoireVide()) { statut("Il reste un champ obligatoire à remplir sur cet écran, puis clique « Continuer ».", "bad"); return; }
-    if (erreurAffichee()) { statut("Le Bon Coin signale un champ à corriger : corrige-le, puis clique « Continuer ».", "bad"); return; }
+    if (obligatoireVide()) { bloque(cle, "Il reste un champ obligatoire à remplir sur cet écran, puis clique « Continuer »."); return; }
+    if (erreurAffichee()) { bloque(cle, "Le Bon Coin signale un champ à corriger : corrige-le, puis clique « Continuer »."); return; }
     ecransPasses[cle] = true;
     b.click();
   }
@@ -355,8 +425,8 @@
   /* ===== Panneau (charte RetroRevente : vert anis, noir doux, Rubik + Figtree) ===== */
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var RACCOURCI = MAC ? "⌘K" : "Ctrl K";
-  // Logo du site (police Unbounded, en tracés SVG) : la couleur suit le thème via currentColor.
-  var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" height="22" aria-hidden="true" focusable="false" viewBox="6 16 420 50"> <path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="currentColor" d="M92.24 38.18H102.79Q104.73 38.18 105.81 37.29Q106.89 36.4 106.89 34.82Q106.89 33.19 105.81 32.32Q104.73 31.45 102.79 31.45H91.11L94.71 27.63V54.5H86.71V25.5H103.91Q107.24 25.5 109.71 26.68Q112.19 27.86 113.58 29.93Q114.97 32 114.97 34.82Q114.97 37.56 113.58 39.65Q112.19 41.74 109.71 42.9Q107.24 44.06 103.91 44.06H92.24ZM96.57 40.93H105.58L115.98 54.5H106.7ZM131.99 55.12Q127.96 55.12 124.81 53.65Q121.66 52.18 119.84 49.53Q118.03 46.88 118.03 43.36Q118.03 39.92 119.77 37.31Q121.51 34.7 124.54 33.23Q127.58 31.76 131.41 31.76Q135.39 31.76 138.19 33.48Q140.99 35.21 142.52 38.34Q144.05 41.47 144.05 45.72H124.41V40.97H139.6L137.01 42.63Q136.86 40.93 136.16 39.75Q135.47 38.57 134.32 37.95Q133.18 37.33 131.6 37.33Q129.86 37.33 128.62 38.03Q127.38 38.72 126.69 39.94Q125.99 41.16 125.99 42.78Q125.99 44.87 126.94 46.32Q127.89 47.77 129.72 48.55Q131.56 49.32 134.23 49.32Q136.66 49.32 139.08 48.68Q141.5 48.04 143.47 46.88V51.91Q141.19 53.46 138.27 54.29Q135.35 55.12 131.99 55.12ZM145.48 38.26V34.82L149.97 33L153.37 26.47H157.85V32.42H167.13V38.26H157.85V44.76Q157.85 47.15 158.82 48.12Q159.79 49.09 162.34 49.09Q163.96 49.09 165.22 48.8Q166.48 48.51 167.52 48.04V54Q166.36 54.42 164.47 54.77Q162.57 55.12 160.56 55.12Q156.89 55.12 154.55 54Q152.21 52.88 151.09 50.77Q149.97 48.66 149.97 45.84V38.26ZM169.69 32.42H177.73L179.04 40.31V54.5H171.15V39.85ZM189.41 32.07V38.8Q188.25 38.57 187.22 38.47Q186.2 38.38 185.35 38.38Q183.64 38.38 182.21 39.05Q180.78 39.73 179.91 41.28Q179.04 42.82 179.04 45.41L177.53 43.56Q177.84 41.16 178.46 39.05Q179.08 36.95 180.14 35.3Q181.21 33.66 182.79 32.71Q184.38 31.76 186.66 31.76Q187.32 31.76 188.01 31.84Q188.71 31.92 189.41 32.07ZM205.26 55.12Q201.01 55.12 197.83 53.67Q194.66 52.22 192.89 49.57Q191.11 46.92 191.11 43.48Q191.11 39.96 192.89 37.33Q194.66 34.7 197.83 33.23Q201.01 31.76 205.26 31.76Q209.47 31.76 212.66 33.23Q215.85 34.7 217.63 37.33Q219.41 39.96 219.41 43.48Q219.41 46.92 217.63 49.57Q215.85 52.22 212.66 53.67Q209.47 55.12 205.26 55.12ZM205.26 49.28Q207.19 49.28 208.56 48.58Q209.94 47.89 210.67 46.57Q211.41 45.26 211.41 43.48Q211.41 41.62 210.67 40.33Q209.94 39.03 208.56 38.34Q207.19 37.64 205.26 37.64Q203.33 37.64 201.93 38.34Q200.54 39.03 199.81 40.33Q199.07 41.62 199.07 43.44Q199.07 45.26 199.81 46.57Q200.54 47.89 201.93 48.58Q203.33 49.28 205.26 49.28ZM228.81 38.18H239.36Q241.3 38.18 242.38 37.29Q243.46 36.4 243.46 34.82Q243.46 33.19 242.38 32.32Q241.3 31.45 239.36 31.45H227.69L231.28 27.63V54.5H223.28V25.5H240.48Q243.81 25.5 246.28 26.68Q248.76 27.86 250.15 29.93Q251.54 32 251.54 34.82Q251.54 37.56 250.15 39.65Q248.76 41.74 246.28 42.9Q243.81 44.06 240.48 44.06H228.81ZM233.14 40.93H242.15L252.55 54.5H243.27ZM268.56 55.12Q264.53 55.12 261.38 53.65Q258.23 52.18 256.41 49.53Q254.6 46.88 254.6 43.36Q254.6 39.92 256.34 37.31Q258.08 34.7 261.11 33.23Q264.15 31.76 267.98 31.76Q271.96 31.76 274.76 33.48Q277.57 35.21 279.09 38.34Q280.62 41.47 280.62 45.72H260.98V40.97H276.17L273.58 42.63Q273.43 40.93 272.73 39.75Q272.04 38.57 270.9 37.95Q269.75 37.33 268.17 37.33Q266.43 37.33 265.19 38.03Q263.95 38.72 263.26 39.94Q262.56 41.16 262.56 42.78Q262.56 44.87 263.51 46.32Q264.46 47.77 266.29 48.55Q268.13 49.32 270.8 49.32Q273.23 49.32 275.65 48.68Q278.07 48.04 280.04 46.88V51.91Q277.76 53.46 274.84 54.29Q271.92 55.12 268.56 55.12ZM298.14 50.75 295.43 50.71 303.09 32.42H311.51L301.19 54.5H292.18L281.86 32.42H290.6ZM326.67 55.12Q322.65 55.12 319.5 53.65Q316.35 52.18 314.53 49.53Q312.71 46.88 312.71 43.36Q312.71 39.92 314.45 37.31Q316.19 34.7 319.23 33.23Q322.26 31.76 326.09 31.76Q330.07 31.76 332.88 33.48Q335.68 35.21 337.21 38.34Q338.74 41.47 338.74 45.72H319.09V40.97H334.29L331.7 42.63Q331.54 40.93 330.85 39.75Q330.15 38.57 329.01 37.95Q327.87 37.33 326.29 37.33Q324.55 37.33 323.31 38.03Q322.07 38.72 321.37 39.94Q320.68 41.16 320.68 42.78Q320.68 44.87 321.63 46.32Q322.57 47.77 324.41 48.55Q326.25 49.32 328.91 49.32Q331.35 49.32 333.77 48.68Q336.18 48.04 338.16 46.88V51.91Q335.87 53.46 332.96 54.29Q330.04 55.12 326.67 55.12ZM341.06 32.42H348.98L350.41 41.24V54.5H342.53V40.04ZM358.53 31.76Q361.7 31.76 363.95 33.04Q366.19 34.32 367.37 36.64Q368.55 38.96 368.55 42.13V54.5H360.66V43.29Q360.66 40.81 359.4 39.5Q358.15 38.18 355.79 38.18Q354.16 38.18 352.95 38.88Q351.73 39.57 351.07 40.85Q350.41 42.13 350.41 43.87L347.98 42.59Q348.44 39.07 349.95 36.66Q351.46 34.24 353.66 33Q355.87 31.76 358.53 31.76ZM370.67 38.26V34.82L375.16 33L378.56 26.47H383.05V32.42H392.33V38.26H383.05V44.76Q383.05 47.15 384.01 48.12Q384.98 49.09 387.53 49.09Q389.16 49.09 390.41 48.8Q391.67 48.51 392.71 48.04V54Q391.55 54.42 389.66 54.77Q387.77 55.12 385.75 55.12Q382.08 55.12 379.74 54Q377.4 52.88 376.28 50.77Q375.16 48.66 375.16 45.84V38.26ZM408.88 55.12Q404.86 55.12 401.7 53.65Q398.55 52.18 396.74 49.53Q394.92 46.88 394.92 43.36Q394.92 39.92 396.66 37.31Q398.4 34.7 401.43 33.23Q404.47 31.76 408.3 31.76Q412.28 31.76 415.08 33.48Q417.89 35.21 419.41 38.34Q420.94 41.47 420.94 45.72H401.3V40.97H416.49L413.9 42.63Q413.75 40.93 413.05 39.75Q412.36 38.57 411.22 37.95Q410.08 37.33 408.49 37.33Q406.75 37.33 405.51 38.03Q404.28 38.72 403.58 39.94Q402.88 41.16 402.88 42.78Q402.88 44.87 403.83 46.32Q404.78 47.77 406.62 48.55Q408.45 49.32 411.12 49.32Q413.56 49.32 415.97 48.68Q418.39 48.04 420.36 46.88V51.91Q418.08 53.46 415.16 54.29Q412.24 55.12 408.88 55.12Z"/> </svg>';
+  // Logo du site (police Plus Jakarta Sans, en tracés SVG) : la couleur suit le thème via currentColor.
+  var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" height="22" aria-hidden="true" focusable="false" viewBox="6 16 388 50"> <path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="#D4F57A" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="currentColor" d="M86.97 56.75V23.25H99.78Q103.25 23.25 105.92 24.46Q108.6 25.68 110.13 28.06Q111.65 30.44 111.65 33.95Q111.65 37.37 110.08 39.78Q108.51 42.18 105.85 43.39L113.5 56.75H105.67L97.4 41.96L101.9 44.61H93.94V56.75ZM93.94 38.54H99.83Q101.31 38.54 102.39 37.95Q103.47 37.37 104.08 36.34Q104.68 35.3 104.68 33.95Q104.68 32.56 104.08 31.52Q103.47 30.49 102.39 29.91Q101.31 29.32 99.83 29.32H93.94ZM128.29 57.29Q124.38 57.29 121.5 55.56Q118.62 53.83 117.05 50.9Q115.48 47.98 115.48 44.43Q115.48 40.74 117.12 37.86Q118.76 34.99 121.55 33.32Q124.33 31.66 127.84 31.66Q130.77 31.66 133.01 32.58Q135.26 33.5 136.81 35.17Q138.36 36.83 139.17 39.01Q139.98 41.19 139.98 43.75Q139.98 44.47 139.92 45.17Q139.85 45.87 139.67 46.36H121.28V41.42H135.85L132.65 43.75Q133.1 41.82 132.61 40.31Q132.11 38.81 130.88 37.93Q129.64 37.05 127.84 37.05Q126.09 37.05 124.83 37.91Q123.57 38.76 122.94 40.43Q122.31 42.09 122.45 44.47Q122.27 46.54 122.94 48.12Q123.62 49.69 125.01 50.57Q126.4 51.44 128.38 51.44Q130.18 51.44 131.46 50.72Q132.74 50.01 133.46 48.75L138.86 51.31Q138.14 53.11 136.59 54.46Q135.04 55.81 132.92 56.55Q130.81 57.29 128.29 57.29ZM155.77 57.02Q151.31 57.02 148.86 54.61Q146.41 52.21 146.41 47.89V38.04H142.28V32.2H142.5Q144.39 32.2 145.4 31.25Q146.41 30.31 146.41 28.42V26.62H153.16V32.2H158.91V38.04H153.16V47.44Q153.16 48.7 153.61 49.53Q154.06 50.36 155 50.77Q155.95 51.17 157.34 51.17Q157.66 51.17 158.06 51.13Q158.46 51.08 158.91 51.04V56.75Q158.24 56.84 157.39 56.93Q156.53 57.02 155.77 57.02ZM162.87 56.75V32.2H169.17V38.09L168.72 37.23Q169.53 34.13 171.39 33.03Q173.26 31.93 175.82 31.93H177.26V37.77H175.15Q172.67 37.77 171.14 39.28Q169.62 40.79 169.62 43.53V56.75ZM192.41 57.29Q188.77 57.29 185.78 55.63Q182.79 53.96 181.02 51.06Q179.24 48.16 179.24 44.47Q179.24 40.74 181.02 37.86Q182.79 34.99 185.78 33.32Q188.77 31.66 192.41 31.66Q196.06 31.66 199.02 33.32Q201.99 34.99 203.77 37.86Q205.54 40.74 205.54 44.47Q205.54 48.16 203.77 51.06Q201.99 53.96 199.02 55.63Q196.06 57.29 192.41 57.29ZM192.41 51.22Q194.26 51.22 195.63 50.36Q197 49.51 197.79 47.98Q198.57 46.45 198.57 44.47Q198.57 42.5 197.79 40.99Q197 39.48 195.63 38.61Q194.26 37.73 192.41 37.73Q190.57 37.73 189.18 38.61Q187.78 39.48 187 40.99Q186.21 42.5 186.21 44.47Q186.21 46.45 187 47.98Q187.78 49.51 189.18 50.36Q190.57 51.22 192.41 51.22ZM210 56.75V23.25H222.81Q226.27 23.25 228.95 24.46Q231.62 25.68 233.15 28.06Q234.68 30.44 234.68 33.95Q234.68 37.37 233.11 39.78Q231.53 42.18 228.88 43.39L236.53 56.75H228.7L220.43 41.96L224.92 44.61H216.97V56.75ZM216.97 38.54H222.86Q224.34 38.54 225.42 37.95Q226.5 37.37 227.11 36.34Q227.71 35.3 227.71 33.95Q227.71 32.56 227.11 31.52Q226.5 30.49 225.42 29.91Q224.34 29.32 222.86 29.32H216.97ZM251.32 57.29Q247.41 57.29 244.53 55.56Q241.65 53.83 240.08 50.9Q238.5 47.98 238.5 44.43Q238.5 40.74 240.15 37.86Q241.79 34.99 244.58 33.32Q247.36 31.66 250.87 31.66Q253.79 31.66 256.04 32.58Q258.29 33.5 259.84 35.17Q261.39 36.83 262.2 39.01Q263.01 41.19 263.01 43.75Q263.01 44.47 262.94 45.17Q262.88 45.87 262.7 46.36H244.31V41.42H258.87L255.68 43.75Q256.13 41.82 255.64 40.31Q255.14 38.81 253.91 37.93Q252.67 37.05 250.87 37.05Q249.12 37.05 247.86 37.91Q246.6 38.76 245.97 40.43Q245.34 42.09 245.47 44.47Q245.29 46.54 245.97 48.12Q246.64 49.69 248.04 50.57Q249.43 51.44 251.41 51.44Q253.21 51.44 254.49 50.72Q255.77 50.01 256.49 48.75L261.89 51.31Q261.17 53.11 259.62 54.46Q258.07 55.81 255.95 56.55Q253.84 57.29 251.32 57.29ZM274.66 56.75 264.99 32.2H272.27L278.97 50.77H276.19L282.89 32.2H290.17L280.5 56.75ZM304.97 57.29Q301.05 57.29 298.18 55.56Q295.3 53.83 293.72 50.9Q292.15 47.98 292.15 44.43Q292.15 40.74 293.79 37.86Q295.43 34.99 298.22 33.32Q301.01 31.66 304.52 31.66Q307.44 31.66 309.69 32.58Q311.93 33.5 313.49 35.17Q315.04 36.83 315.85 39.01Q316.66 41.19 316.66 43.75Q316.66 44.47 316.59 45.17Q316.52 45.87 316.34 46.36H297.95V41.42H312.52L309.33 43.75Q309.78 41.82 309.28 40.31Q308.79 38.81 307.55 37.93Q306.31 37.05 304.52 37.05Q302.76 37.05 301.5 37.91Q300.24 38.76 299.61 40.43Q298.98 42.09 299.12 44.47Q298.94 46.54 299.61 48.12Q300.29 49.69 301.68 50.57Q303.08 51.44 305.06 51.44Q306.85 51.44 308.14 50.72Q309.42 50.01 310.14 48.75L315.53 51.31Q314.81 53.11 313.26 54.46Q311.71 55.81 309.6 56.55Q307.48 57.29 304.97 57.29ZM320.61 56.75V32.2H326.91V37.05L326.55 35.98Q327.4 33.77 329.31 32.72Q331.23 31.66 333.79 31.66Q336.58 31.66 338.67 32.83Q340.76 34 341.93 36.09Q343.1 38.18 343.1 40.97V56.75H336.35V42.41Q336.35 40.97 335.79 39.93Q335.23 38.9 334.22 38.31Q333.2 37.73 331.86 37.73Q330.55 37.73 329.52 38.31Q328.48 38.9 327.92 39.93Q327.36 40.97 327.36 42.41V56.75ZM359.37 57.02Q354.92 57.02 352.47 54.61Q350.02 52.21 350.02 47.89V38.04H345.88V32.2H346.11Q348 32.2 349.01 31.25Q350.02 30.31 350.02 28.42V26.62H356.77V32.2H362.52V38.04H356.77V47.44Q356.77 48.7 357.22 49.53Q357.67 50.36 358.61 50.77Q359.55 51.17 360.95 51.17Q361.26 51.17 361.67 51.13Q362.07 51.08 362.52 51.04V56.75Q361.85 56.84 360.99 56.93Q360.14 57.02 359.37 57.02ZM378.31 57.29Q374.39 57.29 371.52 55.56Q368.64 53.83 367.06 50.9Q365.49 47.98 365.49 44.43Q365.49 40.74 367.13 37.86Q368.77 34.99 371.56 33.32Q374.35 31.66 377.86 31.66Q380.78 31.66 383.03 32.58Q385.28 33.5 386.83 35.17Q388.38 36.83 389.19 39.01Q390 41.19 390 43.75Q390 44.47 389.93 45.17Q389.86 45.87 389.68 46.36H371.29V41.42H385.86L382.67 43.75Q383.12 41.82 382.62 40.31Q382.13 38.81 380.89 37.93Q379.65 37.05 377.86 37.05Q376.1 37.05 374.84 37.91Q373.58 38.76 372.95 40.43Q372.32 42.09 372.46 44.47Q372.28 46.54 372.95 48.12Q373.63 49.69 375.02 50.57Q376.42 51.44 378.4 51.44Q380.19 51.44 381.48 50.72Q382.76 50.01 383.48 48.75L388.87 51.31Q388.15 53.11 386.6 54.46Q385.05 55.81 382.94 56.55Q380.82 57.29 378.31 57.29Z"/> </svg>';
   function marque() { var b = el("b", { class: "marque", role: "img", "aria-label": "RetroRevente" }); b.innerHTML = LOGO; return b; }
   var CSS = ":host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}" +
     ".b{--anis:#D4F57A;--anis-p:#F1FCD0;--vert-p:#E9F7EC;--vert-t:#CBEBD3;--vert-f:#14401F;--rouge-p:#FCEDEA;--rouge-t:#F6D3CB;--rouge-f:#6A1E12;--nuit:#1A1A1A;--carte:#fff;--papier:#F6F6F1;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;--titre:'RR Rubik',ui-rounded,'Arial Rounded MT Bold',system-ui,sans-serif;--texte:'RR Figtree','Avenir Next',ui-sans-serif,system-ui,sans-serif;--ease:cubic-bezier(.2,.8,.2,1);" +
@@ -392,7 +462,7 @@
     /* détail et actions */
     ".mini{border:1px solid var(--trait);background:var(--papier);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer}.mini:hover{background:var(--anis-p);border-color:var(--anis)}" +
     ".go{border:0;border-radius:999px;background:var(--anis);color:var(--nuit);font:600 15px/1 var(--texte);padding:14px 18px;cursor:pointer;transition:transform .25s var(--ease),box-shadow .25s var(--ease)}.go:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(191,229,76,.45)}" +
-    ".s{font-size:13px;color:var(--gris);background:var(--papier);border-radius:12px;padding:9px 11px}.s.ok{background:var(--anis-p);color:var(--encre)}.s.bad{background:#FDE8E4;color:#8A1F11}" +
+    ".s{font-size:13px;color:var(--gris);background:var(--papier);border-radius:12px;padding:9px 11px}.s.ok{background:var(--anis-p);color:var(--encre)}.s.bad{background:#FDE8E4;color:#8A1F11}.s.toi{background:var(--anis);color:#1A1A1A;font-weight:700;animation:toi 1.2s ease-in-out 3}@keyframes toi{50%{transform:scale(1.02)}}" +
     ".n{font-size:11.5px;color:var(--gris-c)}" +
     ".pile{display:flex;flex-direction:column;gap:12px}.c{display:flex;flex-direction:column;gap:5px;font-size:13px}.c .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris)}.c .l b{color:var(--encre);font-weight:600}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}" +
@@ -477,7 +547,7 @@
       el("div", { class: "t" }, [marque(), el("button", { class: "x", "aria-label": "Réduire", title: "Réduire (Échap)", texte: "×", onclick: function () { replie(true); } })]),
       el("div", { class: "corps" }),
       el("div", { class: "s", texte: "Chargement de tes annonces…" }),
-      el("div", { class: "n", texte: mode() === "messages" ? "Un clic place la réponse dans la zone de message : relis, puis envoie." : "Chaque écran du dépôt se remplit et passe tout seul. Sur le dernier, tu relis et tu cliques « Publier »." }),
+      el("div", { class: "n", texte: mode() === "messages" ? "Un clic place la réponse dans la zone de message : relis, puis envoie." : "Chaque écran du dépôt se remplit et passe tout seul. Sur le dernier, un son te prévient : tu relis et tu publies toi-même." }),
     ]));
     charger().then(function () { if (puis) puis(); });
   }
@@ -634,7 +704,17 @@
       el("span", { class: "rail" }), "Continuer tout seul",
     ]);
     suite.querySelector("input").checked = etat.continuer;
-    var actions = el("div", { class: "actions" }, [bascule, suite, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    var prevenir = el("label", { class: "auto", title: "Un son et une notification quand c'est à toi de cliquer (dernier écran, champ à compléter)" }, [
+      el("input", { type: "checkbox", role: "switch", onchange: function (e) {
+        etat.prevenir = e.target.checked; try { RR.storage.local.set({ prevenir: etat.prevenir }); } catch (x) {}
+        // Safari n'a pas les notifications d'extension : on demande l'autorisation pour cette page, au clic.
+        if (etat.prevenir && /Apple/.test(navigator.vendor || "") && window.Notification && Notification.permission === "default") { try { Notification.requestPermission(); } catch (x) {} }
+        if (etat.prevenir) sonner();
+      } }),
+      el("span", { class: "rail" }), "Me prévenir (son + notification)",
+    ]);
+    prevenir.querySelector("input").checked = etat.prevenir;
+    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
