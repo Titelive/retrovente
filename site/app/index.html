@@ -1082,7 +1082,8 @@ $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.valu
   var vide=!GAL.length&&!$("f_titre").value.trim();
   if(vide){var prem=fs.shift();analyser(prem).then(function(){ajouterPhotos(fs)});return}
   ajouterPhotos(fs)};
-function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g){return!g.legende})?decrire(true):Promise.resolve();   // une seule photo : elle est décrite aussivar debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
+function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g){return!g.legende})?decrire(true):Promise.resolve();   // une seule photo : elle est décrite aussi
+  var debut=GAL.length;attente("J'ajoute "+(fs.length>1?fs.length+" photos":"la photo")+"…");
   return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,2000,1100000);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
