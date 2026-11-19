@@ -361,7 +361,6 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche .g-champs{gap:12px}
   html.etabli #fiche .dial{padding:14px 18px;gap:8px;flex:none}
   html.etabli #fiche .dial-aide{display:none}
-  html.etabli #fiche .dial-sug{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}html.etabli #fiche .dial-sug button{flex:none;white-space:nowrap}
   html.etabli #fiche .photos-carte .f.leg input{padding-top:9px;padding-bottom:9px}
   html.etabli #fiche .dial-fil{max-height:150px}
   html.etabli #fiche .dial-in textarea{min-height:42px}
@@ -418,7 +417,7 @@ body.panneau-ouvert{overflow:hidden}
 .dial-ic{width:30px;height:30px;border-radius:10px;background:var(--anis);color:var(--nuit);display:grid;place-items:center;flex:none}.dial-ic svg{width:17px;height:17px}
 .dial-aide{margin:0;font-size:14px;color:var(--gris)}
 .dial-sug{display:flex;gap:6px;flex-wrap:wrap}
-.dial-sug button{border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 var(--texte);background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);cursor:pointer;text-align:left}
+.dial-sug button{max-width:100%;border:0;border-radius:999px;padding:7px 12px;font:600 13px/1.2 var(--texte);background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);cursor:pointer;text-align:left}
 .dial-sug button:hover{box-shadow:inset 0 0 0 1.5px var(--nuit)}
 .dial-fil{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding:2px}
 .bul{max-width:88%;padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;animation:carte-in .35s var(--ease) backwards}
@@ -880,7 +879,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
       <section class="carte bloc dial" id="fDial" data-mo="ia" aria-labelledby="tDial">
         <header><h3 id="tDial"><span class="dial-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>Dis-le à l'IA</h3></header>
         <p class="dial-aide">Explique avec tes mots, la fiche et l'annonce se mettent à jour.</p>
-        <div class="dial-sug" id="dSug"><button type="button">Le code a déjà été utilisé, il reste la boîte et le poster</button><button type="button">Rends l'annonce plus courte</button><button type="button">Quel prix tu me conseilles ?</button></div>
+        <div class="dial-sug" id="dSug"><button type="button">Code utilisé, poster inclus</button><button type="button">Raccourcis l'annonce</button><button type="button">Quel prix conseilles-tu ?</button></div>
         <div class="dial-fil" id="dFil" hidden aria-live="polite"></div>
         <form class="dial-in" id="dForm"><textarea id="dTexte" rows="1" maxlength="1500" placeholder="Écris à l'IA…" aria-label="Message à l'IA"></textarea><button class="btn" id="dEnv" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
       </section>
@@ -1428,7 +1427,7 @@ function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(
   $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
   $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
   if(c)$("f_contenu").value="";zoneModif();
-  var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
+  var sug=c?["Near Mint, mise en sleeve","C'est une 1re édition","Quel prix conseilles-tu ?"]:["Code utilisé, poster inclus","Raccourcis l'annonce","Quel prix conseilles-tu ?"];
   [].forEach.call($("dSug").querySelectorAll("button"),function(b,i){if(sug[i])b.textContent=sug[i]})}
 $("f_categorie").addEventListener("change",modeCarte);
 $("f_etatCarte").addEventListener("change",function(){var e=ETAT_LBC_CARTE[this.value];if(e){$("f_etat").value=e;$("f_etat").dispatchEvent(new Event("change"))}});
