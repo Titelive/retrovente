@@ -549,7 +549,7 @@ function lienLbc(v) {
     });
     // Photos du lot : la mosaïque composée par l'appli en premier, puis la première photo de chaque article.
     const photos = [];
-    if (typeof b.photo === "string" && b.photo) { try { if (savePhoto(u.id, id, b.photo, "p0")) photos.push({ id: "p0", legende: "" }); } catch (e) { if (!(e instanceof HttpError)) throw e; } }
+    if (typeof b.photo === "string" && b.photo) { try { if (savePhoto(u.id, id, b.photo, "p0")) photos.push({ id: "p0", legende: txt(`Les ${lot.articles.length} articles du lot réunis`, 200) }); } catch (e) { if (!(e instanceof HttpError)) throw e; } }
     for (const mid of lot.articles) {
       if (photos.length >= MAX_PHOTOS) break;
       const m = getItem(u.id, mid), ph = m && photosDe(m)[0], f = ph && fichierPhoto(u.id, m.id, ph.id);
