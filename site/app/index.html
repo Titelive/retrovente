@@ -601,6 +601,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   .ajout{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
   .ajout>.btn,.ajout>label.btn{justify-content:center;min-height:48px;padding:12px 10px;font-size:14.5px}
   .ajout #bCam{grid-column:1/-1;min-height:56px;font-size:16px}
+  .ajout>.btn,.ajout>label.btn{min-width:0;gap:8px;white-space:nowrap}.ajout>.btn svg{flex:none;width:20px;height:20px}.ajout .mob-seul{overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:360px){.ajout>.btn:not(#bCam),.ajout>label.btn{padding:12px 8px;font-size:14px;gap:6px}.ajout>.btn:not(#bCam) svg{width:18px;height:18px}}
   .ajout #lPhotoIn{--bg:var(--carte);--fg:var(--encre);background:var(--carte);color:var(--encre);box-shadow:0 0 0 1px var(--trait)}
   /* la barre de progression dit déjà où en est l'IA : pas de bulle par-dessus la photo */
   #fiche .photo .attente span,#fiche .photo .attente small{display:none}
@@ -632,6 +634,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   .m-onglets{flex:none;display:flex;padding:4px 4px max(6px,env(safe-area-inset-bottom));background:var(--carte);box-shadow:0 -1px 0 var(--trait)}
   .m-onglets button{flex:1;min-width:0;display:grid;justify-items:center;gap:2px;border:0;background:none;color:var(--gris);font:600 11px/1.1 var(--texte);padding:7px 0 5px;min-height:50px;border-radius:14px;cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent}
   .m-onglets button svg{width:22px;height:22px}
+  .m-onglets button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media(max-width:360px){.m-onglets button{font-size:10px}}
   .m-onglets button[aria-pressed=true]{color:var(--nuit);background:var(--anis)}
   .m-onglets button.neuf::after{content:"";position:absolute;top:6px;right:calc(50% - 17px);width:8px;height:8px;border-radius:50%;background:#EC5A13;box-shadow:0 0 0 2px var(--carte)}
   /* onglet Photos : la photo prend la place qui reste */
@@ -642,9 +646,16 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   #fiche .photos-carte .galerie li{width:56px;height:56px;flex:none;border-radius:12px}
   #fiche .photos-carte .ia-etat{margin:0;flex:none}
   #fiche .photos-carte .leg{flex:none}
-  #fiche .photos-carte .rangee{flex:none;display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:0 -16px;padding:2px 16px;scrollbar-width:none}
-  #fiche .photos-carte .rangee::-webkit-scrollbar{display:none}
-  #fiche .photos-carte .rangee>*{flex:none;min-height:42px;white-space:nowrap}
+  #fiche .photos-carte .rangee{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0}
+  #fiche .photos-carte .rangee>.btn{min-width:0;min-height:42px;padding:8px 6px;font-size:14px;gap:6px;justify-content:center;white-space:nowrap}
+  #fiche .photos-carte .rangee>.btn .i{width:17px;height:17px}
+  #fiche .photos-carte .rangee>.lien{grid-column:1/-1;justify-self:center}
+  @media(max-width:360px){#fiche .photos-carte .rangee>.btn{font-size:13px;padding:8px 4px;gap:4px}#fiche .photos-carte .rangee>.btn .i{width:15px;height:15px}
+    .fab-save #fSave span{display:none}.fab-save #fSave{padding:0 12px!important}
+    #fiche .photos-carte .rangee>.btn:not(#fCam) .i{display:none}}
+  .profil-g{flex-direction:column;align-items:stretch;gap:18px}.profil-g>*{width:100%;min-width:0}.profil-g>.avatar-zone{align-self:center;width:auto}
+  .zone .rangee>.btn{max-width:100%;white-space:normal;text-align:center}
+  @media(max-height:700px){#fiche .photos-carte .photo{min-height:90px}#fiche .photos-carte .leg>span{display:none}#fiche .photos-carte .galerie li{width:48px;height:48px}#fiche .photos-carte.mo-on{gap:8px;padding:12px}}
   #fiche .dial.mo-on{height:100%;box-sizing:border-box;display:flex;flex-direction:column}
   #fiche .dial .dial-fil{flex:1;min-height:0;overflow-y:auto}
   #fiche .champs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
@@ -744,8 +755,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     <div><p class="pixel">Mes articles</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
     <div class="ajout">
       <button class="btn mob" type="button" id="bCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Prendre en photo</button>
-      <label class="btn" for="photoIn" id="lPhotoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> <span class="pc-seul">Ajouter en photo</span><span class="mob-seul">Depuis la galerie</span></label>
-      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
+      <label class="btn" for="photoIn" id="lPhotoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> <span class="pc-seul">Ajouter en photo</span><span class="mob-seul">Galerie</span></label>
+      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.7l4.6 9.9a2 2 0 0 0 2.6 1l1.2-.6"/></svg> <span class="pc-seul">Plusieurs cartes Pokémon</span><span class="mob-seul">Cartes Pokémon</span></label>
       <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <a class="btn clair" id="bLbc" target="_blank" rel="noopener" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg> Ma page Le Bon Coin</a>
@@ -790,13 +801,13 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <ol class="galerie" id="fGal" aria-label="Photos de l'article (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
       <div class="rangee">
-        <button class="btn petit mob" type="button" id="fCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Prendre</button>
+        <button class="btn petit mob" type="button" id="fCam"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Prendre</button>
         <label class="btn clair petit" for="fPhotoIn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="pc-seul">Ajouter des photos</span><span class="mob-seul">Galerie</span></label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
-        <button class="btn clair petit" type="button" id="fIa">Remplir depuis la photo</button>
+        <button class="btn clair petit" type="button" id="fIa"><span class="pc-seul">Remplir depuis la photo</span><span class="mob-seul">Remplir</span></button>
         <button class="btn clair petit" type="button" id="fNet"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Retoucher</button>
-        <button class="btn clair petit" type="button" id="fOrig" hidden>Voir l'original</button>
+        <button class="btn clair petit" type="button" id="fOrig" hidden><span class="pc-seul">Voir l'original</span><span class="mob-seul">Original</span></button>
         <button class="btn clair petit" type="button" id="fPivot" title="Tourner d'un quart de tour">↻ Pivoter</button>
-        <button class="btn clair petit" type="button" id="fDecrire">Décrire les photos</button>
+        <button class="btn clair petit" type="button" id="fDecrire"><span class="pc-seul">Décrire les photos</span><span class="mob-seul">Décrire</span></button>
         <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer les photos numérotées</button>
         <button class="lien" type="button" id="fPhotoSuppr" hidden>Retirer cette photo</button>
       </div>
@@ -861,7 +872,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     </div>
   </div>
   <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button></div></div>
-  <nav class="m-onglets" id="mOnglets" aria-label="Parties de la fiche"><button type="button" data-m="photos" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Photos</span></button><button type="button" data-m="article" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/></svg><span>Le jeu</span></button><button type="button" data-m="prix" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Prix</span></button><button type="button" data-m="annonce" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Annonce</span></button><button type="button" data-m="ia" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>IA</span></button><button type="button" data-m="suivi" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Suivi</span></button></nav></div>
+  <nav class="m-onglets" id="mOnglets" aria-label="Parties de la fiche"><button type="button" data-m="photos" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Photos</span></button><button type="button" data-m="article" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/></svg><span>Jeu</span></button><button type="button" data-m="prix" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Prix</span></button><button type="button" data-m="annonce" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Annonce</span></button><button type="button" data-m="ia" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>IA</span></button><button type="button" data-m="suivi" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Suivi</span></button></nav></div>
 </section>
 
 <!-- ========== Compte ========== -->
@@ -1092,7 +1103,7 @@ function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function dfr(s){if(!s)return"";var d=new Date(s);return d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
 var tt;function toast(t,k){var e=$("toast");e.textContent=t;e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"?6500:3500)}
-function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){var sp=b.id==="fSave"&&b.querySelector("span");if(sp)sp.textContent=t;else b.textContent=t}}
+function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){var sp=b.id==="fSave"&&b.querySelector("span");if(sp)sp.textContent=t;else if(/<span/.test(t))b.innerHTML=t;else b.textContent=t}}
 
 /* Identifiant de l'appareil (anti comptes en série pour l'essai gratuit de l'IA) */
 var APP=(function(){var a="";try{a=localStorage.getItem("rr-app")||"";if(!/^[a-z0-9]{16,40}$/.test(a)){a=(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,"").slice(0,32);localStorage.setItem("rr-app",a)}}catch(e){}return a})();
@@ -1260,8 +1271,8 @@ function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
     (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
-  $("fOrig").hidden=!(c&&c.orig);if(c&&c.orig)$("fOrig").textContent=c.vueOrig?"Revenir à la photo retouchée":"Voir l'original";
-  $("fPhotoSuppr").hidden=!c;$("fDecrire").hidden=!GAL.length;$("fPhotoDl").textContent=GAL.length>1?"Enregistrer les "+GAL.length+" photos numérotées":"Enregistrer la photo numérotée";
+  $("fOrig").hidden=!(c&&c.orig);if(c&&c.orig)$("fOrig").innerHTML=c.vueOrig?'<span class="pc-seul">Revenir à la photo retouchée</span><span class="mob-seul">Retouchée</span>':'<span class="pc-seul">Voir l\'original</span><span class="mob-seul">Original</span>';
+  $("fPhotoSuppr").hidden=!c;$("fDecrire").hidden=!GAL.length;$("fPhotoDl").innerHTML='<span class="pc-seul">'+(GAL.length>1?"Enregistrer les "+GAL.length+" photos numérotées":"Enregistrer la photo numérotée")+'</span><span class="mob-seul">Exporter</span>';
   if(typeof majLbc==="function")majLbc()}
 function deplacer(de,vers){if(vers<0||vers>=GAL.length||de===vers)return;var g=GAL.splice(de,1)[0];GAL.splice(vers,0,g);SEL=vers;afficher();majDescPhotos()}
 $("fGal").addEventListener("click",function(e){var d=e.target.closest("[data-dep]"),li=e.target.closest("li");if(!li)return;
@@ -1330,8 +1341,9 @@ function zoneModif(){$("fModifZone").hidden=estCarte()||$("f_origine").value!=="
 function estCarte(){return $("f_categorie").value==="cartes"}
 var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
 function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c});
-  $("fBlocTitre").textContent=c?"La carte":"Le jeu";$("oArticle").textContent=c?"La carte":"Le jeu";$("lTitre").textContent=c?"Nom de la carte":"Nom du jeu";$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
-  $("f_titre").placeholder=c?"ex. Dracaufeu":"ex. Super Mario 64";$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
+  var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],autres:["L'article","Nom de l'article","ex. Guide officiel Zelda"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
+  $("fBlocTitre").textContent=ty[0];$("oArticle").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
+  $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
   if(c)$("f_contenu").value="";zoneModif();
   var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
   [].forEach.call($("dSug").querySelectorAll("button"),function(b,i){if(sug[i])b.textContent=sug[i]})}
@@ -1468,7 +1480,7 @@ function zipper(files){return Promise.all(files.map(function(f){return f.arrayBu
   e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,tc,true);e.setUint32(16,off,true);
   return new Blob(parts.concat(cent,[e]),{type:"application/zip"})})}
 /* auto : sans message de réussite ; tout : remplace aussi les légendes déjà écrites ; muet : aucun message, même en cas d'échec */
-function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.textContent;busy(b,true,"Je décris…");
+function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();var b=$("fDecrire"),t=b.innerHTML;busy(b,true,"Je décris…");
   return Promise.all(GAL.map(function(g){return chargerImg(g.src).then(function(img){return versData(img,null,700)})}))
     .then(function(ph){iaEtat("leg",{ico:"📸",titre:"Je prépare l'album photo",detail:"Je range les photos dans le classeur",i:0,n:ph.length});return apiFlux("/api/ia/legender",{photos:ph,objet:{titre:$("f_titre").value,plateforme:$("f_plateforme").value,categorie:$("f_categorie").value,numero:$("f_numero").value}},function(x){
       if(x.etape==="photo")iaEtat("leg",{ico:"🔎",titre:"Je décris la photo "+x.photo,detail:["Défauts compris, sans enjoliver","Je compte les rayures, une par une","Je lis même les petites lignes de l'étiquette","Pas de filtre beauté ici"][(x.photo-1)%4],i:x.photo,n:x.n});
@@ -1946,6 +1958,11 @@ addEventListener("resize",largeurActions);new MutationObserver(largeurActions).o
 /* Sur téléphone, ouvrir le panneau Le Bon Coin enregistre la fiche : le lien vers l'appli part alors directement */
 var panneau0=panneauLbc;panneauLbc=function(on){panneau0(on);if(on&&MQ.matches&&sale())sauver(true)};
 
+/* La catégorie change aussi quand l'IA la remplit (sans événement) : les libellés suivent (Le jeu, La console, L'accessoire…) */
+(function(){function poser(){var sel=$("f_categorie"),d=Object.getOwnPropertyDescriptor(sel,"value")||Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value");if(!d||!d.set||sel.__rrCat)return;sel.__rrCat=1;
+  Object.defineProperty(sel,"value",{configurable:true,get:function(){return d.get.call(this)},set:function(v){var av=d.get.call(this);d.set.call(this,v);if(av!==d.get.call(this))setTimeout(modeCarte,0)}})}
+  /* après les autres scripts de la page, qui posent aussi leur propre accès à la valeur de ce menu */
+  if(document.readyState==="complete")setTimeout(poser,0);else addEventListener("load",function(){setTimeout(poser,0)})})();
 /* ---------- Appareil photo dans le site : plusieurs photos à la suite ---------- */
 var CAM={flux:null,cible:"nouveau",ph:[],max:12,torche:false};
 var CAM_AIDES=["Cadre l'article de face","Maintenant le dos","Le jeu lui-même : cartouche ou disque","La notice ou les accessoires","Un détail ou un défaut à montrer","Encore une si tu veux"];
