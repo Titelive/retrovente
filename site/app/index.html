@@ -37,6 +37,15 @@ h3{font-size:18px;font-weight:600;letter-spacing:-.02em}
 @keyframes t{to{transform:rotate(360deg)}}
 .lien{background:none;border:0;padding:0;color:var(--gris);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px}
 .lien:hover{color:var(--encre)}
+/* petite pastille d'action (à la place des liens soulignés) */
+.pl{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:7px 13px;background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);font:600 13px/1.2 var(--texte,inherit);cursor:pointer;white-space:nowrap;transition:box-shadow .2s,background-color .2s,color .2s;-webkit-tap-highlight-color:transparent}
+.pl svg{width:15px;height:15px;flex:none}
+.pl:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
+.pl:focus-visible{outline:2px solid var(--nuit);outline-offset:2px}
+.pl.danger{color:#c92a2a}
+.pl.danger:hover{background:rgba(201,42,42,.08);box-shadow:inset 0 0 0 1.5px #c92a2a}
+:root[data-theme="dark"] .pl.danger{color:#ff8787}
+:root[data-theme="dark"] .pl.danger:hover{background:rgba(255,135,135,.1);box-shadow:inset 0 0 0 1.5px #ff8787}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--gris);min-width:0}
 input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=url],select,textarea{width:100%;border:0;box-shadow:inset 0 0 0 1px var(--trait);background:var(--papier);border-radius:14px;padding:13px 14px;font-size:16px;font-weight:500;color:var(--encre);outline:0;transition:box-shadow .2s,background-color .2s}
 input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--nuit),0 0 0 4px rgba(var(--anis-rgb),.6);background:var(--carte)}
@@ -360,6 +369,8 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche .onglets{display:flex;gap:4px;flex:none;padding:4px;border-radius:16px;background:var(--carte);box-shadow:0 0 0 1px var(--trait)}
   html.etabli #fiche .onglets button{flex:1;border:0;background:none;border-radius:12px;padding:9px 10px;font:600 14px/1 var(--texte);color:var(--gris);cursor:pointer;position:relative;transition:background-color .2s,color .2s}
   html.etabli #fiche .onglets button:hover{color:var(--encre)}
+  html.etabli #fiche .onglets button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+  html.etabli #fiche .onglets button svg{width:17px;height:17px;flex:none}
   html.etabli #fiche .onglets button[aria-pressed="true"]{background:var(--anis);color:var(--nuit)}
   html.etabli #fiche .onglets button.neuf::after{content:"";position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--anis-f);box-shadow:0 0 0 2px var(--carte)}
   html.etabli #fiche [data-onglet]{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px}
@@ -382,6 +393,8 @@ body.fiche-ouverte .lueurs{display:none}
 .g-champs{display:flex;flex-direction:column;gap:20px}
 /* Dock flottant : Le Bon Coin + Enregistrer */
 .fab-save{display:flex;gap:10px;align-items:center}
+.fab-save .btn.fab-liste{background:var(--carte);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait),0 18px 36px -12px rgba(26,26,26,.35)}
+:root[data-theme="dark"] .fab-save .btn.fab-liste{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 36px -12px rgba(0,0,0,.6)}
 .fab-save .btn.sombre{--bg:var(--nuit);--fg:#fff;background:var(--nuit);color:#fff;position:relative}
 :root[data-theme="dark"] .fab-save .btn.sombre{background:#2A2A27;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 36px -12px rgba(0,0,0,.6)}
 .fab-prog{font:700 11.5px/1 var(--texte);padding:4px 7px;border-radius:999px;background:var(--anis);color:var(--nuit);margin-left:2px}
@@ -397,7 +410,7 @@ body.fiche-ouverte .lueurs{display:none}
 @keyframes glisse-g{from{transform:translateX(40px);opacity:0}}
 @keyframes glisse-h{from{transform:translateY(60px);opacity:0}}
 @media(max-width:700px){.lbc-feuille{align-items:flex-end;padding:0}.lbc-feuille .lbc{width:100%;max-height:88vh;border-radius:28px 28px 0 0;animation-name:glisse-h;padding-bottom:max(24px,env(safe-area-inset-bottom))}
-  .fab-save{gap:8px}.fab-save .btn.sombre span{display:none}.fab-save .btn.sombre{padding:0 14px}}
+  .fab-save{gap:8px}.fab-save .btn.sombre span{display:none}.fab-save .btn.sombre{padding:0 14px}.fab-save .fab-liste{display:none}}
 body.panneau-ouvert{overflow:hidden}
 /* Discussion avec l'IA sur la fiche */
 .dial{gap:10px}
@@ -513,6 +526,8 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .lbc .btn.clair.petit{--bg:rgba(255,255,255,.08);--fg:#fff}
 .lbc-bas{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:#A8A8A0}
 .lbc-bas .lien{color:#C9C9C2}
+.lbc-bas .pl{background:rgba(255,255,255,.08);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.lbc-bas .pl:hover{background:rgba(255,255,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
 
 /* icône copier dans les champs */
 .copiable{position:relative;display:block}
@@ -649,7 +664,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   #fiche .photos-carte .rangee{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0}
   #fiche .photos-carte .rangee>.btn{min-width:0;min-height:42px;padding:8px 6px;font-size:14px;gap:6px;justify-content:center;white-space:nowrap}
   #fiche .photos-carte .rangee>.btn .i{width:17px;height:17px}
-  #fiche .photos-carte .rangee>.lien{grid-column:1/-1;justify-self:center}
+  #fiche .photos-carte .rangee>.pl{grid-column:1/-1;justify-self:center}
   @media(max-width:360px){#fiche .photos-carte .rangee>.btn{font-size:13px;padding:8px 4px;gap:4px}#fiche .photos-carte .rangee>.btn .i{width:15px;height:15px}
     .fab-save #fSave span{display:none}.fab-save #fSave{padding:0 12px!important}
     #fiche .photos-carte .rangee>.btn:not(#fCam) .i{display:none}}
@@ -714,14 +729,18 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-etoiles button:focus-visible{outline:2px solid var(--nuit);outline-offset:2px;border-radius:4px}
 .ji-desc{margin:0;font-size:14px;line-height:1.55;color:var(--encre);white-space:pre-line;overflow-wrap:anywhere}
 .ji-desc.court{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.ji-plus{align-self:flex-start;font-size:13px;margin-top:-6px}
+.ji-plus{align-self:flex-start;margin-top:-6px;border:0;background:none;padding:2px 0;color:var(--encre);font:600 13px/1.2 var(--texte,inherit);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.ji-plus::after{content:"";width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+.ji-plus.ouvert::after{transform:translateY(1px) rotate(-135deg)}
+.ji-plus:hover{color:var(--gris)}
 .ji-caps{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;padding-bottom:4px;min-width:0;max-width:100%;scrollbar-width:thin}
 .ji-caps:empty{display:none}
 .ji-caps button{flex:none;width:min(220px,62%);aspect-ratio:16/9;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);scroll-snap-align:start;cursor:zoom-in}
 .ji-caps img{width:100%;height:100%;object-fit:cover;display:block}
-.ji-src{margin:0;font-size:11.5px;color:var(--gris);line-height:1.5}
-.ji-src a{color:inherit}
-.ji-src .lien{font-size:11.5px}
+.ji-pied{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.ji-src{margin:0;flex:1 1 200px;min-width:0;font-size:11px;color:var(--gris);line-height:1.5;opacity:.85}
+.ji-src a{color:inherit;font-weight:600;text-decoration:none}
+.ji-src a:hover{color:var(--encre);text-decoration:underline;text-underline-offset:2px}
 .ji-choix{display:flex;flex-direction:column;gap:6px}
 .ji-choix button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;border-radius:12px;padding:9px 12px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);color:var(--encre);font:600 13.5px/1.3 var(--texte,inherit);cursor:pointer;min-width:0}
 .ji-choix button:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
@@ -851,7 +870,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <button class="btn clair petit" type="button" id="fPivot" title="Tourner d'un quart de tour">↻ Pivoter</button>
         <button class="btn clair petit" type="button" id="fDecrire"><span class="pc-seul">Décrire les photos</span><span class="mob-seul">Décrire</span></button>
         <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer les photos numérotées</button>
-        <button class="lien" type="button" id="fPhotoSuppr" hidden>Retirer cette photo</button>
+        <button class="pl danger" type="button" id="fPhotoSuppr" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Retirer cette photo</button>
       </div>
       <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts de l'article restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
      </section>
@@ -865,7 +884,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <div class="dial-fil" id="dFil" hidden aria-live="polite"></div>
         <form class="dial-in" id="dForm"><textarea id="dTexte" rows="1" maxlength="1500" placeholder="Écris à l'IA…" aria-label="Message à l'IA"></textarea><button class="btn" id="dEnv" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
       </section>
-      <nav class="onglets" id="fOnglets" aria-label="Parties de la fiche"><button type="button" data-o="article" aria-pressed="true" id="oArticle">Le jeu</button><button type="button" data-o="prix" aria-pressed="false">Prix</button><button type="button" data-o="annonce" aria-pressed="false">L'annonce</button><button type="button" data-o="suivi" aria-pressed="false">Suivi</button></nav>
+      <nav class="onglets" id="fOnglets" aria-label="Parties de la fiche"><button type="button" data-o="article" aria-pressed="true" id="oArticle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/></svg><span>Le jeu</span></button><button type="button" data-o="prix" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Prix</span></button><button type="button" data-o="annonce" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>L'annonce</span></button><button type="button" data-o="suivi" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Suivi</span></button></nav>
       <section class="carte bloc" data-onglet="article">
         <h3 id="fBlocTitre">Le jeu</h3>
         <div class="champs">
@@ -900,9 +919,9 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
           </div>
           <div class="ji-corps" id="jiCorps">
             <p class="ji-desc" id="jiDesc"></p>
-            <button class="lien ji-plus" type="button" id="jiPlus" hidden>Lire la suite</button>
+            <button class="ji-plus" type="button" id="jiPlus" hidden>Lire la suite</button>
             <div class="ji-caps" id="jiCaps" aria-label="Captures d'écran"></div>
-            <p class="ji-src"><span id="jiSrc"></span> <button class="lien" type="button" id="jiAutre">Pas le bon jeu ?</button></p>
+            <div class="ji-pied"><p class="ji-src" id="jiSrc"></p><button class="pl" type="button" id="jiAutre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Pas le bon jeu ?</button></div>
             <div class="ji-choix" id="jiChoix" hidden></div>
           </div>
           <p class="ji-attente" id="jiAttente" hidden>Je cherche la jaquette et les captures…</p>
@@ -1138,11 +1157,11 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <p>Le Bon Coin demande les infos <strong>une par une</strong>. Ouvre-le dans un nouvel onglet, puis copie chaque champ quand il le demande.</p>
         <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span class="pc-seul">Ouvrir Le Bon Coin (nouvel onglet)</span><span class="mob-seul">Ouvrir l'appli Le Bon Coin</span></a>
         <ol class="lbc-etapes" id="lbcEtapes"></ol>
-        <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
+        <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="pl" type="button" id="fCopie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Tout copier d'un coup</button></div>
         <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
       </section>
 </div>
-<div class="fab-save" id="fabSave" hidden><button class="btn sombre" type="button" id="fLbcBt" aria-label="Publier sur Le Bon Coin" aria-expanded="false" aria-controls="lbcFeuille"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Le Bon Coin</span><b class="fab-prog" id="fLbcProg" hidden></b></button><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
+<div class="fab-save" id="fabSave" hidden><button class="btn clair fab-liste" type="button" id="fListe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Mes articles</span></button><button class="btn sombre" type="button" id="fLbcBt" aria-label="Publier sur Le Bon Coin" aria-expanded="false" aria-controls="lbcFeuille"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Le Bon Coin</span><b class="fab-prog" id="fLbcProg" hidden></b></button><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
 <script>
 (function(){
 "use strict";
@@ -1406,7 +1425,7 @@ function estCarte(){return $("f_categorie").value==="cartes"}
 var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
 function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c});
   var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],autres:["L'article","Nom de l'article","ex. Guide officiel Zelda"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
-  $("fBlocTitre").textContent=ty[0];$("oArticle").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
+  $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
   $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
   if(c)$("f_contenu").value="";zoneModif();
   var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
@@ -1740,7 +1759,7 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
     $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)})})});
-$("fFermer").onclick=fermerFiche;
+$("fFermer").onclick=fermerFiche;$("fListe").onclick=function(){$("fFermer").click()};
 
 /* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
 (function(){var mq=matchMedia("(min-width:1100px) and (min-height:620px)"),O=$("fOnglets");
@@ -1780,9 +1799,9 @@ function sauver(rester){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+
   return (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
       var i=OBJ.map(function(x){return x.id}).indexOf(j.objet.id);if(i>=0)OBJ[i]=j.objet;else OBJ.unshift(j.objet);
       if(nouveau){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
-      BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;figer();dessiner();toast("Enregistré.","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
+      BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;$("fTitre").textContent=ED.titre;$("fSuppr").hidden=false;figer();dessiner();toast("C'est enregistré ✓","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
     .catch(function(e){erreur(e,"Enregistrement impossible.");return null}).then(function(r){busy(b,false,"Enregistrer");return r})}
-$("fSave").onclick=function(){sauver(false)};
+$("fSave").onclick=function(){sauver(true)};
 /* envoie les photos ajoutées ou retouchées, retire les supprimées, puis enregistre l'ordre et les légendes */
 function syncGalerie(obj,o){var id=obj.id,ch=Promise.resolve(),der={objet:obj};
   DELS.forEach(function(pid){ch=ch.then(function(){return api("DELETE","/api/objets/"+id+"/photos/"+pid).then(function(j){der=j})})});
@@ -2100,13 +2119,13 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
     if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse","Moyenne de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":"")+" (sur 100)"));
     if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,"Joueurs /5","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+" de joueurs IGDB",true))}
   function source(i){var z=$("jiSrc");z.textContent="";function a(t,u){var x=el("a",null,t);x.href=u;x.target="_blank";x.rel="noopener";return x}
-    if(i.lien){z.appendChild(document.createTextNode("Jaquette, images et notes : "));z.appendChild(a("IGDB",i.lien))}
-    var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte : "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(" ("+d.licence+")"))}}
+    if(i.lien){z.appendChild(document.createTextNode("Images et notes "));z.appendChild(a("IGDB",i.lien))}
+    var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(", "+d.licence))}}
   function choix(autres,titre){var z=$("jiChoix");z.textContent="";if(titre)z.appendChild(el("p","ji-attente",titre));
     (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
     if($("f_jeuRef").value){var r=el("button",null,"Revenir à la recherche automatique");r.type="button";r.onclick=function(){$("f_jeuRef").value="";$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(r)}
     z.hidden=!z.children.length}
-  function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
+  function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiPlus").textContent="Lire la suite";$("jiPlus").classList.remove("ouvert");$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
   function montrerInfos(i){INFOS=i;vide();B.classList.remove("charge");$("jiAttente").hidden=true;
     if(!i)return
     if(i.introuvable){$("jiNom").textContent=$("f_titre").value.trim();$("jiCorps").hidden=false;$("jiAutre").hidden=true;$("jiDesc").textContent="";choix(i.autres,"Je n'ai pas trouvé ce jeu à coup sûr. C'est l'un de ceux-là ?");return}
@@ -2117,7 +2136,7 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
     var d=$("jiDesc");d.textContent=i.description||"";d.classList.add("court");requestAnimationFrame(function(){$("jiPlus").hidden=!(i.description&&d.scrollHeight>d.clientHeight+2)});
     (i.captures||[]).forEach(function(c,k){if(!sur(c.petite))return;var b=el("button"),im=el("img");b.type="button";b.setAttribute("aria-label","Agrandir la capture "+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:"Capture d'écran "+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
     source(i);$("jiChoix").hidden=true}
-  $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire"};
+  $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire";this.classList.toggle("ouvert",!c)};
   $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,"Choisis le bon jeu :");else choix([],"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
   $("jiJaq").onclick=function(){voir(0)};
   /* visionneuse : jaquette et captures en grand, flèches du clavier ou boutons */
