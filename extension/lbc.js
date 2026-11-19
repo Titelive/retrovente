@@ -380,9 +380,13 @@
   async function publiee(p) {
     try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
     var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
-    statut("🎉 Annonce envoyée ! Je te ramène sur RetroRevente.", "ok");
+    statut("🎉 Annonce publiée ! Je ferme Le Bon Coin et te ramène sur RetroRevente.", "ok");
     if (lien) lier(p.id, lien, p.titre);
-    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien }).catch(function () {});
+    // Son de confettis (sauf si le son est réglé sur « Muet ») et notification ; RetroRevente fait pleuvoir les confettis.
+    if (etat.sonChoix !== "muet") sonner("confettis");
+    rrDemander({ type: "alerte", titre: "🎉 Annonce publiée !", texte: "« " + (p.titre || "Ton annonce") + " » est en ligne sur Le Bon Coin." }).catch(function () {});
+    // L'arrière-plan te remet sur RetroRevente puis ferme cet onglet, le temps que le son se termine.
+    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien, fermer: true }).catch(function () {});
   }
   try { RR.storage.local.get("publication").then(function (r) { if (r && r.publication && Date.now() - r.publication.at < 60000) suivrePublication(r.publication); }); } catch (e) {}
   function continuerSiPret() {
@@ -967,7 +971,7 @@
       etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
       try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
       if (etat.son) sonner(); ecouter.disabled = !etat.son;
-    } }, Object.keys(RR_SONS).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
+    } }, Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
     var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
     var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
     etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
