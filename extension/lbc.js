@@ -1204,11 +1204,22 @@
       if (!n.nodeValue.trim()) continue;
       var x = n.parentElement; if (!x || (hote && hote.contains(x)) || (z && (z.contains(x) || x.contains(z)))) continue;
       if (x.closest("button, a, form, [role=button], footer, script, style")) continue;   // boutons d'offre, saisie
+      if (suggestionsLbc(x)) continue;   // « Envoyez une réponse rapide » : suggestions de Le Bon Coin, pas un message
       rg.selectNodeContents(n); var r = rg.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       if (!rb || r.bottom > rb.bottom + 1) rb = r;
     }
-    return !!rb && rb.left > cr.left + cr.width * 0.3;
+    // Calé à droite pour de vrai : commence loin du bord gauche et finit contre le bord droit (un bloc centré n'est pas à toi).
+    return !!rb && rb.left > cr.left + cr.width * 0.3 && cr.right - rb.right < cr.width * 0.15;
+  }
+  // Bloc de suggestions de Le Bon Coin (titre « Envoyez une réponse rapide », boutons de réponses toutes faites) :
+  // jamais pris pour un message de la conversation. (Une offre reçue, elle, compte : c'est l'acheteur qui a agi.)
+  function suggestionsLbc(x) {
+    for (var e = x, i = 0; e && i < 6; e = e.parentElement, i++) {
+      var t = norm((e.innerText || "").slice(0, 200));
+      if (/^(envoyez une reponse rapide|reponses? rapides?|suggestions?)\b/.test(t)) return true;
+    }
+    return false;
   }
   var ATTENTES = [
     "🎮 Ta réponse est partie. On attend l'acheteur… comme le chargement d'une cassette sur Amstrad.",
