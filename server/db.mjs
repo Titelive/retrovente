@@ -75,7 +75,8 @@ const COLS = {
   achat_montant: "INTEGER NOT NULL DEFAULT 0", // montant payé, en centimes
   retract_at: "TEXT NOT NULL DEFAULT ''",    // rétractation reçue pour cet achat
   pseudo: "TEXT NOT NULL DEFAULT ''",        // nom affiché dans le menu
-  avatar: "TEXT NOT NULL DEFAULT ''",        // photo de profil (data URL JPEG 256 px)
+  avatar: "TEXT NOT NULL DEFAULT ''",
+  lbc: "TEXT NOT NULL DEFAULT ''",           // lien vers la page vendeur Le Bon Coin (facultatif)        // photo de profil (data URL JPEG 256 px)
   email_new: "TEXT NOT NULL DEFAULT ''",     // nouvelle adresse en attente de confirmation
   email_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation
   email_until: "TEXT NOT NULL DEFAULT ''",
