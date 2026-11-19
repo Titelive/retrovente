@@ -1,1 +1,63 @@
-{"name":"RetroRevente","short_name":"RetroRevente","start_url":"/app/","display":"standalone","background_color":"#F6F6F1","theme_color":"#1A1A1A","icons":[{"src":"/img/icone-512.png","sizes":"512x512","type":"image/png"},{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml"}]}
+{
+ "name": "RetroRevente",
+ "short_name": "RetroRevente",
+ "start_url": "/app/",
+ "display": "standalone",
+ "background_color": "#F6F6F1",
+ "theme_color": "#1A1A1A",
+ "icons": [
+  {
+   "src": "/img/icone-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/img/icone-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "/img/icone-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "/favicon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  }
+ ],
+ "id": "/app/",
+ "description": "Vends tes jeux rétro et cartes Pokémon sur Le Bon Coin : une photo, l'annonce se remplit toute seule.",
+ "lang": "fr",
+ "dir": "ltr",
+ "scope": "/",
+ "shortcuts": [
+  {
+   "name": "Prendre en photo",
+   "short_name": "Photo",
+   "description": "Nouvel article en photo",
+   "url": "/app/?photo",
+   "icons": [
+    {
+     "src": "/img/icone-192.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  },
+  {
+   "name": "Mes trophées",
+   "short_name": "Trophées",
+   "url": "/app/?trophees",
+   "icons": [
+    {
+     "src": "/img/icone-192.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  }
+ ]
+}

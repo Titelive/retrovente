@@ -36,7 +36,7 @@ function resolveFile(pathname) {
 function sendFile(req, res, file, status = 200) {
   const st = fs.statSync(file), ext = path.extname(file).slice(1).toLowerCase();
   const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
-  const h = { ...SECU, "Content-Type": MIME[ext] || "application/octet-stream", ETag: etag, "Cache-Control": ext === "html" ? "public, max-age=0, must-revalidate" : "public, max-age=86400" };
+  const h = { ...SECU, "Content-Type": MIME[ext] || "application/octet-stream", ETag: etag, "Cache-Control": ext === "html" || path.basename(file) === "sw.js" || ext === "webmanifest" ? "public, max-age=0, must-revalidate" : "public, max-age=86400" };
   if (ext === "html") { const c = indiceConnexion(req, process.env.COOKIE_INSECURE !== "1"); if (c) { h["Set-Cookie"] = c; h["Cache-Control"] = "private, no-cache"; } }
   if (status === 200 && req.headers["if-none-match"] === etag) { res.writeHead(304, h); return res.end(); }
   h["Content-Length"] = st.size;

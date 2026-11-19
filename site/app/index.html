@@ -8,6 +8,10 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#1A1A1A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RetroRevente">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
@@ -563,6 +567,121 @@ html[data-formule="pass"] #quota{background:var(--holo);background-size:300% 100
 html[data-formule="pass"] .chiffres .tps,html[data-formule="pass"] .lbc{box-shadow:inset 0 0 0 2px rgba(185,140,255,.7),0 18px 40px -24px rgba(185,140,255,.6)}
 html[data-formule="collectionneur"] .jeu:hover{box-shadow:0 0 0 2px var(--or-1)}
 html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
+
+/* ===== Couleurs Le Bon Coin ===== */
+#fLbcBt,#fLbc,#bLbc{--bg:#EC5A13;--fg:#fff;background:#EC5A13;color:#fff;box-shadow:0 14px 30px -14px rgba(236,90,19,.8)}
+#fLbcBt:hover,#fLbc:hover,#bLbc:hover{background:#D24C0C}
+/* ===== Bulles de statut : même arrondi que les cartes ===== */
+.photo .attente span{border-radius:16px;max-width:86%;text-align:left;line-height:1.35;padding:12px 16px}
+.photo .attente span::before{flex:none}
+#toast{border-radius:16px;width:max-content;max-width:min(560px,calc(100vw - 32px));line-height:1.35}
+/* ===== Mobile : appli au pouce ===== */
+.mob,.mob-seul,.nav-bas,.m-onglets{display:none}
+.installe{display:flex;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;border-radius:18px;background:var(--carte);box-shadow:0 0 0 1px var(--trait)}
+.installe img{border-radius:12px;flex:none}.installe>div{flex:1;min-width:0;display:grid;line-height:1.3}.installe b{font-size:15px}.installe small{color:var(--gris);font-size:13px}
+.installe-x{border:0;background:none;color:var(--gris);font-size:16px;width:32px;height:32px;cursor:pointer;flex:none}
+@media(max-width:700px){
+  .mob{display:inline-flex}.mob-seul{display:inline}.pc-seul{display:none}
+  input,select,textarea{font-size:16px!important}
+  .sous-barre #ajout,.sous-barre #bCompte,.sous-barre #bTroph{display:none!important}
+  /* barre du bas */
+  .nav-bas{position:fixed;z-index:55;left:0;right:0;bottom:0;display:none;align-items:flex-end;justify-content:space-around;padding:6px 6px max(8px,env(safe-area-inset-bottom));background:color-mix(in srgb,var(--carte) 92%,transparent);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 -1px 0 var(--trait)}
+  body[data-vue=accueil] .nav-bas,body[data-vue=compte] .nav-bas,body[data-vue=trophees] .nav-bas{display:flex}
+  body[data-vue=accueil],body[data-vue=compte],body[data-vue=trophees]{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+  body[data-vue] .vers-haut{display:none!important}
+  .nav-bas button{flex:1;display:grid;justify-items:center;gap:2px;border:0;background:none;color:var(--gris);font:600 11px/1.1 var(--texte);padding:6px 0;min-height:48px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .nav-bas button svg{width:24px;height:24px}
+  .nav-bas button[aria-current=page]{color:var(--encre)}
+  .nav-bas .nb-cam{flex:none;width:64px;height:64px;margin:-22px 6px 0;border-radius:22px;background:var(--anis);color:var(--nuit);place-items:center;box-shadow:0 14px 28px -10px rgba(0,0,0,.45),0 0 0 4px var(--papier)}
+  .nav-bas .nb-cam svg{width:28px;height:28px}
+  .nav-bas .nb-cam:active{transform:scale(.94)}
+  #toast{bottom:calc(86px + env(safe-area-inset-bottom))}
+  body.fiche-ouverte #toast{bottom:calc(76px + env(safe-area-inset-bottom))}
+  /* accueil */
+  .ajout{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
+  .ajout>.btn,.ajout>label.btn{justify-content:center;min-height:48px;padding:12px 10px;font-size:14.5px}
+  .ajout #bCam{grid-column:1/-1;min-height:56px;font-size:16px}
+  .ajout #lPhotoIn{--bg:var(--carte);--fg:var(--encre);background:var(--carte);color:var(--encre);box-shadow:0 0 0 1px var(--trait)}
+  /* la barre de progression dit déjà où en est l'IA : pas de bulle par-dessus la photo */
+  #fiche .photo .attente span,#fiche .photo .attente small{display:none}
+  .ajout #bManuel{display:none}
+  .ajout #bLbc{grid-column:1/-1}
+  .filtres{flex-wrap:nowrap!important;overflow-x:auto;justify-content:flex-start!important;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .filtres::-webkit-scrollbar{display:none}
+  .filtres button{flex:none;min-height:40px}
+  /* fiche plein écran : tout tient sans faire défiler la page */
+  body.fiche-ouverte{overflow:hidden;padding-bottom:0}
+  body.fiche-ouverte #nav,body.fiche-ouverte .sous-barre,body.fiche-ouverte .pied-site{display:none!important}
+  #fiche:not([hidden]){position:fixed;z-index:40;left:0;right:0;top:0;height:100dvh;display:flex;flex-direction:column;background:var(--papier);padding-top:env(safe-area-inset-top);box-sizing:border-box}
+  #fiche>.haut{flex:none;padding:0;margin:0;border:0}
+  #fiche>.haut .wrap{display:flex;align-items:center;gap:10px;padding:10px 0;min-height:44px;padding-right:var(--act,170px)}
+  #fiche>.haut h2{order:2;flex:1;min-width:0;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+  #fFermer{order:1;flex:none;width:42px;height:42px;padding:0!important;justify-content:center;font-size:20px;border-radius:14px}
+  .fab-save{top:calc(env(safe-area-inset-top) + 10px)!important;bottom:auto!important;right:max(12px,env(safe-area-inset-right))!important;gap:8px}
+  .fab-save .btn{height:42px!important;padding:0 16px!important;font-size:15px!important;box-shadow:none}
+  .fab-save .btn.sombre{padding:0 12px!important}
+  .fab-save .btn:hover{transform:none}
+  #fiche .grille{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:block;padding:4px 0 12px;-webkit-overflow-scrolling:touch}
+  #fiche .grille>.col{display:contents}
+  #fiche [data-onglet]:not(.mo-on),#fiche [data-mo]:not(.mo-on){display:none!important}
+  #fiche .carte.bloc{padding:16px;border-radius:22px;margin:0}
+  #fiche .carte.bloc>h3,#fiche .carte.bloc>header h3,#fiche .photos-carte>header{display:none}
+  #fiche>.pied{flex:none;display:none;padding:0 0 10px}
+  #fiche:has([data-onglet=suivi].mo-on)>.pied{display:block}
+  /* onglets de la fiche, sous le pouce */
+  .m-onglets{flex:none;display:flex;padding:4px 4px max(6px,env(safe-area-inset-bottom));background:var(--carte);box-shadow:0 -1px 0 var(--trait)}
+  .m-onglets button{flex:1;min-width:0;display:grid;justify-items:center;gap:2px;border:0;background:none;color:var(--gris);font:600 11px/1.1 var(--texte);padding:7px 0 5px;min-height:50px;border-radius:14px;cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent}
+  .m-onglets button svg{width:22px;height:22px}
+  .m-onglets button[aria-pressed=true]{color:var(--nuit);background:var(--anis)}
+  .m-onglets button.neuf::after{content:"";position:absolute;top:6px;right:calc(50% - 17px);width:8px;height:8px;border-radius:50%;background:#EC5A13;box-shadow:0 0 0 2px var(--carte)}
+  /* onglet Photos : la photo prend la place qui reste */
+  #fiche .photos-carte.mo-on{height:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:10px}
+  #fiche .photos-carte .photo{flex:1 1 auto;min-height:140px;aspect-ratio:auto}
+  #fiche .photos-carte .note{display:none}
+  #fiche .photos-carte .galerie{flex:none;margin:0 -4px;padding:4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  #fiche .photos-carte .galerie li{width:56px;height:56px;flex:none;border-radius:12px}
+  #fiche .photos-carte .ia-etat{margin:0;flex:none}
+  #fiche .photos-carte .leg{flex:none}
+  #fiche .photos-carte .rangee{flex:none;display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:0 -16px;padding:2px 16px;scrollbar-width:none}
+  #fiche .photos-carte .rangee::-webkit-scrollbar{display:none}
+  #fiche .photos-carte .rangee>*{flex:none;min-height:42px;white-space:nowrap}
+  #fiche .dial.mo-on{height:100%;box-sizing:border-box;display:flex;flex-direction:column}
+  #fiche .dial .dial-fil{flex:1;min-height:0;overflow-y:auto}
+  #fiche .champs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  #fiche .champs>.l2,#fiche .champs>.partic,#fiche .champs>.f:has(select),#fiche .champs>.f:has(textarea){grid-column:1/-1}
+}
+/* ===== Appareil photo ===== */
+.cam{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:manipulation}
+.cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam-cadre{position:absolute;inset:18% 9% 30%;pointer-events:none}
+.cam-cadre i{position:absolute;width:30px;height:30px;border:3px solid rgba(255,255,255,.85);border-radius:4px}
+.cam-cadre i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:14px}.cam-cadre i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:14px}
+.cam-cadre i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:14px}.cam-cadre i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:14px}
+.cam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.cam-flash.on{animation:camflash .35s ease-out}
+@keyframes camflash{from{opacity:.85}to{opacity:0}}
+.cam-haut{position:relative;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 14px 12px;background:linear-gradient(rgba(0,0,0,.55),transparent)}
+.cam-haut p{flex:1;margin:0;text-align:center;font-weight:600;font-size:15px;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.cam-rond{width:46px;height:46px;border-radius:16px;border:0;display:grid;place-items:center;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.cam-rond svg{width:22px;height:22px}
+.cam-rond[aria-pressed=true]{background:var(--anis);color:var(--nuit)}
+.cam-err{position:absolute;left:20px;right:20px;top:40%;transform:translateY(-50%);display:grid;gap:14px;justify-items:center;text-align:center;background:rgba(30,30,30,.92);padding:22px;border-radius:22px}
+.cam-err p{margin:0}
+.cam-bas{margin-top:auto;position:relative;padding:10px 0 calc(env(safe-area-inset-bottom) + 18px);background:linear-gradient(transparent,rgba(0,0,0,.65) 30%)}
+.cam-vign{list-style:none;margin:0 0 14px;padding:0 16px;display:flex;gap:8px;overflow-x:auto;min-height:60px;scrollbar-width:none}
+.cam-vign li{position:relative;flex:none;width:56px;height:56px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.85);animation:camvign .3s var(--ease) both}
+.cam-vign img{width:100%;height:100%;object-fit:cover;display:block}
+.cam-vign button{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:7px;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:11px;line-height:20px;padding:0;cursor:pointer}
+@keyframes camvign{from{transform:scale(.4);opacity:0}}
+.cam-ctl{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px}
+.cam-ctl .cam-rond{justify-self:start;width:52px;height:52px}
+.cam-decl{width:78px;height:78px;border-radius:50%;border:4px solid #fff;background:transparent;padding:5px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cam-decl i{display:block;width:100%;height:100%;border-radius:50%;background:#fff;transition:transform .12s}
+.cam-decl:active i{transform:scale(.86)}
+.cam-decl:disabled{opacity:.4}
+.cam-ok{justify-self:end;min-width:76px;height:52px;padding:0 18px!important;gap:6px;justify-content:center}
+.cam-ok:disabled{opacity:.45}
+.cam-ok b{font-variant-numeric:tabular-nums}
 </style>
 
 </head>
@@ -624,7 +743,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <div class="tete">
     <div><p class="pixel">Mes articles</p><h1 style="margin-top:8px" aria-label="Qu'est-ce qu'on vend aujourd'hui ?"><span class="m" aria-hidden="true" style="--k:0">Qu'est-ce</span> <span class="m" aria-hidden="true" style="--k:1">qu'on</span> <span class="m" aria-hidden="true" style="--k:2">vend</span> <span class="m" aria-hidden="true" style="--k:3">aujourd'hui ?</span></h1></div>
     <div class="ajout">
-      <label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label>
+      <button class="btn mob" type="button" id="bCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Prendre en photo</button>
+      <label class="btn" for="photoIn" id="lPhotoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> <span class="pc-seul">Ajouter en photo</span><span class="mob-seul">Depuis la galerie</span></label>
       <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
       <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
@@ -632,6 +752,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <input type="file" id="photoIn" accept="image/*" hidden>
     </div>
     <p class="ia-note" id="iaNote" hidden></p>
+    <div class="installe" id="installe" hidden><img src="/img/icone-512.png" alt="" width="44" height="44"><div><b>Installe RetroRevente sur ton téléphone</b><small id="installeTx">Une icône sur l'écran d'accueil, en plein écran, comme une vraie appli.</small></div><button class="btn petit" type="button" id="installeGo">Installer</button><button class="installe-x" type="button" id="installeX" aria-label="Plus tard">✕</button></div>
   </div>
   <div class="chiffres">
     <button type="button" class="tps" id="cTempsBt" aria-haspopup="dialog"><small>Temps gagné <span class="tps-i" aria-hidden="true">?</span></small><b id="cTemps">0 min</b><span class="tps-c">Voir le calcul</span></button>
@@ -659,17 +780,18 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
 <!-- ========== Fiche d'un jeu ========== -->
 <section id="fiche" class="vue" hidden aria-labelledby="fTitre">
-  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button class="btn clair petit" type="button" id="fFermer">← Mes articles</button></div></div>
+  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button class="btn clair petit" type="button" id="fFermer" aria-label="Mes articles"><span aria-hidden="true">←</span><span class="pc-seul"> Mes articles</span></button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
-     <section class="carte bloc photos-carte" aria-labelledby="tPhotos">
+     <section class="carte bloc photos-carte" data-mo="photos" aria-labelledby="tPhotos">
       <header><h3 id="tPhotos">Photos</h3></header>
       <div class="photo" id="fPhoto"><span class="pixel" style="color:var(--gris)">Pas de photo</span><div class="attente" id="fAttente" hidden><span id="fAttenteTx">Je regarde la photo…</span><small id="fAttenteSub"></small></div></div>
       <ul class="ia-etat" id="fIaEtat" hidden aria-live="polite"></ul>
       <ol class="galerie" id="fGal" aria-label="Photos de l'article (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
       <div class="rangee">
-        <label class="btn clair petit" for="fPhotoIn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter des photos</label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
+        <button class="btn petit mob" type="button" id="fCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Prendre</button>
+        <label class="btn clair petit" for="fPhotoIn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="pc-seul">Ajouter des photos</span><span class="mob-seul">Galerie</span></label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
         <button class="btn clair petit" type="button" id="fIa">Remplir depuis la photo</button>
         <button class="btn clair petit" type="button" id="fNet"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Retoucher</button>
         <button class="btn clair petit" type="button" id="fOrig" hidden>Voir l'original</button>
@@ -683,7 +805,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 
     </div>
     <div class="col g-champs">
-      <section class="carte bloc dial" id="fDial" aria-labelledby="tDial">
+      <section class="carte bloc dial" id="fDial" data-mo="ia" aria-labelledby="tDial">
         <header><h3 id="tDial"><span class="dial-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span>Dis-le à l'IA</h3></header>
         <p class="dial-aide">Explique avec tes mots, la fiche et l'annonce se mettent à jour.</p>
         <div class="dial-sug" id="dSug"><button type="button">Le code a déjà été utilisé, il reste la boîte et le poster</button><button type="button">Rends l'annonce plus courte</button><button type="button">Quel prix tu me conseilles ?</button></div>
@@ -739,6 +861,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
     </div>
   </div>
   <div class="pied"><div class="wrap"><button class="btn clair petit" type="button" id="fSuppr">Supprimer</button></div></div>
+  <nav class="m-onglets" id="mOnglets" aria-label="Parties de la fiche"><button type="button" data-m="photos" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Photos</span></button><button type="button" data-m="article" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/></svg><span>Le jeu</span></button><button type="button" data-m="prix" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Prix</span></button><button type="button" data-m="annonce" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Annonce</span></button><button type="button" data-m="ia" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>IA</span></button><button type="button" data-m="suivi" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Suivi</span></button></nav></div>
 </section>
 
 <!-- ========== Compte ========== -->
@@ -909,6 +1032,27 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   </div>
 </footer>
 
+<nav class="nav-bas" id="navBas" aria-label="Navigation">
+  <button type="button" data-nb="accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Articles</span></button>
+  <button type="button" data-nb="trophees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span>Trophées</span></button>
+  <button type="button" class="nb-cam" data-nb="photo" aria-label="Nouvel article en photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+  <button type="button" data-nb="manuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>À la main</span></button>
+  <button type="button" data-nb="compte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profil</span></button>
+</nav>
+<div class="cam" id="cam" hidden role="dialog" aria-modal="true" aria-label="Appareil photo">
+  <video id="camVid" playsinline muted autoplay></video>
+  <div class="cam-cadre" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="cam-flash" id="camFlash"></div>
+  <div class="cam-haut"><button type="button" class="cam-rond" id="camX" aria-label="Fermer l'appareil photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><p id="camAide" aria-live="polite">Cadre l'article</p><button type="button" class="cam-rond" id="camTorche" hidden aria-label="Lampe" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button></div>
+  <div class="cam-err" id="camErr" hidden><p id="camErrTx"></p><label class="btn jaune" for="camIn">Ouvrir l'appareil du téléphone</label></div>
+  <div class="cam-bas">
+    <ol class="cam-vign" id="camVign" aria-label="Photos prises"></ol>
+    <div class="cam-ctl"><label class="cam-rond" for="camGalIn" aria-label="Choisir dans la galerie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></label>
+      <button type="button" class="cam-decl" id="camDecl" aria-label="Prendre la photo"><i></i></button>
+      <button type="button" class="btn jaune cam-ok" id="camOk" disabled>OK<b id="camN"></b></button></div>
+  </div>
+  <input type="file" id="camIn" accept="image/*" capture="environment" hidden><input type="file" id="camGalIn" accept="image/*" multiple hidden>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true">🎉</span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
 
@@ -917,7 +1061,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
         <button class="lbc-x" type="button" data-ferme aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         <h3 id="tLbc">Publier sur Le Bon Coin</h3>
         <p>Le Bon Coin demande les infos <strong>une par une</strong>. Ouvre-le dans un nouvel onglet, puis copie chaque champ quand il le demande.</p>
-        <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ouvrir Le Bon Coin (nouvel onglet)</a>
+        <a class="btn" id="fLbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span class="pc-seul">Ouvrir Le Bon Coin (nouvel onglet)</span><span class="mob-seul">Ouvrir l'appli Le Bon Coin</span></a>
         <ol class="lbc-etapes" id="lbcEtapes"></ol>
         <div class="lbc-bas"><span id="lbcProg">0 / 6 copiés</span><button class="lien" type="button" id="fCopie">Tout copier d'un coup</button></div>
         <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
@@ -928,7 +1072,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 (function(){
 "use strict";
 var $=function(i){return document.getElementById(i)};
-var GAL=[],SEL=0,DELS=[];
+var GAL=[],SEL=0,DELS=[],MQ=matchMedia("(max-width:700px)");
 var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,ORIG=null,ROT=0,COTE=null,PER="mois",IA_FAITE=false;
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
@@ -1240,14 +1384,15 @@ function apiFlux(path,body,progres){var h={"content-type":"application/json"};if
       return lire()})}
     return lire().then(function(){if(fin.error){var e=new Error(fin.error);e.status=fin.statut||500;e.trace=fin.trace;throw e}return fin})})}
 
-$("photoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;
-  if(ME.quota.reste===0){quotaPlein();return}
-  ouvrirFiche(null);var f=fs.shift();analyser(f).then(function(){return ajouterPhotos(fs.slice(0,11))})};
-$("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;
+function nouveauAvec(fs){if(ME.quota.reste===0){quotaPlein();return}
+  ouvrirFiche(null);ongletMobile("photos");var f=fs.shift();analyser(f).then(function(){return ajouterPhotos(fs.slice(0,11))})}
+$("photoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs)};
+$("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;ajoutAvec(fs)};
+function ajoutAvec(fs){ongletMobile("photos");
   var place=12-GAL.length;if(fs.length>place){toast("12 photos au plus : j'en garde "+place+".","bad");fs=fs.slice(0,place)}
   var vide=!GAL.length&&!$("f_titre").value.trim();
   if(vide){var prem=fs.shift();analyser(prem).then(function(){ajouterPhotos(fs)});return}
-  ajouterPhotos(fs)};
+  ajouterPhotos(fs)}
 function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g){return!g.legende})?decrire(true):Promise.resolve();   // une seule photo : elle est décrite aussi
   var debut=GAL.length;attente("Je développe "+(fs.length>1?"tes "+fs.length+" photos":"ta photo")+" (plus rapide qu'au photomaton)…");
   return fs.reduce(function(ch,f){return ch.then(function(){return ouvrirImage(f).then(function(img){var d=versData(img,null,2000,1100000);GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1;afficher()})})},Promise.resolve())
@@ -1449,7 +1594,7 @@ function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").valu
   tx=texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").slice(0,4000),px=$("f_prixDemande").value;
   return [{k:"titre",l:"Titre",v:t,n:"200 caractères max"},{k:"cat",l:"Catégorie",v:LBC_CAT[$("f_categorie").value]||LBC_CAT.jeux,n:"à choisir dans la liste",info:true},
     {k:"desc",l:"Description",v:tx,n:"4 000 caractères max"},{k:"etat",l:"État",v:LBC_ETATS[$("f_etat").value]||"",n:"à choisir dans la liste",info:true},
-    {k:"prix",l:"Prix",v:px?String(Math.round(+px)):"",n:"en euros, sans centimes"},{k:"photo",l:"Photos",v:GAL.length?(GAL.length>1?GAL.length+" photos numérotées prêtes":"Photo prête"):"",n:"enregistre-les puis glisse-les",photo:true}]}
+    {k:"prix",l:"Prix",v:px?String(Math.round(+px)):"",n:"en euros, sans centimes"},{k:"photo",l:"Photos",v:GAL.length?(GAL.length>1?GAL.length+" photos numérotées prêtes":"Photo prête"):"",n:MQ.matches?"enregistre-les dans tes photos, puis ajoute-les dans l'appli":"enregistre-les puis glisse-les",photo:true}]}
 function majLbc(){var c=champsLbc(),fait=0;
   $("lbcEtapes").innerHTML=c.map(function(x,i){var ok=LBC_FAIT[x.k];if(ok)fait++;
     return '<li class="'+(ok?"fait":"")+(x.v?"":" manque")+'"><span class="n">'+(ok?"✓":i+1)+'</span><div class="c"><b>'+x.l+' <small>'+x.n+'</small></b><span class="v">'+(x.v?esc(x.v.length>90?x.v.slice(0,90)+"…":x.v):"À remplir dans la fiche")+'</span></div>'+
@@ -1756,6 +1901,104 @@ $("pSombre").onchange=function(){var bt=document.querySelector(".theme-bt");if(b
 function compter(el,fin,fmt){var calme=document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches;
   if(calme){el.textContent=fmt(fin);return}var t0=performance.now(),d0=+(el.dataset.v||0);el.dataset.v=fin;
   (function pas(t){var p=Math.min(1,(t-t0)/900),e=1-Math.pow(1-p,3);el.textContent=fmt(d0+(fin-d0)*e);if(p<1)requestAnimationFrame(pas);else if(fin!==d0&&fin>0){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop")}})(t0)}
+
+
+/* ===================== Mobile : appli au pouce, appareil photo, installation ===================== */
+/* Vue courante sur <body> (barre du bas) + retour arrière du téléphone qui revient à « Mes articles » au lieu de quitter l'appli */
+var PILE=false,IGN=0;
+function vueCourante(){return ["auth","accueil","compte","fiche","trophees"].filter(function(x){return !$(x).hidden})[0]||""}
+var montrer0=montrer;montrer=function(v,t){montrer0(v,t);var vue=vueCourante();document.body.dataset.vue=vue;
+  [].forEach.call(document.querySelectorAll("#navBas [data-nb]"),function(b){if(b.dataset.nb===vue)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  if(vue==="accueil"||vue==="auth"){if(PILE){PILE=false;IGN++;history.back()}}else if(vue&&!PILE){history.pushState({rr:vue},"");PILE=true}};
+addEventListener("popstate",function(){if(IGN){IGN--;return}
+  if(!$("cam").hidden){PILE=false;CAM.pile=false;camFin();var w=vueCourante();if(w!=="accueil"&&w!=="auth"&&!PILE){history.pushState({rr:w},"");PILE=true}return}
+  if(!PILE)return;PILE=false;
+  if(!$("lbcFeuille").hidden)panneauLbc(false);
+  if(!$("fiche").hidden)fermerFiche();else if(vueCourante()!=="accueil")montrer("accueil");
+  if(vueCourante()!=="accueil"&&vueCourante()!=="auth"){history.pushState({rr:vueCourante()},"");PILE=true}});
+(function(){var v=vueCourante();if(v)document.body.dataset.vue=v})();
+$("navBas").addEventListener("click",function(e){var b=e.target.closest("[data-nb]");if(!b)return;var k=b.dataset.nb;
+  if(k==="accueil"){montrer("accueil")}else if(k==="trophees")trophees();else if(k==="compte")compte();else if(k==="manuel")$("bManuel").click();else if(k==="photo")camera("nouveau")});
+$("bCam").onclick=function(){camera("nouveau")};
+$("fCam").onclick=function(){camera("fiche")};
+$("liste").addEventListener("click",function(e){var l=e.target.closest('label[for="photoIn"]');if(l&&MQ.matches){e.preventDefault();camera("nouveau")}});
+
+/* Onglets de la fiche sur téléphone : une partie à la fois, la page ne défile jamais */
+var MO="photos",MO_SIG={};
+function sectionMo(k){return document.querySelector('#fiche [data-onglet="'+k+'"],#fiche [data-mo="'+k+'"]')}
+function sigMo(el){return [].map.call(el.querySelectorAll("input,select,textarea"),function(x){return x.type==="checkbox"?x.checked:x.value}).join("\u0001")}
+function ongletMobile(k){if(!sectionMo(k))k="article";MO=k;
+  [].forEach.call(document.querySelectorAll("#fiche [data-onglet],#fiche [data-mo]"),function(el){el.classList.toggle("mo-on",(el.dataset.onglet||el.dataset.mo)===k)});
+  [].forEach.call(document.querySelectorAll("#mOnglets [data-m]"),function(b){var on=b.dataset.m===k;b.setAttribute("aria-pressed",String(on));if(on)b.classList.remove("neuf")});
+  var el=sectionMo(k);MO_SIG[k]=sigMo(el);var g=document.querySelector("#fiche .grille");if(g)g.scrollTop=0;
+  if(k==="photos"&&typeof photo==="function")try{photo()}catch(x){}}
+$("mOnglets").addEventListener("click",function(e){var b=e.target.closest("[data-m]");if(b)ongletMobile(b.dataset.m)});
+var onglet0=window.ongletFiche;window.ongletFiche=function(o){if(onglet0)onglet0(o);MO_SIG={};[].forEach.call(document.querySelectorAll("#mOnglets .neuf"),function(b){b.classList.remove("neuf")});
+  ongletMobile(ED||PHOTO||GAL.length?"photos":"article");setTimeout(function(){["article","prix","annonce","suivi"].forEach(function(k){var el=sectionMo(k);if(el)MO_SIG[k]=sigMo(el)})},0)};
+/* Une partie remplie par l'IA pendant qu'on regarde ailleurs : pastille sur son onglet */
+setInterval(function(){if($("fiche").hidden||!MQ.matches)return;["article","prix","annonce","suivi"].forEach(function(k){if(k===MO)return;var el=sectionMo(k);if(!el)return;var g=sigMo(el);
+  if(MO_SIG[k]==null){MO_SIG[k]=g;return}if(g!==MO_SIG[k]){MO_SIG[k]=g;var b=document.querySelector('#mOnglets [data-m="'+k+'"]');if(b)b.classList.add("neuf")}})},1200);
+document.addEventListener("invalid",function(e){if(!MQ.matches)return;var s=e.target.closest&&e.target.closest("#fiche [data-onglet],#fiche [data-mo]");if(s)ongletMobile(s.dataset.onglet||s.dataset.mo)},true);
+(function(){var foc=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(){if(MQ.matches&&!$("fiche").hidden){var s=this.closest&&this.closest("#fiche [data-onglet],#fiche [data-mo]");if(s&&!s.classList.contains("mo-on"))ongletMobile(s.dataset.onglet||s.dataset.mo)}return foc.apply(this,arguments)}})();
+/* Largeur des boutons du haut (Le Bon Coin, Enregistrer) pour que le titre ne passe pas dessous */
+function largeurActions(){var f=$("fabSave");if(!MQ.matches||f.hidden)return;$("fiche").style.setProperty("--act",(f.getBoundingClientRect().width+18)+"px")}
+addEventListener("resize",largeurActions);new MutationObserver(largeurActions).observe($("fabSave"),{attributes:true,childList:true,subtree:true,characterData:true});
+/* Sur téléphone, ouvrir le panneau Le Bon Coin enregistre la fiche : le lien vers l'appli part alors directement */
+var panneau0=panneauLbc;panneauLbc=function(on){panneau0(on);if(on&&MQ.matches&&sale())sauver(true)};
+
+/* ---------- Appareil photo dans le site : plusieurs photos à la suite ---------- */
+var CAM={flux:null,cible:"nouveau",ph:[],max:12,torche:false};
+var CAM_AIDES=["Cadre l'article de face","Maintenant le dos","Le jeu lui-même : cartouche ou disque","La notice ou les accessoires","Un détail ou un défaut à montrer","Encore une si tu veux"];
+function camera(cible){if(!ME)return;if(cible==="nouveau"&&ME.quota.reste===0){quotaPlein();return}
+  var max=cible==="fiche"?12-GAL.length:12;if(max<=0){toast("12 photos au plus par article.","bad");return}
+  CAM.cible=cible;CAM.max=max;CAM.ph=[];CAM.torche=false;camVign();$("camErr").hidden=true;$("camTorche").hidden=true;$("camTorche").setAttribute("aria-pressed","false");$("camDecl").disabled=false;
+  $("cam").hidden=false;document.body.classList.add("panneau-ouvert");if(!PILE){history.pushState({rr:"cam"},"");PILE=true;CAM.pile=true}else CAM.pile=false;
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!window.isSecureContext){camErreur("Ce navigateur ne donne pas accès à l'appareil photo depuis le site.");return}
+  demarrerFlux()}
+function demarrerFlux(){navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:2560},height:{ideal:1920}}}).then(function(f){
+    if($("cam").hidden){f.getTracks().forEach(function(t){t.stop()});return}
+    CAM.flux=f;var v=$("camVid");v.srcObject=f;var p=v.play();if(p&&p.catch)p.catch(function(){});
+    var t=f.getVideoTracks()[0],c=t&&t.getCapabilities?t.getCapabilities():{};$("camTorche").hidden=!c.torch}).catch(function(e){
+    camErreur(e&&e.name==="NotAllowedError"?"L'accès à l'appareil photo est refusé. Autorise-le dans les réglages du navigateur, ou utilise l'appareil du téléphone.":"Impossible d'ouvrir l'appareil photo ici.")})}
+function camErreur(t){$("camErrTx").textContent=t;$("camErr").hidden=false;$("camDecl").disabled=true}
+function arreterFlux(){if(CAM.flux){CAM.flux.getTracks().forEach(function(t){t.stop()});CAM.flux=null}$("camVid").srcObject=null}
+function fermerCam(){arreterFlux();$("cam").hidden=true;document.body.classList.remove("panneau-ouvert");CAM.ph.forEach(function(p){URL.revokeObjectURL(p.u)});CAM.ph=[]}
+function camVign(){var n=CAM.ph.length;$("camVign").innerHTML=CAM.ph.map(function(p,i){return '<li><img src="'+p.u+'" alt="Photo '+(i+1)+'"><button type="button" data-i="'+i+'" aria-label="Retirer cette photo">✕</button></li>'}).join("");
+  $("camN").textContent=n?" ("+n+")":"";$("camOk").disabled=!n;$("camDecl").disabled=n>=CAM.max||!$("camErr").hidden;
+  var dej=CAM.cible==="fiche"?GAL.length:0;$("camAide").textContent=n>=CAM.max?"C'est le maximum : touche OK":CAM_AIDES[Math.min(n+dej,CAM_AIDES.length-1)];
+  var l=$("camVign");l.scrollLeft=l.scrollWidth}
+function camAjout(f){if(CAM.ph.length>=CAM.max)return;CAM.ph.push({f:f,u:URL.createObjectURL(f)});camVign()}
+$("camDecl").onclick=function(){var v=$("camVid");if(!v.videoWidth||CAM.ph.length>=CAM.max)return;
+  var c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
+  var fl=$("camFlash");fl.classList.remove("on");void fl.offsetWidth;fl.classList.add("on");try{navigator.vibrate&&navigator.vibrate(25)}catch(x){}
+  c.toBlob(function(b){if(b)camAjout(new File([b],"photo-"+Date.now()+".jpg",{type:"image/jpeg"}))},"image/jpeg",.92)};
+$("camVign").addEventListener("click",function(e){var b=e.target.closest("button[data-i]");if(!b)return;var p=CAM.ph.splice(+b.dataset.i,1)[0];if(p)URL.revokeObjectURL(p.u);camVign()});
+$("camTorche").onclick=function(){var t=CAM.flux&&CAM.flux.getVideoTracks()[0];if(!t)return;CAM.torche=!CAM.torche;t.applyConstraints({advanced:[{torch:CAM.torche}]}).catch(function(){});this.setAttribute("aria-pressed",String(CAM.torche))};
+function camFin(){var fs=CAM.ph.map(function(p){return p.f}),c=CAM.cible,p=CAM.pile;CAM.pile=false;fermerCam();
+  if(!fs.length){if(p&&PILE){PILE=false;IGN++;history.back()}return}if(c==="fiche")ajoutAvec(fs);else nouveauAvec(fs)}
+$("camOk").onclick=camFin;
+$("camX").onclick=function(){if(CAM.ph.length&&!confirm("Abandonner les "+CAM.ph.length+" photo"+(CAM.ph.length>1?"s":"")+" prise"+(CAM.ph.length>1?"s":"")+" ?"))return;CAM.ph.forEach(function(p){URL.revokeObjectURL(p.u)});CAM.ph=[];camFin()};
+$("camIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";fs.forEach(camAjout);if(fs.length&&CAM.flux==null){camFin()}};
+$("camGalIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";fs.forEach(camAjout)};
+document.addEventListener("keydown",function(e){if($("cam").hidden)return;if(e.key==="Escape")$("camX").click();else if((e.key===" "||e.key==="Enter")&&e.target===document.body){e.preventDefault();$("camDecl").click()}});
+/* Retour dans l'appli après être passé ailleurs : l'iPhone coupe la caméra, on la relance */
+document.addEventListener("visibilitychange",function(){if(document.hidden||$("cam").hidden||!$("camErr").hidden)return;var t=CAM.flux&&CAM.flux.getVideoTracks()[0];if(!t||t.readyState==="ended"){arreterFlux();demarrerFlux()}});
+
+/* ---------- Installer l'appli sur l'écran d'accueil ---------- */
+var BIP=null;
+function autonome(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
+function surIos(){return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+function majInstalle(){var e=$("installe"),plus=0;try{plus=+localStorage.getItem("rr-installe-non")||0}catch(x){}
+  e.hidden=autonome()||!MQ.matches||Date.now()-plus<30*864e5||!(BIP||surIos());
+  if(!BIP&&surIos()){$("installeTx").innerHTML="Touche <b>Partager</b> dans Safari, puis <b>« Sur l'écran d'accueil »</b>.";$("installeGo").hidden=true}else $("installeGo").hidden=false}
+addEventListener("beforeinstallprompt",function(e){e.preventDefault();BIP=e;majInstalle()});
+addEventListener("appinstalled",function(){BIP=null;majInstalle();toast("RetroRevente est sur ton écran d'accueil.","ok")});
+$("installeGo").onclick=function(){if(!BIP)return;BIP.prompt();BIP.userChoice.then(function(){BIP=null;majInstalle()})};
+$("installeX").onclick=function(){try{localStorage.setItem("rr-installe-non",String(Date.now()))}catch(x){}majInstalle()};
+(MQ.addEventListener?MQ.addEventListener("change",majInstalle):MQ.addListener(majInstalle));majInstalle();
+if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})});
+/* Raccourci « Prendre en photo » de l'icône installée */
+(function(){if(!/[?&]photo(=|&|$)/.test(location.search))return;history.replaceState(null,"","/app/");var n=0,t=setInterval(function(){if(ME&&vueCourante()==="accueil"){clearInterval(t);camera("nouveau")}else if(++n>40)clearInterval(t)},150)})();
 
 })();
 </script>
