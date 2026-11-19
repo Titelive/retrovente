@@ -2221,7 +2221,7 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   function sur(u){return DOUX.test(String(u||""))?u:""}
   function estJeu(){var c=$("f_categorie").value;return c==="jeux"||c==="films"}
   function film(){return $("f_categorie").value==="films"}
-  function duree(m){return m?(m>=60?Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"):m+" min"):""}
+  function duree(m){return m?(m>=60?Math.floor(m/60)+"\u00a0h\u00a0"+String(m%60).padStart(2,"0"):m+"\u00a0min"):""}   // espaces insécables : « 2 h 46 » ne se coupe pas
   /* ma note : 5 étoiles, un second clic sur la même étoile l'enlève */
   var E=$("jiEtoiles");
   for(var i=1;i<=5;i++){var b=el("button",null,"★");b.type="button";b.dataset.n=i;b.setAttribute("role","radio");b.setAttribute("aria-label",i+(i>1?" étoiles":" étoile"));E.appendChild(b)}
