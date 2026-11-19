@@ -47,6 +47,7 @@ Une ligne par variable :
 | `MAIL_FROM` | Facultatif, par défaut `RetroRevente <bonjour@retrorevente.fr>` |
 | `CLAUDE_MODEL` | Facultatif, par défaut `claude-haiku-5-5` |
 | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | Jaquette, captures d'écran et notes des jeux (base IGDB, gratuite, voir « Fiche du jeu » plus bas) |
+| `TMDB_API_KEY` | Affiche, images, synopsis, casting et note des spectateurs des films (base TMDB, clé gratuite, voir « Films » plus bas) |
 
 Sans clé Stripe, l'appli marche en gratuit et affiche « Le paiement arrive très bientôt ».
 
@@ -75,6 +76,15 @@ Ce que fait le code pour le droit de la consommation :
 ## Cartes Pokémon
 
 Catégorie « Carte Pokémon » dans la même appli : la photo d'une carte donne son nom, son extension, son numéro, sa rareté, sa langue, son édition, sa note de gradation (PSA, PCA, CGC…) et son état collectionneur (Mint à Poor, traduit en état Le Bon Coin). La cote part de la **cote Cardmarket du jour**, lue dans la base libre [TCGdex](https://tcgdex.dev) (sans clé ni coût, `server/cartes.mjs`), puis l'IA la recoupe avec les ventes conclues eBay et les annonces Le Bon Coin. Une carte qui vaut moins de 5 € est signalée comme « à mettre en lot ». Le bouton « Plusieurs cartes Pokémon » analyse une photo de classeur ou de cartes étalées : chaque carte est repérée et cotée, celles de 5 € ou plus ont leur propre fiche (photo recadrée sur la carte), les autres forment une fiche « Lot de N cartes » avec son titre, sa description et son prix (80 % des cotes cumulées, 5 € au moins). L'extension propose des réponses propres aux cartes (bords, authenticité, envoi sous toploader). `TCGDEX_URL` (facultatif) change l'adresse de l'API TCGdex.
+
+## Films (Blu-Ray, Blu-Ray 4K UHD, DVD)
+
+Catégorie « Film » dans la même appli : la photo d'une jaquette donne le titre, le **format** (Blu-Ray 4K UHD, 4K UHD + Blu-Ray, Blu-Ray, Blu-Ray 3D, DVD, HD DVD, VHS, lu sur le bandeau de la jaquette), l'**édition** (Steelbook, Édition collector, Édition limitée, Coffret, Mediabook, Digibook, à cocher d'un geste dans la fiche), l'année, le réalisateur, les langues et la zone. La **cote** vient des ventes conclues eBay, des annonces Le Bon Coin et Rakuten pour le même format et la même édition, avec le prix de rachat Momox comme plancher ; un film qui vaut moins de 5 € est signalé « à mettre en lot ». L'annonce Le Bon Coin part dans **Loisirs › DVD - Films**, et l'extension (1.8.0) propose des réponses propres aux films (état des disques, langues et zone, steelbook, envoi protégé). Dans Mes articles, « Grouper par support » range les films par format (4K UHD, Blu-Ray, DVD…).
+
+**Fiche du film** (onglet « Le film ») : l'**affiche**, des **images du film**, la durée, les genres, le réalisateur et le casting, le **synopsis en français**, la **note de la presse** (Metacritic, lue dans Wikidata) et **celle des spectateurs** (TMDB, sur 5), et **ma note** en étoiles. « Pas le bon film ? » propose les films du même nom.
+
+- Images, synopsis et note des spectateurs : [TMDB](https://www.themoviedb.org). Crée un compte, puis Paramètres > API : copie la **clé API** (ou le jeton de lecture) dans `TMDB_API_KEY`. La clé est gratuite pour un usage non commercial ; pour un site payant, TMDB demande une licence commerciale (formulaire sur leur site). Sans clé, la fiche montre le synopsis Wikipédia (CC BY-SA 4.0) et les infos Wikidata (année, réalisateur, genres, durée, presse), sans affiche.
+- Chaque film n'est cherché qu'une fois : la réponse est gardée 30 jours en base (table `jeux_infos`). Code : `server/films.mjs`. `TMDB_URL` et `WIKIDATA_URL` (facultatifs) changent les adresses des API.
 
 ## Retouche des photos (vrai fond gardé)
 

@@ -2,8 +2,9 @@
 // Repris de la section Ventes du backoffice titelive. Clé ANTHROPIC_API_KEY ; modèle CLAUDE_MODEL facultatif.
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
+import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
 export { ETATS_CARTE };
-export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "autres"];
+export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
 export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
 export const MAX_PHOTO = 2_100_000;   // data URL ; photos en haute définition (2000 à 2400 px) pour la retouche et la galerie
@@ -115,14 +116,16 @@ export function cadreDe(c) {
 const FAKE = () => process.env.IA_FAKE === "1";
 
 const CARTE_FAKE = { trouve: true, titre: "Dracaufeu", categorie: "cartes", plateforme: "Set de base", region: "Français", numero: "4/102", rarete: "Holo rare", edition: "", gradation: "", etatCarte: "near_mint", remarques: "", particularites: ["Carte mise en sleeve dès l'ouverture du booster"], annonce: "Dracaufeu 4/102 Set de base Holo FR", description: "Carte Pokémon Dracaufeu 4/102, extension Set de base, holo rare, en français.\nCarte authentique en état Near Mint : bords nets, surface holo sans rayure.\nEnvoi soigné sous sleeve et toploader, dans une enveloppe rigide.\nRemise en main propre ou envoi.", cadre: { x: 0.25, y: 0.1, w: 0.5, h: 0.8 } };
+const FILM_FAKE = { trouve: true, titre: "Dune : Deuxième partie", categorie: "films", plateforme: "Blu-Ray 4K UHD + Blu-Ray", region: "VF incluse, toutes zones", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook", etat: "tres_bon", remarques: "", particularites: ["Fourreau inclus", "Disques sans rayure"], annonce: "Dune Deuxième partie 4K UHD + Blu-Ray Steelbook VF", description: "Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD + Blu-Ray, Steelbook.\nVersion française incluse.\nSteelbook en très bon état, disques sans rayure, lus et vérifiés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.08, w: 0.6, h: 0.84 } };
 export async function identifier(photo) {
+  if (FAKE() && process.env.IA_FAKE_OBJET === "film") { checkPhoto(photo); const o = FILM_FAKE; return { ...champsFilm(o), titre: o.titre, categorie: o.categorie, region: o.region, etat: o.etat, contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE() && process.env.IA_FAKE_OBJET === "carte") { checkPhoto(photo); const o = CARTE_FAKE; return { ...champsCarte(o), titre: o.titre, categorie: o.categorie, plateforme: o.plateforme, region: o.region, etat: ETAT_LBC_DE_CARTE[o.etatCarte], contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
-  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire ou une carte Pokémon). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
+  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire, une carte Pokémon ou un film en Blu-Ray, Blu-Ray 4K ou DVD). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
 "titre" (nom exact et officiel, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards »),
-"categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, ou « autres »),
+"categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, « films » pour un film (Blu-Ray, Blu-Ray 4K UHD, DVD, VHS), ou « autres »),
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (ex. « PAL EUR », « NTSC-J » ; "" si inconnue),
 "etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
@@ -139,8 +142,9 @@ Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
 Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas). Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
-${consigneCarte()}`;
-  let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1500 });
+${consigneCarte()}
+${consigneFilm()}`;
+  let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1800 });
   // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
   if (!o || !o.trouve) {
     o = await claude([image(photo), { type: "text", text: consigne + `
@@ -151,13 +155,14 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
       .catch((e) => { console.error("IA secours", e.message); return null; });
   }
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
-  const carte = o.categorie === "cartes" ? champsCarte(o) : {};
+  const carte = o.categorie === "cartes" ? champsCarte(o) : o.categorie === "films" ? champsFilm(o) : {};
   return {
     ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
     etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
-    ...(o.categorie === "cartes" ? {} : jaunissement(o)),
+    ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
+    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : jaunissement(o)),
   };
 }
 // Plastique jauni (cartouche, console, manette) : dit honnêtement dans les remarques et les particularités, et l'état ne peut pas être « comme neuf ».
@@ -202,6 +207,29 @@ function champsCarte(o) {
   return { numero: txt(o.numero, 20), rarete: txt(o.rarete, 40), edition: txt(o.edition, 40), gradation: txt(o.gradation, 30), etatCarte };
 }
 
+/* ===== Films (Blu-Ray, 4K UHD, DVD) ===== */
+const consigneFilm = () => `
+Si c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD, HD DVD ou VHS : règles qui remplacent celles des jeux pour "titre", "plateforme", "region", "contenu", "particularites", "annonce" et "description") :
+"categorie" vaut « films » ; "titre" est le titre français du film tel qu'il est écrit sur la jaquette (ex. « Dune : Deuxième partie », « Le Seigneur des anneaux : La Communauté de l'anneau ») ; "plateforme" est le format, un parmi ${FORMATS_FILM.map((f) => "« " + f + " »").join(", ")} : le bandeau du haut de la jaquette le dit (noir « 4K Ultra HD » pour un 4K, bleu « Blu-ray » pour un Blu-Ray, « DVD Video » pour un DVD), et un boîtier 4K qui contient aussi le Blu-Ray est « Blu-Ray 4K UHD + Blu-Ray » ; "region" dit les langues et la zone quand on les lit au dos ou sur le bandeau (ex. « VF incluse, zone B », « VF incluse », « VOST uniquement » ; "" sinon) ; "contenu" vaut "".
+Ajoute les clés :
+"annee" (année de sortie du film au cinéma, 4 chiffres ; "" si tu n'es pas sûr),
+"realisateur" (réalisateur du film, "" si tu n'es pas sûr),
+"edition" (ce que la photo montre de l'édition, parmi ${EDITIONS_FILM.map((f) => "« " + f + " »").join(", ")}, séparés par des virgules s'il y en a plusieurs (ex. « Steelbook, Édition limitée ») ; "" pour une édition simple en boîtier plastique),
+"etat" (d'après la photo : boîtier, jaquette, steelbook ; « neuf » seulement si le film est encore sous blister),
+"particularites" (options courtes à cocher par le vendeur, ex. « Fourreau inclus », « Disques sans rayure », « Livret inclus », « Sous blister », « Jaquette réversible », « Code digital déjà utilisé » ; [] sinon),
+"annonce" (titre Le Bon Coin, 70 caractères au plus : titre du film, format en court (« 4K UHD », « Blu-Ray », « DVD »), puis l'édition marquante et « VF » si la version française est incluse ; ex. « Dune Deuxième partie 4K UHD + Blu-Ray Steelbook VF », « Gladiator Blu-Ray édition collector »),
+"description" (exactement ce style, 4 lignes courtes, sans prix ni émoji :
+« Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD + Blu-Ray, Steelbook.
+Version française incluse, toutes zones.
+Steelbook en très bon état, disques sans rayure, lus et vérifiés.
+Remise en main propre ou envoi. »
+Ligne 1 : « Film », titre, année et réalisateur s'ils sont sûrs, format, puis l'édition (« Steelbook », « édition collector »…). Ligne 2 : les langues et la zone si on les lit (sinon, omets cette ligne). Ligne 3 : l'état du boîtier ou du steelbook, de la jaquette et des disques d'après la photo, et ce qui est inclus. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})`;
+
+function champsFilm(o) {
+  const a = /^(18|19|20)\d{2}$/.test(String(o.annee || "").trim()) ? String(o.annee).trim() : "";
+  return { plateforme: formatFilm(txt(o.plateforme, 60)), annee: a, realisateur: txt(o.realisateur, 80), edition: txt(o.edition, 80) };
+}
+
 export async function cadrer(photo) {
   if (FAKE()) { checkPhoto(photo); return { x: 0.15, y: 0.1, w: 0.7, h: 0.8 }; }
   const o = await claude([image(photo), { type: "text", text: `Repère sur cette photo l'objet qu'un particulier veut vendre (jeu vidéo, console, accessoire…). Réponds uniquement par un objet JSON avec la clé ${CADRE_CONSIGNE}.` }], { max: 200, effort: "low" });
@@ -228,6 +256,7 @@ const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", 
 const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)", boite_vide: "boîte seule, sans le jeu (code déjà utilisé ou disque absent)" };
 export async function estimerCote(v) {
   if (v && v.categorie === "cartes") return estimerCoteCarte(v);
+  if (v && v.categorie === "films") return estimerCoteFilm(v);
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   if (FAKE()) return coteDe({ bas: 38, haut: 52, conseille: 49, rapide: 42, resume: "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
@@ -287,6 +316,34 @@ Réponds uniquement par un objet JSON avec les clés :
   if (releveCm) c.releves = [releveCm, ...c.releves].slice(0, 6);
   c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
   return { ...c, carte: ref ? { id: ref.id, extension: ref.extension, numero: ref.numero, rarete: ref.rarete, image: ref.image } : null, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
+}
+/* Cote d'un film : ventes conclues eBay, annonces Le Bon Coin et Rakuten pour le même format et la même édition.
+   Un DVD ou un Blu-Ray courant vaut quelques euros : sous 5 €, on conseille de le vendre dans un lot de films. */
+export async function estimerCoteFilm(v) {
+  const titre = txt(v.titre, 160);
+  if (!titre) throw new IaError("Indique d'abord le titre du film.");
+  const f = { format: formatFilm(txt(v.plateforme, 60)), edition: txt(v.edition, 80), annee: txt(v.annee, 4), realisateur: txt(v.realisateur, 80), langues: txt(v.region, 30) };
+  const quoi = [`film ${titre}`, f.annee && `(${f.annee})`, f.realisateur && `de ${f.realisateur}`, f.format && `en ${f.format}`, f.edition && `édition ${f.edition}`, f.langues, LIB_ETAT[v.etat], txt(v.particularites, 200)].filter(Boolean).join(", ");
+  if (FAKE()) {
+    const base = /4k|uhd/i.test(f.format) ? (/steelbook|collector/i.test(f.edition) ? 32 : 16) : /blu/i.test(f.format) ? 7 : 3;
+    const c = coteDe({ bas: Math.round(base * 0.8), haut: Math.round(base * 1.3), conseille: rondCarte(base * 1.15), rapide: rondCarte(base * 0.9), resume: `Ventes eBay conclues autour de ${base} € pour ce format et cette édition ; annonces Le Bon Coin un peu au-dessus.`, methode: "Médiane des ventes conclues dans le même format et la même édition, puis prix affiché un peu au-dessus pour la négociation.", releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: base, date: "2026-11-02", url: "https://www.ebay.fr/" }, { site: "Rakuten", titre: "Exemple d'annonce", prix: Math.round(base * 1.2), date: "2026-11-10", url: "https://fr.shopping.rakuten.com/" }], sources: ["https://www.ebay.fr/"] });
+    return { ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
+  }
+  const o = await claude(`Estime la cote d'occasion en France, aujourd'hui, de ce film vendu par un particulier : ${quoi}.
+Cherche sur le web les prix réellement pratiqués pour CE film dans CE format${f.edition ? " et CETTE édition" : ""} : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, Rakuten (occasion), et le prix de rachat proposé par Momox ou Recyclivre comme plancher. Ne mélange pas les formats : un DVD vaut bien moins qu'un Blu-Ray, et un Blu-Ray 4K UHD plus encore ; un steelbook, une édition collector ou limitée épuisée peut valoir nettement plus que l'édition simple, alors qu'une édition simple récente se vend souvent quelques euros. Un film sous blister se vend un peu plus cher.
+Réponds uniquement par un objet JSON avec les clés :
+"bas" et "haut" (fourchette des prix de vente constatés, en euros),
+"conseille" (prix à afficher sur Le Bon Coin, un peu au-dessus du prix de vente probable pour laisser de la marge à la négociation, arrondi à l'euro),
+"rapide" (prix pour vendre en quelques jours),
+"resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
+"methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
+"releves" (3 à 6 prix précis réellement lus pendant ta recherche, dans le même format : objets avec "site" (eBay, Le Bon Coin, Rakuten, Momox…), "titre" (intitulé de la vente ou de la page), "prix" (en euros), "date" (AAAA-MM-JJ) et "url" (adresse exacte de la page lue ; n'invente jamais d'adresse)),
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
+  const c = coteDe(o);
+  if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
+  if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le format ou l'édition du film.");
+  c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
+  return { ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
 }
 /* Plusieurs cartes sur une photo (classeur, pile étalée) : le modèle liste chaque carte et son emplacement,
    TCGdex donne la cote Cardmarket de chacune (sans recherche web : rapide et gratuit), et on sépare
@@ -403,13 +460,15 @@ export async function legender(photos, v = {}, trace = null, progres = () => {})
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
-  if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) ? process.env.IA_FAKE_JAUNI : "non")) }; }
-  const carte = v.categorie === "cartes";
-  const quoi = carte ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
+  if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) && v.categorie !== "films" ? process.env.IA_FAKE_JAUNI : "non")) }; }
+  const film = v.categorie === "films", carte = v.categorie === "cartes" || film;   // ni carte ni film n'ont de plastique qui jaunit
+  const quoi = film ? ["le film " + (txt(v.titre, 160) || ""), txt(v.plateforme, 60), txt(v.edition, 80) && "édition " + txt(v.edition, 80)].filter(Boolean).join(", ")
+    : v.categorie === "cartes" ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
-  const vues = carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
+  const vues = film ? "« Jaquette, face avant », « Dos de la jaquette », « Tranche », « Intérieur du boîtier », « Disque », « Disques », « Steelbook, face avant », « Steelbook, dos », « Fourreau », « Livret », « Contenu du coffret »…"
+    : carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
     : "« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…";
-  const defauts = carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
+  const defauts = film ? "rayure sur le disque, boîtier fendu, jaquette décolorée, steelbook rayé ou cabossé, étiquette de prix…" : carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
@@ -544,7 +603,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const deja = Array.isArray(contexte && contexte.mesMessages) ? contexte.mesMessages.slice(-4).map((x) => "- " + txt(x, 600).replace(/"""/g, "").replace(/\s*\n\s*/g, " ")).filter((x) => x.length > 5).join("\n") : "";
   const px = prix(a.prix);
   const fiche = [
-    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : "Console"} : ${txt(a.plateforme, 60)}` : "",
+    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : a.categorie === "films" ? "Format" : "Console"} : ${txt(a.plateforme, 60)}` : "",
+    a.categorie === "films" ? [a.edition && `Édition : ${txt(a.edition, 80)}`, a.annee && `Année : ${txt(a.annee, 4)}`, a.realisateur && `Réalisateur : ${txt(a.realisateur, 80)}`, a.region && `Langues et zone : ${txt(a.region, 30)}`].filter(Boolean).join("\n") : "",
     a.categorie === "cartes" ? [a.numero && `Numéro : ${txt(a.numero, 20)}`, a.region && `Langue : ${txt(a.region, 30)}`, a.gradation ? `Gradée : ${txt(a.gradation, 30)}` : LIB_ETAT_CARTE[a.etatCarte] && `État collectionneur : ${LIB_ETAT_CARTE[a.etatCarte]}`].filter(Boolean).join("\n") : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
     px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${rond(px * 0.85, true)} €, ne jamais proposer moins)` : "",
@@ -561,7 +621,15 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
       { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
       { approche: "couper_court", titre: "Couper court", texte: "Bonjour, merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur ce prix, je préfère en rester là. Bonne recherche à vous 🙂" },
     ] };
-  const carte = a.categorie === "cartes";
+  const carte = a.categorie === "cartes", film = a.categorie === "films";
+  const conseilsFilm = film ? `
+Particularités des films :
+- langues et zone : un Blu-Ray ou un 4K acheté en France lit la version française sur les lecteurs français ; ne promets la VF ou les sous-titres que si la fiche le dit, sinon propose une photo du dos de la jaquette ;
+- disques : parle de rayures et de lecture (« lu et vérifié ») sans rien ajouter à la fiche ; propose une photo du disque ;
+- steelbook ou édition collector : les acheteurs regardent les coins, les rayures et le fourreau ; propose des photos en gros plan ;
+- envoi : boîtier sous papier bulle dans une enveloppe rigide ou un carton, le steelbook protégé par un film ;
+- les films courants se vendent souvent en lot : un acheteur qui en prend plusieurs mérite un prix d'ensemble.
+` : "";
   const conseilsCarte = carte ? `
 Particularités des cartes Pokémon :
 - envoi : la carte part sous sleeve et toploader, dans une enveloppe rigide (lettre suivie conseillée au-delà de 20 €) ;
@@ -569,7 +637,7 @@ Particularités des cartes Pokémon :
 - état : parle avec les mots des collectionneurs (Near Mint, bords, coins, surface, centrage) sans rien ajouter à la fiche ;
 - un acheteur qui demande une photo « avec son pseudo sur un papier » est une demande normale : accepte volontiers.
 ` : "";
-  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}
+  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}${conseilsFilm}
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
@@ -645,7 +713,7 @@ export function sansSujet(t) {
 /* ===== Discussion sur une fiche =====
    Le vendeur écrit librement (« le code a déjà été utilisé », « baisse à 25 € », « annonce plus courte ») ;
    le modèle répond et renvoie les champs à modifier. Seuls les champs connus, avec des valeurs valides, passent. */
-const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce", "numero", "rarete", "edition", "gradation", "etatCarte"];
+const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"];
 const ORIGINES_D = ["origine", "non_teste", "modifie", "repro", "hs"];
 export function changementsSurs(c) {
   const out = {};
@@ -659,8 +727,9 @@ export function changementsSurs(c) {
     else if (k === "contenu") { if (CONTENUS.includes(v)) out[k] = v; }
     else if (k === "origine") { if (ORIGINES_D.includes(v)) out[k] = v; }
     else if (k === "etatCarte") { if (ETATS_CARTE.includes(v)) out[k] = v; }
+    else if (k === "annee") { if (/^(18|19|20)\d{2}$/.test(String(v).trim())) out[k] = String(v).trim(); }
     else if (k === "texteAnnonce") out[k] = affirme(txt(v, 4000));
-    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 40, gradation: 30 }[k]);
+    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 80, gradation: 30, realisateur: 80 }[k]);
   }
   return out;
 }
@@ -689,6 +758,7 @@ Signification des champs :
 - particularites : ce qui est inclus ou non (ex. « Poster inclus, code déjà utilisé ») ;
 - prixDemande, prixAchat : en euros ;
 - pour une carte Pokémon (categorie « cartes ») : titre = nom de la carte, plateforme = extension, region = langue, numero (ex. « 4/102 »), rarete, edition (« 1re édition »…), gradation (ex. « PSA 9 »), etatCarte (« mint », « near_mint », « excellent », « good », « light_played », « played » ou « poor ») ; contenu et origine ne servent pas ;
+- pour un film (categorie « films ») : titre = titre français du film, plateforme = format (${FORMATS_FILM.map((f) => "« " + f + " »").join(", ")}), region = langues et zone (ex. « VF incluse, zone B »), edition (ex. « Steelbook », « Édition collector », plusieurs séparées par des virgules), annee (4 chiffres), realisateur ; contenu et origine ne servent pas ;
 - titreAnnonce : titre Le Bon Coin (100 caractères au plus) ; texteAnnonce : texte de l'annonce.
 
 Conversation (le dernier message est celui du vendeur) :

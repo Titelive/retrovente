@@ -436,6 +436,49 @@ test("cartes Pokémon : reconnaissance, fiche, cote, annonce pour l'extension", 
   } finally { delete process.env.IA_FAKE_OBJET; }
 });
 
+test("films : reconnaissance, fiche, cote, infos, annonce et réponses pour l'extension", async () => {
+  const c = await compte("film" + Date.now() + "@t.fr", true);
+  process.env.IA_FAKE_OBJET = "film";
+  try {
+    const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const o = r.json.objet;
+    assert.equal(o.categorie, "films"); assert.equal(o.plateforme, "Blu-Ray 4K UHD + Blu-Ray"); assert.equal(o.edition, "Steelbook");
+    assert.equal(o.annee, "2024"); assert.equal(o.realisateur, "Denis Villeneuve"); assert.equal(o.contenu, ""); assert.equal(o.jauni, undefined);
+    // cote : un 4K steelbook vaut plus qu'un DVD, et un DVD courant est signalé « à mettre en lot »
+    const cote = await call("POST", "/api/ia/cote", { objet: { ...o } }, c);
+    assert.equal(cote.status, 200, JSON.stringify(cote.json));
+    const dvd = await call("POST", "/api/ia/cote", { objet: { titre: "Gladiator", categorie: "films", plateforme: "DVD" } }, c);
+    assert.ok(cote.json.cote.conseille > dvd.json.cote.conseille);
+    assert.equal(cote.json.cote.lot, false); assert.equal(dvd.json.cote.lot, true);
+    // fiche : format normalisé, champs de film gardés, contenu ignoré
+    const f = await call("POST", "/api/objets", { objet: { titre: "Dune : Deuxième partie", categorie: "films", plateforme: "4k ultra hd", region: "VF incluse", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook, Édition limitée", contenu: "complet", etat: "tres_bon", prixDemande: 35 } }, c);
+    assert.equal(f.status, 200, JSON.stringify(f.json));
+    const it = f.json.objet;
+    assert.equal(it.plateforme, "Blu-Ray 4K UHD"); assert.equal(it.annee, "2024"); assert.equal(it.edition, "Steelbook, Édition limitée"); assert.equal(it.contenu, "");
+    const mauvais = await call("POST", "/api/objets", { objet: { titre: "Film", categorie: "films", annee: "deux mille" } }, c);
+    assert.equal(mauvais.json.objet.annee, "");
+    const { annonceLbc } = await import("../server/api.mjs");
+    const a = annonceLbc(it);
+    assert.equal(a.categorie, "films"); assert.equal(a.titre, "Dune : Deuxième partie 4K UHD Steelbook"); assert.equal(a.edition, "Steelbook, Édition limitée");
+    assert.match(a.description, /^Film Dune : Deuxième partie \(2024\) de Denis Villeneuve, en Blu-Ray 4K UHD, Steelbook, édition limitée\.\nVF incluse\.\nTrès bon état\./);
+    // fiche du film (exemple hors ligne) et export CSV avec les colonnes de film
+    const inf = await call("POST", "/api/film-infos", { titre: "Dune : Deuxième partie", annee: "2024" }, c);
+    assert.equal(inf.status, 200); assert.equal(inf.json.infos.realisateur, "Denis Villeneuve"); assert.ok(inf.json.infos.jaquette);
+    const csv = await call("GET", "/api/export.csv", null, c);
+    assert.match(String(csv.body || ""), /;annee;realisateur;/);
+    // légendes : pas de jaunissement pour un film
+    process.env.IA_FAKE_JAUNI = "net";
+    const lg = await call("POST", "/api/ia/legender", { photos: [PHOTO], objet: { titre: "Dune", categorie: "films" } }, c);
+    assert.deepEqual(lg.json.jaunis, ["non"]);
+    delete process.env.IA_FAKE_JAUNI;
+    // discussion : l'année et le réalisateur passent, une année fantaisiste non
+    const { changementsSurs } = await import("../server/ia.mjs");
+    assert.deepEqual(changementsSurs({ annee: "1999", realisateur: "Lana Wachowski", edition: "Steelbook" }), { edition: "Steelbook", annee: "1999", realisateur: "Lana Wachowski" });
+    assert.deepEqual(changementsSurs({ annee: "vers 1999" }), {});
+  } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
+});
+
 test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", async () => {
   const { carteTcgdex, numLocal } = await import("../server/cartes.mjs");
   assert.equal(numLocal("004/102"), "4"); assert.equal(numLocal("TG05/TG30"), "TG05");
