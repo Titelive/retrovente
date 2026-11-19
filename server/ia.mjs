@@ -707,3 +707,11 @@ Réponds uniquement par un objet JSON : {"reponse": "…", "changements": {"cham
   if (!o || typeof o.reponse !== "string") throw new IaError("Je n'ai pas compris, reformule ton message.");
   return { reponse: affirme(txt(o.reponse, 800)) || "C'est fait.", changements: changementsSurs(o.changements) };
 }
+
+/* Traduit en français le résumé anglais d'un jeu (descriptif de la fiche quand Wikipédia n'a pas d'article). */
+export async function traduire(texte) {
+  const t = txt(texte, 3000);
+  if (!t || FAKE()) return "";
+  const o = await claude(`Traduis en français ce résumé d'un jeu vidéo, fidèlement, sans rien ajouter ni retirer, dans un français naturel. Garde les noms propres (personnages, lieux, titres) tels qu'ils sont connus en France. Réponds uniquement par un objet JSON {"texte": "..."}.\n\n${t}`, { max: 2500, effort: "low" });
+  return o && typeof o.texte === "string" ? txt(o.texte, 3000) : "";
+}

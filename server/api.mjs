@@ -9,6 +9,7 @@ import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from
 import * as ia from "./ia.mjs";
 import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
+import { infosJeu } from "./jeux.mjs";
 import * as stripe from "./stripe.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
@@ -46,6 +47,9 @@ function nettoyer(v, avant) {
     annonce: lien(v.annonce), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
     cote: ia.coteDe(v.cote),
+    // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
+    note: Math.max(0, Math.min(5, Math.round(Number(v.note) || 0))),
+    jeuRef: /^\d{1,9}$/.test(String(v.jeuRef || "")) ? String(v.jeuRef) : "",
     ia: !!(v.ia || (avant && avant.ia)),
     photo: !!(avant && photosDe(avant).length),
     photos: ordrePhotos(v.photos, avant),
@@ -487,6 +491,13 @@ function lienLbc(v) {
     } };
     let l; try { l = await ia.legender(b.photos, b.objet || {}, tr); } catch (e) { if (isAdmin(u)) e.trace = tr; throw e; } bump(u.id, "legender"); return ok({ ok: true, ...l, ...(isAdmin(u) ? { trace: tr } : {}) }); }
   if (p === "/api/ia/inventaire" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.inventaire(body().photo); bump(u.id, "identifier"); return ok({ ok: true, ...o }); }
+  // Jaquette, captures, descriptif et notes d'un jeu (IGDB et Wikipédia, gardés en cache).
+  if (p === "/api/jeu-infos" && method === "POST") {
+    if (!allow("infos:" + u.id, 200, 3600)) fail(429, "Trop de recherches d'infos, réessaie dans un moment.");
+    const b = body();
+    try { return ok({ ok: true, infos: await infosJeu({ titre: b.titre, plateforme: b.plateforme, ref: b.ref }, ia.traduire) }); }
+    catch (e) { console.error("infos jeu", e.message); fail(503, "Les infos du jeu sont momentanément indisponibles."); }
+  }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {

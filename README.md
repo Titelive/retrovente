@@ -46,6 +46,7 @@ Une ligne par variable :
 | `RESEND_API_KEY` | Envoi de l'e-mail « mot de passe oublié » (resend.com, domaine retrorevente.fr vérifié) |
 | `MAIL_FROM` | Facultatif, par défaut `RetroRevente <bonjour@retrorevente.fr>` |
 | `CLAUDE_MODEL` | Facultatif, par défaut `claude-haiku-5-5` |
+| `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | Jaquette, captures d'écran et notes des jeux (base IGDB, gratuite, voir « Fiche du jeu » plus bas) |
 
 Sans clé Stripe, l'appli marche en gratuit et affiche « Le paiement arrive très bientôt ».
 
@@ -86,3 +87,11 @@ Chaque jeu a une **galerie de 12 photos au plus**, réorganisable ; l'IA décrit
 Ajoute `ADMIN_EMAILS=ton@adresse` dans `/etc/retrorevente.env` puis `systemctl restart retrorevente`. Ce compte (et lui seul, vérifié côté serveur) voit dans Mon compte un bloc « Mode test » pour passer d'une formule à l'autre sans payer.
 
 Vérifier : `systemctl status retrorevente-detourage` et `curl -s http://127.0.0.1:7001/sante`.
+
+## Fiche du jeu (jaquette, captures, descriptif, notes)
+
+Dans l'onglet « Le jeu » d'un jeu vidéo : la **jaquette**, des **captures d'écran** (agrandies d'un clic), l'année, le genre, le studio, la **note de la presse** (sur 100) et **celle des joueurs** (sur 5), un **descriptif en français**, et **ma note** en étoiles (enregistrée avec la fiche). Si la recherche se trompe de jeu, « Pas le bon jeu ? » propose les jeux proches.
+
+- Images et notes : [IGDB](https://www.igdb.com) (Twitch), gratuit. Crée une appli sur [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) (nom libre, URL de redirection `http://localhost`, catégorie « Website Integration »), puis copie son Client ID et un Client Secret dans `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`. Sans ces clés, seule « ma note » s'affiche.
+- Descriptif : l'introduction de l'article Wikipédia en français (licence CC BY-SA 4.0, source citée sous le bloc), sinon le résumé IGDB traduit par l'IA.
+- Chaque jeu n'est cherché qu'une fois : la réponse est gardée 30 jours en base (table `jeux_infos`). Code : `server/jeux.mjs`.
