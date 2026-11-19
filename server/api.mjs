@@ -140,7 +140,7 @@ function me(u) {
   const r = rights(u);
   return {
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
-    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -263,6 +263,16 @@ export async function handleApi(req) {
   }
 
   /* --- comptes --- */
+// Page vendeur Le Bon Coin : seulement une adresse https sur leboncoin.fr, sans identifiants ni port.
+function lienLbc(v) {
+  let t = txt(v, 300);
+  if (!t) return "";
+  if (!/^https?:\/\//i.test(t)) t = "https://" + t;
+  let u; try { u = new URL(t); } catch { fail(400, "Lien Le Bon Coin invalide : colle l'adresse de ta page, par exemple https://www.leboncoin.fr/profile/…"); }
+  if (!/(^|\.)leboncoin\.fr$/i.test(u.hostname) || u.username || u.password || u.port) fail(400, "Le lien doit être une adresse leboncoin.fr (ta page vendeur).");
+  u.protocol = "https:"; u.hash = "";
+  return u.toString().slice(0, 300);
+}
   if (p === "/api/inscription" && method === "POST") {
     if (!allow("ins:" + ip, 10, 3600) || !allow("insj:" + ip, 20, 86400)) fail(429, "Trop d'inscriptions depuis cette connexion, réessaie plus tard.");
     const b = body(), email = txt(b.email, 254).toLowerCase(), mdp = String(b.motdepasse || "");
@@ -270,9 +280,11 @@ export async function handleApi(req) {
     if (jetable(email)) fail(400, "Les adresses e-mail jetables ne sont pas acceptées : utilise ta vraie adresse.");
     if (mdp.length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     if (!b.cgv) fail(400, "Accepte les conditions générales pour créer ton compte.");
+    const lbc = lienLbc(b.lbc);
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte existe déjà avec cette adresse. Connecte-toi.");
     const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
     const uid = Number(r.lastInsertRowid), t = createSession(uid);
+    if (lbc) db.prepare("UPDATE users SET lbc = ? WHERE id = ?").run(lbc, uid);
     envoyerVerif(uid, email).catch(() => {});
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(t, secure()) });
   }
@@ -331,6 +343,7 @@ export async function handleApi(req) {
       if (ps && !/^[\p{L}\p{N} ._'-]{2,40}$/u.test(ps)) fail(400, "Pseudo : 2 à 40 caractères, lettres, chiffres, espaces, points, tirets.");
       maj.pseudo = ps;
     }
+    if (b.lbc !== undefined) maj.lbc = lienLbc(b.lbc);
     if (b.avatar !== undefined) {
       const a = String(b.avatar || "");
       if (a && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a) || a.length > 120000)) fail(400, "Image de profil invalide ou trop lourde.");

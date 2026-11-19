@@ -579,6 +579,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <p id="aSous" style="color:var(--gris)">Connecte-toi pour retrouver tes articles.</p>
       <label class="f" id="lEmail">E-mail<input type="email" id="aEmail" autocomplete="email" required></label>
       <label class="f" id="lMdp">Mot de passe<input type="password" id="aMdp" autocomplete="current-password" minlength="8" required></label>
+      <label class="f" id="lLbc" hidden>Ta page Le Bon Coin (facultatif)<input type="url" id="aLbc" inputmode="url" placeholder="https://www.leboncoin.fr/profile/…" autocomplete="url"></label>
       <label class="case" id="lCgv" hidden><input type="checkbox" id="aCgv"><span>J'accepte les <a href="/cgv/" target="_blank">conditions générales</a> et la <a href="/confidentialite/" target="_blank">politique de confidentialité</a>.</span></label>
       <p class="err" id="aErr" role="alert"></p>
       <button class="btn" id="aGo" type="submit">Me connecter</button>
@@ -596,6 +597,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées">🃏 Plusieurs cartes Pokémon</label>
       <input type="file" id="cartesIn" accept="image/*" hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
+      <a class="btn clair" id="bLbc" target="_blank" rel="noopener" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg> Ma page Le Bon Coin</a>
       <input type="file" id="photoIn" accept="image/*" hidden>
     </div>
     <p class="ia-note" id="iaNote" hidden></p>
@@ -748,6 +750,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <div class="zone" style="flex:1;min-width:0">
         <label class="f">Pseudo (affiché dans le menu)<input type="text" id="pPseudo" maxlength="40" autocomplete="nickname" placeholder="ex. Titelive"></label>
         <div class="rangee"><button class="btn petit" type="button" id="pPseudoGo">Enregistrer le pseudo</button></div>
+        <label class="f">Ma page Le Bon Coin (facultatif)<input type="url" id="pLbc" inputmode="url" maxlength="300" placeholder="https://www.leboncoin.fr/profile/…"></label>
+        <div class="rangee"><button class="btn petit" type="button" id="pLbcGo">Enregistrer le lien</button><a class="lien" id="pLbcVoir" target="_blank" rel="noopener" hidden>Ouvrir ma page ↗</a></div>
         <label class="f">Adresse e-mail<input type="email" id="pEmail" autocomplete="email"></label>
         <p class="note" id="pEmailTx"></p>
         <div class="rangee"><button class="btn clair petit" type="button" id="pEmailGo">Changer d'adresse</button><button class="btn clair petit" type="button" id="cMdp2">Changer mon mot de passe</button></div>
@@ -929,7 +933,7 @@ function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();r
   if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}
   if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
-function entete(){var q=ME.quota,p=$("quota");$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
+function entete(){var q=ME.quota,p=$("quota");$("bLbc").hidden=!ME.lbc;if(ME.lbc)$("bLbc").href=ME.lbc;$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
   p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> articles ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote();pubs()}
 function renvoyerVerif(b){if(b)busy(b,true);api("POST","/api/verifier/renvoyer").then(function(j){toast(j.deja?"Ton adresse est déjà confirmée.":"Lien envoyé : regarde ta boîte mail (et les indésirables).","ok")}).catch(function(e){toast(e.message,"bad")}).then(function(){if(b)busy(b,false)})}
 $("dIaRenv").onclick=function(){renvoyerVerif(this)};
@@ -988,7 +992,7 @@ var MODE="cx";
 function auth(){montrer("auth");var q=new URLSearchParams(location.search);if(q.get("reinitialiser")){modeAuth("reset")}else modeAuth(q.has("inscription")?"ins":"cx")}
 function modeAuth(m){MODE=m;$("aErr").textContent="";
   $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
-  $("lCgv").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
+  $("lCgv").hidden=m!=="ins";$("lLbc").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
   $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
   var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ta première annonce par l'IA offerte, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
   $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
@@ -996,7 +1000,7 @@ function modeAuth(m){MODE=m;$("aErr").textContent="";
 $("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};
 $("fAuth").onsubmit=function(e){e.preventDefault();var b=$("aGo"),t=b.textContent,email=$("aEmail").value.trim(),mdp=$("aMdp").value,p;
   if(MODE==="cx")p=api("POST","/api/connexion",{email:email,motdepasse:mdp});
-  else if(MODE==="ins")p=api("POST","/api/inscription",{email:email,motdepasse:mdp,cgv:$("aCgv").checked});
+  else if(MODE==="ins")p=api("POST","/api/inscription",{email:email,motdepasse:mdp,cgv:$("aCgv").checked,lbc:$("aLbc").value.trim()});
   else if(MODE==="oubli")p=api("POST","/api/oubli",{email:email}).then(function(){toast("Si un compte existe avec cette adresse, le lien vient de partir.","ok");modeAuth("cx");return "stop"});
   else p=api("POST","/api/reinitialiser",{jeton:new URLSearchParams(location.search).get("reinitialiser"),motdepasse:mdp}).then(function(){history.replaceState(null,"","/app/")});
   busy(b,true);
@@ -1595,10 +1599,11 @@ $("fRot")&&($("fRot").onclick=function(){});
 /* ===== Profil ===== */
 function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
 function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
-function profil(){$("pPseudo").value=ME.pseudo||"";$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
+function profil(){$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
   $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
   $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
 function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
+$("pLbcGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{lbc:$("pLbc").value}).then(function(m){majMoi(m);toast(m.lbc?"Lien Le Bon Coin enregistré.":"Lien Le Bon Coin retiré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le lien")})};
 $("pPseudoGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{pseudo:$("pPseudo").value}).then(function(m){majMoi(m);toast("Pseudo enregistré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le pseudo")})};
 $("pAvatarIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;ouvrirImage(f).then(function(img){var S=256,c=document.createElement("canvas");c.width=c.height=S;var g=c.getContext("2d"),w=img.naturalWidth,h=img.naturalHeight,m=Math.min(w,h);
     g.imageSmoothingQuality="high";g.drawImage(img,(w-m)/2,(h-m)/2,m,m,0,0,S,S);return api("POST","/api/compte/profil",{avatar:c.toDataURL("image/jpeg",.85)})})
