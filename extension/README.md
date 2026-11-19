@@ -8,7 +8,7 @@ Dans la **messagerie** Le Bon Coin, le panneau s'ouvre tout seul et **l'IA lit l
 
 Chaque article a son **émoji** dans la liste (🍄 Mario, 🗡️ Zelda, 🌸 Kirby, 🐿️ Conker, ⚡ Pokémon, 📦 pour un lot…), différent des autres articles, pour le repérer d'un coup d'œil.
 
-**Lien de l'annonce** : après le dépôt, ou en passant sur la page d'une annonce ou sur « Mes annonces », l'extension reconnaît tes articles et enregistre leur adresse `leboncoin.fr/ad/…` dans RetroRevente, qui les marque publiés.
+**Lien de l'annonce** : juste après le dépôt, sur « Mes annonces » (titre reconnu) et dans la messagerie (titre et prix identiques dans l'encadré de l'annonce), l'extension reconnaît tes articles et enregistre leur adresse `leboncoin.fr/ad/…` dans RetroRevente, qui les marque publiés. Une annonce n'est liée qu'à un seul jeu, et en cas de doute entre deux jeux rien n'est lié.
 
 Le sélecteur en haut du panneau a une recherche : **⌘K** (Ctrl K sur Windows) l'ouvre directement depuis la page de dépôt. Elle ignore accents et majuscules et comprend les abréviations des consoles (`n64`, `ps2`, `gba`, `snes`…). Flèches pour naviguer, Entrée pour choisir, Échap pour fermer.
 
