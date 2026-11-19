@@ -13,9 +13,19 @@ natif() { find safari/RetroRevente -name SafariWebExtensionHandler.swift -exec c
 # Équipe prise dans RR_TEAM, sinon dans ton certificat « Apple Development » (Xcode > Réglages > Comptes).
 equipe() {
   t="${RR_TEAM:-$(security find-certificate -c "Apple Development" -p 2>/dev/null | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU *= *\([A-Z0-9]\{10\}\).*/\1/p' | head -1)}"
-  p=safari/RetroRevente/RetroRevente.xcodeproj/project.pbxproj
-  if [ -z "$t" ] || [ ! -f "$p" ]; then echo "Pas d'équipe Apple trouvée : app non signée (Développement > « Autoriser les extensions non signées » dans Safari)."; return 0; fi
-  perl -0pi -e 's/^\s*DEVELOPMENT_TEAM = [^;]*;\n//mg; s/CODE_SIGN_IDENTITY = "-";/CODE_SIGN_IDENTITY = "Apple Development";/g; s/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g; s/^(\s*)(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;)/$1$2\n$1DEVELOPMENT_TEAM = '"$t"';/mg' "$p"
+  d=safari/RetroRevente/RetroRevente.xcodeproj
+  if [ -z "$t" ]; then echo "Pas d'équipe Apple trouvée : app non signée (Développement > « Autoriser les extensions non signées » dans Safari)."; return 0; fi
+  if [ -f "$d/project.pbxproj" ]; then
+    perl -0pi -e 's/^\s*DEVELOPMENT_TEAM = [^;]*;\n//mg; s/CODE_SIGN_IDENTITY = "-";/CODE_SIGN_IDENTITY = "Apple Development";/g; s/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g; s/^(\s*)(PRODUCT_BUNDLE_IDENTIFIER = [^;]+;)/$1$2\n$1DEVELOPMENT_TEAM = '"$t"';/mg' "$d/project.pbxproj"
+  elif [ -f "$d/project.xcproj" ]; then
+    # Xcode récent : projet au format JSON. L'équipe va à côté de chaque « CODE_SIGN_STYLE ».
+    f="$d/project.xcproj"; cp "$f" "$f.avant"
+    if grep -q '"DEVELOPMENT_TEAM"' "$f"; then perl -pi -e 's/("DEVELOPMENT_TEAM"\s*:\s*)"[^"]*"/$1"'"$t"'"/g' "$f"
+    else perl -pi -e 's/^(\s*)("CODE_SIGN_STYLE"\s*:)/$1"DEVELOPMENT_TEAM" : "'"$t"'",\n$1$2/' "$f"; fi
+    perl -pi -e 's/("CODE_SIGN_IDENTITY"\s*:\s*)"-"/$1"Apple Development"/g; s/("CODE_SIGN_STYLE"\s*:\s*)"Manual"/$1"Automatic"/g' "$f"
+    if plutil -convert json -o /dev/null "$f" 2>/dev/null && grep -q '"DEVELOPMENT_TEAM"' "$f"; then rm -f "$f.avant"
+    else mv "$f.avant" "$f"; echo "Je n'ai pas su écrire l'équipe dans le projet : choisis-la dans Xcode (Signing & Capabilities > Team)."; return 0; fi
+  else echo "Projet Xcode introuvable : choisis l'équipe dans Xcode (Signing & Capabilities > Team)."; return 0; fi
   echo "App signée avec ton équipe Apple ($t)."
 }
 if [ -d safari/RetroRevente ]; then natif; equipe; echo "Le projet existe déjà : open safari/RetroRevente/RetroRevente.xcodeproj"; open safari/RetroRevente/RetroRevente.xcodeproj; exit 0; fi
