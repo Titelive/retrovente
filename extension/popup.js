@@ -29,7 +29,7 @@ function profil(p, email) {
   if (/^data:image\/(jpeg|png|webp);base64,/.test(p.avatar || "")) { av.style.backgroundImage = "url(" + p.avatar + ")"; av.textContent = ""; }
   else { av.style.backgroundImage = ""; av.textContent = (p.nom || email || "?").trim().charAt(0).toUpperCase(); }
 }
-var emoji = function (a) { return a.categorie === "cartes" ? "🃏" : a.categorie === "consoles" ? "🕹️" : "🎮"; };
+var emoji = function (a) { return a.categorie === "cartes" ? "🃏" : a.categorie === "films" ? "🎬" : a.categorie === "consoles" ? "🕹️" : "🎮"; };
 var photos = {};
 function vignette(a, i) {
   var v = el("span", "vg", emoji(a));

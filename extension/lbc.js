@@ -22,7 +22,7 @@
   };
   // Catégories Le Bon Coin, la plus probable en premier. Les suggestions s'affichent « Électronique › Jeux vidéo » :
   // on compare le dernier niveau.
-  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
+  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], films: ["DVD - Films", "DVD / Films", "Films", "DVD"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
@@ -170,7 +170,7 @@
         if ((await ouvrirDeroulantEtat(a, force)) && choisir(ETATS_LBC[a.etat]) === "ok") fait.push("état");
       }
     }
-    if (a.categorie && CATEGORIES_LBC[a.categorie].length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
+    if (a.categorie && (CATEGORIES_LBC[a.categorie] || []).length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
       var cat = await choisirCategorie(a, force);
       if (cat) { etat.compte[k("cat")] = true; if (cat === "ok") fait.push("catégorie"); }
     }
@@ -611,7 +611,7 @@
     return "";
   }
   async function choisirCategorie(a, force) {
-    var libs = CATEGORIES_LBC[a.categorie], cibles = libs.map(norm), k = a.id + ":catliste";
+    var libs = CATEGORIES_LBC[a.categorie] || [], cibles = libs.map(norm), k = a.id + ":catliste";
     var dd = deroulant(CAT_DESC, CAT_LIB);
     if (!force && dd && valeurDe(dd)) return "deja";   // la personne a déjà pris une catégorie dans la liste
     var r = cocherCategorie(cibles, force ? null : groupeDejaChoisi);
@@ -860,6 +860,7 @@
       if (a.lot) e = "📦";
       else if (a.categorie === "consoles") e = "🕹️";
       else if (a.categorie === "cartes") e = "🃏";
+      else if (a.categorie === "films") e = "🎬";
       var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
       if (!e || pris[e]) { var h = 0; for (var i = 0; i < String(a.id).length; i++) h = (h * 31 + String(a.id).charCodeAt(i)) >>> 0; for (var j = 0; j < PALETTE.length; j++) { var c = PALETTE[(h + j) % PALETTE.length]; if (!pris[c]) { e = c; break; } } }
       pris[e] = true; out[a.id] = e;
@@ -1123,7 +1124,7 @@
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
     // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
     var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux articles" : "des " + (a.n || "") + " articles").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
-      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
+      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : a.categorie === "films" ? "du film dans cette édition : il se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
     var l = [
       // Disponibilité
       { g: "Disponibilité", t: "Toujours disponible", m: "Bonjour, oui, " + nom + " est toujours disponible ! " + det + "Je peux l'envoyer ou le remettre en main propre, comme vous préférez." },
@@ -1159,7 +1160,28 @@
       { g: "Sécurité et suivi", t: "Rendez-vous manqué", m: "Bonjour, je ne vous ai pas vu au rendez-vous, j'espère que tout va bien ! On peut en refixer un si vous êtes toujours intéressé, sinon pas de souci." },
       { g: "Sécurité et suivi", t: "Merci après la vente", m: "Merci beaucoup pour votre achat ! Bon jeu avec " + nom + ", et n'hésitez pas à laisser un avis, ça m'aide beaucoup." },
     ];
-    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : l;
+    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : a.categorie === "films" ? reponsesFilm(l, a, nom) : l;
+  }
+  /* Films : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
+     par les questions propres aux films (disques, langues et zone, steelbook, envoi protégé). */
+  function reponsesFilm(l, a, nom) {
+    var fmt = a.plateforme || "", ed = a.edition ? String(a.edition).split(/\s*,\s*/)[0] : "", steel = /steelbook/i.test(a.edition || "");
+    var film = [
+      { g: "Le film", t: "État des disques", m: "Bonjour ! Les disques sont lus et vérifiés, sans rayure qui gêne la lecture. Je peux vous envoyer une photo des disques en lumière rasante si vous voulez." },
+      { g: "Le film", t: "Langues et sous-titres", m: "Bonjour ! " + (a.region ? "C'est indiqué au dos : " + String(a.region).replace(/^./, function (c) { return c.toLowerCase(); }) + ". " : "") + "Je vous envoie une photo du dos de la jaquette avec la liste des langues et des sous-titres, comme ça vous êtes sûr." },
+      { g: "Le film", t: "Zone et lecteur", m: /4k|uhd/i.test(fmt) ? "Bonjour ! Les disques 4K UHD n'ont pas de zone : il se lit sur tous les lecteurs 4K. Le Blu-Ray éventuellement inclus se lit sur les lecteurs européens." : /dvd/i.test(fmt) ? "Bonjour ! C'est un DVD zone 2 (Europe), il se lit sur tous les lecteurs vendus en France." : "Bonjour ! C'est l'édition française, elle se lit sur les lecteurs Blu-Ray vendus en France (zone B)." },
+      { g: "Le film", t: steel ? "État du steelbook" : "État du boîtier", m: steel ? "Bonjour ! Le steelbook est " + (a.etat === "neuf" ? "neuf, encore sous blister" : "en bon état, sans bosse") + ". Je peux vous envoyer des photos en gros plan des coins et des faces, pour que vous jugiez par vous-même." : "Bonjour ! Le boîtier est en bon état et la jaquette est propre. Je vous envoie d'autres photos si vous voulez." },
+      { g: "Le film", t: "Pourquoi ce prix ?", m: "Bonjour, bonne question ! Je me base sur les ventes réellement conclues ces dernières semaines (eBay, Le Bon Coin, Rakuten) pour ce film" + (fmt ? " en " + fmt : "") + (ed ? ", dans cette édition (" + ed.toLowerCase() + ")" : "") + "." },
+      { g: "Envoi et remise", t: "Envoi protégé", m: "Je l'envoie avec la livraison Le Bon Coin (paiement sécurisé), bien protégé : papier bulle et enveloppe rigide" + (steel ? ", le steelbook dans un film protecteur" : "") + ". Expédié sous 48 h après la commande." },
+      { g: "Envoi et remise", t: "Remise en main propre", m: "La remise en main propre est possible ! Dites-moi quel jour et quel secteur vous arrangent, et on se retrouve dans un lieu public." },
+      { g: "Envoi et remise", t: "Colis envoyé", m: "C'est parti ! Le film est bien protégé et déposé, vous recevrez le suivi par Le Bon Coin. Merci pour votre achat et bon film !" },
+      { g: "Négociation", t: "Lot de plusieurs films", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quels films vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
+    ];
+    var garde = l.filter(function (x) { return x.g !== "Le jeu" && x.g !== "Envoi et remise" && x.t !== "Lot de plusieurs jeux"; }).map(function (x) {
+      return { g: x.g, t: x.t, m: x.m.replace(/\bLe jeu\b/g, "Le film").replace(/\ble jeu\b/g, "le film").replace(/\bBon jeu\b/g, "Bon film").replace(/mes jeux/g, "mes films") };
+    });
+    var i = garde.findIndex(function (x) { return x.g === "Sécurité et suivi"; });
+    return garde.slice(0, i < 0 ? garde.length : i).concat(film, i < 0 ? [] : garde.slice(i));
   }
   /* Cartes Pokémon : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
      par les questions propres aux cartes (état des bords, authenticité, envoi sous toploader). */
