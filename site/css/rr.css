@@ -184,22 +184,17 @@ html.menu-ouvert{overflow:hidden}
 
 /* logo : l'éclair */
 .logo-svg .eclair{transform-box:fill-box;transform-origin:50% 50%;filter:drop-shadow(0 0 0 rgba(var(--anis-rgb),0))}
-.js .logo-svg .eclair{animation:zap-entree 1.1s .3s var(--ease) both,neon 6.5s 1.6s infinite}
+.js .logo-svg .eclair{animation:zap-entree 1.1s .3s var(--ease) both,neon 4s 1.6s ease-in-out infinite}
+/* lueur fixe : pas de filtre animé, qui fait clignoter le logo et trembler le texte à côté (Safari) */
+.logo-svg .eclair{filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.7))}
 .logo:hover .logo-svg .eclair,.logo:focus-visible .logo-svg .eclair{animation:zap .6s var(--ease)}
 .logo-svg .manette{transform-box:fill-box;transform-origin:50% 60%;transition:transform .5s var(--ease)}
 .logo:hover .logo-svg .manette{transform:rotate(-6deg)}
-@keyframes zap-entree{0%{transform:scale(0) rotate(-40deg);opacity:0}45%{transform:scale(1.5) rotate(8deg);opacity:1;filter:drop-shadow(0 0 6px var(--anis)) brightness(1.4)}70%{transform:scale(.9)}100%{transform:none;filter:drop-shadow(0 0 0 rgba(var(--anis-rgb),0))}}
-@keyframes zap{0%{transform:none}25%{transform:scale(1.45) rotate(-10deg);filter:drop-shadow(0 0 7px var(--anis)) brightness(1.5)}50%{transform:scale(.85) rotate(6deg)}100%{transform:none}}
+@keyframes zap-entree{0%{transform:scale(0) rotate(-40deg);opacity:0}45%{transform:scale(1.5) rotate(8deg);opacity:1;filter:drop-shadow(0 0 6px var(--anis)) brightness(1.4)}70%{transform:scale(.9)}100%{transform:none}}
+@keyframes zap{0%{transform:none}35%{transform:scale(1.18) rotate(-8deg)}70%{transform:scale(.96) rotate(3deg)}100%{transform:none}}
 @keyframes zap-veille{0%,90%,100%{opacity:1;filter:none}92%{opacity:.25}93%{opacity:1;filter:drop-shadow(0 0 6px var(--anis)) brightness(1.5)}95%{opacity:.4}96.5%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}}
 /* néon fatigué : lueur continue, grésillements irréguliers puis rallumage */
-@keyframes neon{0%,100%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 8%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 9%{opacity:.15;filter:none}10%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}11%{opacity:.25;filter:none}11.6%{opacity:.9;filter:drop-shadow(0 0 2px var(--anis))}
- 12.4%{opacity:.1;filter:none}15%{opacity:.1;filter:none}15.6%{opacity:.8}16.2%{opacity:.2}17%{opacity:1;filter:drop-shadow(0 0 6px var(--anis)) drop-shadow(0 0 14px rgba(var(--anis-rgb),.7)) brightness(1.3)}
- 20%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 55%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}
- 56%{opacity:.35;filter:none}56.8%{opacity:1;filter:drop-shadow(0 0 4px var(--anis))}
- 58%{opacity:1;filter:drop-shadow(0 0 3px rgba(var(--anis-rgb),.9)) drop-shadow(0 0 8px rgba(var(--anis-rgb),.5))}}
+@keyframes neon{0%,100%{opacity:1}50%{opacity:.78}}
 @media (prefers-reduced-motion:reduce){.js .logo-svg .eclair,.logo:hover .logo-svg .eclair{animation:none}.logo:hover .logo-svg .manette{transform:none}}
 .theme-bt{margin-left:4px}
 
@@ -261,6 +256,8 @@ html.sans-anim .lecture{display:none}
 /* lueurs vertes qui dérivent lentement dans le fond des sections */
 .a-lueurs{position:relative;isolation:isolate}
 .lueurs{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none}
+/* les lueurs s'estompent en haut et en bas de leur section : plus de bord coupé net entre deux sections */
+.lueurs:not(.fixe){-webkit-mask-image:linear-gradient(transparent,#000 180px,#000 calc(100% - 180px),transparent);mask-image:linear-gradient(transparent,#000 180px,#000 calc(100% - 180px),transparent)}
 .lueurs i{position:absolute;width:var(--t,560px);height:var(--t,560px);border-radius:50%;background:radial-gradient(closest-side,rgba(var(--anis-rgb),var(--o,.18)),rgba(var(--anis-rgb),0));will-change:transform;animation:derive var(--d,26s) ease-in-out infinite alternate}
 .lueurs i:nth-child(1){left:-12%;top:-18%;--t:620px;--d:28s}
 .lueurs i:nth-child(2){right:-14%;top:30%;--t:540px;--d:34s;animation-delay:-9s}
