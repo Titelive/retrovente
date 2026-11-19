@@ -30,13 +30,18 @@ var ACTIONS = {
   // Notification système quand la personne doit agir (Chrome, Firefox). Safari n'a pas cette API : la page prend le relais.
   alerte: async function (m) {
     if (!RR.notifications || !RR.notifications.create) return { ok: false };
-    await RR.notifications.create("rr-" + Date.now(), { type: "basic", iconUrl: RR.runtime.getURL("icones/icone-128.png"), title: String(m.titre || "RetroRevente").slice(0, 80), message: String(m.texte || "").slice(0, 200), priority: 2 });
+    var opts = { type: "basic", iconUrl: RR.runtime.getURL("icones/icone-128.png"), title: String(m.titre || "RetroRevente").slice(0, 80), message: String(m.texte || "").slice(0, 200), priority: 2 };
+    // Le son vient de RetroRevente (choisi dans le panneau, ou muet) : la notification reste silencieuse.
+    // Firefox ne connaît pas « silent » et refuserait la notification.
+    if (!/Firefox\//.test(navigator.userAgent)) opts.silent = true;
+    await RR.notifications.create("rr-" + Date.now(), opts);
     return { ok: true };
   },
   // Son « à toi » joué par l'app Mac (Safari) : le gestionnaire natif lance NSSound. Ailleurs, pas de message natif.
-  son: async function () {
+  // m.wav : le son choisi (WAV en base64) ; une app Mac plus ancienne l'ignore et joue « Glass ».
+  son: async function (m) {
     if (!RR.runtime.sendNativeMessage || !/Apple/.test(navigator.vendor || "")) return { ok: false, erreur: "pas d'app native" };
-    var r = await RR.runtime.sendNativeMessage("fr.retrorevente.app", { type: "son" });
+    var r = await RR.runtime.sendNativeMessage("fr.retrorevente.app", { type: "son", wav: typeof m.wav === "string" && m.wav.length < 400000 ? m.wav : undefined });
     return r && r.ok ? { ok: true, via: r.via || "natif" } : { ok: false, erreur: (r && r.erreur) || "réponse vide" };
   },
   // L'onglet de l'appli RetroRevente se signale : c'est là qu'on revient après une publication.

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin",
   "short_name": "RetroRevente",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
