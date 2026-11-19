@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1A1A1A">
+<title>Hors connexion · RetroRevente</title>
+<style>
+:root{--papier:#F6F6F1;--encre:#1A1A1A;--gris:#6B6B66;--anis:#F7D774}
+@media(prefers-color-scheme:dark){:root{--papier:#121212;--encre:#F4F4EE;--gris:#A3A39C}}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--papier);color:var(--encre);font:400 17px/1.5 system-ui,-apple-system,sans-serif;padding:24px;box-sizing:border-box;text-align:center}
+main{max-width:340px;display:grid;gap:14px;justify-items:center}
+img{width:72px;height:72px;border-radius:18px}
+h1{font-size:26px;margin:0;letter-spacing:-.03em}
+p{margin:0;color:var(--gris)}
+button{margin-top:6px;border:0;border-radius:999px;background:var(--anis);color:#1A1A1A;font:700 16px/1 system-ui,-apple-system,sans-serif;padding:15px 26px;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <img src="/img/icone-192.png" alt="">
+  <h1>Pas de réseau</h1>
+  <p>RetroRevente a besoin d'internet pour reconnaître tes jeux et chercher les prix. Tes brouillons restent sur ce téléphone.</p>
+  <button type="button" onclick="location.reload()">Réessayer</button>
+</main>
+</body>
+</html>
