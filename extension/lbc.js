@@ -29,7 +29,8 @@
   etat.continuer = true;
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son"]).then(function (r) { if (r && r.son === false) etat.son = false; if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix"]).then(function (r) { if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -264,7 +265,7 @@
   var alertesVues = {}, titreAvant = null, clignote = null;
   // Son « à toi » : Safari bloque l'audio tant qu'on n'a pas touché la page. On garde donc un seul AudioContext,
   // débloqué au premier clic ou à la première touche (même pendant le dépôt), et un <audio> en secours.
-  var audio = null, sonWav = null;
+  var audio = null, sonWav = {};
   function contexteAudio() {
     if (!audio) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { audio = new C(); } catch (e) { return null; } }
     return audio;
@@ -276,39 +277,29 @@
     try { var a = new Audio(wav()); a.volume = 0; a.play().then(function () { a.pause(); }, function () {}); } catch (x) {}
   }
   ["pointerdown", "keydown", "touchstart"].forEach(function (t) { window.addEventListener(t, debloquerSon, { capture: true, passive: true }); });
-  function wav() {
-    if (sonWav) return sonWav;
-    var r = 22050, n = Math.round(r * 0.7), d = new DataView(new ArrayBuffer(44 + n * 2)), w = function (o, t) { for (var i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
-    w(0, "RIFF"); d.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
-    d.setUint32(24, r, true); d.setUint32(28, r * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); w(36, "data"); d.setUint32(40, n * 2, true);
-    for (var i = 0; i < n; i++) { var t = i / r, f = t < 0.16 ? 784 : 1175, t0 = t < 0.16 ? t : t - 0.16, env = Math.min(1, t0 / 0.02) * Math.exp(-t0 * 7);
-      d.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * f * t) * env * 0.35 * 32767), true); }
-    var o = "", u = new Uint8Array(d.buffer); for (var k = 0; k < u.length; k += 8192) o += String.fromCharCode.apply(null, u.subarray(k, k + 8192));
-    return (sonWav = "data:audio/wav;base64," + btoa(o));
-  }
-  function jouer(c) {
-    var t = c.currentTime + 0.02;
-    [[784, 0], [1175, 0.16]].forEach(function (n) {
-      var o = c.createOscillator(), g = c.createGain();
-      o.type = "sine"; o.frequency.value = n[0];
-      g.gain.setValueAtTime(0.0001, t + n[1]); g.gain.exponentialRampToValueAtTime(0.25, t + n[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.5);
-      o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
-    });
+  function choixSon(cle) { return RR_SONS[cle] ? cle : (RR_SONS[etat.sonChoix] ? etat.sonChoix : RR_SON_DEFAUT); }
+  function wav(cle) { cle = choixSon(cle); return sonWav[cle] || (sonWav[cle] = "data:audio/wav;base64," + rrSonWav64(cle)); }
+  function jouer(c, cle) {
+    var x = rrRendreSon(choixSon(cle)), b = c.createBuffer(1, x.length, RR_TAUX), s = c.createBufferSource();
+    b.getChannelData(0).set(x); s.buffer = b; s.connect(c.destination); s.start(c.currentTime + 0.02);
   }
   // 1. Son joué par l'app Mac (NSSound, via le message natif de Safari) : ne dépend pas des règles audio de la page.
   // 2. Sinon (Chrome, Firefox, ou app trop ancienne) : son web.
-  function sonWeb() {
-    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav()); a.volume = 0.8; a.play().then(function () { etat.dernierSon = "web <audio> ok"; }, function (e) { etat.dernierSon = "web <audio> bloqué (" + (e && e.name) + ")"; }); } catch (e) { etat.dernierSon = "web impossible"; } };
+  function sonWeb(cle) {
+    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav(cle)); a.volume = 0.8; a.play().then(function () { etat.dernierSon = "web <audio> ok"; }, function (e) { etat.dernierSon = "web <audio> bloqué (" + (e && e.name) + ")"; }); } catch (e) { etat.dernierSon = "web impossible"; } };
     if (!c) return secours();
-    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") { jouer(c); etat.dernierSon = "web AudioContext ok"; } else secours(); };
+    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") { jouer(c, cle); etat.dernierSon = "web AudioContext ok"; } else secours(); };
     if (c.state === "running") return go();
     try { c.resume().then(go, go); } catch (e) {}
     setTimeout(go, 400);   // Safari peut laisser resume() en attente sans geste : on passe au secours
   }
-  function sonner() {
-    var fini = false, web = function (pourquoi) { if (fini) return; fini = true; etat.sonNatif = pourquoi; sonWeb(); };
+  // cle : le son à jouer (aperçu dans le panneau), sinon celui choisi. « Muet » : rien.
+  function sonner(cle) {
+    cle = cle || etat.sonChoix; if (cle === "muet") { etat.dernierSon = "muet"; return; }
+    cle = choixSon(cle);
+    var fini = false, web = function (pourquoi) { if (fini) return; fini = true; etat.sonNatif = pourquoi; sonWeb(cle); };
     var t = setTimeout(function () { web("délai dépassé"); }, 1500);
-    rrDemander({ type: "son" }).then(function (r) {
+    rrDemander({ type: "son", wav: rrSonWav64(cle) }).then(function (r) {
       clearTimeout(t); if (fini) return;
       if (r && r.ok) { fini = true; etat.sonNatif = "ok"; etat.dernierSon = "app Mac (" + (r.via || "natif") + ")"; }
       else web((r && (r.erreur || r.error)) || "indisponible");
@@ -337,7 +328,7 @@
     rrDemander({ type: "alerte", titre: titre, texte: texte }).then(function (r) {
       if (r && r.ok) return;
       // Safari : notification de la page, seulement si la personne l'a autorisée depuis le panneau.
-      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente", silent: false }); } catch (e) {} }
+      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente", silent: true }); } catch (e) {} }
     }).catch(function () {});
   }
   function optionPayanteCochee() {
@@ -525,7 +516,7 @@
      personne le colle dans la discussion quand un écran n'est pas reconnu. */
   function diagnostic() {
     var lignes = ["RetroRevente " + RR.runtime.getManifest().version + " · " + location.pathname + " · " + navigator.userAgent.replace(/.*(Version\/[\d.]+|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, "$1"),
-      "son=" + etat.son + " prevenir=" + etat.prevenir + " dernierSon=" + (etat.dernierSon || "-") + " natif=" + (etat.sonNatif || "-") + " audio=" + (audio ? audio.state : "-") + " notif=" + (window.Notification ? Notification.permission : "-"),
+      "son=" + etat.sonChoix + " prevenir=" + etat.prevenir + " dernierSon=" + (etat.dernierSon || "-") + " natif=" + (etat.sonNatif || "-") + " audio=" + (audio ? audio.state : "-") + " notif=" + (window.Notification ? Notification.permission : "-"),
       "zoneCategorie=" + zoneCategorie() + " categorieVide=" + categorieVide() + " choisie=" + !!etat.choisie + " cat=" + (etat.choisie && etat.choisie.categorie)];
     var main = document.querySelector("main") || document.body;
     (function parcours(n, prof) {
@@ -691,6 +682,7 @@
     ".n{font-size:11.5px;color:var(--gris-c)}" +
     ".pile{display:flex;flex-direction:column;gap:12px}.c{display:flex;flex-direction:column;gap:5px;font-size:13px}.c .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris)}.c .l b{color:var(--encre);font-weight:600}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}" +
+    ".son-choix{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;flex-wrap:wrap}.son-choix select{font:600 12.5px/1 var(--texte);color:var(--encre);background:var(--papier);border:1px solid var(--trait);border-radius:999px;padding:5px 10px;cursor:pointer}.son-choix select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
     ".auto{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px;cursor:pointer;position:relative}.auto input{position:absolute;opacity:0;width:1px;height:1px}" +
     ".rail{width:40px;height:24px;border-radius:999px;background:var(--trait);position:relative;transition:background .2s;flex:none}.rail::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}" +
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
@@ -970,12 +962,17 @@
       el("span", { class: "rail" }), "Me prévenir (notification)",
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
-    var son = el("label", { class: "auto", title: "Un petit son quand c'est à toi de cliquer" }, [
-      el("input", { type: "checkbox", role: "switch", onchange: function (e) { etat.son = e.target.checked; try { RR.storage.local.set({ son: etat.son }); } catch (x) {} if (etat.son) sonner(); } }),
-      el("span", { class: "rail" }), "Son quand c'est à toi",
-    ]);
-    son.querySelector("input").checked = etat.son;
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Joue le son d'alerte maintenant", texte: "Tester le son", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } }), el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    // Son « à toi » : choix parmi les sons rétro, ou muet. Changer de son le fait entendre tout de suite.
+    var choixListe = el("select", { "aria-label": "Son quand c'est à toi", onchange: function (e) {
+      etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
+      try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
+      if (etat.son) sonner(); ecouter.disabled = !etat.son;
+    } }, Object.keys(RR_SONS).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
+    var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
+    var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
+    etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
+    etat.panneauSon();
+    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
