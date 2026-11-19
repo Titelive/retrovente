@@ -33,6 +33,12 @@ var ACTIONS = {
     await RR.notifications.create("rr-" + Date.now(), { type: "basic", iconUrl: RR.runtime.getURL("icones/icone-128.png"), title: String(m.titre || "RetroRevente").slice(0, 80), message: String(m.texte || "").slice(0, 200), priority: 2 });
     return { ok: true };
   },
+  // Son « à toi » joué par l'app Mac (Safari) : le gestionnaire natif lance NSSound. Ailleurs, pas de message natif.
+  son: async function () {
+    if (!RR.runtime.sendNativeMessage || !/Apple/.test(navigator.vendor || "")) return { ok: false, erreur: "pas d'app native" };
+    var r = await RR.runtime.sendNativeMessage("fr.retrorevente.app", { type: "son" });
+    return r && r.ok ? { ok: true, via: r.via || "natif" } : { ok: false, erreur: (r && r.erreur) || "réponse vide" };
+  },
   etat: async function () { var s = await lire(); return { connecte: !!s.cle, email: s.email || "", serveur: s.serveur || SERVEUR }; },
   cle: async function (m) {
     if (!/^rre_[A-Za-z0-9_-]{20,80}$/.test(String(m.cle || "").trim())) throw new Error("Clé invalide : elle commence par « rre_ ».");

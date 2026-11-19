@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin",
   "short_name": "RetroRevente",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Remplit tout seul le dépôt d'annonce Le Bon Coin avec l'annonce préparée dans RetroRevente, et propose des réponses types aux acheteurs. Tu relis et tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
@@ -28,7 +28,8 @@
   },
   "permissions": [
     "storage",
-    "notifications"
+    "notifications",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://retrorevente.fr/*",
