@@ -43,6 +43,10 @@ var RR_SONS = {
   piece:   { nom: "Pièce",    carre: 0.55, notes: [[880, 0, 0.07], [1319, 0.07, 0.42]] },
   powerup: { nom: "Power-up", carre: 0.35, notes: [[523, 0, 0.05], [659, 0.04, 0.05], [784, 0.08, 0.05], [587, 0.13, 0.05], [740, 0.17, 0.05], [880, 0.21, 0.05], [659, 0.26, 0.05], [831, 0.30, 0.05], [988, 0.34, 0.05], [1319, 0.38, 0.34]] },
   jingle:  { nom: "Jingle",   carre: 0.25, notes: [[784, 0, 0.12], [1047, 0.12, 0.12], [1319, 0.24, 0.5], [1568, 0.24, 0.5]], echo: 0.22 },
+  // Annonce publiée (pas proposé dans la liste) : « pop » de canon à confettis, puis pluie de petites notes scintillantes.
+  confettis: { nom: "Confettis", cache: true, carre: 0.3, echo: 0.18,
+    pops: [[0, 0.09, 1], [0.05, 0.07, 0.6]],
+    notes: [[1047, 0.10, 0.06], [1568, 0.15, 0.06], [1319, 0.20, 0.06], [2093, 0.25, 0.06], [1760, 0.30, 0.06], [2637, 0.35, 0.06], [2093, 0.41, 0.06], [3136, 0.47, 0.30], [2637, 0.47, 0.30]] },
 };
 var RR_SON_DEFAUT = "piece";
 var RR_TAUX = 22050;
@@ -62,6 +66,14 @@ function rrRendreSon(cle) {
       var tri = Math.sin(ph) - Math.sin(3 * ph) / 9 + Math.sin(5 * ph) / 25;
       var env = Math.min(1, t / 0.004) * Math.exp(-t * 5) * Math.min(1, (m - i) / (0.025 * RR_TAUX));
       x[d0 + i] += (s.carre * carre * 0.8 + (1 - s.carre) * tri) * env;
+    }
+  });
+  // « Pop » : bruit blanc (pseudo-aléatoire fixe, donc toujours le même son) très bref, filtré vers les aigus.
+  (s.pops || []).forEach(function (po) {
+    var d0 = Math.round(po[0] * RR_TAUX), m = Math.round(po[1] * RR_TAUX), g = 1234567, avant = 0;
+    for (var i = 0; i < m && d0 + i < n; i++) {
+      g = (g * 1103515245 + 12345) % 2147483648; var b = g / 1073741824 - 1, t = i / RR_TAUX;
+      x[d0 + i] += (b - avant) * 0.9 * po[2] * Math.min(1, t / 0.002) * Math.exp(-t * 45); avant = b;
     }
   });
   if (s.echo) { var r = Math.round(0.11 * RR_TAUX); for (var j = n - 1; j >= r; j--) x[j] += x[j - r] * s.echo; }

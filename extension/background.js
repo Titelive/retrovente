@@ -26,6 +26,22 @@ function base64(buf) {
   return btoa(s);
 }
 
+// Remet la personne sur son onglet RetroRevente (ou en ouvre un) et lui dit que l'annonce est publiée.
+async function allerSurAppli(m) {
+  var msg = { type: "publiee", id: String(m.id || ""), titre: String(m.titre || "").slice(0, 120), url: String(m.url || "") };
+  var o = ((await RR.storage.local.get("ongletAppli")) || {}).ongletAppli, base = ((await lire()).serveur || SERVEUR) + "/app/?publiee=" + encodeURIComponent(msg.id);
+  if (o) {
+    try {
+      await RR.tabs.update(o.tab, { active: true });
+      if (RR.windows && RR.windows.update && o.win != null) { try { await RR.windows.update(o.win, { focused: true }); } catch (e) {} }
+      try { await RR.tabs.sendMessage(o.tab, msg); return "onglet"; }
+      catch (e) { await RR.tabs.update(o.tab, { url: base }); return "onglet rechargé"; }
+    } catch (e) {}
+  }
+  await RR.tabs.create({ url: base });
+  return "nouvel onglet";
+}
+
 var ACTIONS = {
   // Notification système quand la personne doit agir (Chrome, Firefox). Safari n'a pas cette API : la page prend le relais.
   alerte: async function (m) {
@@ -50,19 +66,13 @@ var ACTIONS = {
     return { ok: true };
   },
   // Annonce envoyée sur Le Bon Coin : on remet la personne sur son onglet RetroRevente, qui fait la fête.
-  publiee: async function (m) {
-    var msg = { type: "publiee", id: String(m.id || ""), titre: String(m.titre || "").slice(0, 120), url: String(m.url || "") };
-    var o = ((await RR.storage.local.get("ongletAppli")) || {}).ongletAppli, base = ((await lire()).serveur || SERVEUR) + "/app/?publiee=" + encodeURIComponent(msg.id);
-    if (o) {
-      try {
-        await RR.tabs.update(o.tab, { active: true });
-        if (RR.windows && RR.windows.update && o.win != null) { try { await RR.windows.update(o.win, { focused: true }); } catch (e) {} }
-        try { await RR.tabs.sendMessage(o.tab, msg); return { ok: true, via: "onglet" }; }
-        catch (e) { await RR.tabs.update(o.tab, { url: base }); return { ok: true, via: "onglet rechargé" }; }
-      } catch (e) {}
-    }
-    await RR.tabs.create({ url: base });
-    return { ok: true, via: "nouvel onglet" };
+  // Annonce envoyée sur Le Bon Coin : on remet la personne sur son onglet RetroRevente, qui fait la fête,
+  // puis on ferme l'onglet Le Bon Coin (m.fermer) une fois le son de confettis joué.
+  publiee: async function (m, exp) {
+    var via = await allerSurAppli(m);
+    var lbc = exp && exp.tab && exp.tab.id != null && /^https:\/\/www\.leboncoin\.fr\//.test(exp.url || exp.tab.url || "") ? exp.tab.id : null;
+    if (m.fermer && lbc != null) setTimeout(function () { RR.tabs.remove(lbc).catch(function () {}); }, 2500);
+    return { ok: true, via: via, fermeture: m.fermer && lbc != null };
   },
   etat: async function () { var s = await lire(); return { connecte: !!s.cle, email: s.email || "", serveur: s.serveur || SERVEUR }; },
   cle: async function (m) {

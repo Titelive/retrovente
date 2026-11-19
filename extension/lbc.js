@@ -365,14 +365,37 @@
     if (!b || (hote && hote.contains(b)) || !FINAL.test(norm(b.textContent || b.value || ""))) return;
     var a = etat.choisie; if (!a || a.lot || a.externe) return;
     var p = { id: a.id, titre: a.nom || a.titre, at: Date.now() };
+    depotRecent = true;
     try { RR.storage.local.set({ publication: p }); } catch (x) {}
     suivrePublication(p);
   }, true);
   var suiviPub = null;
+  // Page « Votre annonce sera en ligne dans quelques secondes » (boutons « Déposer une nouvelle annonce » et
+  // « Voir mes annonces ») : la publication est faite, même si on n'a pas vu le clic.
+  function confirmationDepot() {
+    var t = norm(((document.querySelector("main") || document.body).innerText || "").slice(0, 4000));
+    if (/votre annonce (sera en ligne|sera visible|est en ligne|a bien ete (envoyee|deposee|publiee|enregistree))/.test(t)) return true;
+    return !!(boutons(/^voir mes annonces/).length && boutons(/^deposer une nouvelle annonce/).length);
+  }
+  // Seulement après un dépôt commencé avec RetroRevente (inutile de lire la page sinon).
+  var confirmationFetee = false, depotRecent = false;
+  try { RR.storage.local.get(["publication", "depot"]).then(function (r) { r = r || {}; depotRecent = !!((r.publication && Date.now() - r.publication.at < 10 * 60000) || (r.depot && !r.depot.fete && Date.now() - r.depot.at < 3 * 3600e3)); }); } catch (e) {}
+  async function guetterConfirmation() {
+    if (!depotRecent || confirmationFetee || !confirmationDepot()) return;
+    confirmationFetee = true;
+    var st = {}; try { st = (await RR.storage.local.get(["publication", "depot"])) || {}; } catch (e) {}
+    var p = st.publication && Date.now() - st.publication.at < 10 * 60000 ? st.publication : null;
+    var d = st.depot && !st.depot.fete && Date.now() - st.depot.at < 3 * 3600e3 ? st.depot : null;
+    if (!p && d) { p = { id: d.id, titre: d.titre, at: Date.now() }; try { await RR.storage.local.set({ publication: p }); } catch (e) {} }
+    if (!p) return;
+    if (d) { try { await RR.storage.local.set({ depot: Object.assign({}, d, { fete: true }) }); } catch (e) {} }
+    clearInterval(suiviPub); publiee(p);
+  }
   function suivrePublication(p) {
     clearInterval(suiviPub);
     suiviPub = setInterval(function () {
       if (Date.now() - p.at > 60000) { clearInterval(suiviPub); return; }
+      if (confirmationDepot()) { clearInterval(suiviPub); publiee(p); return; }
       if (boutons(FINAL).length || erreurAffichee()) return;
       clearInterval(suiviPub); publiee(p);
     }, 1000);
@@ -380,9 +403,13 @@
   async function publiee(p) {
     try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
     var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
-    statut("🎉 Annonce envoyée ! Je te ramène sur RetroRevente.", "ok");
+    statut("🎉 Annonce publiée ! Je ferme Le Bon Coin et te ramène sur RetroRevente.", "ok");
     if (lien) lier(p.id, lien, p.titre);
-    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien }).catch(function () {});
+    // Son de confettis (sauf si le son est réglé sur « Muet ») et notification ; RetroRevente fait pleuvoir les confettis.
+    if (etat.sonChoix !== "muet") sonner("confettis");
+    rrDemander({ type: "alerte", titre: "🎉 Annonce publiée !", texte: "« " + (p.titre || "Ton annonce") + " » est en ligne sur Le Bon Coin." }).catch(function () {});
+    // L'arrière-plan te remet sur RetroRevente puis ferme cet onglet, le temps que le son se termine.
+    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien, fermer: true }).catch(function () {});
   }
   try { RR.storage.local.get("publication").then(function (r) { if (r && r.publication && Date.now() - r.publication.at < 60000) suivrePublication(r.publication); }); } catch (e) {}
   function continuerSiPret() {
@@ -411,7 +438,7 @@
   function demarrerAuto() {
     observateur.disconnect();
     // Mémorise le jeu en cours de dépôt : son lien sera repris tout seul une fois l'annonce publiée.
-    if (etat.choisie && !etat.choisie.lot) { try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
+    if (etat.choisie && !etat.choisie.lot) { depotRecent = true; try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
     if (!etat.auto || !etat.choisie) return;
     observateur.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style"] });
     remplir(false).catch(function () {}).then(planifierContinuer);
@@ -968,7 +995,7 @@
       etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
       try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
       if (etat.son) sonner(); ecouter.disabled = !etat.son;
-    } }, Object.keys(RR_SONS).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
+    } }, Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
     var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
     var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
     etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
@@ -1604,7 +1631,9 @@
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
+    guetterConfirmation().catch(function () {});
     if (location.pathname === vu) return;
+    confirmationFetee = false;
     vu = location.pathname;
     liensAuto().catch(function () {});
     var m = mode();
