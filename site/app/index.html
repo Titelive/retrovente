@@ -171,6 +171,29 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 @keyframes scan{0%,100%{top:16%}50%{top:84%}}
 .photo .attente span{display:inline-flex;gap:10px;align-items:center;background:var(--nuit);color:#fff;border-radius:999px;padding:12px 18px;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
 .photo .attente small{position:absolute;left:0;right:0;bottom:16%;text-align:center;color:#fff;font-size:13px;font-weight:500;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.8);padding:0 16px;transition:opacity .3s}
+/* Trophées */
+.tr-score{display:grid;grid-template-columns:auto 1fr;gap:10px 22px;align-items:center;margin:22px 0;padding:20px 22px;border-radius:24px;background:var(--nuit);color:#fff;box-shadow:0 0 0 1px rgba(var(--anis-rgb),.3)}
+.tr-jauge b{font:900 44px/1 var(--titre);color:var(--anis)}.tr-jauge small{display:block;margin-top:4px;font:400 10px/1.3 var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+.tr-barre{height:14px;border-radius:4px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.1) 0 10px,transparent 10px 13px);overflow:hidden}
+.tr-barre i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--anis) 0 10px,transparent 10px 13px);transition:width .8s var(--ease,ease)}
+.tr-score p{grid-column:1/-1;margin:0;font-size:14px;color:rgba(255,255,255,.85)}
+.tr-grille{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.tr{position:relative;display:flex;flex-direction:column;gap:8px;padding:18px 16px 16px;border-radius:20px;background:var(--carte);box-shadow:inset 0 0 0 1px var(--trait)}
+.tr .med{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-size:32px;line-height:1;background:linear-gradient(135deg,var(--anis),var(--anis-f));box-shadow:4px 4px 0 var(--nuit),inset 0 0 0 3px rgba(255,255,255,.35)}
+.tr h3{margin:4px 0 0;font-size:16px;line-height:1.2}
+.tr p{margin:0;font-size:13px;line-height:1.4;color:var(--gris)}
+.tr .pr{margin-top:auto;padding-top:6px;display:flex;align-items:center;gap:8px;font:400 10px/1 var(--pixel);color:var(--gris)}
+.tr .pr span{flex:1;height:7px;border-radius:2px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--encre) 14%,transparent) 0 6px,transparent 6px 8px);overflow:hidden}
+.tr .pr span i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--anis-f) 0 6px,transparent 6px 8px)}
+.tr.ok{box-shadow:inset 0 0 0 2px var(--anis),0 18px 34px -24px rgba(var(--anis-rgb),.9)}
+.tr.ok::after{content:"DÉBLOQUÉ";position:absolute;right:12px;top:14px;font:400 9px/1 var(--pixel);letter-spacing:.08em;padding:5px 6px;border-radius:6px;background:var(--nuit);color:var(--anis)}
+.tr:not(.ok) .med{background:color-mix(in srgb,var(--encre) 10%,transparent);box-shadow:4px 4px 0 color-mix(in srgb,var(--encre) 18%,transparent);filter:grayscale(1);opacity:.55}
+.tr:not(.ok) h3{color:color-mix(in srgb,var(--encre) 70%,transparent)}
+.tr.neuf .med{animation:trBrille 1.2s steps(4,end) 3}
+@keyframes trBrille{50%{transform:scale(1.12) rotate(-6deg)}}
+#bTroph{gap:6px}
+@media(max-width:700px){#bTroph{display:none}}
+@media(max-width:560px){.tr-grille{grid-template-columns:1fr 1fr}.tr{padding:14px 12px}.tr .med{width:52px;height:52px;font-size:26px}}
 /* Encart « l'IA travaille » : une carte par tâche, icône animée, étape en gras, blague en petit, barre de progression en pixels */
 .ia-etat{--ia-a:var(--anis);--ia-b:var(--anis);list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
 html[data-formule="collectionneur"] .ia-etat{--ia-a:var(--or-1);--ia-b:var(--or-2)}
@@ -562,6 +585,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
       <label role="menuitem" for="cartesIn"><i>🃏</i><span>Plusieurs cartes Pokémon<small>Une photo de classeur ou de cartes étalées</small></span></label>
       <button role="menuitem" type="button" id="ajoutManuel"><i>✍️</i><span>À la main<small>Sans photo pour l'instant</small></span></button>
     </div></div>
+  <button class="btn clair petit" id="bTroph" type="button" hidden aria-label="Mes trophées" title="Mes trophées">🏆 <span id="bTrophN"></span></button>
   <button class="btn clair petit" id="bCompte" type="button" hidden><span class="av-mini" id="bAvatar" aria-hidden="true"></span><span id="bNom">Mon compte</span></button>
 </div></div>
 
@@ -711,12 +735,24 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 </section>
 
 <!-- ========== Compte ========== -->
+<!-- ========== Trophées ========== -->
+<main class="app wrap vue" id="trophees" hidden>
+  <div class="tete"><div><p class="pixel">Trophées</p><h1 style="margin-top:8px">Ta salle des trophées</h1><p style="color:var(--gris);margin:8px 0 0">Débloque-les en vendant : chaque article, chaque vente compte.</p></div></div>
+  <section class="tr-score"><div class="tr-jauge"><b id="trNb">0</b><small id="trSur">/ 0 débloqués</small></div><div class="tr-barre"><i id="trBarre"></i></div><p id="trProchain"></p></section>
+  <ol class="tr-grille" id="trGrille"></ol>
+</main>
+
 <main class="app wrap vue" id="compte" hidden>
   <div class="tete"><div><p class="pixel">Mon compte</p><h1 style="margin-top:8px" id="cEmail"></h1></div></div>
   <a class="cta-jeux" href="/app/" id="cRetour">
     <span class="cj-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15.5" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="13" r=".6" fill="currentColor"/></svg></span>
     <span class="cj-tx"><b>Mes articles</b><small id="cJeuxTx">Tes annonces, tes prix et tes ventes</small></span>
     <span class="btn cj-bt">Ouvrir mes articles <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>
+  <a class="cta-jeux tr-cta" href="/app/?trophees" id="cTroph">
+    <span class="cj-ico" aria-hidden="true" style="font-size:24px">🏆</span>
+    <span class="cj-tx"><b>Mes trophées</b><small id="cTrophTx">Tes succès de vendeur</small></span>
+    <span class="btn cj-bt">Voir mes trophées</span>
   </a>
   <section class="carte zone">
     <h2>Ta formule : <span id="cFormule"></span></h2>
@@ -920,18 +956,18 @@ function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>p
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
-function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";$("ajout").hidden=!(v==="fiche"||v==="compte");fermerAjout();if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
-  $("bCompte").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
-  var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
+function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche","trophees"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";$("ajout").hidden=!(v==="fiche"||v==="compte");fermerAjout();if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
+  $("bCompte").hidden=v==="auth";$("bTroph").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
+  var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="trophees")f.push(["Trophées"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
-  document.title=(v==="fiche"?(titre||"Nouvel article"):v==="compte"?"Mon compte":v==="auth"?"Connexion":"Mes articles")+" · RetroRevente";
+  document.title=(v==="fiche"?(titre||"Nouvel article"):v==="compte"?"Mon compte":v==="trophees"?"Trophées":v==="auth"?"Connexion":"Mes articles")+" · RetroRevente";
   window.scrollTo(0,0)}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
-function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();
+function charger(){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();try{majTrophNav()}catch(e){}
   var q=new URLSearchParams(location.search);
-  if(q.has("compte")){compte()}else montrer("accueil");
+  if(q.has("compte")){compte()}else if(q.has("trophees")){trophees()}else montrer("accueil");
   if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}
-  if(q.has("compte")||q.has("paye"))history.replaceState(null,"","/app/")})
+  if(q.has("compte")||q.has("paye")||q.has("trophees"))history.replaceState(null,"","/app/")})
   .catch(function(e){if(e.status===401)auth();else toast(e.message||"Le serveur ne répond pas.","bad")})}
 function entete(){var q=ME.quota,p=$("quota");$("bLbc").hidden=!ME.lbc;if(ME.lbc)$("bLbc").href=ME.lbc;$("bNom").textContent=ME.nom||"Mon compte";peindreAvatar($("bAvatar"));if(window.rrMoi)window.rrMoi(ME);else document.addEventListener("DOMContentLoaded",function(){window.rrMoi&&window.rrMoi(ME)});
   p.innerHTML=q.max==null?"<b>Illimité</b> · "+ME.formule.nom:"<b>"+q.utilise+" / "+q.max+"</b> articles ce mois";p.classList.toggle("plein",q.max!=null&&q.reste===0);iaNote();pubs()}
@@ -939,6 +975,52 @@ function renvoyerVerif(b){if(b)busy(b,true);api("POST","/api/verifier/renvoyer")
 $("dIaRenv").onclick=function(){renvoyerVerif(this)};
 $("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche, puis va dans Mon compte.","bad");return}compte()};
 $("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv]"))renvoyerVerif(e.target.closest("[data-renv]"));if(e.target.closest("[data-formules]"))compte()});
+/* ===== Trophées : calculés à partir des articles et de l'activité (rien n'est stocké) ===== */
+function trophees(){montrer("trophees");dessinerTrophees()}
+function listeTrophees(){var v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
+    plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p)plat[p]=1});
+  var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
+    cartes=OBJ.filter(function(o){return o.categorie==="cartes"}).length,
+    ia=OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,
+    photos=OBJ.filter(function(o){return o.photo}).length,
+    jours=function(a,b){return (new Date(b)-new Date(a))/864e5},
+    eclair=v.filter(function(o){return o.dateMiseEnVente&&o.dateVente&&jours(o.dateMiseEnVente,o.dateVente)<=7}).length,
+    plein=v.filter(function(o){return o.prixDemande&&+o.prixVente>=+o.prixDemande}).length,
+    rare=v.filter(function(o){return +o.prixVente>=100}).length,
+    envois=v.filter(function(o){return o.statut==="envoye"||o.remise==="envoi"}).length,
+    anc=ME.cree?Math.floor(jours(ME.cree,new Date())):0;
+  return [
+    ["🕹️","Insert Coin","Ajoute ton tout premier article.",OBJ.length,1],
+    ["📸","Photographe","10 articles avec une photo.",photos,10],
+    ["🧺","Grenier vidé","10 articles ajoutés.",OBJ.length,10],
+    ["📦","Entrepôt","50 articles ajoutés.",OBJ.length,50],
+    ["💰","Première vente","Vends ton premier article.",v.length,1],
+    ["🔥","Combo ×5","5 articles vendus.",v.length,5],
+    ["🏆","High Score","25 articles vendus.",v.length,25],
+    ["💶","Cent balles","100 € encaissés.",Math.floor(enc),100],
+    ["🐷","Tirelire pleine","1 000 € encaissés.",Math.floor(enc),1000],
+    ["💎","Pièce rare","Un article vendu 100 € ou plus.",rare,1],
+    ["🤝","Pas un centime de moins","Vends au prix demandé (ou plus).",plein,1],
+    ["🚀","Vente éclair","Vends un article moins de 7 jours après sa mise en vente.",eclair,1],
+    ["📬","Le facteur sonne","5 ventes envoyées par la poste.",envois,5],
+    ["🍄","64 bits","Ajoute un jeu Nintendo 64.",n64,1],
+    ["🎮","Multi-consoles","Des articles sur 5 plateformes différentes.",Object.keys(plat).length,5],
+    ["⚡","Attrapez-les tous","Ajoute une carte Pokémon.",cartes,1],
+    ["🤖","Duo avec l'IA","10 annonces rédigées avec l'IA.",ia,10],
+    ["⏱️","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(tempsGagne()/60),10],
+    ["🗓️","Vétéran","Membre depuis un an.",anc,365]
+  ].map(function(t){return{ico:t[0],nom:t[1],desc:t[2],val:Math.min(t[3],t[4]),max:t[4],ok:t[3]>=t[4]}})}
+function majTrophNav(){var l=listeTrophees(),n=l.filter(function(t){return t.ok}).length;$("bTrophN").textContent=n+"/"+l.length;if($("cTrophTx"))$("cTrophTx").textContent=n+" trophée"+(n>1?"s":"")+" débloqué"+(n>1?"s":"")+" sur "+l.length;return l}
+function dessinerTrophees(){var l=majTrophNav(),ok=l.filter(function(t){return t.ok}),vus={};try{vus=JSON.parse(localStorage.getItem("rr-troph")||"{}")}catch(e){}
+  $("trNb").textContent=ok.length;$("trSur").textContent="/ "+l.length+" débloqués";requestAnimationFrame(function(){$("trBarre").style.width=(100*ok.length/l.length)+"%"});
+  var pro=l.filter(function(t){return !t.ok}).sort(function(a,b){return b.val/b.max-a.val/a.max})[0];
+  $("trProchain").innerHTML=pro?"Prochain : <b>"+esc(pro.ico+" "+pro.nom)+"</b>, "+esc(pro.desc.charAt(0).toLowerCase()+pro.desc.slice(1))+" ("+pro.val+"/"+pro.max+")":"Tous débloqués. Game over… mais quel score ! 🏁";
+  $("trGrille").innerHTML=l.map(function(t){var neuf=t.ok&&!vus[t.nom];if(t.ok)vus[t.nom]=1;
+    return '<li class="tr'+(t.ok?" ok":"")+(neuf?" neuf":"")+'"><span class="med" aria-hidden="true">'+t.ico+'</span><h3>'+esc(t.nom)+'</h3><p>'+esc(t.desc)+'</p>'+
+      (t.ok?"":'<div class="pr" aria-label="Progression '+t.val+' sur '+t.max+'"><span><i style="width:'+(100*t.val/t.max)+'%"></i></span>'+t.val+'/'+t.max+'</div>')+'</li>'}).join("");
+  try{localStorage.setItem("rr-troph",JSON.stringify(vus))}catch(e){}}
+$("bTroph").onclick=function(){trophees()};
+$("cTroph").onclick=function(e){e.preventDefault();trophees()};
 function tempsGagne(){var e=tempsEtapes(),n=0;for(var k in e)n+=e[k]*TEMPS[k];return n}
 function dessinerTemps(){var e=tempsEtapes();$("tpsL").innerHTML=Object.keys(TEMPS_DEF).map(function(k){return '<div class="tps-r"><span><b>'+TEMPS_LIB[k][0]+'</b><small>'+e[k]+' × '+TEMPS_LIB[k][1]+'</small></span><label><input type="number" min="0" max="120" step="1" inputmode="numeric" data-k="'+k+'" value="'+TEMPS[k]+'" aria-label="Minutes pour '+TEMPS_LIB[k][0].toLowerCase()+'">min</label><span class="s">'+hm(e[k]*TEMPS[k])+'</span></div>'}).join("");majTot()}
 function majTot(){var e=tempsEtapes();[].forEach.call($("tpsL").querySelectorAll(".tps-r"),function(r){var k=r.querySelector("input").dataset.k;r.querySelector(".s").textContent=hm(e[k]*TEMPS[k])});$("tpsTot").textContent="Total : "+hm(tempsGagne())+" gagnées sur "+OBJ.length+" article"+(OBJ.length>1?"s":"")+"."}
@@ -946,7 +1028,7 @@ function garderTemps(){try{localStorage.setItem("rr-temps",JSON.stringify(TEMPS)
 $("cTempsBt").onclick=function(){dessinerTemps();$("dTemps").showModal()};
 $("tpsL").addEventListener("input",function(e){var i=e.target.closest("input");if(!i)return;var v=i.value===""?0:Math.max(0,Math.min(120,Math.round(+i.value)||0));TEMPS[i.dataset.k]=v;majTot();garderTemps()});
 $("tpsRaz").onclick=function(){for(var k in TEMPS_DEF)TEMPS[k]=TEMPS_DEF[k];dessinerTemps();garderTemps()};
-function dessiner(){if(typeof dessinerBrouillons==="function")dessinerBrouillons();
+function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();
   var vendus=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
   compter($("cTemps"),tempsGagne(),hm);
   compter($("cVente"),OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
