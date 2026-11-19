@@ -682,6 +682,48 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .cam-ok{justify-self:end;min-width:76px;height:52px;padding:0 18px!important;gap:6px;justify-content:center}
 .cam-ok:disabled{opacity:.45}
 .cam-ok b{font-variant-numeric:tabular-nums}
+/* ===== Fiche du jeu : jaquette, notes, ma note, descriptif, captures ===== */
+.ji{grid-column:1/-1;margin-top:18px;padding-top:16px;border-top:1px solid var(--trait);display:flex;flex-direction:column;gap:12px;min-width:0}
+.ji-tete{display:flex;gap:14px;align-items:flex-start;min-width:0}
+.ji-jaq{flex:none;width:96px;aspect-ratio:3/4;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait),0 10px 24px -14px rgba(0,0,0,.5);cursor:zoom-in}
+.ji-jaq img{width:100%;height:100%;object-fit:cover;display:block}
+.ji-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.ji-nom{margin:0;font:700 17px/1.2 var(--titre,inherit);color:var(--encre);overflow-wrap:anywhere}
+.ji-meta{margin:0;font-size:13px;color:var(--gris);overflow-wrap:anywhere}
+.ji-notes{display:flex;gap:8px;flex-wrap:wrap}
+.ji-notes:empty{display:none}
+.ji-n{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);font-size:12.5px;color:var(--gris);white-space:nowrap}
+.ji-n b{display:grid;place-items:center;min-width:30px;height:24px;padding:0 6px;border-radius:999px;font-size:13px;color:#fff;background:#6b7280}
+.ji-n b.haut{background:#2f9e44}.ji-n b.moyen{background:#d08c00}.ji-n b.bas{background:#c92a2a}
+.ji-moi{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--gris)}
+.ji-etoiles{display:inline-flex}
+.ji-etoiles button{border:0;background:none;padding:2px 1px;font-size:22px;line-height:1;cursor:pointer;color:var(--trait);transition:transform .15s,color .15s;-webkit-tap-highlight-color:transparent}
+.ji-etoiles button.on{color:#f5b301}
+.ji-etoiles button:hover{transform:scale(1.15)}
+.ji-etoiles button:focus-visible{outline:2px solid var(--nuit);outline-offset:2px;border-radius:4px}
+.ji-desc{margin:0;font-size:14px;line-height:1.55;color:var(--encre);white-space:pre-line;overflow-wrap:anywhere}
+.ji-desc.court{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ji-plus{align-self:flex-start;font-size:13px;margin-top:-6px}
+.ji-caps{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;padding-bottom:4px;min-width:0;max-width:100%;scrollbar-width:thin}
+.ji-caps:empty{display:none}
+.ji-caps button{flex:none;width:min(220px,62%);aspect-ratio:16/9;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);scroll-snap-align:start;cursor:zoom-in}
+.ji-caps img{width:100%;height:100%;object-fit:cover;display:block}
+.ji-src{margin:0;font-size:11.5px;color:var(--gris);line-height:1.5}
+.ji-src a{color:inherit}
+.ji-src .lien{font-size:11.5px}
+.ji-choix{display:flex;flex-direction:column;gap:6px}
+.ji-choix button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;border-radius:12px;padding:9px 12px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);color:var(--encre);font:600 13.5px/1.3 var(--texte,inherit);cursor:pointer;min-width:0}
+.ji-choix button:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
+.ji-choix button small{color:var(--gris);font-weight:500;white-space:nowrap}
+.ji-attente{margin:0;font-size:13px;color:var(--gris)}
+.ji.charge .ji-jaq,.ji.charge .ji-caps button{animation:ji-pulse 1.2s ease-in-out infinite}
+@keyframes ji-pulse{50%{opacity:.55}}
+dialog.vue-img{max-width:min(1100px,calc(100% - 24px));padding:12px;background:#0d0d0d}
+dialog.vue-img form{gap:10px}
+dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margin:auto;border-radius:12px;object-fit:contain}
+.vue-nav{display:flex;align-items:center;justify-content:center;gap:10px;color:#ddd;font-size:13px}
+.vue-nav [value=ok]{margin-left:auto}
+@media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps button{width:72%}}
 </style>
 
 </head>
@@ -833,6 +875,27 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
           <label class="f l2" id="fModifZone" hidden>Ce qui a été modifié<input type="text" id="f_modif" maxlength="160" placeholder="ex. pile de sauvegarde changée, coque de remplacement, région dézonée"></label>
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
         </div>
+        <!-- Fiche du jeu : jaquette, notes, ma note, descriptif, captures (IGDB et Wikipédia) -->
+        <div class="ji" id="fInfos" hidden>
+          <input type="hidden" id="f_note"><input type="hidden" id="f_jeuRef">
+          <div class="ji-tete">
+            <button class="ji-jaq" id="jiJaq" type="button" aria-label="Agrandir la jaquette" hidden><img alt="" referrerpolicy="no-referrer" loading="lazy"></button>
+            <div class="ji-id">
+              <p class="ji-nom" id="jiNom"></p>
+              <p class="ji-meta" id="jiMeta"></p>
+              <div class="ji-notes" id="jiNotes"></div>
+              <div class="ji-moi"><span id="jiMoiL">Ma note</span><div class="ji-etoiles" id="jiEtoiles" role="radiogroup" aria-labelledby="jiMoiL"></div></div>
+            </div>
+          </div>
+          <div class="ji-corps" id="jiCorps">
+            <p class="ji-desc" id="jiDesc"></p>
+            <button class="lien ji-plus" type="button" id="jiPlus" hidden>Lire la suite</button>
+            <div class="ji-caps" id="jiCaps" aria-label="Captures d'écran"></div>
+            <p class="ji-src"><span id="jiSrc"></span> <button class="lien" type="button" id="jiAutre">Pas le bon jeu ?</button></p>
+            <div class="ji-choix" id="jiChoix" hidden></div>
+          </div>
+          <p class="ji-attente" id="jiAttente" hidden>Je cherche la jaquette et les captures…</p>
+        </div>
       </section>
       <section class="carte bloc" data-onglet="prix">
         <header><h3>Prix</h3><button class="btn clair petit" type="button" id="fCote">Trouver le bon prix</button></header>
@@ -979,6 +1042,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   <p class="tps-tot" id="tpsTot"></p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between"><button class="lien" type="button" id="tpsRaz">Valeurs par défaut</button><button class="btn" value="ok">C'est bon</button></div>
 </form></dialog>
+<dialog id="dVue" class="vue-img" aria-label="Image agrandie"><form method="dialog"><img id="dVueImg" alt="" referrerpolicy="no-referrer"><div class="vue-nav"><button class="btn clair petit" type="button" id="dVuePrec" aria-label="Image précédente">←</button><span id="dVueN"></span><button class="btn clair petit" type="button" id="dVueSuiv" aria-label="Image suivante">→</button><button class="btn petit" value="ok">Fermer</button></div></form></dialog>
 <dialog id="dQuitter"><form method="dialog">
   <h2>Tu as des modifications non enregistrées</h2>
   <p style="color:var(--gris)">Elles sont gardées en <b>brouillon</b> sur cet appareil : tu les retrouveras en haut de <b>Mes articles</b>.</p>
@@ -1077,7 +1141,7 @@ var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites"];
+var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque article, pas les appels à l'IA. */
@@ -1624,7 +1688,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=tr
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article")}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -1999,6 +2063,63 @@ $("installeX").onclick=function(){try{localStorage.setItem("rr-installe-non",Str
 if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})});
 /* Raccourci « Prendre en photo » de l'icône installée */
 (function(){if(!/[?&]photo(=|&|$)/.test(location.search))return;history.replaceState(null,"","/app/");var n=0,t=setInterval(function(){if(ME&&vueCourante()==="accueil"){clearInterval(t);camera("nouveau")}else if(++n>40)clearInterval(t)},150)})();
+
+/* ===== Fiche du jeu : jaquette, captures, descriptif (IGDB, Wikipédia) et notes ===== */
+(function(){
+  var B=$("fInfos"),CLEF="",ATT=0,REQ=0,INFOS=null,IMGS=[],VUE=0,DOUX=/^(https:\/\/|data:image\/svg\+xml,)/;
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+  function sur(u){return DOUX.test(String(u||""))?u:""}
+  function estJeu(){return $("f_categorie").value==="jeux"}
+  /* ma note : 5 étoiles, un second clic sur la même étoile l'enlève */
+  var E=$("jiEtoiles");
+  for(var i=1;i<=5;i++){var b=el("button",null,"★");b.type="button";b.dataset.n=i;b.setAttribute("role","radio");b.setAttribute("aria-label",i+(i>1?" étoiles":" étoile"));E.appendChild(b)}
+  function etoiles(){var n=Number($("f_note").value)||0;[].forEach.call(E.children,function(b){var k=Number(b.dataset.n);b.classList.toggle("on",k<=n);b.setAttribute("aria-checked",k===n?"true":"false");b.tabIndex=(k===(n||1))?0:-1})}
+  function noter(n){var f=$("f_note");f.value=String(Number(f.value)===n?0:n);f.dispatchEvent(new Event("input",{bubbles:true}));etoiles()}
+  E.addEventListener("click",function(e){var b=e.target.closest("button");if(b)noter(Number(b.dataset.n))});
+  E.addEventListener("keydown",function(e){var n=Number($("f_note").value)||0,k={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!k)return;e.preventDefault();n=Math.max(1,Math.min(5,n+k));$("f_note").value=String(n);$("f_note").dispatchEvent(new Event("input",{bubbles:true}));etoiles();E.children[n-1].focus()});
+  /* note de référence : presse sur 100, joueurs ramenés sur 5 */
+  function pastille(v,lib,titre,sur5){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5?String(Math.round(v/2)/10).replace(".",","):String(v));s.title=titre;s.appendChild(b);s.appendChild(document.createTextNode(lib));return s}
+  function notes(n){var z=$("jiNotes");z.textContent="";if(!n)return;
+    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse","Moyenne de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":"")+" (sur 100)"));
+    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,"Joueurs /5","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+" de joueurs IGDB",true))}
+  function source(i){var z=$("jiSrc");z.textContent="";function a(t,u){var x=el("a",null,t);x.href=u;x.target="_blank";x.rel="noopener";return x}
+    if(i.lien){z.appendChild(document.createTextNode("Jaquette, images et notes : "));z.appendChild(a("IGDB",i.lien))}
+    var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte : "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(" ("+d.licence+")"))}}
+  function choix(autres,titre){var z=$("jiChoix");z.textContent="";if(titre)z.appendChild(el("p","ji-attente",titre));
+    (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
+    if($("f_jeuRef").value){var r=el("button",null,"Revenir à la recherche automatique");r.type="button";r.onclick=function(){$("f_jeuRef").value="";$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(r)}
+    z.hidden=!z.children.length}
+  function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
+  function montrerInfos(i){INFOS=i;vide();B.classList.remove("charge");$("jiAttente").hidden=true;
+    if(!i)return
+    if(i.introuvable){$("jiNom").textContent=$("f_titre").value.trim();$("jiCorps").hidden=false;$("jiAutre").hidden=true;$("jiDesc").textContent="";choix(i.autres,"Je n'ai pas trouvé ce jeu à coup sûr. C'est l'un de ceux-là ?");return}
+    $("jiCorps").hidden=false;$("jiAutre").hidden=false;
+    $("jiNom").textContent=i.nom;$("jiMeta").textContent=[i.annee,i.genres&&i.genres.join(", "),i.studio].filter(Boolean).join(" · ");
+    notes(i.notes);
+    if(i.jaquette&&sur(i.jaquette.petite)){var j=$("jiJaq");j.querySelector("img").src=sur(i.jaquette.petite);j.querySelector("img").alt="Jaquette de "+i.nom;j.hidden=false;IMGS.push({src:sur(i.jaquette.grande)||sur(i.jaquette.petite),alt:"Jaquette de "+i.nom})}
+    var d=$("jiDesc");d.textContent=i.description||"";d.classList.add("court");requestAnimationFrame(function(){$("jiPlus").hidden=!(i.description&&d.scrollHeight>d.clientHeight+2)});
+    (i.captures||[]).forEach(function(c,k){if(!sur(c.petite))return;var b=el("button"),im=el("img");b.type="button";b.setAttribute("aria-label","Agrandir la capture "+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:"Capture d'écran "+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
+    source(i);$("jiChoix").hidden=true}
+  $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire"};
+  $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,"Choisis le bon jeu :");else choix([],"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
+  $("jiJaq").onclick=function(){voir(0)};
+  /* visionneuse : jaquette et captures en grand, flèches du clavier ou boutons */
+  function voir(n){if(!IMGS.length)return;VUE=(n+IMGS.length)%IMGS.length;var x=IMGS[VUE];$("dVueImg").src=x.src;$("dVueImg").alt=x.alt;$("dVueN").textContent=(VUE+1)+" / "+IMGS.length;$("dVuePrec").hidden=$("dVueSuiv").hidden=IMGS.length<2;if(!$("dVue").open)$("dVue").showModal()}
+  $("dVuePrec").onclick=function(){voir(VUE-1)};$("dVueSuiv").onclick=function(){voir(VUE+1)};
+  $("dVue").addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){e.preventDefault();voir(VUE-1)}if(e.key==="ArrowRight"){e.preventDefault();voir(VUE+1)}});
+  $("dVue").addEventListener("click",function(e){if(e.target===this)this.close()});
+  /* recherche : quand la fiche s'ouvre, puis quand le nom, la console ou le jeu choisi changent (après une courte pause) */
+  function clef(){return estJeu()?[$("f_titre").value.trim().toLowerCase(),$("f_plateforme").value.trim().toLowerCase(),$("f_jeuRef").value].join("|"):""}
+  function charger(force){var k=clef();if(!force&&k===CLEF)return;CLEF=k;etoiles();
+    B.hidden=!estJeu();if(B.hidden||!$("f_titre").value.trim()){INFOS=null;vide();$("jiAttente").hidden=true;return}
+    var n=++REQ;B.classList.add("charge");$("jiAttente").hidden=!!INFOS;
+    api("POST","/api/jeu-infos",{titre:$("f_titre").value.trim(),plateforme:$("f_plateforme").value.trim(),ref:$("f_jeuRef").value||null})
+      .then(function(j){if(n===REQ)montrerInfos(j.infos)}).catch(function(){if(n===REQ){montrerInfos(null)}})}
+  window.infosFiche=function(){CLEF="#";INFOS=null;vide();charger(true)};
+  var dern="",stable=0;
+  setInterval(function(){if($("fiche").hidden)return;etoiles();var k=clef();if(k===CLEF){stable=0;return}if(k!==dern){dern=k;stable=0;return}if(++stable>=1)charger()},800);
+  $("f_categorie").addEventListener("change",function(){charger()});
+})();
 
 })();
 </script>

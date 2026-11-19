@@ -535,3 +535,15 @@ test("analyse d'une offre officielle : trop basse face au prix affiché", async 
   assert.equal(b.basse, false); assert.equal(b.acceptable, true);
   assert.equal(analyseOffre(null, 140), null);
 });
+
+test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
+  const c = await compte("note@exemple.fr");
+  const r = await call("POST", "/api/jeu-infos", { titre: "Super Mario 64", plateforme: "Nintendo 64" }, c);
+  assert.equal(r.status, 200);
+  assert.ok(r.json.infos.jaquette && r.json.infos.captures.length && r.json.infos.description);
+  assert.equal((await call("POST", "/api/jeu-infos", { titre: "Introuvable" }, c)).json.infos, null);
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Super Mario 64", note: "4", jeuRef: "1074" } }, c)).json.objet;
+  assert.equal(o.note, 4); assert.equal(o.jeuRef, "1074");
+  const o2 = (await call("PUT", "/api/objets/" + o.id, { objet: { ...o, note: 9, jeuRef: "pas un nombre" } }, c)).json.objet;
+  assert.equal(o2.note, 5); assert.equal(o2.jeuRef, "");
+});
