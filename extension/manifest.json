@@ -3,7 +3,7 @@
   "name": "RetroRevente pour Le Bon Coin",
   "short_name": "RetroRevente",
   "version": "1.8.0",
-  "description": "Remplit tout seul le dépôt d'annonce Le Bon Coin avec l'annonce préparée dans RetroRevente, et propose des réponses types aux acheteurs. Tu relis et tu publies toi-même.",
+  "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
     "16": "icones/icone-16.png",

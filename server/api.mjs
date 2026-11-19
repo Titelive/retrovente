@@ -95,12 +95,12 @@ function needQuota(u) {
   if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} articles de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
 /* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
-const MSG_ESSAI_FINI = "Tu as profité de ton annonce offerte par l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
+const MSG_ESSAI_FINI = "Tu as profité de ton article offert avec l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
 function iaAllowed(u, kind, req) {
   if (!allow("ia:" + u.id, 40, 600) || !allow("iaip:" + req.ip, 90, 600)) fail(429, "Trop de demandes à l'IA d'un coup, attends quelques minutes.");
   const r = rights(u), us = usageOf(u.id);
   if (r.id === "gratuit") {
-    if (!u.email_ok) fail(403, "Ta première annonce par l'IA est offerte : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
+    if (!u.email_ok) fail(403, "Ton premier article avec l'IA est offert : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
     const refus = ouvrirEssai(u, req);
     if (refus) fail(402, refus, { ia: true });
     const tot = usageTotal(u.id);
@@ -248,6 +248,8 @@ export async function handleApi(req) {
       if (!it) return { status: 404, json: { error: "Jeu introuvable." }, headers: CORS };
       let url = ""; try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
       if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
+      // Une annonce = un seul jeu : on ne rattache pas un lien déjà pris par un autre jeu.
+      if (listItems(eu.id).some((v) => v.id !== it.id && v.annonce === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
       if (it.annonce !== url) {
         const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
         d.annonce = url;

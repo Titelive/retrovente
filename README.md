@@ -1,6 +1,6 @@
 # RetroRevente
 
-Revendre ses jeux vidéo sur Le Bon Coin en 2 minutes : une photo, et l'annonce est prête (titre, description, état, prix conseillé, photo recadrée), avec le suivi des ventes.
+L'assistant du revendeur rétro, en complément de Le Bon Coin : une photo, et RetroRevente donne la vraie cote (état, boîte, notice, région), prépare la fiche et la photo, suit le stock et les ventes jusqu'au seuil fiscal, et aide à répondre aux acheteurs grâce à l'extension.
 
 - `site/` : pages publiques (accueil, guides, pages légales) et l'appli (`site/app/`).
 - `server/` : serveur Node 22 sans dépendance (pages + API `/api/…`), base SQLite intégrée à Node.
