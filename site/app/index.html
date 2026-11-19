@@ -393,6 +393,8 @@ body.fiche-ouverte .lueurs{display:none}
 .g-champs{display:flex;flex-direction:column;gap:20px}
 /* Dock flottant : Le Bon Coin + Enregistrer */
 .fab-save{display:flex;gap:10px;align-items:center}
+.fab-save .btn.fab-liste{background:var(--carte);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait),0 18px 36px -12px rgba(26,26,26,.35)}
+:root[data-theme="dark"] .fab-save .btn.fab-liste{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 36px -12px rgba(0,0,0,.6)}
 .fab-save .btn.sombre{--bg:var(--nuit);--fg:#fff;background:var(--nuit);color:#fff;position:relative}
 :root[data-theme="dark"] .fab-save .btn.sombre{background:#2A2A27;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 36px -12px rgba(0,0,0,.6)}
 .fab-prog{font:700 11.5px/1 var(--texte);padding:4px 7px;border-radius:999px;background:var(--anis);color:var(--nuit);margin-left:2px}
@@ -408,7 +410,7 @@ body.fiche-ouverte .lueurs{display:none}
 @keyframes glisse-g{from{transform:translateX(40px);opacity:0}}
 @keyframes glisse-h{from{transform:translateY(60px);opacity:0}}
 @media(max-width:700px){.lbc-feuille{align-items:flex-end;padding:0}.lbc-feuille .lbc{width:100%;max-height:88vh;border-radius:28px 28px 0 0;animation-name:glisse-h;padding-bottom:max(24px,env(safe-area-inset-bottom))}
-  .fab-save{gap:8px}.fab-save .btn.sombre span{display:none}.fab-save .btn.sombre{padding:0 14px}}
+  .fab-save{gap:8px}.fab-save .btn.sombre span{display:none}.fab-save .btn.sombre{padding:0 14px}.fab-save .fab-liste{display:none}}
 body.panneau-ouvert{overflow:hidden}
 /* Discussion avec l'IA sur la fiche */
 .dial{gap:10px}
@@ -1159,7 +1161,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <p id="fLbcExt" hidden>Extension installée : sur la page de dépôt Le Bon Coin, chaque écran se remplit tout seul. Tu relis et tu publies.</p>
       </section>
 </div>
-<div class="fab-save" id="fabSave" hidden><button class="btn sombre" type="button" id="fLbcBt" aria-label="Publier sur Le Bon Coin" aria-expanded="false" aria-controls="lbcFeuille"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Le Bon Coin</span><b class="fab-prog" id="fLbcProg" hidden></b></button><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
+<div class="fab-save" id="fabSave" hidden><button class="btn clair fab-liste" type="button" id="fListe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Mes articles</span></button><button class="btn sombre" type="button" id="fLbcBt" aria-label="Publier sur Le Bon Coin" aria-expanded="false" aria-controls="lbcFeuille"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Le Bon Coin</span><b class="fab-prog" id="fLbcProg" hidden></b></button><button class="btn" type="button" id="fSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span>Enregistrer</span></button></div>
 <script>
 (function(){
 "use strict";
@@ -1757,7 +1759,7 @@ $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
     $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)})})});
-$("fFermer").onclick=fermerFiche;
+$("fFermer").onclick=fermerFiche;$("fListe").onclick=function(){$("fFermer").click()};
 
 /* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
 (function(){var mq=matchMedia("(min-width:1100px) and (min-height:620px)"),O=$("fOnglets");
@@ -1797,9 +1799,9 @@ function sauver(rester){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+
   return (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
       var i=OBJ.map(function(x){return x.id}).indexOf(j.objet.id);if(i>=0)OBJ[i]=j.objet;else OBJ.unshift(j.objet);
       if(nouveau){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
-      BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;figer();dessiner();toast("Enregistré.","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
+      BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;$("fTitre").textContent=ED.titre;$("fSuppr").hidden=false;figer();dessiner();toast("C'est enregistré ✓","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
     .catch(function(e){erreur(e,"Enregistrement impossible.");return null}).then(function(r){busy(b,false,"Enregistrer");return r})}
-$("fSave").onclick=function(){sauver(false)};
+$("fSave").onclick=function(){sauver(true)};
 /* envoie les photos ajoutées ou retouchées, retire les supprimées, puis enregistre l'ordre et les légendes */
 function syncGalerie(obj,o){var id=obj.id,ch=Promise.resolve(),der={objet:obj};
   DELS.forEach(function(pid){ch=ch.then(function(){return api("DELETE","/api/objets/"+id+"/photos/"+pid).then(function(j){der=j})})});
