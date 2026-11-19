@@ -697,6 +697,7 @@
     ".rep{display:flex;flex-direction:row;align-items:flex-start;gap:10px;text-align:left;border:1px solid var(--trait);background:var(--papier);border-radius:14px;padding:9px 12px;cursor:pointer;transition:border-color .2s,background .2s}.rep:hover{border-color:var(--anis);background:var(--anis-p)}" +
     ".ia{display:flex;flex-direction:column;gap:7px;background:var(--nuit);color:#fff;border-radius:18px;padding:12px;--papier:rgba(255,255,255,.06);--trait:rgba(255,255,255,.14);--gris:#B8B8B0;--encre:#fff}" +
     ".ia-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.ia-t b{font:700 14px/1.2 var(--titre);display:flex;gap:6px;align-items:center}.etoile{color:var(--anis)}" +
+    ".ia-attente{margin:8px 0 6px;padding:12px 14px;border-radius:14px;background:rgba(212,245,122,.16);color:inherit;font:600 14px/1.45 var(--texte)}" +
     ".ia-offre{margin:0;font-size:12.5px;line-height:1.4;border-radius:10px;padding:7px 9px;background:rgba(255,255,255,.07);color:#E8E8E2}.ia-offre.basse{background:rgba(246,196,185,.14);color:#F6D3CB}.ia-offre.ok{background:rgba(191,232,200,.12);color:#CBEBD3}.ia-offre b{font-weight:700}" +
     ".ia .mini{color:#fff}.ia .mini:hover:not(:disabled){background:var(--anis);border-color:var(--anis);color:var(--nuit)}.mini:disabled{opacity:.55;cursor:default}.ia-r{margin:0;font-size:12.5px;color:#B8B8B0}.ia-r.charge{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}" +
     ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
@@ -1193,6 +1194,30 @@
     return vus.map(function (x) { return x.innerText.trim().replace(/\n{2,}/g, "\n").slice(0, 600); }).filter(function (t) { return !/^(offre|vous avez|message automatique)/i.test(t); }).slice(-4);
   }
   function conversationActuelle() { return location.pathname + "|" + texteEncadre().slice(0, 160); }
+  // Le dernier message de la conversation est-il du vendeur (bulle calée à droite) ? Alors on attend l'acheteur.
+  function dernierEstMoi() {
+    // On regarde le dernier bout de texte affiché (position réelle du texte, pas de son bloc) : calé à droite = toi.
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), rb = null;
+    if (cr.width < 200) return false;
+    var w = document.createTreeWalker(col, NodeFilter.SHOW_TEXT), n, rg = document.createRange();
+    while ((n = w.nextNode())) {
+      if (!n.nodeValue.trim()) continue;
+      var x = n.parentElement; if (!x || (hote && hote.contains(x)) || (z && (z.contains(x) || x.contains(z)))) continue;
+      if (x.closest("button, a, form, [role=button], footer, script, style")) continue;   // boutons d'offre, saisie
+      rg.selectNodeContents(n); var r = rg.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (!rb || r.bottom > rb.bottom + 1) rb = r;
+    }
+    return !!rb && rb.left > cr.left + cr.width * 0.3;
+  }
+  var ATTENTES = [
+    "🎮 Ta réponse est partie. On attend l'acheteur… comme le chargement d'une cassette sur Amstrad.",
+    "🕹️ La balle est dans son camp. Pong, mais en très lent.",
+    "📼 Message envoyé ! L'acheteur rembobine la cassette, patience.",
+    "⏳ À lui de jouer. Insert coin… ou au moins un message.",
+    "🍄 Tu as répondu. Ton acheteur doit être dans un tuyau vert, il ressort bientôt.",
+    "💾 Sauvegarde effectuée. En attente du joueur 2.",
+  ];
   function cleConversation() { var t = texteConversation(), l = lotLu(); return location.pathname + "|" + t.length + "|" + t.slice(-300) + "|" + (l && l.articles ? l.articles.join("|") : ""); }
   async function proposerIA(force, consigne) {
     if (!choixAJour()) {
@@ -1202,6 +1227,8 @@
     var cle = cleConversation();
     if (!force && etat.ia && etat.ia.cle === cle) return;
     if (!force && colonneConversation().innerText.trim().length < 40) return;   // conversation en cours de chargement
+    // Tu as répondu en dernier : rien à proposer tant que l'acheteur n'a pas écrit (« Autres idées » force quand même).
+    if (!force && !consigne && dernierEstMoi()) { etat.ia = { cle: cle, attente: ATTENTES[cle.length % ATTENTES.length] }; rafraichirIA(); return; }
     var precedentes = ((etat.ia && etat.ia.reponses) || []).map(function (r) { return r.texte; });
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
@@ -1239,6 +1266,12 @@
       return;
     }
     if (i.erreur) { z.appendChild(el("p", { class: "ia-r", texte: i.erreur })); z.appendChild(parlerIA()); return; }
+    if (i.attente) {
+      z.appendChild(el("p", { class: "ia-attente", texte: i.attente }));
+      z.appendChild(el("p", { class: "ia-r", texte: "Je te propose une réponse dès qu'il t'écrit. Besoin de relancer ? Clique « Autres idées » ou dis à l'IA quoi écrire." }));
+      z.appendChild(parlerIA());
+      return;
+    }
     if (i.offre && i.offre.ecart > 0) {
       var of = i.offre;
       z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "📉 Offre trop basse : " : "🤝 Offre correcte : ") + of.offre + " €" }),
