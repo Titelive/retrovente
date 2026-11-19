@@ -241,17 +241,47 @@
      jamais d'option payante. */
   var FINAL = /^(publier|deposer (sans booster )?(mon |l.|votre )?annonce|valider et publier|mettre en ligne)/;
   var alertesVues = {}, titreAvant = null, clignote = null;
+  // Son « à toi » : Safari bloque l'audio tant qu'on n'a pas touché la page. On garde donc un seul AudioContext,
+  // débloqué au premier clic ou à la première touche (même pendant le dépôt), et un <audio> en secours.
+  var audio = null, sonWav = null;
+  function contexteAudio() {
+    if (!audio) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { audio = new C(); } catch (e) { return null; } }
+    return audio;
+  }
+  function debloquerSon(e) {
+    if (e && !e.isTrusted) return;
+    var c = contexteAudio(); if (!c) return;
+    try { if (c.state !== "running") c.resume(); var b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (x) {}
+    try { var a = new Audio(wav()); a.volume = 0; a.play().then(function () { a.pause(); }, function () {}); } catch (x) {}
+  }
+  ["pointerdown", "keydown", "touchstart"].forEach(function (t) { window.addEventListener(t, debloquerSon, { capture: true, passive: true }); });
+  function wav() {
+    if (sonWav) return sonWav;
+    var r = 22050, n = Math.round(r * 0.7), d = new DataView(new ArrayBuffer(44 + n * 2)), w = function (o, t) { for (var i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, "RIFF"); d.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+    d.setUint32(24, r, true); d.setUint32(28, r * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); w(36, "data"); d.setUint32(40, n * 2, true);
+    for (var i = 0; i < n; i++) { var t = i / r, f = t < 0.16 ? 784 : 1175, t0 = t < 0.16 ? t : t - 0.16, env = Math.min(1, t0 / 0.02) * Math.exp(-t0 * 7);
+      d.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * f * t) * env * 0.35 * 32767), true); }
+    var o = "", u = new Uint8Array(d.buffer); for (var k = 0; k < u.length; k += 8192) o += String.fromCharCode.apply(null, u.subarray(k, k + 8192));
+    return (sonWav = "data:audio/wav;base64," + btoa(o));
+  }
+  function jouer(c) {
+    var t = c.currentTime + 0.02;
+    [[784, 0], [1175, 0.16]].forEach(function (n) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = "sine"; o.frequency.value = n[0];
+      g.gain.setValueAtTime(0.0001, t + n[1]); g.gain.exponentialRampToValueAtTime(0.25, t + n[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.5);
+      o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
+    });
+  }
   function sonner() {
-    try {
-      var C = window.AudioContext || window.webkitAudioContext, c = new C(), t = c.currentTime;
-      [[784, 0], [1175, 0.16]].forEach(function (n) {
-        var o = c.createOscillator(), g = c.createGain();
-        o.type = "sine"; o.frequency.value = n[0];
-        g.gain.setValueAtTime(0.0001, t + n[1]); g.gain.exponentialRampToValueAtTime(0.22, t + n[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.5);
-        o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
-      });
-      setTimeout(function () { c.close(); }, 1500);
-    } catch (e) {}
+    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav()); a.volume = 0.8; a.play().catch(function () {}); } catch (e) {} };
+    if (!c) return secours();
+    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") jouer(c); else secours(); };
+    if (c.state === "running") return go();
+    try { c.resume().then(go, go); } catch (e) {}
+    setTimeout(go, 400);   // Safari peut laisser resume() en attente sans geste : on passe au secours
+
   }
   function clignoterTitre(txt) {
     if (clignote || document.hasFocus()) return;
@@ -275,7 +305,7 @@
     rrDemander({ type: "alerte", titre: titre, texte: texte }).then(function (r) {
       if (r && r.ok) return;
       // Safari : notification de la page, seulement si la personne l'a autorisée depuis le panneau.
-      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente" }); } catch (e) {} }
+      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente", silent: false }); } catch (e) {} }
     }).catch(function () {});
   }
   function optionPayanteCochee() {
