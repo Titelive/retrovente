@@ -123,9 +123,14 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .jeu .ln{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--gris)}
 .jeu .px{font:800 22px/1 var(--titre);letter-spacing:-.03em;color:var(--encre)}
 .st{font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;background:var(--papier);white-space:nowrap;color:var(--gris);box-shadow:inset 0 0 0 1px var(--trait)}
-.st.en_vente{background:var(--anis-p);color:rgba(26,26,26,.78);box-shadow:none}
-.st.vendu,.st.envoye{background:var(--nuit);color:var(--anis);box-shadow:none}
-.st.reserve{background:#FFF1C9;color:#6F5200;box-shadow:none}
+/* Badges de statut : couleurs fixes et contrastées (pas celles de la formule), en clair comme en sombre */
+:root{--st-v-bg:#DDF3CF;--st-v-tx:#1F5410;--st-v-pt:#3E8E1E;--st-r-bg:#FFEDBF;--st-r-tx:#6A4B00;--st-f-bg:#1A1A1A;--st-f-tx:#E8F9B5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-v-bg:#1D3A14;--st-v-tx:#B5F09A;--st-v-pt:#7BD957;--st-r-bg:#3A2E0E;--st-r-tx:#FFD873;--st-f-bg:#F4F4EE;--st-f-tx:#1A1A1A}}
+:root[data-theme="dark"]{--st-v-bg:#1D3A14;--st-v-tx:#B5F09A;--st-v-pt:#7BD957;--st-r-bg:#3A2E0E;--st-r-tx:#FFD873;--st-f-bg:#F4F4EE;--st-f-tx:#1A1A1A}
+.st.en_vente{background:var(--st-v-bg);color:var(--st-v-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-v-tx) 25%,transparent)}
+.st.vendu,.st.envoye{background:var(--st-f-bg);color:var(--st-f-tx);box-shadow:none}
+.st.reserve{background:var(--st-r-bg);color:var(--st-r-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-r-tx) 25%,transparent)}
+.st.retire{background:var(--papier);color:var(--encre);opacity:.85}
 .vide{padding:56px 24px;text-align:center;color:var(--gris);border-radius:28px;background:var(--carte);box-shadow:0 0 0 1px var(--trait);display:flex;flex-direction:column;gap:14px;align-items:center}
 .vide .ico{width:84px;height:84px}
 
@@ -432,7 +437,7 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 .ajout .btn:first-child{position:relative;overflow:hidden;isolation:isolate}
 .ajout .btn:first-child::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.4) 50%,transparent 65%);background-size:300% 100%;animation:reflet 5s 1.2s ease-in-out infinite;pointer-events:none}
 @keyframes reflet{0%{background-position:130% 0}30%,100%{background-position:-30% 0}}
-.st.en_vente::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#5E8A12;margin-right:6px;vertical-align:1px;animation:pouls 1.8s ease-out infinite}
+.st.en_vente::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--st-v-pt);margin-right:6px;vertical-align:1px;animation:pouls 1.8s ease-out infinite}
 @keyframes pouls{0%{box-shadow:0 0 0 0 rgba(94,138,18,.55)}100%{box-shadow:0 0 0 7px rgba(94,138,18,0)}}
 .jauge .b i{transform-origin:left;animation:remplit 1.1s .25s var(--ease) both}
 @keyframes remplit{from{transform:scaleX(0)}}
