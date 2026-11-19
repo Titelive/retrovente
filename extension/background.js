@@ -39,6 +39,26 @@ var ACTIONS = {
     var r = await RR.runtime.sendNativeMessage("fr.retrorevente.app", { type: "son" });
     return r && r.ok ? { ok: true, via: r.via || "natif" } : { ok: false, erreur: (r && r.erreur) || "réponse vide" };
   },
+  // L'onglet de l'appli RetroRevente se signale : c'est là qu'on revient après une publication.
+  appli: async function (m, exp) {
+    if (exp && exp.tab && exp.tab.id != null) await RR.storage.local.set({ ongletAppli: { tab: exp.tab.id, win: exp.tab.windowId } });
+    return { ok: true };
+  },
+  // Annonce envoyée sur Le Bon Coin : on remet la personne sur son onglet RetroRevente, qui fait la fête.
+  publiee: async function (m) {
+    var msg = { type: "publiee", id: String(m.id || ""), titre: String(m.titre || "").slice(0, 120), url: String(m.url || "") };
+    var o = ((await RR.storage.local.get("ongletAppli")) || {}).ongletAppli, base = ((await lire()).serveur || SERVEUR) + "/app/?publiee=" + encodeURIComponent(msg.id);
+    if (o) {
+      try {
+        await RR.tabs.update(o.tab, { active: true });
+        if (RR.windows && RR.windows.update && o.win != null) { try { await RR.windows.update(o.win, { focused: true }); } catch (e) {} }
+        try { await RR.tabs.sendMessage(o.tab, msg); return { ok: true, via: "onglet" }; }
+        catch (e) { await RR.tabs.update(o.tab, { url: base }); return { ok: true, via: "onglet rechargé" }; }
+      } catch (e) {}
+    }
+    await RR.tabs.create({ url: base });
+    return { ok: true, via: "nouvel onglet" };
+  },
   etat: async function () { var s = await lire(); return { connecte: !!s.cle, email: s.email || "", serveur: s.serveur || SERVEUR }; },
   cle: async function (m) {
     if (!/^rre_[A-Za-z0-9_-]{20,80}$/.test(String(m.cle || "").trim())) throw new Error("Clé invalide : elle commence par « rre_ ».");
@@ -70,7 +90,7 @@ RR.runtime.onMessage.addListener(function (m, expediteur, repondre) {
   if (expediteur.id && expediteur.id !== RR.runtime.id) return false;
   var f = m && ACTIONS[m.type];
   if (!f) return false;
-  var p = f(m).catch(function (e) { return { error: e.message || String(e), status: e.status || 0 }; });
+  var p = f(m, expediteur).catch(function (e) { return { error: e.message || String(e), status: e.status || 0 }; });
   // Safari et Firefox attendent une promesse renvoyée (Safari laisse sinon l'appel sans réponse) ; Chrome, le rappel.
   if (globalThis.browser && globalThis.browser.runtime) return p;
   p.then(repondre);

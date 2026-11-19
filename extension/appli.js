@@ -10,6 +10,12 @@
     if (d.type === "deposer" && /^[a-f0-9]{16}$/.test(String(d.id || ""))) { try { RR.storage.local.set({ aDeposer: { id: d.id, at: Date.now() } }); } catch (err) {} }
     if (d.type === "deconnecter") rrDemander({ type: "deconnecter" }).catch(function () {});
   });
+  // Cet onglet devient celui où l'on revient après une publication sur Le Bon Coin.
+  function ici() { if (document.visibilityState !== "hidden") rrDemander({ type: "appli" }).catch(function () {}); }
+  ici(); document.addEventListener("visibilitychange", ici); window.addEventListener("focus", ici);
+  RR.runtime.onMessage.addListener(function (m) {
+    if (m && m.type === "publiee") dire("publiee", { id: m.id, titre: m.titre, url: m.url });
+  });
   function presente() { dire("present", { version: RR.runtime.getManifest().version }); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", presente); else presente();
   window.addEventListener("load", presente);

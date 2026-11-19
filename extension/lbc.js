@@ -365,6 +365,34 @@
       if (obligatoireVide() || erreurAffichee()) aToi("bloque:" + cle, "RetroRevente a besoin de toi", texte);
     }, 4000);
   }
+  /* ===== Après « Déposer sans booster » : retour sur l'onglet RetroRevente, avec des confettis =====
+     Seul un vrai clic de la personne sur le bouton final compte. L'annonce est tenue pour envoyée quand le bouton a
+     disparu sans erreur affichée (même après un changement de page : le suivi est gardé une minute). */
+  document.addEventListener("click", function (e) {
+    if (!e.isTrusted || !DEPOT.test(location.pathname)) return;
+    var b = e.target && e.target.closest && e.target.closest("button, a, [role=button], input[type=submit]");
+    if (!b || (hote && hote.contains(b)) || !FINAL.test(norm(b.textContent || b.value || ""))) return;
+    var a = etat.choisie; if (!a || a.lot || a.externe) return;
+    var p = { id: a.id, titre: a.nom || a.titre, at: Date.now() };
+    try { RR.storage.local.set({ publication: p }); } catch (x) {}
+    suivrePublication(p);
+  }, true);
+  var suiviPub = null;
+  function suivrePublication(p) {
+    clearInterval(suiviPub);
+    suiviPub = setInterval(function () {
+      if (Date.now() - p.at > 60000) { clearInterval(suiviPub); return; }
+      if (boutons(FINAL).length || erreurAffichee()) return;
+      clearInterval(suiviPub); publiee(p);
+    }, 1000);
+  }
+  async function publiee(p) {
+    try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
+    var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
+    statut("🎉 Annonce envoyée ! Je te ramène sur RetroRevente.", "ok");
+    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien }).catch(function () {});
+  }
+  try { RR.storage.local.get("publication").then(function (r) { if (r && r.publication && Date.now() - r.publication.at < 60000) suivrePublication(r.publication); }); } catch (e) {}
   function continuerSiPret() {
     if (!etat.auto || !etat.choisie || enCours) return;
     if (verifierFinal()) return;
