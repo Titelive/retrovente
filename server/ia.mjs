@@ -597,6 +597,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
   // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
   const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
+  // Le vendeur a écrit le dernier message et l'acheteur n'a pas répondu : on complète, sans remercier ni resaluer.
+  const suite = !!(consigne && contexte && contexte.suite);
   const precedentes = consigne && Array.isArray(contexte.precedentes) ? contexte.precedentes.slice(0, 3).map((x) => "- " + txt(x, 500).replace(/"""/g, "")).filter((x) => x.length > 3).join("\n") : "";
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   // Ce que le vendeur a déjà écrit dans cette conversation (bulles de droite) : à ne pas répéter.
@@ -612,7 +614,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   ].filter(Boolean).join("\n");
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
   if (FAKE() && consigne) return { resume: "Réponse rédigée d'après ta consigne.", intention: "consigne",
-    reponses: [{ approche: "info", titre: "Ta réponse", texte: `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
+    reponses: [{ approche: "info", titre: "Ta réponse", texte: suite ? `Petite précision : ${consigne} 🙂` : `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
   if (FAKE() && /pas donner suite|ne donnerai pas suite|merci pour nos échanges/i.test(conv)) return { resume: "L'acheteur ne donne pas suite et clôt la discussion.", intention: "fin",
     reponses: [{ approche: "au_revoir", titre: "Au revoir", texte: "Merci à vous, bonne soirée 🙂" }, { approche: "au_revoir", titre: "Chaleureux", texte: "Merci pour l'échange Garnier, bonne soirée à vous 🙂" }, { approche: "au_revoir", titre: "Porte ouverte", texte: "Merci Garnier, bonne soirée ! N'hésitez pas si vous changez d'avis 🙂" }] };
   if (FAKE()) return { ...(ana ? { offre: ana } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
@@ -677,6 +679,8 @@ LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est 
 ${consigne}
 """
 ${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; les deux autres sont des variantes tout aussi fidèles (une plus courte, une plus chaleureuse). Garde le vouvoiement, le prénom et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
+` : ""}${suite ? `
+SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message et l'acheteur n'a rien répondu depuis. Ta réponse est un petit message de plus, juste après le sien, pour ajouter une information. Donc : pas de « merci », pas de « bonjour » ni de nouvelle salutation, pas le prénom de l'acheteur en ouverture, ne réponds à rien. Commence directement par l'information (par exemple « Petite précision : … », « J'oubliais : … », « Au fait, … »).
 ` : ""}Donne ta proposition avec l'outil « proposer_reponses » (trois réponses).`;
   let o = null;
   for (let essai = 0; essai < 2 && !(o && Array.isArray(o.reponses) && o.reponses.length); essai++) {
@@ -695,8 +699,19 @@ ${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient
     if (adieux.length) l.splice(0, l.length, ...adieux);
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
+  if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
   return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+}
+
+// Suite d'un message du vendeur : on retire un « Merci Sofian ! » ou un « Bonjour, » d'ouverture.
+const OUVERTURE = /^\s*(?:(?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Ss]alut|[Hh]ello|[Cc]oucou|[Mm]erci(?: beaucoup| bien)?(?: pour [^,.!?]{0,60})?)(?:\s+(?:à vous|[A-ZÀ-Ý][\wÀ-ÿ-]*))?\s*[,.!…]*\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/u;
+export function sansPolitesse(t) {
+  let s = String(t);
+  for (let i = 0; i < 2; i++) { const r = s.replace(OUVERTURE, ""); if (r === s) break; s = r; }
+  s = s.trim();
+  if (s.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").length < 8) return String(t);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // Un au revoir ne reparle de rien (budget, prix, état…) : on retire les phrases qui reprennent un sujet.
