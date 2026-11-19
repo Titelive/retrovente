@@ -63,6 +63,25 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     el.dispatchEvent(new Event("blur", { bubbles: true }));
   }
+  // Prix : le champ de Le Bon Coin est masqué/formaté et peut ignorer une valeur posée directement (il gardait
+  // son prix suggéré). On tape donc vraiment le nombre (sélection + insertText), puis on relit.
+  function taper(el, v) {
+    try {
+      el.focus(); el.select();
+      jeTape = true; var ok = document.execCommand && document.execCommand("insertText", false, v); jeTape = false;
+      if (ok && chiffres(el.value) === v) { el.dispatchEvent(new Event("change", { bubbles: true })); el.dispatchEvent(new Event("blur", { bubbles: true })); return; }
+    } catch (e) {}
+    ecrire(el, v);
+  }
+  var chiffres = function (t) { return String(t || "").replace(/[.,]\d{1,2}\s*€?\s*$/, "").replace(/\D/g, ""); };
+  function champPrix() { return champ("input", /prix|price/, /livraison|envoi|poids/); }
+  // Le prix affiché sur Le Bon Coin diffère de celui de la fiche (et la personne ne l'a pas corrigé elle-même) ?
+  function prixFaux() {
+    var a = etat.choisie; if (!a || a.lot || a.prix == null || corrige[a.id + ":prix"]) return null;
+    var p = champPrix(); if (!p) return null;
+    var lu = chiffres(p.value); if (!lu) return null;
+    return +lu === Math.round(a.prix) ? null : { champ: p, lu: +lu, voulu: Math.round(a.prix) };
+  }
   // Clique sur une option (bouton radio, case, élément de liste) dont le texte est exactement l'un des libellés.
   function choisir(libelles, garde) {
     var cibles = libelles.map(norm);
@@ -104,8 +123,9 @@
   // quand Le Bon Coin réaffiche le champ sur l'écran suivant (aperçu avant publication).
   var dejaRempli = new WeakMap();   // champ → { id du jeu, nature du champ }
   var tapeParLaPersonne = new WeakSet(), corrige = {};
+  var jeTape = false;   // nos propres frappes (insertText) arrivent comme des événements « de confiance »
   document.addEventListener("input", function (e) {
-    if (!e.target || (hote && hote.contains(e.target))) return;
+    if (!e.target || (hote && hote.contains(e.target)) || jeTape) return;
     if (!e.isTrusted) {   // Le Bon Coin réécrit un champ que nous avions rempli : on repasse dessus
       var x = dejaRempli.get(e.target);
       if (x && e.target.value !== x.v && etat.auto) setTimeout(function () { if (!enCours) { enCours = true; remplir(false).catch(function () {}).then(function () { enCours = false; }); } }, 300);
@@ -122,7 +142,7 @@
     if (tapeParLaPersonne.has(el) && !par) return false;   // la personne y a écrit elle-même
     return true;                                           // vide, pré-rempli par Le Bon Coin, ou rempli avec un autre jeu
   }
-  function poser(el, v, a, force, nature) { if (!aRemplir(el, a, force, nature)) return false; var avant = dejaRempli.get(el); dejaRempli.set(el, { id: a.id, nature: nature, v: v, n: avant && avant.id === a.id ? (avant.n || 0) + 1 : 0 }); if (el.value === v) return false; ecrire(el, v); return true; }
+  function poser(el, v, a, force, nature, ecrit) { if (!aRemplir(el, a, force, nature)) return false; var avant = dejaRempli.get(el); dejaRempli.set(el, { id: a.id, nature: nature, v: v, n: avant && avant.id === a.id ? (avant.n || 0) + 1 : 0 }); if (el.value === v) return false; (ecrit || ecrire)(el, v); return true; }
   function groupeDejaChoisi(el) {
     var g = el.closest("fieldset, [role=radiogroup], [role=listbox]") || (el.parentElement && el.parentElement.parentElement);
     return !!(g && g.querySelector("input[type=radio]:checked, [aria-checked=true], [aria-selected=true]"));
@@ -134,8 +154,8 @@
     if (titre && poser(titre, a.titre, a, force, "titre")) fait.push("titre");
     var desc = champ("textarea", /descr|body|texte|annonce/) || [].filter.call(document.querySelectorAll("textarea"), visible)[0];
     if (desc && poser(desc, a.description, a, force, "description")) fait.push("description");
-    var prix = champ("input", /prix|price/, /livraison|envoi|poids/);
-    if (prix && a.prix != null && poser(prix, String(a.prix), a, force, "prix")) fait.push("prix");
+    var prix = champPrix();
+    if (prix && a.prix != null && poser(prix, String(Math.round(a.prix)), a, force, "prix", taper)) fait.push("prix");
     if (a.etat && ETATS_LBC[a.etat]) {
       var ch = "";
       if (force || (etat.compte[k("etatcb")] || 0) < 3) {   // liste à saisie : 3 essais au plus (pas de boucle)
@@ -355,6 +375,14 @@
     if (!b || b.disabled || b.getAttribute("aria-disabled") === "true") return;
     var attente = Math.max(derniereAction + 4000, (etat.photosA || 0) + 4000) - Date.now();
     if (attente > 0 || [].some.call(document.querySelectorAll("[role=progressbar], [aria-busy=true]"), visible)) { minuterieSuite = setTimeout(continuerSiPret, Math.max(attente, 800)); return; }
+    // Jamais « Continuer » avec un prix différent de la fiche : on retape deux fois, puis on s'arrête et on prévient.
+    var pf = prixFaux();
+    if (pf) {
+      var kp = etat.choisie.id + ":prixok"; etat.compte[kp] = (etat.compte[kp] || 0) + 1;
+      if (etat.compte[kp] <= 2) { taper(pf.champ, String(pf.voulu)); minuterieSuite = setTimeout(continuerSiPret, 1200); return; }
+      var tx = "Le prix sur Le Bon Coin (" + pf.lu + " €) n'est pas celui de ta fiche (" + pf.voulu + " €). Corrige-le, puis clique « Continuer ».";
+      statut(tx, "bad"); aToi("prix:" + cle, "Prix à vérifier", tx, pf.champ); return;
+    }
     if (obligatoireVide()) { bloque(cle, "Il reste un champ obligatoire à remplir sur cet écran, puis clique « Continuer »."); return; }
     if (erreurAffichee()) { bloque(cle, "Le Bon Coin signale un champ à corriger : corrige-le, puis clique « Continuer »."); return; }
     ecransPasses[cle] = true;
