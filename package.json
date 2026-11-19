@@ -11,6 +11,7 @@
     "dev": "IA_FAKE=1 COOKIE_INSECURE=1 DATA_DIR=./data node --no-warnings server/server.mjs",
     "test": "node --no-warnings --test test/*.test.mjs",
     "extension:zip": "sh extension/outils/zip.sh",
-    "extension:safari": "sh extension/outils/safari.sh"
+    "extension:safari": "sh extension/outils/safari.sh",
+    "extension:paquets": "node extension/outils/paquets.mjs"
   }
 }

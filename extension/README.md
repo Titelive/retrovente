@@ -38,13 +38,13 @@ Une seule base de code WebExtensions (Manifest V3) pour Safari, Chrome, Edge et 
 ### Chrome, Edge, Brave, Arc
 
 1. `chrome://extensions` → active **Mode développeur** (en haut à droite).
-2. **Charger l'extension non empaquetée** → choisis le dossier `extension/` de ce dépôt.
+2. **Charger l'extension non empaquetée** → choisis le dossier `extension/` de ce dépôt, ou le dossier obtenu en dézippant `dist/retrorevente-chrome-<version>.zip` (Edge : `retrorevente-edge-…`).
 
-Chrome affiche un avertissement sur `background.scripts` : c'est normal, cette clé sert à Firefox.
+Avec le dossier `extension/` brut, Chrome affiche des avertissements sur `background.scripts` et `nativeMessaging` : c'est normal, ces clés servent à Firefox et à Safari. Les zips de `dist/` n'ont pas ces clés.
 
 ### Firefox
 
-1. `about:debugging#/runtime/this-firefox` → **Charger un module complémentaire temporaire** → choisis `extension/manifest.json`.
+1. `about:debugging#/runtime/this-firefox` → **Charger un module complémentaire temporaire** → choisis `dist/retrorevente-firefox-<version>.zip` (ou `extension/manifest.json`).
 2. Firefox demande parfois l'accès aux sites : clique sur l'icône Extensions puis autorise RetroRevente sur leboncoin.fr et retrorevente.fr.
 
 Le module temporaire disparaît au redémarrage de Firefox.
@@ -71,13 +71,16 @@ Sans compte développeur payant, l'app est signée pour tes appareils seulement 
 | Boutique | Ce qu'il faut | Délai de relecture |
 |---|---|---|
 | **Safari** (Mac App Store) | Compte Apple Developer (99 $/an), Xcode, le projet généré par `safari-web-extension-converter`, un identifiant d'app, une icône d'app, des captures, une politique de confidentialité (`/confidentialite/`). On envoie depuis Xcode (Product → Archive) vers App Store Connect, une fois pour Mac et une fois pour iPhone/iPad (le même projet contient les deux). Il faut aussi une fiche App Store (nom, description, captures Mac et iPhone, catégorie Productivité) et le formulaire de confidentialité (« aucune donnée collectée » côté app). | 1 à 3 jours |
-| **Chrome Web Store** (aussi Edge, Brave, Arc) | Compte développeur (5 $ une fois), le zip du dossier `extension/`, captures 1280×800, justification de chaque permission (`storage`, accès à leboncoin.fr et retrorevente.fr), formulaire « pratiques de confidentialité ». | quelques jours |
-| **Firefox** (addons.mozilla.org) | Compte gratuit, le zip, éventuellement le code source (inutile ici : rien n'est compilé). L'identifiant `extension@retrorevente.fr` est déjà dans le manifeste. | quelques heures à quelques jours |
-| **Edge Add-ons** | Compte Partner Center gratuit, le même zip que Chrome. | quelques jours |
+| **Chrome Web Store** (aussi Brave, Arc) | Compte développeur (5 $ une fois), `retrorevente-chrome-<version>.zip`, captures 1280×800, icône 128 px, justification de chaque permission (`storage` : réglages ; `notifications` : prévenir quand c'est à toi ; accès à leboncoin.fr et retrorevente.fr), formulaire « pratiques de confidentialité », lien vers `/confidentialite/`. | quelques jours |
+| **Firefox** (addons.mozilla.org) | Compte gratuit, `retrorevente-firefox-<version>.zip`. Le code source n'est pas demandé : rien n'est compilé ni minifié. L'identifiant `extension@retrorevente.fr` est déjà dans le manifeste. Sans fiche publique, « Distribution hors AMO » donne un fichier signé à installer soi-même. | quelques heures à quelques jours |
+| **Edge Add-ons** | Compte Partner Center gratuit, `retrorevente-edge-<version>.zip`. | quelques jours |
 
 Les relecteurs regardent surtout l'accès à leboncoin.fr : explique que l'extension ne s'active que sur la page de dépôt, au clic, et n'envoie rien.
 
-Pour fabriquer le zip : `npm run extension:zip` (il arrive dans `dist/`).
+Pour fabriquer les zips : `npm run extension:zip`. Un zip par navigateur arrive dans `dist/` : `retrorevente-chrome`, `-edge`, `-firefox` et `-safari`. Le code est le même partout, seul le manifeste change :
+- Chrome et Edge : arrière-plan en service worker, sans `nativeMessaging` ;
+- Firefox : arrière-plan en script, Firefox 128 au moins ;
+- Safari : manifeste complet.
 
 Avant chaque envoi, augmente `version` dans `manifest.json`.
 
