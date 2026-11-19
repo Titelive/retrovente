@@ -562,6 +562,24 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 :root[data-theme="dark"] .offre.actuelle,:root[data-theme="dark"] #fiche .faq details[open]{box-shadow:0 0 0 2px var(--anis)}
 .tete>div{min-width:0;max-width:100%}.tete h1{overflow-wrap:anywhere}
 @media(max-width:560px){.filtres{align-self:stretch;flex-wrap:wrap;justify-content:center;border-radius:20px}.filtres button{padding:9px 12px}}
+/* tri et regroupement de « Mes articles » */
+.outils{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.outils>.filtres{min-width:0}
+.rangs{display:flex;gap:8px;min-width:0}
+.rang{position:relative;display:block;min-width:0}
+.rang>span{position:absolute;z-index:1;left:16px;top:50%;transform:translateY(-50%);font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--gris);pointer-events:none}
+.rang .choix-bt{background:var(--carte);box-shadow:0 0 0 1px var(--trait);border-radius:999px;padding:11px 14px 11px 64px;font:600 14px/1.3 var(--texte);min-height:46px}
+.rang:has(#grp) .choix-bt{padding-left:78px}
+.rang .choix-bt:hover{box-shadow:0 0 0 1.5px var(--encre)}
+.rang .choix-bt svg{width:16px;height:16px}
+.rang .choix-liste{left:auto;right:0;min-width:100%;width:max-content;max-width:min(260px,calc(100vw - 32px))}
+.rang .choix-liste li{white-space:nowrap}
+.groupe{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:14px 2px -4px;min-width:0}
+.groupe:first-child{margin-top:0}
+.groupe h3{margin:0;font:800 22px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre);overflow-wrap:anywhere;min-width:0}
+.groupe small{font-size:13.5px;font-weight:600;color:var(--gris);white-space:nowrap}
+.groupe::after{content:"";flex:1 1 40px;align-self:center;height:1px;background:var(--trait)}
+@media(max-width:700px){.outils{display:grid;grid-template-columns:minmax(0,1fr)}.rangs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.rang>span{top:9px;left:16px;transform:none;font-size:8px}.rang .choix-bt,.rang:has(#grp) .choix-bt{padding:21px 12px 7px 16px;border-radius:18px;font-size:14px}.rang .choix-liste{left:0;right:auto;width:auto;min-width:100%}.rang:last-child .choix-liste{left:auto;right:0}.groupe h3{font-size:19px}}
 .cote .releves{display:flex;flex-direction:column;gap:6px}.cote .rl-t{font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--anis)}
 .cote .releves ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .cote .releves a{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 12px;transition:background-color .2s}
@@ -839,6 +857,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   </section>
   <section class="brouillons" id="brouillons" hidden aria-labelledby="tBr"><h2 id="tBr">Brouillons <small>gardés sur cet appareil</small></h2><div class="br-liste" id="brListe"></div></section>
   <aside class="pub" data-pub hidden aria-label="Publicité"></aside>
+  <div class="outils">
   <div class="filtres" id="filtres" role="group" aria-label="Filtrer">
     <span class="pastille" aria-hidden="true"></span>
     <button type="button" data-f="tout" aria-pressed="true">Tous</button>
@@ -846,6 +865,11 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
     <button type="button" data-f="reserve" aria-pressed="false">Réservés</button>
     <button type="button" data-f="vendu" aria-pressed="false">Vendus</button>
     <button type="button" data-f="retire" aria-pressed="false">Retirés</button>
+  </div>
+  <div class="rangs">
+    <label class="rang"><span>Trier</span><select id="tri" aria-label="Trier les articles"><option value="recent">Plus récents</option><option value="ancien">Plus anciens</option><option value="prix_d">Prix décroissant</option><option value="prix_c">Prix croissant</option><option value="nom">Nom (A → Z)</option></select></label>
+    <label class="rang"><span>Grouper</span><select id="grp" aria-label="Grouper les articles"><option value="">Sans groupe</option><option value="console">Par console</option><option value="categorie">Par catégorie</option><option value="statut">Par statut</option></select></label>
+  </div>
   </div>
   <div class="liste" id="liste"></div>
 </main>
@@ -1295,15 +1319,54 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     $("fJauges").innerHTML="";$("fMsg").innerHTML="Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre ces seuils. <button class='lien' type='button' id='fUp'>Voir les formules</button>";
     $("fUp").onclick=compte;
   }
-  var l=OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")});
+  var l=trierArticles(OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")}));
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun article dans cette catégorie.</p>';return}
-  $("liste").innerHTML=l.map(function(o,i){
-    var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
+  var carte=function(o,i){
+    var px=prixArticle(o);
     return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
-      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}).join("");
+      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'};
+  var gs=grouperArticles(l),n=0;
+  $("liste").innerHTML=gs.map(function(g){
+    var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
+    return (g.nom?'<div class="groupe"><h3>'+esc(g.nom)+'</h3><small>'+g.l.length+' article'+(g.l.length>1?'s':'')+(tot?' · '+eur(tot):'')+'</small></div>':'')+g.l.map(function(o){return carte(o,n++)}).join("")}).join("");
 }
+// tri et regroupement de la liste (choix gardé sur l'appareil)
+var TRI="recent",GRP="";
+try{TRI=localStorage.getItem("rr-tri")||TRI;GRP=localStorage.getItem("rr-grp")||""}catch(e){}
+if(!$("tri").querySelector('option[value="'+TRI+'"]'))TRI="recent";
+if(!$("grp").querySelector('option[value="'+GRP+'"]'))GRP="";
+$("tri").value=TRI;$("grp").value=GRP;
+function prixArticle(o){return o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande}
+var NOMS=new Intl.Collator("fr",{sensitivity:"base",numeric:true});
+function trierArticles(l){
+  var num=function(v){return v==null||v===""||isNaN(+v)?null:+v};
+  return l.slice().sort(function(a,b){
+    if(TRI==="nom")return NOMS.compare(a.titre||"",b.titre||"");
+    if(TRI==="prix_d"||TRI==="prix_c"){var x=num(prixArticle(a)),y=num(prixArticle(b));
+      if(x==null||y==null)return x==null&&y==null?0:x==null?1:-1;   // sans prix : à la fin
+      return TRI==="prix_d"?y-x:x-y}
+    var d=String(a.cree||"").localeCompare(String(b.cree||""));
+    return TRI==="ancien"?d:-d})}
+var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",autres:"Autres"};
+var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",retire:"Retirés"};
+function grouperArticles(l){
+  if(!GRP)return [{nom:"",l:l}];
+  var cle=function(o){
+    if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres";
+    if(GRP==="statut")return STA_GRP[o.statut]||"Autres";
+    if(o.categorie==="cartes")return "Cartes Pokémon";
+    return (o.plateforme||"").trim()||"Sans console"};
+  var par={},ordre=[];
+  l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
+  var fixe=GRP==="categorie"?["Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:null;
+  return ordre.sort(function(a,b){
+    if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
+    var fin=function(g){return g.nom==="Sans console"?2:g.nom==="Cartes Pokémon"?1:0};   // les consoles d'abord, par nombre d'articles
+    return fin(a)-fin(b)||b.l.length-a.l.length||NOMS.compare(a.nom,b.nom)})}
+$("tri").addEventListener("change",function(){TRI=this.value;try{localStorage.setItem("rr-tri",TRI)}catch(e){}dessiner()});
+$("grp").addEventListener("change",function(){GRP=this.value;try{localStorage.setItem("rr-grp",GRP)}catch(e){}dessiner()});
 $("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
 $("filtres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;FILTRE=b.dataset.f;[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});pastille();dessiner()});
 function calme(){return document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches}

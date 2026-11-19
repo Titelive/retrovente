@@ -352,6 +352,10 @@ test("extension : lien de l'annonce publiée", async () => {
   assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
   const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
   assert.equal(a.publiee, true);
+  // une annonce ne se rattache qu'à un seul jeu
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64 bis" } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 409);
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 200);
 });
 
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
@@ -525,6 +529,14 @@ test("un au revoir ne reparle pas du budget", async () => {
   assert.equal(sansSujet("Je comprends tout à fait votre budget, Garnier. Merci pour l'échange et bonne soirée à vous 😊"), "Merci pour l'échange et bonne soirée à vous 😊");
   assert.doesNotMatch(sansSujet("Merci Garnier, je comprends pour le budget 🙂"), /budget|comprends/);
   assert.equal(sansSujet("Merci à vous, bonne soirée 🙂"), "Merci à vous, bonne soirée 🙂");
+});
+
+test("suite de son propre message : ni merci ni bonjour en ouverture", async () => {
+  const { sansPolitesse } = await import("../server/ia.mjs");
+  assert.equal(sansPolitesse("Merci Sofian ! Petite précision : il y a aussi le poster 🙂"), "Petite précision : il y a aussi le poster 🙂");
+  assert.equal(sansPolitesse("Bonjour Sofian, merci pour votre message ! Je précise que le jeu est complet."), "Je précise que le jeu est complet.");
+  assert.equal(sansPolitesse("Bonjour il y a aussi le poster dans la boîte."), "Il y a aussi le poster dans la boîte.");
+  assert.equal(sansPolitesse("Petite précision : poster recto verso."), "Petite précision : poster recto verso.");
 });
 
 test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {

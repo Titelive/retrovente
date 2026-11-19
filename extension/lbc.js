@@ -390,6 +390,7 @@
     try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
     var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
     statut("🎉 Annonce envoyée ! Je te ramène sur RetroRevente.", "ok");
+    if (lien) lier(p.id, lien, p.titre);
     rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien }).catch(function () {});
   }
   try { RR.storage.local.get("publication").then(function (r) { if (r && r.publication && Date.now() - r.publication.at < 60000) suivrePublication(r.publication); }); } catch (e) {}
@@ -1259,7 +1260,7 @@
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages() });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi() });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
       if (consigne) etat.brouillonIA = "";
@@ -1518,28 +1519,65 @@
       (annoncesCache || []).forEach(function (a) { if (a.id === id) a.publiee = true; });
     }).catch(function () { delete liesSession[id]; });
   }
+  // Proximité entre un jeu et le texte d'une carte d'annonce : part des mots du titre retrouvés (0 à 1).
+  function scoreTitre(a, texte) {
+    var vus = {}; mots(texte).forEach(function (m) { vus[m] = 1; });
+    return Math.max.apply(null, [a.titre, a.nom].filter(Boolean).map(function (t) {
+      var m = mots(t); return m.length ? m.filter(function (x) { return vus[x]; }).length / m.length : 0;
+    }).concat([0]));
+  }
+  function prixCarte(t) { return (String(t).match(/(\d[\d\s\u202f]{0,6})\s?€/g) || []).map(function (x) { return entier(x.replace(/[^\d]/g, "")); }); }
+  // Texte de la carte qui entoure un lien d'annonce : on remonte tant que le bloc reste petit.
+  function texteCarte(x) {
+    var c = x, t = x.innerText + " " + (x.title || "") + " " + (x.getAttribute("aria-label") || "") + " " + ((x.querySelector("img[alt]") || {}).alt || "");
+    for (var i = 0; i < 4 && c.parentElement; i++) {
+      var p = c.parentElement, pt = p.innerText || "";
+      if (pt.length > 500 || p.querySelectorAll("a[href*='/ad/']").length > 3) break;
+      c = p; t += " " + pt;
+    }
+    return t;
+  }
+  // Associe chaque lien d'annonce visible au jeu qui lui ressemble le plus (un jeu ↔ une annonce), seulement si c'est net.
+  function associer(sans, seuil, prixExige) {
+    var paires = [];
+    [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
+      var url = urlAnnonce(x.href); if (!url || (hote && hote.contains(x))) return;
+      var t = texteCarte(x), px = prixCarte(t);
+      sans.forEach(function (a) {
+        var sc = scoreTitre(a, t); if (sc < seuil) return;
+        var memePrix = a.prix != null && px.indexOf(a.prix) >= 0;
+        if (prixExige && !memePrix) return;
+        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0) });
+      });
+    });
+    paires.sort(function (x, y) { return y.s - x.s; });
+    var urls = {}, jeux = {};
+    paires.forEach(function (p) {
+      if (urls[p.url] || jeux[p.a.id]) return;
+      // Deux jeux aussi proches pour la même annonce : on ne devine pas.
+      if (paires.some(function (q) { return q.url === p.url && q.a.id !== p.a.id && q.s === p.s; })) { urls[p.url] = 1; return; }
+      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre);
+    });
+  }
   async function liensAuto() {
     var p = location.pathname;
-    var mesAnnonces = /mes-annonces|\/compte\/|\/annonces\/(en-ligne|actives)/.test(p), pageAnnonce = AD.test(p), depot = DEPOT.test(p);
-    if (!mesAnnonces && !pageAnnonce && !depot) return;
+    var mesAnnonces = /mes-annonces|\/compte\/|\/annonces\/(en-ligne|actives)/.test(p), pageAnnonce = AD.test(p), depot = DEPOT.test(p), messages = MESSAGES.test(p);
+    if (!mesAnnonces && !pageAnnonce && !depot && !messages) return;
     var st = {}; try { st = (await RR.storage.local.get("depot")) || {}; } catch (e) {}
     var d = st.depot && Date.now() - st.depot.at < 3 * 3600e3 ? st.depot : null;
     if (d && (pageAnnonce || depot)) {
       var url = pageAnnonce ? urlAnnonce(location.href) : "";
-      if (pageAnnonce) { var t = norm(document.title + " " + ((document.querySelector("h1") || {}).textContent || "")); if (t.indexOf(norm(d.titre).slice(0, 40)) < 0) url = ""; }
+      if (pageAnnonce) { var t = norm(document.title + " " + ((document.querySelector("h1") || {}).textContent || "")); if (t.indexOf(norm(d.titre).slice(0, 40)) < 0 && scoreTitre(d, t) < 0.8) url = ""; }
       if (!url && depot) { var a = [].find.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }); if (a) url = urlAnnonce(a.href); }
       if (url) { lier(d.id, url, d.titre); try { RR.storage.local.remove("depot"); } catch (e) {} return; }
     }
-    if (!mesAnnonces) return;
+    if (!mesAnnonces && !messages) return;
     if (!annoncesCache) { try { annoncesCache = (await rrDemander({ type: "annonces" })).annonces || []; } catch (e) { return; } }
-    var sans = annoncesCache.filter(function (a) { return !a.publiee && a.titre; });
+    var sans = annoncesCache.filter(function (a) { return !a.publiee && (a.titre || a.nom); });
     if (!sans.length) return;
-    [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
-      var url = urlAnnonce(x.href); if (!url) return;
-      var carte = x.closest("li, article, [data-test-id], [data-qa-id]") || x, t = norm(x.innerText + " " + (x.title || "") + " " + (x.getAttribute("aria-label") || "") + " " + carte.innerText.slice(0, 400));
-      var a = sans.find(function (y) { return t.indexOf(norm(y.titre)) >= 0; });
-      if (a) lier(a.id, url, a.titre);
-    });
+    // « Mes annonces » / profil : ce sont tes annonces, le titre suffit. Messagerie : il faut aussi le même prix
+    // (une annonce d'un autre vendeur au titre proche ne doit pas être prise pour la tienne).
+    associer(sans, messages ? 0.8 : 0.75, messages);
   }
   new MutationObserver(function () { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(function () { liensAuto().catch(function () {}); }, 1200); })
     .observe(document.documentElement, { childList: true, subtree: true });
