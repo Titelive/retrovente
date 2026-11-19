@@ -220,7 +220,8 @@ export async function handleApi(req) {
     if (!eu) return { status: 401, json: { error: "Extension déconnectée : reconnecte-la depuis Mon compte sur retrorevente.fr." }, headers: CORS };
     if (p === "/api/extension/annonces" && method === "GET") {
       const l = listItems(eu.id).filter((v) => v.statut === "en_vente").map(annonceLbc);
-      return { status: 200, json: { email: eu.email, annonces: l }, headers: CORS };
+      const r = rights(eu);
+      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom }, annonces: l }, headers: CORS };
     }
     const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
     if (mx && method === "GET") {

@@ -6,35 +6,109 @@
 <style>
 @font-face{font-family:'RR Rubik';src:url(polices/rubik-latin.woff2) format('woff2');font-weight:300 900}
 @font-face{font-family:'RR Figtree';src:url(polices/figtree-latin.woff2) format('woff2');font-weight:300 900}
-:root{color-scheme:light dark;--fond:#fff;--encre:#1A1A1A;--gris:#62625C;--trait:#E6E6DE;--doux:#F6F6F1}
-@media (prefers-color-scheme:dark){:root{--fond:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--trait:#2E2E2E;--doux:#262626}}
-*{box-sizing:border-box}
-body{margin:0;width:320px;padding:16px;background:var(--fond);color:var(--encre);font:500 14px/1.45 "RR Figtree","Avenir Next",system-ui,sans-serif;display:flex;flex-direction:column;gap:12px}
-h1{font:700 18px/1 'RR Rubik',ui-rounded,system-ui,sans-serif;letter-spacing:-.3px;margin:0;display:flex;align-items:center;gap:8px}h1 img{display:block;height:22px;width:auto}
-p{margin:0;color:var(--gris)}
-.go{border:0;border-radius:999px;background:#D4F57A;color:#1A1A1A;font:inherit;font-weight:700;padding:10px 14px;cursor:pointer;text-align:center;text-decoration:none}
-.lien{border:0;background:none;color:var(--gris);font:inherit;text-decoration:underline;cursor:pointer;padding:0;align-self:flex-start}
-input{font:12px ui-monospace,monospace;padding:8px;border:1px solid var(--trait);border-radius:10px;background:var(--doux);color:var(--encre);width:100%}
-.s{font-size:13px;border-radius:10px;padding:8px 10px;background:var(--doux)}
-[hidden]{display:none!important}
+@font-face{font-family:'RR Silkscreen';src:url(polices/silkscreen-latin.woff2) format('woff2')}
+/* Même charte que le site et le panneau : accent selon la formule (anis, menthe, or, lilas). */
+:root{color-scheme:light dark;--accent:#D4F57A;--accent-p:#F1FCD0;--accent-t:#3F5A00;--nuit:#1A1A1A;--fond:#F6F6F1;--carte:#fff;--encre:#1A1A1A;--gris:#62625C;--gris-c:#A3A39B;--trait:#E6E6DE;
+  --titre:'RR Rubik',ui-rounded,system-ui,sans-serif;--texte:'RR Figtree','Avenir Next',system-ui,sans-serif;--pixel:'RR Silkscreen',ui-monospace,monospace;--ease:cubic-bezier(.2,.8,.2,1);
+  --holo:linear-gradient(115deg,#D4F57A,#7AF5E4,#B98CFF,#FF9AD5,#F7D774,#D4F57A)}
+@media (prefers-color-scheme:dark){:root{--fond:#141414;--carte:#1E1E1E;--encre:#F4F4EE;--gris:#A6A69E;--gris-c:#7A7A72;--trait:#2E2E2E;--accent-p:#232B12;--accent-t:var(--accent)}}
+html[data-formule=vendeur]{--accent:#5EF0C6;--accent-p:#DDFBF1;--accent-t:#0E6B50}
+html[data-formule=collectionneur]{--accent:#FFD23F;--accent-p:#FFF4CC;--accent-t:#8A5A00}
+html[data-formule=pass]{--accent:#C4A8FF;--accent-p:#EEE6FF;--accent-t:#5B2FD0}
+@media (prefers-color-scheme:dark){html[data-formule=vendeur]{--accent-p:#123329}html[data-formule=collectionneur]{--accent-p:#33290A}html[data-formule=pass]{--accent-p:#251C3D}html[data-formule]{--accent-t:var(--accent)}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;width:340px;background:var(--fond);color:var(--encre);font:500 14px/1.45 var(--texte);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.haut{position:relative;padding:16px 16px 18px;background:var(--nuit);color:#F4F4EE;overflow:hidden}
+.haut::after{content:"";position:absolute;inset:auto -40px -70px auto;width:180px;height:180px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 38%,transparent),transparent);pointer-events:none}
+.ligne{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1}
+h1{margin:0;line-height:0}h1 svg{height:20px;width:auto;color:#F4F4EE}h1 .eclair{fill:var(--accent)}
+.av{flex:none;width:40px;height:40px;border-radius:50%;background:var(--accent) center/cover no-repeat;color:var(--nuit);display:grid;place-items:center;font:800 17px/1 var(--titre);box-shadow:0 0 0 2px var(--nuit),0 0 0 4px var(--accent)}
+html[data-formule=collectionneur] .av{box-shadow:0 0 0 2px var(--nuit),0 0 0 4px #FFE27A,0 0 16px rgba(247,215,116,.6)}
+html[data-formule=pass] .av{box-shadow:0 0 0 2px var(--nuit),0 0 0 4px #B98CFF,0 0 16px rgba(185,140,255,.6)}
+.qui{margin-top:16px;position:relative;z-index:1}
+.qui b{display:block;font:700 19px/1.15 var(--titre);letter-spacing:-.3px}
+.qui span{display:flex;align-items:center;gap:8px;margin-top:6px;color:#A6A69E;font-size:12.5px;min-width:0}
+.qui span em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{flex:none;font:400 9px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:7px;background:var(--accent);color:var(--nuit)}
+html[data-formule=collectionneur] .badge{background:linear-gradient(135deg,#FFE27A,#F0A500);color:#2A1E00;box-shadow:0 0 12px rgba(247,215,116,.45)}
+html[data-formule=pass] .badge{background:var(--holo);background-size:300% 100%;animation:holo 4s linear infinite}
+@keyframes holo{to{background-position:300% 0}}
+main{padding:14px;display:flex;flex-direction:column;gap:12px}
+.carte{background:var(--carte);border-radius:18px;padding:14px;box-shadow:0 1px 0 rgba(0,0,0,.04),0 10px 30px -18px rgba(0,0,0,.35)}
+@media (prefers-color-scheme:dark){.carte{box-shadow:inset 0 0 0 1px var(--trait)}}
+.pret{display:flex;align-items:center;gap:12px}
+.chiffre{font:800 34px/1 var(--titre);letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.pret p{margin:0;font-weight:700;line-height:1.2}.pret small{display:block;color:var(--gris);font-weight:500;font-size:12px;margin-top:2px}
+.vg{flex:none;width:30px;height:30px;border-radius:9px;background:var(--accent-p) center/cover no-repeat;display:grid;place-items:center;font-size:14px}
+.liste{list-style:none;margin:12px 0 0;padding:12px 0 0;border-top:1px dashed var(--trait);display:flex;flex-direction:column;gap:8px}
+.liste li{display:flex;align-items:center;gap:10px;min-width:0}
+.liste .autres{color:var(--gris);font-size:12.5px;font-weight:600;padding-left:40px}
+.liste .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.px{flex:none;background:var(--accent);color:var(--nuit);border-radius:999px;padding:3px 9px;font:700 12px/1.2 var(--titre)}
+.go{display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:999px;background:var(--nuit);color:var(--accent);font:700 15px/1 var(--titre);letter-spacing:-.1px;padding:15px 18px;cursor:pointer;text-decoration:none;box-shadow:0 14px 28px -14px rgba(0,0,0,.55);transition:transform .25s var(--ease),box-shadow .25s var(--ease)}
+.go:hover{transform:translateY(-1px);box-shadow:0 18px 32px -14px rgba(0,0,0,.6)}.go:active{transform:translateY(1px)}
+.go svg{width:18px;height:18px;transition:transform .25s var(--ease)}.go:hover svg{transform:translate(2px,-2px)}
+@media (prefers-color-scheme:dark){.go{background:var(--accent);color:var(--nuit);box-shadow:0 14px 30px -14px color-mix(in srgb,var(--accent) 70%,transparent)}}
+.go:focus-visible,.lien:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+h2{margin:0 0 10px;font:400 9.5px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}
+.rac{display:flex;flex-direction:column;gap:9px}
+.rac div{display:flex;align-items:center;gap:10px;font-size:13px}
+.touches{flex:none;display:flex;gap:4px;width:92px}
+kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:7px;background:var(--fond);border:1px solid var(--trait);border-bottom-width:3px;font:700 12px/1 var(--titre);color:var(--encre)}
+kbd.rr{background:var(--nuit);color:var(--accent);border-color:var(--nuit)}
+@media (prefers-color-scheme:dark){kbd{background:#262626}kbd.rr{background:var(--accent);color:var(--nuit);border-color:var(--accent)}}
+.bas{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 4px}
+.lien{border:0;background:none;color:var(--gris);font:600 12.5px/1 var(--texte);cursor:pointer;padding:4px 0;text-decoration:none}
+.lien:hover{color:var(--encre);text-decoration:underline}
+.s{font-size:13px;border-radius:12px;padding:10px 12px;background:var(--accent-p);color:var(--accent-t)}.s.mal{background:#FCEDEA;color:#6A1E12}
+@media (prefers-color-scheme:dark){.s.mal{background:#33201D;color:#F6C4B9}}
+.etapes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;counter-reset:e}
+.etapes li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;counter-increment:e}
+.etapes li::before{content:counter(e);flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--nuit);display:grid;place-items:center;font:700 12px/1 var(--titre)}
+details summary{cursor:pointer;color:var(--gris);font-size:12.5px;font-weight:600}
+input{font:12px ui-monospace,monospace;padding:10px 12px;border:1px solid var(--trait);border-radius:12px;background:var(--carte);color:var(--encre);width:100%}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.squelette .chiffre{color:transparent;background:linear-gradient(90deg,var(--trait),var(--fond),var(--trait));background-size:200% 100%;animation:sq 1.2s linear infinite;border-radius:10px}
+@keyframes sq{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<h1><picture><source srcset="img/logo-nuit.svg" media="(prefers-color-scheme: dark)"><img src="img/logo-couleur.svg" alt="RetroRevente" width="171" height="22"></picture></h1>
-<section id="co" hidden>
-  <p>Connecté : <b id="email"></b></p>
-  <p style="margin-top:8px">Sur Le Bon Coin, ouvre « Déposer une annonce » : chaque écran se remplit tout seul avec ton annonce (bouton <b>RR</b> en bas à droite). Dans la messagerie, <b>RR</b> propose des réponses types aux acheteurs. <b>⌘K</b> pour chercher un article (jeu, carte…), <b>⌥⇧R</b> pour ouvrir le dépôt de n'importe où.</p>
-</section>
-<section id="deco" hidden style="display:flex;flex-direction:column;gap:10px">
-  <p>Connecte l'extension à ton compte : dans RetroRevente, va dans <b>Mon compte</b> et clique « Connecter l'extension ».</p>
-  <a class="go" href="https://retrorevente.fr/app/?compte" target="_blank" rel="noopener">Ouvrir Mon compte</a>
-  <details><summary style="cursor:pointer;color:var(--gris)">J'ai une clé à coller</summary>
-    <form id="f" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><input id="cle" placeholder="rre_…" autocomplete="off" spellcheck="false"><button class="go" type="submit">Connecter</button></form>
-  </details>
-</section>
-<div class="s" id="s" hidden></div>
-<a class="go" id="lbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener" hidden>Déposer une annonce sur Le Bon Coin</a>
-<button class="lien" id="sortir" hidden>Déconnecter l'extension</button>
+<header class="haut">
+  <div class="ligne"><h1 id="logo"><img src="img/logo-nuit.svg" alt="RetroRevente" height="20"></h1><span class="av" id="av" hidden aria-hidden="true"></span></div>
+  <div class="qui" id="qui" hidden><b id="nom"></b><span><i class="badge" id="badge"></i><em id="email"></em></span></div>
+  <div class="qui" id="quiDeco" hidden><b>Dépose en un clic</b><span><em>Tes annonces RetroRevente, remplies toutes seules sur Le Bon Coin.</em></span></div>
+</header>
+<main>
+  <section id="co" hidden style="display:flex;flex-direction:column;gap:12px">
+    <div class="carte squelette" id="pret">
+      <div class="pret"><span class="chiffre" id="n">0</span><p id="nTx">annonces prêtes<small id="nSous">à déposer sur Le Bon Coin</small></p></div>
+      <ul class="liste" id="liste" hidden></ul>
+    </div>
+    <a class="go" id="lbc" href="https://www.leboncoin.fr/deposer-une-annonce" target="_blank" rel="noopener">Déposer sur Le Bon Coin<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+    <div class="carte">
+      <h2>Raccourcis</h2>
+      <div class="rac">
+        <div><span class="touches"><kbd class="rr">RR</kbd></span>Remplit le dépôt, répond aux acheteurs</div>
+        <div><span class="touches" id="kCherche"><kbd>⌘</kbd><kbd>K</kbd></span>Chercher un article à déposer</div>
+        <div><span class="touches" id="kDepot"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>R</kbd></span>Ouvrir le dépôt de n'importe où</div>
+      </div>
+    </div>
+  </section>
+  <section id="deco" hidden style="display:flex;flex-direction:column;gap:12px">
+    <div class="carte">
+      <h2>Connecter l'extension</h2>
+      <ol class="etapes"><li>Ouvre RetroRevente, onglet Mon compte.</li><li>Clique « Connecter l'extension ».</li><li>C'est prêt : reviens ici.</li></ol>
+    </div>
+    <a class="go" href="https://retrorevente.fr/app/?compte" target="_blank" rel="noopener">Ouvrir Mon compte<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+    <details><summary>J'ai une clé à coller</summary>
+      <form id="f" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><input id="cle" placeholder="rre_…" autocomplete="off" spellcheck="false" aria-label="Clé de l'extension"><button class="go" type="submit">Connecter</button></form>
+    </details>
+  </section>
+  <div class="s" id="s" role="status" hidden></div>
+  <div class="bas" id="bas" hidden><a class="lien" href="https://retrorevente.fr/app/" target="_blank" rel="noopener">Ouvrir RetroRevente</a><button class="lien" id="sortir" type="button">Déconnecter</button></div>
+</main>
 <script src="commun.js"></script>
 <script src="popup.js"></script>
 </body>
