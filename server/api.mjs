@@ -10,6 +10,7 @@ import * as ia from "./ia.mjs";
 import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
+import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
@@ -26,8 +27,8 @@ const fail = (status, msg, extra) => { throw new HttpError(status, msg, extra); 
 /* ===== Fiches ===== */
 function nettoyer(v, avant) {
   const titre = txt(v.titre, 160);
-  const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes";
-  if (!titre) fail(400, carte ? "Indique le nom de la carte." : "Indique le nom du jeu.");
+  const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes", film = categorie === "films";
+  if (!titre) fail(400, carte ? "Indique le nom de la carte." : film ? "Indique le titre du film." : "Indique le nom du jeu.");
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
@@ -36,8 +37,10 @@ function nettoyer(v, avant) {
     categorie,
     // Cartes Pokémon : plateforme = extension, region = langue ; l'état Le Bon Coin suit l'état collectionneur s'il manque.
     ...(carte ? { numero: txt(v.numero, 20), rarete: txt(v.rarete, 40), edition: txt(v.edition, 40), gradation: txt(v.gradation, 30), etatCarte } : {}),
-    plateforme: txt(v.plateforme, 60), region: txt(v.region, 30),
-    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte ? "" : parmi(v.contenu, ia.CONTENUS, ""),
+    // Films : plateforme = format (Blu-Ray 4K UHD, Blu-Ray, DVD…), region = langues et zone, edition = steelbook, collector…
+    ...(film ? { annee: /^(18|19|20)\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", realisateur: txt(v.realisateur, 80), edition: txt(v.edition, 80) } : {}),
+    plateforme: film ? formatFilm(txt(v.plateforme, 60)) : txt(v.plateforme, 60), region: txt(v.region, 30),
+    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
@@ -92,12 +95,12 @@ function needQuota(u) {
   if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} articles de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
 /* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
-const MSG_ESSAI_FINI = "Tu as profité de ton annonce offerte par l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
+const MSG_ESSAI_FINI = "Tu as profité de ton article offert avec l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
 function iaAllowed(u, kind, req) {
   if (!allow("ia:" + u.id, 40, 600) || !allow("iaip:" + req.ip, 90, 600)) fail(429, "Trop de demandes à l'IA d'un coup, attends quelques minutes.");
   const r = rights(u), us = usageOf(u.id);
   if (r.id === "gratuit") {
-    if (!u.email_ok) fail(403, "Ta première annonce par l'IA est offerte : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
+    if (!u.email_ok) fail(403, "Ton premier article avec l'IA est offert : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
     const refus = ouvrirEssai(u, req);
     if (refus) fail(402, refus, { ia: true });
     const tot = usageTotal(u.id);
@@ -152,7 +155,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -163,8 +166,11 @@ function csv(items) {
 const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état.", correct: "État correct.", pieces: "Pour pièces." };
 const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice.", boite_vide: "Boîte seule, sans le jeu." };
 export function annonceLbc(v) {
-  const nom = [v.titre, v.plateforme].filter(Boolean).join(" ");
-  const description = v.texteAnnonce || (v.categorie === "cartes"
+  const film = v.categorie === "films";
+  const nom = film ? [v.titre, formatCourt(v.plateforme), v.edition && v.edition.split(/\s*,\s*/)[0]].filter(Boolean).join(" ") : [v.titre, v.plateforme].filter(Boolean).join(" ");
+  const description = v.texteAnnonce || (film
+    ? [`Film ${v.titre}${v.annee ? ` (${v.annee})` : ""}${v.realisateur ? " de " + v.realisateur : ""}${v.plateforme ? ", en " + v.plateforme : ""}${v.edition ? ", " + editionTexte(v.edition) : ""}.`, v.region ? v.region.replace(/^./, (c) => c.toUpperCase()) + "." : "", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
+    : v.categorie === "cartes"
     ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
     : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
   return {
@@ -172,6 +178,7 @@ export function annonceLbc(v) {
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
+    ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
     photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, modifie: v.modifie,
   };
 }
@@ -499,6 +506,13 @@ function lienLbc(v) {
     const b = body();
     try { return ok({ ok: true, infos: await infosJeu({ titre: b.titre, plateforme: b.plateforme, ref: b.ref }, ia.traduire) }); }
     catch (e) { console.error("infos jeu", e.message); fail(503, "Les infos du jeu sont momentanément indisponibles."); }
+  }
+  // Affiche, images, synopsis, réalisateur, casting et notes d'un film (TMDB, Wikidata ou Wikipédia, gardés en cache).
+  if (p === "/api/film-infos" && method === "POST") {
+    if (!allow("infos:" + u.id, 200, 3600)) fail(429, "Trop de recherches d'infos, réessaie dans un moment.");
+    const b = body();
+    try { return ok({ ok: true, infos: await infosFilm({ titre: b.titre, annee: b.annee, ref: b.ref }) }); }
+    catch (e) { console.error("infos film", e.message); fail(503, "Les infos du film sont momentanément indisponibles."); }
   }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }

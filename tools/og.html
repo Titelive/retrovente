@@ -1,0 +1,52 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<!-- Source de site/og.png : servir le site en local (npm run dev), copier ce fichier dans site/, ouvrir /og.html en 1200×630 et faire une capture. -->
+<link rel="stylesheet" href="/css/polices.css">
+<style>
+:root{--anis:#D4F57A;--nuit:#1A1A1A}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:630px;overflow:hidden;background:#151515;font-family:Figtree,sans-serif;color:#fff;position:relative}
+body::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 420px at 78% 50%,rgba(212,245,122,.16),transparent 70%),radial-gradient(500px 300px at 0% 0%,rgba(255,255,255,.04),transparent)}
+.g{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(700px 500px at 70% 50%,#000,transparent)}
+.l{position:absolute;left:72px;top:70px;width:600px}
+.logo{height:30px;display:block}
+.badge{display:inline-flex;align-items:center;gap:10px;margin-top:44px;padding:7px 14px 7px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font-size:17px;color:#D8D8D0}
+.badge b{font:400 11px/1 Silkscreen;letter-spacing:.12em;background:var(--anis);color:var(--nuit);padding:6px 9px;border-radius:999px}
+h1{font:800 74px/.98 Rubik;letter-spacing:-.05em;margin-top:22px}
+h1 span{color:var(--anis)}
+p.s{margin-top:22px;font-size:23px;line-height:1.4;color:#BDBDB5;max-width:560px}
+p.s b{color:#fff;font-weight:600}
+.u{position:absolute;left:72px;bottom:56px;font:400 14px/1 Silkscreen;letter-spacing:.3em;color:var(--anis)}
+.carte{position:absolute;right:86px;top:46px;width:360px;background:#F6F6F1;border-radius:30px;padding:16px;transform:rotate(2.5deg);box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.1)}
+.carte img{width:100%;height:218px;object-fit:cover;border-radius:18px;display:block}
+.carte h3{font:700 23px/1.1 Rubik;letter-spacing:-.03em;color:#1A1A1A;margin:14px 4px 4px;display:flex;align-items:center;gap:8px}
+.carte h3 i{font:400 9px/1 Silkscreen;letter-spacing:.1em;font-style:normal;background:var(--nuit);color:var(--anis);padding:5px 6px;border-radius:5px}
+.meta{font-size:14px;color:#6A6A62;margin:0 4px 12px}
+.cote{background:#1A1A1A;border-radius:18px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-end}
+.cote small{font:400 10px/1 Silkscreen;letter-spacing:.12em;color:#A3A39B;display:block;margin-bottom:8px}
+.cote strong{font:800 44px/1 Rubik;letter-spacing:-.04em;color:var(--anis)}
+.cote span{font-size:13px;color:#C9C9C1;text-align:right;line-height:1.35}
+.bulle{position:absolute;background:#fff;color:#1A1A1A;border-radius:18px;box-shadow:0 20px 40px -18px rgba(0,0,0,.7);padding:12px 16px;font-size:15px;line-height:1.3}
+.b1{right:424px;top:470px;transform:rotate(-2deg);background:#2A2A2A;color:#E8E8E0;box-shadow:0 20px 40px -18px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.1)}
+.b1 small{display:block;font:400 9.5px/1 Silkscreen;letter-spacing:.12em;color:#9A9A92;margin-bottom:6px}
+.b2{right:60px;top:492px;transform:rotate(1.5deg);background:var(--anis);max-width:340px}
+.b2 small{display:block;font:400 9.5px/1 Silkscreen;letter-spacing:.12em;color:#4A6410;margin-bottom:6px}
+.chip{position:absolute;right:400px;top:120px;display:flex;align-items:center;gap:10px;background:#fff;color:#1A1A1A;border-radius:14px;padding:10px 14px;font-weight:600;font-size:15px;transform:rotate(-3deg);box-shadow:0 20px 40px -18px rgba(0,0,0,.7)}
+.chip i{width:22px;height:22px;border-radius:6px;background:var(--anis);display:grid;place-items:center;font-style:normal;font-size:13px}
+</style></head><body><div class="g"></div>
+<div class="l">
+<img class="logo" src="/img/logo-nuit.svg" alt="">
+<div class="badge"><b>Nouveau</b> Le complément de Le Bon Coin</div>
+<h1>L'assistant du revendeur <span>rétro.</span></h1>
+<p class="s"><b>La vraie cote</b> selon l'état et la boîte, <b>le suivi</b> de tes ventes et <b>les bonnes réponses</b> aux acheteurs.</p>
+</div>
+<div class="u">RETROREVENTE.FR</div>
+<div class="carte">
+<img src="/img/exemples/conker-apres.jpg?v=4" alt="">
+<h3><i>RARE</i>Conker's Bad Fur Day</h3>
+<p class="meta">Nintendo 64 · PAL · Jeu en loose · Bon état</p>
+<div class="cote"><div><small>COTE AJUSTÉE</small><strong>199 €</strong></div><span>vendus entre<br>121 et 212 €</span></div>
+</div>
+<div class="chip"><i>✓</i>Cote trouvée</div>
+<div class="bulle b1"><small>OFFRE REÇUE</small>Je vous en propose 120 €</div>
+<div class="bulle b2"><small>RÉPONSE PROPOSÉE</small>Bonjour Léa, il est coté autour de 200&nbsp;€. Je peux faire un geste à <b>180 €</b> 🙂</div>
+</body></html>
