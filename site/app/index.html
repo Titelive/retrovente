@@ -720,6 +720,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-notes:empty{display:none}
 .ji-n{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);font-size:12.5px;color:var(--gris);white-space:nowrap}
 .ji-n b{display:grid;place-items:center;min-width:30px;height:24px;padding:0 6px;border-radius:999px;font-size:13px;color:#fff;background:#6b7280}
+.ji-n small{font-size:11px;opacity:.7;margin-left:-4px}
 .ji-n b.haut{background:#2f9e44}.ji-n b.moyen{background:#d08c00}.ji-n b.bas{background:#c92a2a}
 .ji-moi{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--gris)}
 .ji-etoiles{display:inline-flex}
@@ -733,9 +734,14 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-plus::after{content:"";width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
 .ji-plus.ouvert::after{transform:translateY(1px) rotate(-135deg)}
 .ji-plus:hover{color:var(--gris)}
-.ji-caps{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;padding-bottom:4px;min-width:0;max-width:100%;scrollbar-width:thin}
+.ji-corps{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ji-corps[hidden]{display:none}
+.ji-caps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}
 .ji-caps:empty{display:none}
-.ji-caps button{flex:none;width:min(220px,62%);aspect-ratio:16/9;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);scroll-snap-align:start;cursor:zoom-in}
+.ji-caps button{position:relative;width:100%;aspect-ratio:16/9;padding:0;border:0;border-radius:12px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);cursor:zoom-in;transition:transform .2s}
+.ji-caps button:hover{transform:translateY(-2px)}
+.ji-caps button[hidden]{display:none}
+.ji-caps button.plus::after{content:attr(data-reste);position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,10,10,.55);color:#fff;font:700 18px/1 var(--texte,inherit)}
 .ji-caps img{width:100%;height:100%;object-fit:cover;display:block}
 .ji-pied{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .ji-src{margin:0;flex:1 1 200px;min-width:0;font-size:11px;color:var(--gris);line-height:1.5;opacity:.85}
@@ -753,7 +759,7 @@ dialog.vue-img form{gap:10px}
 dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margin:auto;border-radius:12px;object-fit:contain}
 .vue-nav{display:flex;align-items:center;justify-content:center;gap:10px;color:#ddd;font-size:13px}
 .vue-nav [value=ok]{margin-left:auto}
-@media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps button{width:72%}}
+@media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps{gap:6px}.ji-caps button{border-radius:9px}}
 </style>
 
 </head>
@@ -2114,10 +2120,12 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   E.addEventListener("click",function(e){var b=e.target.closest("button");if(b)noter(Number(b.dataset.n))});
   E.addEventListener("keydown",function(e){var n=Number($("f_note").value)||0,k={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!k)return;e.preventDefault();n=Math.max(1,Math.min(5,n+k));$("f_note").value=String(n);$("f_note").dispatchEvent(new Event("input",{bubbles:true}));etoiles();E.children[n-1].focus()});
   /* note de référence : presse sur 100, joueurs ramenés sur 5 */
-  function pastille(v,lib,titre,sur5){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5?String(Math.round(v/2)/10).replace(".",","):String(v));s.title=titre;s.appendChild(b);s.appendChild(document.createTextNode(lib));return s}
+  /* presse et joueurs sur la même échelle : sur 5, avec une décimale */
+  function sur5(v){return (Math.round(v/2)/10).toFixed(1).replace(".",",")}
+  function pastille(v,lib,titre){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5(v));s.title=titre;s.setAttribute("aria-label",lib+" : "+sur5(v)+" sur 5");s.appendChild(b);s.appendChild(el("span",null,lib));s.appendChild(el("small",null,"/5"));return s}
   function notes(n){var z=$("jiNotes");z.textContent="";if(!n)return;
-    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse","Moyenne de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":"")+" (sur 100)"));
-    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,"Joueurs /5","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+" de joueurs IGDB",true))}
+    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse","Moyenne de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":"")));
+    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,"Joueurs","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+" de joueurs"))}
   function source(i){var z=$("jiSrc");z.textContent="";function a(t,u){var x=el("a",null,t);x.href=u;x.target="_blank";x.rel="noopener";return x}
     if(i.lien){z.appendChild(document.createTextNode("Images et notes "));z.appendChild(a("IGDB",i.lien))}
     var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(", "+d.licence))}}
@@ -2134,7 +2142,8 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
     notes(i.notes);
     if(i.jaquette&&sur(i.jaquette.petite)){var j=$("jiJaq");j.querySelector("img").src=sur(i.jaquette.petite);j.querySelector("img").alt="Jaquette de "+i.nom;j.hidden=false;IMGS.push({src:sur(i.jaquette.grande)||sur(i.jaquette.petite),alt:"Jaquette de "+i.nom})}
     var d=$("jiDesc");d.textContent=i.description||"";d.classList.add("court");requestAnimationFrame(function(){$("jiPlus").hidden=!(i.description&&d.scrollHeight>d.clientHeight+2)});
-    (i.captures||[]).forEach(function(c,k){if(!sur(c.petite))return;var b=el("button"),im=el("img");b.type="button";b.setAttribute("aria-label","Agrandir la capture "+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:"Capture d'écran "+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
+    var caps=(i.captures||[]).filter(function(c){return sur(c.petite)}),vis=3;
+    caps.forEach(function(c,k){var b=el("button"),im=el("img");if(k>=vis)b.hidden=true;if(k===vis-1&&caps.length>vis){b.classList.add("plus");b.dataset.reste="+"+(caps.length-vis)}b.type="button";b.setAttribute("aria-label","Agrandir la capture "+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:"Capture d'écran "+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
     source(i);$("jiChoix").hidden=true}
   $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire";this.classList.toggle("ouvert",!c)};
   $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,"Choisis le bon jeu :");else choix([],"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
