@@ -1,6 +1,7 @@
 // IA : reconnaître un jeu sur une photo (fiche + annonce + cadre pour le recadrage) et estimer sa cote.
 // Repris de la section Ventes du backoffice titelive. Clé ANTHROPIC_API_KEY ; modèle CLAUDE_MODEL facultatif.
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
+import { calculerCote, TYPES as TYPES_RELEVE } from "./prix.mjs";
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "autres"];
@@ -22,9 +23,19 @@ export function coteDe(c) {
   if (!c || typeof c !== "object") return null;
   const o = { bas: prix(c.bas), haut: prix(c.haut), conseille: prix(c.conseille), rapide: prix(c.rapide), resume: txt(c.resume, 400), date: jour(c.date) || new Date().toISOString().slice(0, 10),
     sources: (Array.isArray(c.sources) ? c.sources : []).map(lien).filter(Boolean).slice(0, 4),
-    methode: txt(c.methode, 400),
-    releves: (Array.isArray(c.releves) ? c.releves : []).map((r) => r && typeof r === "object" ? { site: txt(r.site, 40), titre: txt(r.titre, 140), prix: prix(r.prix), date: jour(r.date), url: lien(r.url) } : null)
-      .filter((r) => r && r.url && r.prix != null).slice(0, 6) };
+    methode: txt(c.methode, 900),
+    releves: (Array.isArray(c.releves) ? c.releves : []).map((r) => {
+      if (!r || typeof r !== "object") return null;
+      const x = { site: txt(r.site, 40), titre: txt(r.titre, 140), prix: prix(r.prix), date: jour(r.date), url: lien(r.url) };
+      // nature du relevé (vente conclue, annonce en ligne, cote), état et contenu, et ce qu'il pèse dans le calcul
+      if (TYPES_RELEVE.includes(r.type)) x.type = r.type;
+      if (ETATS.includes(r.etat) && r.etat) x.etat = r.etat;
+      if (CONTENUS.includes(r.contenu) && r.contenu) x.contenu = r.contenu;
+      if (r.poids != null && isFinite(+r.poids)) x.poids = Math.max(0, Math.min(1, Math.round(+r.poids * 100) / 100));
+      if (typeof r.compte === "boolean") x.compte = r.compte;
+      return x;
+    }).filter((r) => r && r.url && r.prix != null).slice(0, 8) };
+  const pb = prix(c.probable); if (pb != null) o.probable = pb;
   return o.conseille != null || o.bas != null ? o : null;
 }
 
@@ -230,25 +241,47 @@ export async function estimerCote(v) {
   if (v && v.categorie === "cartes") return estimerCoteCarte(v);
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
-  if (FAKE()) return coteDe({ bas: 38, haut: 52, conseille: 49, rapide: 42, resume: "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
-    methode: "Médiane des ventes conclues récentes, dans le même état, puis prix affiché un peu au-dessus pour laisser place à la négociation.",
-    releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/" }, { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/" }] });
+  const cible = { etat: parmi(v.etat, ETATS, ""), contenu: parmi(v.contenu, CONTENUS, "") };
+  if (FAKE()) return coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
+    releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/itm/1", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
+      { site: "eBay", titre: "Autre vente conclue", prix: 52, date: "2026-10-20", url: "https://www.ebay.fr/itm/2", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
+      { site: "Le Bon Coin", titre: "Annonce en ligne", prix: 60, date: "2026-11-10", url: "https://www.leboncoin.fr/ad/1", type: "annonce", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
+      { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/", type: "cote", contenu: cible.contenu || "complet" }] }, cible);
   const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30), LIB_CONTENU[v.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
-  const o = await claude(`Estime la cote d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
-Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Tiens compte de l'état et de ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro.
+  const o = await claude(`Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
+Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Note pour chaque prix l'état et ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro. Ne calcule pas de prix conseillé : le calcul est fait ensuite à partir de tes relevés.
 Réponds uniquement par un objet JSON avec les clés :
-"bas" et "haut" (fourchette des prix de vente constatés, en euros),
-"conseille" (prix à afficher sur Le Bon Coin, un peu au-dessus du prix de vente probable pour laisser de la marge à la négociation, arrondi à l'euro),
-"rapide" (prix pour vendre en quelques jours),
-"resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
-"methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
-"releves" (3 à 6 prix précis réellement lus pendant ta recherche, dans le même état si possible : objets avec "site" (eBay, PriceCharting, Le Bon Coin…), "titre" (intitulé de la vente ou de la page), "prix" (en euros, converti si besoin), "date" (AAAA-MM-JJ de la vente ou du relevé) et "url" (adresse exacte de la page où tu l'as lu, telle que donnée par la recherche ; n'invente jamais d'adresse)),
-"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
-  const c = coteDe(o);
+"releves" (3 à 8 prix précis réellement lus pendant ta recherche, de préférence des ventes conclues proches de l'objet : objets avec
+  "site" (eBay, PriceCharting, Le Bon Coin…), "titre" (intitulé de la vente ou de la page),
+  "prix" (en euros, converti si besoin, frais de port exclus),
+  "type" ("vente" pour une vente conclue ou une annonce marquée vendue, "annonce" pour une annonce encore en ligne, "cote" pour une cote moyenne comme PriceCharting),
+  "etat" (l'un de "neuf", "tres_bon", "bon", "correct", "pieces", ou "" si la page ne le dit pas),
+  "contenu" (l'un de "seul" pour cartouche ou disque seul, "boite" pour en boîte sans notice, "complet" pour boîte et notice, "boite_vide", ou "" si la page ne le dit pas ; pour PriceCharting, « loose » = "seul", « CIB » = "complet"),
+  "date" (AAAA-MM-JJ de la vente ou du relevé) et "url" (adresse exacte de la page où tu l'as lu, telle que donnée par la recherche ; n'invente jamais d'adresse)),
+"resume" (une phrase en français, sans chiffres : ce qui fait varier le prix de ce jeu (boîte, notice, édition, état…)),
+"sources" (2 à 4 adresses web consultées les plus utiles),
+"bas" et "haut" (fourchette des prix de vente constatés, en euros, utilisée seulement si aucun relevé n'est exploitable).`, { web: 5, max: 3500, timeout: 70000 });
   // on ne garde que les liens qui sont vraiment sortis de la recherche web
-  if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
+  const c = coteCalculee(o, cible, o && o._vus);
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
   return c;
+}
+
+/* Les relevés de l'IA passent par calculerCote (server/prix.mjs) : fourchette, prix probable, prix conseillé,
+   prix pour vendre vite et texte « Méthode » sont tous tirés des mêmes nombres. */
+export function coteCalculee(o, cible, vus) {
+  if (!o || typeof o !== "object") return null;
+  const c0 = coteDe({ ...o, conseille: o.conseille ?? o.bas ?? (o.releves && o.releves.length ? 0 : null) });
+  if (!c0) return null;
+  if (vus && vus.size) { c0.releves = c0.releves.filter((r) => vus.has(norme(r.url))); c0.sources = c0.sources.filter((u) => vus.has(norme(u))); }
+  const k = calculerCote(c0.releves, cible);
+  if (k) return coteDe({ ...c0, bas: k.bas, haut: k.haut, probable: k.probable, conseille: k.conseille, rapide: k.rapide, methode: k.methode, releves: k.releves });
+  // aucun relevé vérifiable : on garde la fourchette de l'IA, en rendant les prix cohérents entre eux
+  const bas = prix(o.bas), haut = prix(o.haut);
+  if (bas == null || haut == null) return null;
+  const lo = Math.min(bas, haut), hi = Math.max(bas, haut), probable = Math.round((lo + hi) / 2);
+  return coteDe({ ...c0, bas: lo, haut: hi, probable, conseille: Math.min(Math.floor(hi), Math.round(probable * 1.1)), rapide: Math.round(Math.max(lo, probable * 0.85)) < Math.min(Math.floor(hi), Math.round(probable * 1.1)) ? Math.round(Math.max(lo, probable * 0.85)) : null,
+    methode: `Aucun prix vérifiable n'a pu être relu : fourchette estimée par l'IA, de ${lo} à ${hi} €, milieu ${probable} €. À vérifier avant de publier.`, releves: [] });
 }
 
 /* Cote d'une carte Pokémon : la cote Cardmarket (TCGdex) sert d'ancre, puis le modèle relève les ventes conclues
