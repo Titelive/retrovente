@@ -28,7 +28,8 @@
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
   etat.continuer = true;
   etat.prevenir = true;
-  try { RR.storage.local.get(["auto", "continuer", "prevenir"]).then(function (r) { if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son"]).then(function (r) { if (r && r.son === false) etat.son = false; if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -274,13 +275,24 @@
       o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
     });
   }
-  function sonner() {
-    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav()); a.volume = 0.8; a.play().catch(function () {}); } catch (e) {} };
+  // 1. Son joué par l'app Mac (NSSound, via le message natif de Safari) : ne dépend pas des règles audio de la page.
+  // 2. Sinon (Chrome, Firefox, ou app trop ancienne) : son web.
+  function sonWeb() {
+    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav()); a.volume = 0.8; a.play().then(function () { etat.dernierSon = "web <audio> ok"; }, function (e) { etat.dernierSon = "web <audio> bloqué (" + (e && e.name) + ")"; }); } catch (e) { etat.dernierSon = "web impossible"; } };
     if (!c) return secours();
-    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") jouer(c); else secours(); };
+    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") { jouer(c); etat.dernierSon = "web AudioContext ok"; } else secours(); };
     if (c.state === "running") return go();
     try { c.resume().then(go, go); } catch (e) {}
     setTimeout(go, 400);   // Safari peut laisser resume() en attente sans geste : on passe au secours
+  }
+  function sonner() {
+    var fini = false, web = function (pourquoi) { if (fini) return; fini = true; etat.sonNatif = pourquoi; sonWeb(); };
+    var t = setTimeout(function () { web("délai dépassé"); }, 1500);
+    rrDemander({ type: "son" }).then(function (r) {
+      clearTimeout(t); if (fini) return;
+      if (r && r.ok) { fini = true; etat.sonNatif = "ok"; etat.dernierSon = "app Mac (" + (r.via || "natif") + ")"; }
+      else web((r && (r.erreur || r.error)) || "indisponible");
+    }, function (e) { clearTimeout(t); web((e && e.message) || "erreur"); });
 
   }
   function clignoterTitre(txt) {
@@ -299,8 +311,8 @@
   function aToi(cle, titre, texte, bouton) {
     mettreEnAvant(bouton);
     if (alertesVues[cle]) return; alertesVues[cle] = true;
+    if (etat.son) sonner();
     if (!etat.prevenir) return;
-    sonner();
     clignoterTitre(titre);
     rrDemander({ type: "alerte", titre: titre, texte: texte }).then(function (r) {
       if (r && r.ok) return;
@@ -456,6 +468,7 @@
      personne le colle dans la discussion quand un écran n'est pas reconnu. */
   function diagnostic() {
     var lignes = ["RetroRevente " + RR.runtime.getManifest().version + " · " + location.pathname + " · " + navigator.userAgent.replace(/.*(Version\/[\d.]+|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, "$1"),
+      "son=" + etat.son + " prevenir=" + etat.prevenir + " dernierSon=" + (etat.dernierSon || "-") + " natif=" + (etat.sonNatif || "-") + " audio=" + (audio ? audio.state : "-") + " notif=" + (window.Notification ? Notification.permission : "-"),
       "zoneCategorie=" + zoneCategorie() + " categorieVide=" + categorieVide() + " choisie=" + !!etat.choisie + " cat=" + (etat.choisie && etat.choisie.categorie)];
     var main = document.querySelector("main") || document.body;
     (function parcours(n, prof) {
@@ -875,17 +888,21 @@
       el("span", { class: "rail" }), "Continuer tout seul",
     ]);
     suite.querySelector("input").checked = etat.continuer;
-    var prevenir = el("label", { class: "auto", title: "Un son et une notification quand c'est à toi de cliquer (dernier écran, champ à compléter)" }, [
+    var prevenir = el("label", { class: "auto", title: "Une notification quand c'est à toi de cliquer (dernier écran, champ à compléter)" }, [
       el("input", { type: "checkbox", role: "switch", onchange: function (e) {
         etat.prevenir = e.target.checked; try { RR.storage.local.set({ prevenir: etat.prevenir }); } catch (x) {}
         // Safari n'a pas les notifications d'extension : on demande l'autorisation pour cette page, au clic.
         if (etat.prevenir && /Apple/.test(navigator.vendor || "") && window.Notification && Notification.permission === "default") { try { Notification.requestPermission(); } catch (x) {} }
-        if (etat.prevenir) sonner();
       } }),
-      el("span", { class: "rail" }), "Me prévenir (son + notification)",
+      el("span", { class: "rail" }), "Me prévenir (notification)",
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    var son = el("label", { class: "auto", title: "Un petit son quand c'est à toi de cliquer" }, [
+      el("input", { type: "checkbox", role: "switch", onchange: function (e) { etat.son = e.target.checked; try { RR.storage.local.set({ son: etat.son }); } catch (x) {} if (etat.son) sonner(); } }),
+      el("span", { class: "rail" }), "Son quand c'est à toi",
+    ]);
+    son.querySelector("input").checked = etat.son;
+    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Joue le son d'alerte maintenant", texte: "Tester le son", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } }), el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
