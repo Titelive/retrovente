@@ -527,6 +527,14 @@ test("un au revoir ne reparle pas du budget", async () => {
   assert.equal(sansSujet("Merci à vous, bonne soirée 🙂"), "Merci à vous, bonne soirée 🙂");
 });
 
+test("suite de son propre message : ni merci ni bonjour en ouverture", async () => {
+  const { sansPolitesse } = await import("../server/ia.mjs");
+  assert.equal(sansPolitesse("Merci Sofian ! Petite précision : il y a aussi le poster 🙂"), "Petite précision : il y a aussi le poster 🙂");
+  assert.equal(sansPolitesse("Bonjour Sofian, merci pour votre message ! Je précise que le jeu est complet."), "Je précise que le jeu est complet.");
+  assert.equal(sansPolitesse("Bonjour il y a aussi le poster dans la boîte."), "Il y a aussi le poster dans la boîte.");
+  assert.equal(sansPolitesse("Petite précision : poster recto verso."), "Petite précision : poster recto verso.");
+});
+
 test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {
   const { analyseOffre } = await import("../server/ia.mjs");
   const a = analyseOffre(190, 140);
