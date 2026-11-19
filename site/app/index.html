@@ -327,7 +327,7 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli body.fiche-ouverte .pied-site{display:none}
   html.etabli #fiche .haut .wrap{padding-top:12px}
   html.etabli #fiche .haut h2{font-size:30px}
-  html.etabli #fiche .grille{height:var(--dispo,auto);padding:12px 0 0;align-items:stretch;box-sizing:border-box}
+  html.etabli #fiche .grille{min-height:var(--dispo,auto);padding:12px 0 0;align-items:stretch;box-sizing:border-box}
   html.etabli #fiche .grille>.col{min-height:0;overflow:hidden}
   html.etabli #fiche .g-photo{position:static}
   html.etabli #fiche .photos-carte{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:16px 18px}
@@ -355,7 +355,7 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche [data-onglet]:not(.actif){display:none}
   html.etabli #fiche [data-onglet="annonce"].actif{display:flex;flex-direction:column}
   html.etabli #fiche [data-onglet="annonce"] .f:has(#f_texteAnnonce){flex:1;display:flex;flex-direction:column}
-  html.etabli #fiche #f_texteAnnonce{flex:1;min-height:90px}
+  html.etabli #fiche #f_texteAnnonce{flex:1 0 auto;min-height:90px}
   html.etabli #fiche .champs{gap:8px 12px}
   html.etabli #fiche [data-onglet="article"] .champs{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense}
   html.etabli #fiche [data-onglet="article"] .champs>.l2.nopkm:has(#f_origine){grid-column:span 1}
@@ -1396,6 +1396,14 @@ function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return;var b=$("d
       DIAL.push({role:"ia",texte:j.reponse,ch:ch,avant:Object.keys(ch).length?avant:null});dessinerDial()})
     .catch(function(e){DIAL.pop();DIAL.push({role:"ia",err:true,texte:e.status===401?"Ta session a expiré, reconnecte-toi.":(e.message||"Je n'ai pas pu répondre, réessaie.")});dessinerDial();if(e.status===401)erreur(e)})
     .then(function(){b.disabled=false})}
+/* La description s'agrandit avec le texte : tout est visible sans défiler dans la zone. Le texte est souvent
+   écrit par le code (IA, légendes), d'où l'interception de .value en plus de l'événement input. */
+(function(){var t=$("f_texteAnnonce"),D=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");
+  function ajuste(){if(!t.offsetParent)return;var fl=t.style.flex,y=scrollY;t.style.flex="none";t.style.height="0";t.style.minHeight="0";var h=t.scrollHeight+2;t.style.height="";t.style.flex=fl;t.style.minHeight=Math.max(90,h)+"px";if(scrollY!==y)scrollTo(0,y)}
+  window.ajusteDesc=function(){requestAnimationFrame(ajuste)};
+  Object.defineProperty(t,"value",{configurable:true,get:function(){return D.get.call(t)},set:function(v){D.set.call(t,v);ajusteDesc()}});
+  t.addEventListener("input",ajuste);addEventListener("resize",ajusteDesc);
+  if(window.ResizeObserver)new ResizeObserver(function(){if(t.offsetParent&&!t._vu){t._vu=1;ajusteDesc()}else if(!t.offsetParent)t._vu=0}).observe(t)})();
 function taille(){var t=$("dTexte");t.style.height="auto";t.style.height=Math.min(160,t.scrollHeight)+"px"}
 $("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial($("dTexte").value)});
 $("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
