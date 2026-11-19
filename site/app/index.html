@@ -1220,9 +1220,9 @@ function api(method,path,body){var h=body?{"content-type":"application/json"}:{}
 }
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}if((e.status===402&&e.ia)||(e.status===403&&e.verif)){iaBloquee(e);return}toast(e.message||def,"bad")}
 /* IA réservée aux formules payantes : essai unique en Découverte */
-function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton annonce offerte t'attend":"Garde l'IA à tes côtés";
+function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton article offert t'attend":"Garde l'IA à tes côtés";
   $("dIaTx").textContent=e.message;$("dIaRenv").hidden=!v;$("dIaFormules").hidden=v;if(!$("dIa").open)$("dIa").showModal();if(ME){ME.ia=v?"verif":"utilise";iaNote()}}
-function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>première annonce par l'IA est offerte</b> : prends un article en photo, elle s'occupe du reste.",en_cours:"🎁 Ton annonce offerte par l'IA est en cours : profites-en sur cet article.",verif:"🎁 Ta <b>première annonce par l'IA est offerte</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton annonce offerte par l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes articles, dès 4,99 €</button>"}[ME.ia];
+function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ton <b>premier article avec l'IA est offert</b> : prends-le en photo, elle trouve sa cote et prépare sa fiche.",en_cours:"🎁 Ton article offert avec l'IA est en cours : profites-en sur celui-ci.",verif:"🎁 Ton <b>premier article avec l'IA est offert</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton article offert avec l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes articles, dès 4,99 €</button>"}[ME.ia];
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
@@ -1385,7 +1385,7 @@ function modeAuth(m){MODE=m;$("aErr").textContent="";
   $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
   $("lCgv").hidden=m!=="ins";$("lLbc").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
   $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
-  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ta première annonce par l'IA offerte, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
+  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ton premier article avec l'IA offert, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
   $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
   (m==="reset"?$("aMdp"):$("aEmail")).focus()}
 $("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};

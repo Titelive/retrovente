@@ -29,7 +29,7 @@
   }
  ],
  "id": "/app/",
- "description": "Vends tes jeux rétro et cartes Pokémon sur Le Bon Coin : une photo, l'annonce se remplit toute seule.",
+ "description": "L'assistant du revendeur rétro : la vraie cote de tes jeux et cartes Pokémon, le suivi de tes ventes et des réponses prêtes pour les acheteurs.",
  "lang": "fr",
  "dir": "ltr",
  "scope": "/",
