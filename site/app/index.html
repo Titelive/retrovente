@@ -194,30 +194,26 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 #bTroph{gap:6px}
 @media(max-width:700px){#bTroph{display:none}}
 @media(max-width:560px){.tr-grille{grid-template-columns:1fr 1fr}.tr{padding:14px 12px}.tr .med{width:52px;height:52px;font-size:26px}}
-/* Encart « l'IA travaille » : une carte par tâche, icône animée, étape en gras, blague en petit, barre de progression en pixels */
-.ia-etat{--ia-a:var(--anis);--ia-b:var(--anis);list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+/* Encart « l'IA travaille » : une seule carte, une seule barre fluide (transform, sans reflow), l'étape en cours change en fondu */
+.ia-etat{--ia-a:var(--anis);--ia-b:var(--anis-f);list-style:none;margin:12px 0 0;padding:0}
 html[data-formule="collectionneur"] .ia-etat{--ia-a:var(--or-1);--ia-b:var(--or-2)}
-.ia-etat li{position:relative;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 14px 12px 12px;border-radius:18px;overflow:hidden;
-  background:linear-gradient(120deg,color-mix(in srgb,var(--ia-a) 22%,transparent),color-mix(in srgb,var(--ia-b) 6%,transparent) 55%,transparent),var(--carte);
-  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ia-a) 45%,transparent),0 14px 28px -20px rgba(0,0,0,.6);animation:iaEntre .35s var(--ease,ease) both}
-html[data-formule="pass"] .ia-etat li{background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 60%),var(--carte);box-shadow:inset 0 0 0 1.5px rgba(var(--anis-rgb),.5),0 14px 28px -20px rgba(0,0,0,.6)}
-html[data-formule="pass"] .ia-etat li::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--holo);background-size:300% 100%;animation:holo 5s linear infinite}
-.ia-etat .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;line-height:1;background:linear-gradient(135deg,var(--ia-a),var(--ia-b));box-shadow:3px 3px 0 var(--nuit),inset 0 0 0 2px rgba(255,255,255,.35);animation:iaSaut 1.4s steps(2,end) infinite}
-.ia-etat .tx{min-width:0}
+.ia-etat li{position:relative;display:grid;grid-template-columns:44px 1fr auto;gap:4px 12px;align-items:center;padding:12px 14px 14px 12px;border-radius:18px;overflow:hidden;
+  background:linear-gradient(120deg,color-mix(in srgb,var(--ia-a) 20%,transparent),transparent 60%),var(--carte);
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ia-a) 45%,transparent),0 14px 28px -20px rgba(0,0,0,.6);transition:opacity .4s ease,transform .4s ease}
+.ia-etat li.part{opacity:0;transform:translateY(4px)}
+.ia-etat .ico{grid-row:1/3;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;line-height:1;background:linear-gradient(135deg,var(--ia-a),var(--ia-b));box-shadow:3px 3px 0 var(--nuit),inset 0 0 0 2px rgba(255,255,255,.35);animation:iaFlotte 2.4s ease-in-out infinite;will-change:transform}
+.ia-etat .tx{min-width:0;transition:opacity .25s ease}
+.ia-etat .tx.fondu{opacity:0}
 .ia-etat .tx strong{display:block;font-size:14px;font-weight:700;line-height:1.3}
 .ia-etat .tx small{display:block;margin-top:2px;font-size:12.5px;line-height:1.35;color:var(--gris)}
-.ia-etat .barre{display:flex;gap:3px;margin-top:9px;height:7px}
-.ia-etat .barre i{flex:1;border-radius:2px;background:color-mix(in srgb,var(--ia-a) 20%,transparent)}
-.ia-etat .barre i.ok{background:var(--ia-a)}
-.ia-etat .barre i.en{animation:iaClic .7s steps(2,end) infinite}
-.ia-etat .barre.libre i{animation:iaVague 1.5s steps(3,end) infinite}
-.ia-etat .cpt{align-self:start;font:400 11px/1 var(--pixel);letter-spacing:.06em;padding:7px 8px;border-radius:8px;background:var(--nuit);color:var(--ia-a);white-space:nowrap}
-@keyframes iaEntre{from{opacity:0;transform:translateY(6px)}}
-@keyframes iaSaut{50%{transform:translateY(-3px)}}
-@keyframes iaClic{50%{background:var(--ia-a)}}
-@keyframes iaVague{0%,100%{background:color-mix(in srgb,var(--ia-a) 20%,transparent)}40%{background:var(--ia-a)}}
-html.sans-anim .ia-etat *,html.sans-anim .ia-etat li{animation:none!important}
-@media(prefers-reduced-motion:reduce){.ia-etat *,.ia-etat li{animation:none!important}}
+.ia-etat .pc{font:400 11px/1 var(--pixel);letter-spacing:.06em;padding:7px 8px;border-radius:8px;background:var(--nuit);color:var(--ia-a);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ia-etat .rail{grid-column:2/4;position:relative;height:8px;margin-top:8px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--ia-a) 18%,transparent)}
+.ia-etat .rail b{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,var(--ia-b),var(--ia-a));transform-origin:0 50%;transform:scaleX(0);transition:transform .7s cubic-bezier(.25,.8,.25,1);will-change:transform}
+.ia-etat .rail i{position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:iaReflet 1.6s linear infinite;will-change:transform}
+@keyframes iaFlotte{50%{transform:translateY(-3px)}}
+@keyframes iaReflet{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+html.sans-anim .ia-etat *{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.ia-etat *{animation:none!important}}
 .photo .attente span::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--anis);border-right-color:transparent;animation:t .8s linear infinite}
 .rangee{display:flex;gap:8px;flex-wrap:wrap}
 .champs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -1212,14 +1208,27 @@ var BLAGUES=["Je souffle dans la cartouche, au cas où 🎮","Je règle le track
 function attente(t){$("fAttente").hidden=!t;clearInterval(BLT);$("fAttenteSub").textContent="";if(!t)return;$("fAttenteTx").textContent=t;
   BLT=setInterval(function(){$("fAttenteSub").textContent="Toujours là : "+BLAGUES[BL++%BLAGUES.length].replace(/^./,function(c){return c.toLowerCase()})},3500)}
 var ETATS={};
-/* iaEtat(clé, {ico, titre, detail, i, n}) : i/n donne une barre à cases (photo i sur n) ; sans n, la barre ondule. iaEtat(clé) retire la carte. */
-function iaEtat(cle,o){if(o)ETATS[cle]=o;else delete ETATS[cle];var l=$("fIaEtat"),k=Object.keys(ETATS);l.hidden=!k.length;
-  var vu={};[].forEach.call(l.children,function(li){vu[li.dataset.k]=li});
-  k.forEach(function(c){var o=ETATS[c],n=o.n||0,cases="";
-    for(var j=1;j<=(n||10);j++)cases+='<i'+(n?(j<o.i?' class="ok"':j===o.i?' class="en"':""):' style="animation-delay:'+(j*0.12).toFixed(2)+'s"')+'></i>';
-    var h='<span class="ico" aria-hidden="true">'+o.ico+'</span><div class="tx"><strong>'+esc(o.titre)+'</strong>'+(o.detail?'<small>'+esc(o.detail)+'</small>':"")+'<div class="barre'+(n?"":" libre")+'">'+cases+'</div></div>'+(n?'<span class="cpt">'+o.i+'/'+n+'</span>':"");
-    var li=vu[c];if(!li){li=document.createElement("li");li.dataset.k=c;l.appendChild(li)}delete vu[c];if(li._h!==h){li.innerHTML=h;li._h=h}});
-  Object.keys(vu).forEach(function(c){vu[c].remove()})}
+/* iaEtat(clé, {ico, titre, detail, i, n}) déclare une tâche en cours, iaEtat(clé) la termine. Une seule carte : l'étape la plus
+   récente, et une barre globale = tâches finies + avancement (i/n) des tâches en cours, qui ne recule jamais. */
+var IA_VUS={},IA_FINIS={},IA_PC=0,IA_FIN=0;
+function iaEtat(cle,o){var l=$("fIaEtat");
+  /* Les tâches s'enchaînent sans qu'on sache combien suivront : chaque tâche finie avance la barre d'une part du reste,
+     et une tâche à étapes (photo i/n) avance réellement de i/n sur sa part. La barre ne recule jamais. */
+  if(o){if(!ETATS[cle]){IA_VUS[cle]=IA_PC}var b0=IA_VUS[cle];delete ETATS[cle];ETATS[cle]=o;if(o.n)IA_PC=Math.max(IA_PC,b0+(.95-b0)*Math.max(0,(o.i-.5)/o.n))}
+  else if(ETATS[cle]){delete ETATS[cle];IA_PC=Math.max(IA_PC,IA_PC+(.95-IA_PC)*.15)}
+  var k=Object.keys(ETATS),li=l.firstElementChild;clearTimeout(IA_FIN);
+  /* plus rien en cours : on attend un peu (une tâche suit souvent la précédente) avant d'annoncer « prêt » */
+  if(!k.length){if(!li)return;IA_FIN=setTimeout(function(){if(Object.keys(ETATS).length)return;IA_PC=1;peindre(li,null);
+    IA_FIN=setTimeout(function(){if(Object.keys(ETATS).length)return;li.classList.add("part");IA_FIN=setTimeout(function(){if(!Object.keys(ETATS).length){l.hidden=true;l.innerHTML="";IA_VUS={};IA_FINIS={};IA_PC=0}},400)},900)},1500);return}
+  if(!li){l.innerHTML='<li><span class="ico" aria-hidden="true"></span><div class="tx"><strong></strong><small></small></div><span class="pc">0 %</span><div class="rail"><b></b><i></i></div></li>';li=l.firstElementChild;l.hidden=false}
+  li.classList.remove("part");
+  IA_PC=Math.min(.95,Math.max(IA_PC,.06));peindre(li,ETATS[k[k.length-1]])}
+function peindre(li,o){li.querySelector(".rail b").style.transform="scaleX("+IA_PC.toFixed(3)+")";li.querySelector(".pc").textContent=Math.round(IA_PC*100)+" %";
+  var tx=li.querySelector(".tx"),t=o?o.titre:"C'est prêt !",d=o?(o.detail||""):"Tout est rangé dans la fiche",ic=o?o.ico:"✅";
+  if(tx.dataset.t===t+d)return;tx.dataset.t=t+d;
+  var ecrire=function(){tx.querySelector("strong").textContent=t;tx.querySelector("small").textContent=d;li.querySelector(".ico").textContent=ic;tx.classList.remove("fondu")};
+  if(!tx.querySelector("strong").textContent){ecrire();return}
+  tx.classList.add("fondu");clearTimeout(tx._t);tx._t=setTimeout(ecrire,250)}
 /* Requête au fil de l'eau (événements serveur) : progres(x) à chaque étape, puis le résultat. Sans flux, on retombe sur la réponse finale. */
 function apiFlux(path,body,progres){var h={"content-type":"application/json"};if(APP)h["x-rr-app"]=APP;
   return fetch(path,{method:"POST",credentials:"same-origin",cache:"no-store",headers:h,body:JSON.stringify(Object.assign({flux:true},body))}).then(function(r){
@@ -1329,7 +1338,10 @@ function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();v
       if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t);iaEtat("leg");iaEtat("jauni")})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
-function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});if(n<0)return;
+function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});
+  /* toutes les photos décrites et aucun jaunissement : on retire la mention ajoutée lors d'une analyse précédente (faux positif) */
+  if(n<0){if(!l.length||!l.every(Boolean))return;var pp=$("f_particularites"),av=pp.value;pp.value=av.replace(/,?\s*plastique (légèrement|nettement) jauni/ig,"").replace(/^[\s,]+/,"");if(pp.value!==av)majParticularites();
+    var tt=$("f_texteAnnonce"),tv=tt.value,nv=tv.replace(/^À noter : plastique (légèrement|nettement) jauni\.?\n?/img,"").replace(/ ?Plastique (légèrement|nettement) jauni\./g,"");if(nv!==tv){tt.value=nv;tt.dispatchEvent(new Event("input",{bubbles:true}))}return}
   var p=$("f_particularites");if(net&&/légèrement jauni/i.test(p.value)){p.value=p.value.replace(/plastique légèrement jauni/i,"plastique nettement jauni");majParticularites()}
   if(!/jaun/i.test(p.value)){p.value=(p.value.trim()?p.value.trim().replace(/[.,;]$/,"")+", ":"")+(net?"plastique nettement jauni":"plastique légèrement jauni");majParticularites()}
   var e=$("f_etat");if(e.value==="neuf"||(net&&e.value==="tres_bon")){e.value=net?"bon":"tres_bon";e.dispatchEvent(new Event("change",{bubbles:true}))}
@@ -1694,7 +1706,7 @@ var RV=2;
 function refaireAnciennes(){var ch=Promise.resolve(),n=0;GAL.forEach(function(g,k){if(g.orig&&!g.vueOrig&&(g.rv||0)<RV){n++;ch=ch.then(function(){return nettoyerPhoto(true,k)})}});
   if(n)ch.then(function(){toast(n>1?n+" photos retouchées à nouveau avec la nouvelle retouche.":"Photo retouchée à nouveau avec la nouvelle retouche.","ok")});return ch}
 function nettoyerPhoto(auto,idx,rot){var k=idx==null?SEL:idx,g=GAL[k];if(!g)return Promise.resolve();var b=$("fNet"),t=b.innerHTML;
-  busy(b,true);var rk="ret"+k+"_"+Date.now();iaEtat(rk,{ico:"✨",titre:"Je retouche la photo "+(k+1),detail:"Coup de chiffon numérique : fond et lumière",i:GAL.length>1?k+1:0,n:GAL.length>1?GAL.length:0});if(k===SEL&&!auto)attente("Je retouche la photo…");
+  busy(b,true);var rk="ret"+k+"_"+Date.now();iaEtat(rk,{ico:"✨",titre:"Je retouche la photo "+(k+1)+(GAL.length>1?"/"+GAL.length:""),detail:"Coup de chiffon numérique : fond et lumière"});if(k===SEL&&!auto)attente("Je retouche la photo…");
   var base=g.vueOrig?g.src:(g.orig||g.src);   // toujours depuis la photo d'origine
   return chargerImg(base).then(function(img){return api("POST","/api/ia/nettoyer",{photo:versData(img,null,2400,1500000),rotation:rot||0})})
     .then(function(j){g.orig=base;g.src=g.data=j.photo;g.vueOrig=false;g.rv=RV;IMG=null;afficher();LBC_FAIT.photo=false;

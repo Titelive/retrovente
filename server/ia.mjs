@@ -378,17 +378,26 @@ export function affirme(t) {
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 const carte0 = (v) => v.categorie === "cartes";
+// Retire d'une légende les mentions de jaunissement (« plastique légèrement jauni »…), en gardant le reste.
+const sansJauni = (l) => {
+  if (!/jaun/i.test(l)) return l;
+  const [vue, ...reste] = l.split(" : ");
+  const garde = (reste.length ? reste.join(" : ") : vue).split(/,\s*/).filter((c) => c && !/jaun/i.test(c));
+  return reste.length ? vue + (garde.length ? " : " + garde.join(", ") : "") : garde.join(", ");
+};
 // Coupe un texte à n caractères sur une fin de mot, sans parenthèse ni ponctuation laissée en plan.
 const court = (t, n) => { const v = t.split(/[,;(]/)[0].trim(); let c = t.length <= n ? t : v.length >= 3 && v.length <= n ? v : t.slice(0, n).replace(/\s+\S*$/, ""); c = c.replace(/\([^)]*$/, "").replace(/[\s,;:(/]+$/, ""); return c; };
 // Jaunissement vu sur l'ensemble des photos, avec un modèle plus attentif et un effort normal.
 async function jauniEnsemble(photos, quoi, trace) {
   const o = await claude([...photos.slice(0, 6).map(image), { type: "text", text: `Ces ${Math.min(photos.length, 6)} photos (dans l'ordre, numérotées à partir de 1) montrent ${quoi}, vendu d'occasion. Une seule question : le plastique a-t-il jauni ?
-Le plastique gris d'origine (Nintendo 64, Super Nintendo, Game Boy, PlayStation) est un gris neutre, presque sans couleur ; jauni, il tire sur le crème, le beige ou l'orangé. Compare les faces et les photos entre elles : une face, une tranche ou une bande nettement plus crème ou beige que le reste du même plastique, c'est un jaunissement, souvent léger. La lumière n'explique tout que si l'objet entier, sur toutes les photos, a la même teinte que son environnement. Ignore l'étiquette, le bois, la peau.
-Réponds uniquement par un objet JSON : {"jauni": "non", "photos": [], "ou": ""}, où "jauni" vaut exactement "non", "leger" ou "net", "photos" liste les numéros des photos où ça se voit et "ou" dit où en 2 à 5 mots, commençant par « sur » (par exemple « sur les tranches »).` }], { max: 1500, timeout: 60000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+Le plastique gris d'origine (Nintendo 64, Super Nintendo, Game Boy, PlayStation) est un gris neutre, presque sans couleur ; jauni, il tire sur le crème, le beige ou l'orangé. Attention aux faux positifs, bien plus gênants qu'un oubli : une lumière chaude (ampoule, soleil couchant) ou le reflet d'une table en bois, d'un mur ou de la main donne une teinte crème à un plastique gris parfaitement sain, surtout sur la face tournée vers ce reflet, et l'ombre le rend plus foncé. Ce n'est PAS du jaunissement.
+Ne conclus au jaunissement que si une zone du même plastique est nettement plus jaune ou beige qu'une autre zone éclairée de la même façon, et que ça se retrouve au même endroit sur plusieurs photos. Ignore l'étiquette, le bois, la peau. Dans le doute, réponds « non ».
+Réponds uniquement par un objet JSON : {"jauni": "non", "certitude": "forte", "photos": [], "ou": ""}, où "jauni" vaut exactement "non", "leger" ou "net", "certitude" vaut "forte", "moyenne" ou "faible", "photos" liste les numéros des photos où ça se voit et "ou" dit où en 2 à 5 mots, commençant par « sur » (par exemple « sur les tranches »).` }], { max: 1500, timeout: 60000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
   const b = (o && o._texte) || "";
   const jauni = parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(b) || [])[1], ["non", "leger", "net"], "non");
   const ph = (Array.isArray(o && o.photos) ? o.photos : []).map(Number).filter((n) => n >= 1 && n <= photos.length);
-  return { jauni, photos: [...new Set(ph)], ou: court(txt(o && o.ou, 300), 60) };
+  const certitude = parmi((o && o.certitude) || (/"certitude"\s*:\s*"(forte|moyenne|faible)"/.exec(b) || [])[1], ["forte", "moyenne", "faible"], "faible");
+  return { jauni, certitude, photos: [...new Set(ph)], ou: court(txt(o && o.ou, 300), 60) };
 }
 export async function legender(photos, v = {}, trace = null, progres = () => {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
@@ -405,14 +414,14 @@ export async function legender(photos, v = {}, trace = null, progres = () => {})
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
 ${carte ? "" : `
-Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Compare les faces du plastique entre elles et avec les parties à l'abri (rainures, bords sous l'étiquette) : une face ou une bande qui tire sur le crème ou le beige alors qu'une autre reste grise, c'est un léger jaunissement. Ne réponds « non » à cause de la lumière que si tout l'objet est teinté de la même façon ; « non » aussi si l'objet n'est pas en plastique.`}
+Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Une lumière chaude ou le reflet du bois, d'un mur ou de la main donne une teinte crème à un plastique sain : ce n'est pas du jaunissement. Réponds « leger » ou « net » seulement si une zone du plastique est nettement plus jaune qu'une autre zone éclairée pareil ; dans le doute, ou si l'objet n'est pas en plastique, « non ». Ne parle pas de jaunissement dans la légende : réponds-le seulement dans "jauni".`}
 Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
     const j = carte ? "non" : parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(brut) || [])[1], ["non", "leger", "net"], /nettement jauni/i.test(leg) ? "net" : /jauni/i.test(leg) ? "leger" : "non");
-    const dit = j === "non" || /jaun/i.test(leg) ? leg : (leg ? leg + ", " : "") + (j === "net" ? "plastique nettement jauni" : "plastique légèrement jauni");
-    return { legende: dit.slice(0, 200), jauni: j };
+    // Le jaunissement n'est écrit qu'après l'avis d'ensemble (plus fiable) : on l'ôte de la légende photo par photo.
+    return { legende: sansJauni(leg).slice(0, 200), jauni: j };
   };
   // Deux requêtes à la fois au plus, et jusqu'à 3 essais par photo (limite de débit, service surchargé, réponse vide) :
   // six requêtes simultanées dépassaient la limite de l'API, seule la première photo était décrite.
@@ -432,13 +441,16 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
     }
   };
   await Promise.all([ouvrier(), ouvrier(), carte ? null : (progres({ etape: "jauni", n: l.length }), jauniEnsemble(l, quoi, trace)).then((g) => { jg = g; }, () => {})]);
-  // Avis d'ensemble : en voyant toutes les photos, le modèle compare les faces entre elles, ce qu'une photo seule ne permet pas.
-  if (jg && jg.jauni !== "non" && !out.some((x) => x.jauni !== "non")) {
-    const cibles = jg.photos.filter((n) => out[n - 1] && out[n - 1].legende);
+  // Décision : seulement si l'avis d'ensemble (toutes les photos, modèle attentif) est sûr de lui. Dans le doute, rien n'est signalé :
+  // une lumière chaude ou le reflet du bois faisait passer des cartouches saines pour jaunies.
+  const oui = jg && jg.jauni !== "non" && (jg.certitude === "forte" || (jg.jauni === "net" && jg.certitude === "moyenne"));
+  const votes = out.map((x, i) => (x.legende && x.jauni !== "non" ? i + 1 : 0)).filter(Boolean);
+  for (const x of out) if (x.legende) x.jauni = "non";
+  if (oui) {
+    const cibles = [...new Set([...jg.photos, ...votes])].filter((n) => out[n - 1] && out[n - 1].legende);
     (cibles.length ? cibles : [out.findIndex((x) => x.legende) + 1]).forEach((n, k) => {
       const x = out[n - 1];
       x.jauni = jg.jauni;
-      if (/jaun/i.test(x.legende)) return;
       // On retire ce que la légende affirmait du plastique (« plastique gris », « sans défaut »…) pour ne pas se contredire.
       const [vue, ...reste] = x.legende.split(" : ");
       const garde = reste.join(" : ").split(/,\s*/).filter((c) => c && !/plastique|défaut|rayure|\bgris\b|\buni\b|impeccable|parfait/i.test(c));
