@@ -3,6 +3,7 @@
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
+import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
@@ -875,6 +876,64 @@ Réponds uniquement par un objet JSON : {"reponse": "…", "changements": {"cham
   const o = await claude([{ type: "text", text: prompt }], { max: 2500, timeout: 60000 });
   if (!o || typeof o.reponse !== "string") throw new IaError("Je n'ai pas compris, reformule ton message.");
   return { reponse: affirme(txt(o.reponse, 800)) || "C'est fait.", changements: changementsSurs(o.changements) };
+}
+
+/* ===== Lots =====
+   Idées de lots par thème : licence ou série (Zelda, Banjo, Star Wars), studio (Rareware, Naughty Dog),
+   lignée ou héritier spirituel (GoldenEye et Perfect Dark), univers (Marvel, Disney), genre, ou petits prix.
+   « complet » : la série entière sur ce support (Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), qui vaut une prime. */
+export async function suggererLots(articles) {
+  const l = (Array.isArray(articles) ? articles : []).filter((o) => o && o.id && o.titre).slice(0, 150);
+  if (l.length < MIN_LOT) return [];
+  if (FAKE()) {
+    const s = suggestionsLocales(l, 8);
+    // l'IA simulée sait que Banjo-Kazooie et Banjo-Tooie forment la série complète sur Nintendo 64
+    for (const x of s) if (/banjo/i.test(x.theme)) { x.complet = true; x.raison = "Banjo-Kazooie et Banjo-Tooie : toute la série sur Nintendo 64."; }
+    return s;
+  }
+  const liste = l.map((o, i) => `${i + 1}. ${[o.titre, o.plateforme, o.categorie && o.categorie !== "jeux" ? `(${o.categorie})` : "", valeurArticle(o) != null ? `${valeurArticle(o)} €` : ""].filter(Boolean).join(" · ")}`).join("\n");
+  const o = await claude(`Un particulier revend ces articles d'occasion sur Le Bon Coin (jeux vidéo, consoles, accessoires, cartes Pokémon, films) :
+${liste}
+
+Propose-lui jusqu'à 8 lots à thème, les plus vendeurs d'abord, en regroupant les articles qui se vendent mieux ensemble :
+- même licence ou série (ex. les Zelda, les Banjo, les Mario Kart) ;
+- même studio ou développeur (ex. les jeux Rareware, Naughty Dog, Insomniac, Treasure) ;
+- même lignée ou héritier spirituel (ex. GoldenEye et Perfect Dark, Banjo et Yooka-Laylee) ;
+- même univers (Star Wars, Marvel, Disney, Dragon Ball) ou même genre bien identifié (RPG, versus fighting, rally) ;
+- petits prix d'une même catégorie (moins de 5 €), qui partent mal à l'unité.
+Un article peut figurer dans plusieurs idées. Chaque lot a au moins 2 articles. N'invente rien : appuie-toi seulement sur la liste.
+"complet" vaut true seulement si le lot réunit TOUS les jeux principaux de la série sur ce support (ex. Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), ce qui vaut plus cher pour un collectionneur.
+Réponds uniquement par un objet JSON : {"lots": [{"theme": "nom court du thème (ex. « Rareware », « Zelda », « GoldenEye et Perfect Dark »)", "type": "licence" | "série" | "studio" | "lignée" | "univers" | "genre" | "petits prix", "articles": [numéros de la liste], "complet": true | false, "raison": "une phrase en français, tutoiement, qui dit pourquoi ce lot se vend bien"}]}`, { max: 3000, timeout: 60000 });
+  const out = [], vus = new Set();
+  for (const x of (o && Array.isArray(o.lots) ? o.lots : []).slice(0, 8)) {
+    const ids = [...new Set((Array.isArray(x.articles) ? x.articles : []).map((n) => l[Number(n) - 1]).filter(Boolean).map((a) => a.id))].slice(0, MAX_LOT);
+    const k = [...ids].sort().join(",");
+    if (ids.length < MIN_LOT || vus.has(k) || !txt(x.theme, 60)) continue;
+    vus.add(k);
+    out.push({ theme: txt(x.theme, 60), type: parmi(x.type, ["licence", "série", "studio", "lignée", "univers", "genre", "petits prix"], "série"), articles: ids, complet: x.complet === true, raison: affirme(txt(x.raison, 200)) });
+  }
+  return out.length ? out : suggestionsLocales(l, 8);
+}
+
+/* Annonce d'un lot rédigée par l'IA à partir des fiches de ses articles. Sans réponse exploitable : l'annonce de base. */
+export async function annonceLot(articles, lot = {}) {
+  const l = (Array.isArray(articles) ? articles : []).filter(Boolean);
+  const theme = lot.theme || null, px = prix(lot.prixDemande);
+  const simple = annonceLotSimple(l, px, theme);
+  if (FAKE()) return { titre: simple.titre, description: simple.description + "\nN'hésite pas à me poser tes questions !" };
+  const fiches = l.slice(0, 40).map((o, i) => `${i + 1}. ${ligneArticle(o)}${o.region ? `, ${o.region}` : ""}${o.particularites ? `. À noter : ${txt(o.particularites, 200)}` : ""}${o.texteAnnonce ? `\n   Son annonce seule : ${txt(o.texteAnnonce, 500).replace(/\n+/g, " ")}` : ""}`).join("\n");
+  const o = await claude(`Rédige l'annonce Le Bon Coin d'un LOT vendu par un particulier, en français, à partir des fiches de ses articles :
+${fiches}
+${theme && theme.nom ? `Thème du lot : ${theme.nom}${theme.complet ? " (la série complète sur ce support)" : ""}.` : ""}
+${px != null ? `Prix du lot : ${px} €.` : ""}
+
+Règles :
+- Titre (100 caractères au plus) : commence par « Lot », puis le thème ou ce qui se cherche le plus (licence, studio, console), puis le nombre d'articles. Pas d'émoji, pas de majuscules criardes.
+- Description : une phrase d'accroche sur le lot, puis la liste des articles, un par ligne commençant par « - », avec ce qui compte pour chacun (complet, loose, état, édition). Termine par la remise en main propre ou l'envoi soigné en un seul colis.
+- N'ajoute aucune information que les fiches ne donnent pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ». Ne parle pas du prix dans la description.
+Réponds uniquement par un objet JSON : {"titre": "…", "description": "…"}`, { max: 2500, timeout: 60000 }).catch(() => null);
+  const titre = txt(o && o.titre, 100), description = affirme(txt(o && o.description, 4000));
+  return titre && description ? { titre, description } : simple;
 }
 
 /* Traduit en français le résumé anglais d'un jeu (descriptif de la fiche quand Wikipédia n'a pas d'article). */
