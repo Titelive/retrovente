@@ -14,11 +14,14 @@ const num = (v) => (v == null || v === "" || !isFinite(+v) ? null : +v);
 export const valeurArticle = (o) => num(o && o.prixDemande) ?? num(o && o.cote && o.cote.conseille);
 
 /** Remise conseillée selon la taille du lot : l'acheteur gagne du temps et des frais de port, il attend un geste.
-    Chaque article en plus fait monter la remise, de moins en moins vite, jusqu'à un plafond : au-delà de 25 %,
-    on brade (les gros lots se vendent déjà bien, l'acheteur paie un seul envoi). */
-const REMISES = [0.1, 0.1, 0.1, 0.15, 0.17, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24];
-export const REMISE_MAX = 0.25;
+    Chaque article en plus fait monter la remise, de moins en moins vite, jusqu'à 15 % : au-delà, on brade
+    (un gros lot se vend déjà bien, et l'acheteur n'économise que le port). Voir aussi remiseValeur. */
+const REMISES = [0.1, 0.1, 0.1, 0.12, 0.13, 0.14];
+export const REMISE_MAX = 0.15;
 export function remiseLot(n) { return n < REMISES.length ? REMISES[Math.max(0, n)] : REMISE_MAX; }
+/** Des articles qui valent cher : la remise reste proche du port que l'acheteur économise (plus 5 points de geste),
+    sans descendre sous 5 %. 17 jeux pour 819 € : 72 € de port économisés, soit 9 % + 5 = 14 % (et non 25 %). */
+export function remiseValeur(n, somme) { return somme > 0 ? Math.max(0.05, Math.round(((n - 1) * PORT_MOYEN / somme + 0.05) * 100) / 100) : 1; }
 // Prix ronds : à l'euro sous 10 €, puis par 5, puis par 10 à partir de 100 €.
 const sousLot = (x) => (x < 20 ? Math.max(1, Math.floor(x)) : Math.floor(x / (x >= 100 ? 10 : 5)) * (x >= 100 ? 10 : 5));
 // au-dessous de 20 €, à l'euro près (arrondir 17 € à 15 € ferait une remise de 17 % au lieu de 5 %)
@@ -34,10 +37,11 @@ export function coteLot(articles, theme = null) {
   const vals = l.map(valeurArticle), connus = vals.filter((v) => v != null);
   const somme = Math.round(connus.reduce((a, v) => a + v, 0) * 100) / 100;
   const petits = vals.filter((v) => v != null && v < PRIX_PETIT).length;
-  const base = remiseLot(l.length), raisons = [];
+  const parTaille = remiseLot(l.length), parValeur = remiseValeur(l.length, somme), base = Math.min(parTaille, parValeur), raisons = [];
   let ajust = -base;
   // Les raisons s'affichent telles quelles ; **…** = les mots importants, mis en gras par l'appli.
   raisons.push(`Lot de ${l.length} : **−${Math.round(base * 100)} %**, l'acheteur paie **un seul envoi** au lieu de ${l.length}.`);
+  if (parValeur < parTaille) raisons.push(`Des articles qui valent cher : la remise reste proche des **${Math.round((l.length - 1) * PORT_MOYEN)} € de port** que l'acheteur économise, inutile de brader.`);
   if (theme && theme.complet) {
     // série complète : elle part vite auprès des collectionneurs, une petite remise suffit (mais le lot reste moins cher qu'à l'unité)
     ajust = -0.05;
