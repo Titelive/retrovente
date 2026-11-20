@@ -179,7 +179,7 @@ export function annonceLbc(v) {
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
     ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
-    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, modifie: v.modifie,
+    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", modifie: v.modifie,
   };
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
@@ -250,12 +250,16 @@ export async function handleApi(req) {
       if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
       // Une annonce = un seul jeu : on ne rattache pas un lien déjà pris par un autre jeu.
       if (listItems(eu.id).some((v) => v.id !== it.id && v.annonce === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
-      if (it.annonce !== url) {
+      // Prix lu sur « Mes annonces » de Le Bon Coin : le prix demandé suit celui de l'annonce en ligne.
+      const px = Number(b.prix), nouveauPrix = Number.isFinite(px) && px >= 1 && px <= 100000 ? Math.round(px) : null;
+      const prixChange = nouveauPrix != null && (it.prixDemande == null || Math.round(it.prixDemande) !== nouveauPrix);
+      if (it.annonce !== url || prixChange) {
         const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
         d.annonce = url;
+        if (prixChange) d.prixDemande = nouveauPrix;
         db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), now(), it.id, eu.id);
       }
-      return { status: 200, json: { ok: true, url }, headers: CORS };
+      return { status: 200, json: { ok: true, url, prix: nouveauPrix != null ? nouveauPrix : (it.prixDemande != null ? Math.round(it.prixDemande) : null), prixChange }, headers: CORS };
     }
     // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
     if (p === "/api/extension/reponse" && method === "POST") {
