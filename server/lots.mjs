@@ -21,13 +21,14 @@ export function remiseLot(n) {
   return 0.1;
 }
 // Prix ronds : à l'euro sous 10 €, puis par 5, puis par 10 à partir de 100 €.
-const sousLot = (x) => (x < 10 ? Math.max(1, Math.floor(x)) : Math.floor(x / (x >= 100 ? 10 : 5)) * (x >= 100 ? 10 : 5));
-export const rondLot = (x) => { if (x == null || !isFinite(x)) return null; if (x < 10) return Math.max(1, Math.round(x)); const pas = x >= 100 ? 10 : 5; return Math.round(x / pas) * pas; };
+const sousLot = (x) => (x < 20 ? Math.max(1, Math.floor(x)) : Math.floor(x / (x >= 100 ? 10 : 5)) * (x >= 100 ? 10 : 5));
+// au-dessous de 20 €, à l'euro près (arrondir 17 € à 15 € ferait une remise de 17 % au lieu de 5 %)
+export const rondLot = (x) => { if (x == null || !isFinite(x)) return null; if (x < 20) return Math.max(1, Math.round(x)); const pas = x >= 100 ? 10 : 5; return Math.round(x / pas) * pas; };
 
 /** Cote d'un lot : somme à l'unité, ajustement conseillé, prix conseillé et prix pour vendre vite.
     theme : { nom, type, complet } quand le lot a une cohérence (licence, série, studio) :
     - un lot à thème plaît aux collectionneurs : la remise baisse de 5 points ;
-    - une série complète sur son support vaut plus que ses morceaux : prime de 10 % au lieu d'une remise ;
+    - une série complète sur son support part vite : remise de 5 % seulement ;
     - un lot fait surtout de petits articles (moins de 5 €) garde sa remise : c'est le volume qui le vend. */
 export function coteLot(articles, theme = null) {
   const l = (Array.isArray(articles) ? articles : []).filter(Boolean);
@@ -36,16 +37,17 @@ export function coteLot(articles, theme = null) {
   const petits = vals.filter((v) => v != null && v < PRIX_PETIT).length;
   const base = remiseLot(l.length), raisons = [];
   let ajust = -base;
-  raisons.push(`Lot de ${l.length} : −${Math.round(base * 100)} %, l'acheteur paie un seul envoi au lieu de ${l.length}.`);
+  // Les raisons s'affichent telles quelles ; **…** = les mots importants, mis en gras par l'appli.
+  raisons.push(`Lot de ${l.length} : **−${Math.round(base * 100)} %**, l'acheteur paie **un seul envoi** au lieu de ${l.length}.`);
   if (theme && theme.complet) {
     // série complète : elle part vite auprès des collectionneurs, une petite remise suffit (mais le lot reste moins cher qu'à l'unité)
     ajust = -0.05;
-    raisons.push(`${theme.nom ? theme.nom + " : s" : "S"}érie complète, recherchée par les collectionneurs : la remise descend à 5 %.`);
+    raisons.push(`${theme.nom ? "**" + theme.nom + "** : s" : "S"}érie **complète**, recherchée par les collectionneurs : la remise descend à **5 %**.`);
   } else if (theme && theme.nom && petits * 2 < l.length) {
     ajust = Math.min(-0.05, ajust + 0.05);
-    raisons.push(`Lot à thème (${theme.nom}) : il attire les collectionneurs, la remise baisse à ${Math.round(-ajust * 100)} %.`);
+    raisons.push(`Lot à thème (**${theme.nom}**) : il attire **les collectionneurs**, la remise baisse à **${Math.round(-ajust * 100)} %**.`);
   }
-  if (petits * 2 >= l.length && l.length >= 3 && !(theme && theme.complet)) raisons.push(`${petits} article${petits > 1 ? "s valent" : " vaut"} moins de ${PRIX_PETIT} € : seul${petits > 1 ? "s" : ""}, ${petits > 1 ? "ils partiraient" : "il partirait"} mal, en lot ${petits > 1 ? "ils trouvent" : "il trouve"} preneur.`);
+  if (petits * 2 >= l.length && l.length >= 3 && !(theme && theme.complet)) raisons.push(`**${petits} article${petits > 1 ? "s" : ""}** ${petits > 1 ? "valent" : "vaut"} **moins de ${PRIX_PETIT} €** : seul${petits > 1 ? "s" : ""}, ${petits > 1 ? "ils partiraient" : "il partirait"} mal, en lot ${petits > 1 ? "ils trouvent" : "il trouve"} **preneur**.`);
   // Un lot coûte toujours moins cher que ses articles à l'unité : si l'arrondi dépasse la somme, on arrondit en dessous.
   const px = (k) => { if (!somme) return null; const x = somme * (1 + k); let v = rondLot(x); if (v >= somme) v = sousLot(x); return Math.max(PRIX_PETIT, v); };
   return {
@@ -147,6 +149,22 @@ export const THEMES_CONNUS = [
   { nom: "Disney", type: "univers", re: /disney|pixar|kingdom hearts|toy story|mickey|donald|aladdin|le roi lion|the lion king|epic mickey|monstres et cie|ratatouille|cars\b|frozen|la reine des neiges/ },
 ];
 const mots = (t) => [...new Set(norm(t).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !/^\d+$/.test(w) && !VIDES.has(w)))];
+/* Clés de série d'un titre : ses mots distinctifs, et chaque paire de mots qui se suivent (« star wars », « final fantasy »). */
+function clesSerie(t) {
+  const w = norm(t).split(/[^a-z0-9]+/).filter((x) => x && !["the", "of", "and", "le", "la", "les", "de", "du", "des", "a"].includes(x));
+  const cles = new Set(w.filter((x) => x.length >= 4 && !/^\d+$/.test(x) && !VIDES.has(x) && !COMMUNS.has(x)));
+  for (let i = 0; i + 1 < w.length; i++) if (w[i].length >= 3 && w[i + 1].length >= 3 && !/^\d+$/.test(w[i]) && !/^\d+$/.test(w[i + 1]) && !VIDES.has(w[i]) && !VIDES.has(w[i + 1])) cles.add(w[i] + " " + w[i + 1]);
+  return [...cles];
+}
+/* Mots trop courants dans les titres pour faire une série à eux seuls : « Lylat Wars » n'est pas un Star Wars,
+   « Dark Souls » n'est pas un Perfect Dark. Ils ne comptent qu'accolés à un autre mot (« Star Wars », « Final Fantasy »). */
+const COMMUNS = new Set(("wars war star stars quest racing racer racers rally party kart tour legend legends legendary heroes hero story stories battle battles fighter fighters fighting " +
+  "soccer football tennis golf sports sport olympic olympics island islands kingdom kingdoms land lands chronicles saga mission missions force forces strike championship " +
+  "cup league master masters dark light evil final fantasy grand theft auto metal gear street streets need speed call duty monster monsters hunter hunters house dead silent hill " +
+  "tomb raider ninja ninjas turtles dragon dragons ball age empire empires city night knight knights blood black white green gold golden silver crystal ruby sapphire emerald " +
+  "kids junior baby little mega ultra hyper extreme turbo rush jump dance live man army space galaxy planet time zone world worlds ghost ghosts zero resident king kings " +
+  "queen prince princess lord lords mega shadow shadows dream dreams magic power powers rock road crazy wild fire water earth wind storm thunder iron steel attack " +
+  "revenge return returns rise rising fall origins origin collection trilogy anniversary").split(" "));
 const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
 /** Lots proposés à partir des articles libres (pas vendus, pas déjà dans un lot). Renvoie au plus `max` idées. */
@@ -159,7 +177,7 @@ export function suggestionsLocales(articles, max = 6) {
   };
   // 1. Séries : un mot rare en commun dans les titres (Zelda, Banjo, Mario Kart…). Les mots qui donnent le même groupe sont réunis (« Star Wars »). En premier : à composition égale, la série est plus parlante que le studio.
   const par = new Map();
-  for (const o of l) for (const w of mots(o.titre)) { if (!par.has(w)) par.set(w, []); par.get(w).push(o); }
+  for (const o of l) for (const w of clesSerie(o.titre)) { if (!par.has(w)) par.set(w, []); par.get(w).push(o); }
   const groupes = new Map();
   for (const [w, g] of par) {
     if (g.length < MIN_LOT || g.length > Math.max(3, l.length * 0.6)) continue;   // un mot partout n'est pas un thème
@@ -168,7 +186,9 @@ export function suggestionsLocales(articles, max = 6) {
     groupes.get(k).mots.push(w);
   }
   for (const { mots: ws, g } of [...groupes.values()].sort((a, b) => b.g.length - a.g.length)) {
-    const t0 = norm(g[0].titre), nom = ws.sort((a, b) => t0.indexOf(a) - t0.indexOf(b)).slice(0, 3).map(cap).join(" ");
+    // le nom : la paire de mots si elle existe (« Star Wars »), sinon les mots dans l'ordre du titre
+    const t0 = norm(g[0].titre), paire = ws.filter((w) => w.includes(" ")).sort((a, b) => t0.indexOf(a) - t0.indexOf(b))[0];
+    const nom = paire ? paire.split(" ").map(cap).join(" ") : ws.sort((a, b) => t0.indexOf(a) - t0.indexOf(b)).slice(0, 3).map(cap).join(" ");
     ajouter(nom, "série", g.map((o) => o.id), `${g.length} ${nom} : une série se vend mieux réunie.`);
   }
   // 2. Studios, licences et lignées connus

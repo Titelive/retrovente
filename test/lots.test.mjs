@@ -51,11 +51,14 @@ test("idées de lots par thème : studio, lignée, licence, série, petits prix"
   const o = (id, titre, prixDemande = 20, extra = {}) => ({ id, titre, plateforme: "Nintendo 64", prixDemande, ...extra });
   const s = L.suggestionsLocales([o("a", "Banjo-Kazooie"), o("b", "Banjo-Tooie"), o("c", "GoldenEye 007"), o("d", "Perfect Dark"),
     o("e", "The Legend of Zelda: Ocarina of Time"), o("f", "Zelda Majora's Mask"), o("g", "Star Wars Episode I Racer"), o("h", "Star Wars Rogue Squadron"),
-    o("i", "Inception", 2, { categorie: "films", plateforme: "DVD" }), o("j", "Matrix", 3, { categorie: "films", plateforme: "DVD" })], 10);
+    o("i", "Inception", 2, { categorie: "films", plateforme: "DVD" }), o("j", "Matrix", 3, { categorie: "films", plateforme: "DVD" }),
+    o("k", "Lylat Wars"), o("l", "Dark Souls", 20, { plateforme: "PS3" })], 10);
   const par = Object.fromEntries(s.map((x) => [x.theme, x.articles.sort().join("")]));
   assert.equal(par.Rareware, "abcd");
   assert.equal(par["GoldenEye et Perfect Dark"], "cd");
-  assert.equal(par["Star Wars"], "gh");
+  assert.equal(par["Star Wars"], "gh");          // pas Lylat Wars : « Wars » seul n'est pas une série
+  assert.ok(!s.some((x) => x.articles.includes("k") && x.type === "série"));
+  assert.ok(!s.some((x) => x.articles.includes("l") && x.articles.includes("d")));   // Dark Souls n'est pas un Perfect Dark
   assert.equal(par.Banjo, "ab");
   assert.equal(par.Zelda, "ef");
   assert.equal(par["Les films à petit prix"], "ij");
