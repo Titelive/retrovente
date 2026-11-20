@@ -646,12 +646,15 @@ function lienLbc(v) {
   }
   if (p === "/api/lots/suggestions" && method === "POST") {
     const b = body(), tous = listItems(u.id);
-    const pris = new Set(tous.filter(estLot).flatMap((l) => l.articles));
-    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire" && !pris.has(o.id));
+    // Tous les articles à vendre comptent, même ceux déjà dans un lot (un jeu peut être dans plusieurs lots) ;
+    // on ne repropose pas un lot qui existe déjà avec exactement les mêmes articles.
+    const existants = new Set(tous.filter((l) => estLot(l) && !VENDU(l.statut)).map((l) => [...l.articles].sort().join(",")));
+    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire");
     let l, parIa = false;
     if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres); bump(u.id, "dialogue"); parIa = true; }
     else l = suggestionsLocales(libres, 8);
     const par = new Map(libres.map((o) => [o.id, o]));
+    l = l.filter((x) => !existants.has([...x.articles].sort().join(",")));
     return ok({ ok: true, ia: parIa, suggestions: l.map((x) => ({ ...x, cote: coteLot(x.articles.map((id) => par.get(id)).filter(Boolean), { nom: x.theme, type: x.type, complet: x.complet }) })) });
   }
   if (p === "/api/lots" && method === "POST") {

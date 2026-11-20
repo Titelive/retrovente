@@ -283,3 +283,21 @@ test("anciens articles à un seul lot (champ « lot ») : toujours reconnus", as
   assert.ok(t.every((o) => !o.lot && !o.lots));
   assert.ok(z);
 });
+
+test("idées de lots : les jeux déjà dans un lot comptent aussi, sans reproposer un lot qui existe", async () => {
+  const c = await compte("idees@exemple.fr");
+  const o = (titre) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande: 30 });
+  const ge = await o("GoldenEye 007"), jf = await o("Jet Force Gemini"), dk = await o("Donkey Kong 64"), bk = await o("Banjo-Kazooie"), bt = await o("Banjo-Tooie");
+  await call("POST", "/api/lots", { articles: [bk.id, bt.id], theme: { nom: "Banjo", type: "série" } }, c);
+  const s = (await call("POST", "/api/lots/suggestions", {}, c)).json.suggestions;
+  const rare = s.find((x) => x.theme === "Rareware");
+  assert.deepEqual(rare.articles.sort(), [ge.id, jf.id, dk.id, bk.id, bt.id].sort());   // les Banjo y sont, même déjà en lot
+  assert.ok(!s.some((x) => x.articles.length === 2 && x.articles.includes(bk.id) && x.articles.includes(bt.id)));   // le lot Banjo existe déjà
+  assert.equal(rare.cote.remise, 0.14);   // 5 jeux : −19 %, studio : 5 points de moins
+});
+
+test("lot « même console » : toute la remise, ce n'est pas un thème de collection", () => {
+  const a = Array(10).fill({ prixDemande: 50 });
+  assert.equal(L.coteLot(a, { nom: "Jeux Nintendo 64", type: "support" }).remise, 0.24);
+  assert.equal(L.coteLot(a, { nom: "Rareware", type: "studio" }).remise, 0.19);
+});
