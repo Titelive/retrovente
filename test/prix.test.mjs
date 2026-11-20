@@ -42,3 +42,26 @@ test("cote : médiane pondérée et poids du contenu", () => {
   assert.equal(poidsContenu("seul", "complet"), poidsContenu("complet", "seul"));
   assert.equal(calculerCote([], {}), null);
 });
+
+// GoldenEye 007 : une vente eBay à 25 €, une cote à 24 €, des annonces en ligne à 25 et 30 €.
+test("cote : le conseillé et le vendre vite restent dans la fourchette des ventes (GoldenEye 007)", () => {
+  const R = [
+    { site: "eBay France", titre: "GoldenEye 007 cartouche", prix: 25, date: "2026-03-29", url: "https://www.ebay.fr/itm/g1", type: "vente", etat: "bon", contenu: "seul" },
+    { site: "Le Bon Coin", titre: "GoldenEye 007 bon état", prix: 25, date: "2026-11-19", url: "https://www.leboncoin.fr/ad/g1", type: "annonce", etat: "bon", contenu: "seul" },
+    { site: "Le Bon Coin", titre: "GoldenEye 007 PAL", prix: 30, date: "2026-11-19", url: "https://www.leboncoin.fr/ad/g2", type: "annonce", contenu: "seul" },
+    { site: "Le Bon Coin", titre: "GoldenEye 007 sans boîte", prix: 30, date: "2026-11-19", url: "https://www.leboncoin.fr/ad/g3", type: "annonce", etat: "tres_bon", contenu: "seul" },
+    { site: "PriceCharting", titre: "GoldenEye 007 PAL loose", prix: 24, date: "2026-11-19", url: "https://www.pricecharting.com/g", type: "cote", contenu: "seul" },
+  ];
+  const c = calculerCote(R, { etat: "bon", contenu: "seul" }, AUJ);
+  assert.deepEqual([c.bas, c.haut, c.probable, c.conseille, c.rapide], [24, 25, 25, 25, 24]);
+  assert.equal(c.releves.filter((r) => r.compte).length, 2);
+  assert.match(c.methode, /annonces encore en ligne ne sont pas comptées/);
+});
+
+test("cote : un résumé trop long est coupé à la fin d'une phrase ou d'un mot", async () => {
+  const { coupe: phrase } = await import("../server/ia.mjs");
+  const long = "Le prix dépend de la boîte. " + "Et aussi de l'étiquette et du fait que la cartouche soit d'origine ".repeat(10);
+  assert.equal(phrase(long, 50), "Le prix dépend de la boîte.");
+  const sansPoint = "mot ".repeat(50);
+  assert.ok(phrase(sansPoint, 41).endsWith("mot…"));
+});

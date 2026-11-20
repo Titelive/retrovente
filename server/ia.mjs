@@ -10,6 +10,14 @@ export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
 export const MAX_PHOTO = 2_100_000;   // data URL ; photos en haute définition (2000 à 2400 px) pour la retouche et la galerie
 
 export const txt = (v, n) => String(v ?? "").replace(/\u0000/g, "").trim().slice(0, n);
+// texte coupé proprement : à la fin d'une phrase si possible, sinon après un mot entier suivi de « … » (jamais en plein mot)
+export const coupe = (v, n) => {
+  const t = txt(v, 100000).replace(/\s+/g, " ");
+  if (t.length <= n) return t;
+  const c = t.slice(0, n), fin = Math.max(c.lastIndexOf(". "), c.lastIndexOf(" ; "), c.lastIndexOf("! "), c.lastIndexOf("? "));
+  if (fin > n * 0.5) return c.slice(0, fin + 1).trim();
+  return c.slice(0, c.lastIndexOf(" ") > 0 ? c.lastIndexOf(" ") : n).replace(/[\s,;:(–-]+$/, "") + "…";
+};
 export const prix = (v) => { if (v == null || String(v).trim() === "") return null; const n = Number(String(v).replace(/\s/g, "").replace(",", ".")); return isFinite(n) && n >= 0 && n < 1e6 ? Math.round(n * 100) / 100 : null; };
 export const jour = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || "") ? v : "");
 export const parmi = (v, liste, def) => (liste.includes(v) ? v : def);
@@ -21,9 +29,9 @@ export const norme = (u) => { try { const x = new URL(u); x.hash = ""; return (x
 
 export function coteDe(c) {
   if (!c || typeof c !== "object") return null;
-  const o = { bas: prix(c.bas), haut: prix(c.haut), conseille: prix(c.conseille), rapide: prix(c.rapide), resume: txt(c.resume, 400), date: jour(c.date) || new Date().toISOString().slice(0, 10),
+  const o = { bas: prix(c.bas), haut: prix(c.haut), conseille: prix(c.conseille), rapide: prix(c.rapide), resume: coupe(c.resume, 400), date: jour(c.date) || new Date().toISOString().slice(0, 10),
     sources: (Array.isArray(c.sources) ? c.sources : []).map(lien).filter(Boolean).slice(0, 4),
-    methode: txt(c.methode, 900),
+    methode: coupe(c.methode, 900),
     releves: (Array.isArray(c.releves) ? c.releves : []).map((r) => {
       if (!r || typeof r !== "object") return null;
       const x = { site: txt(r.site, 40), titre: txt(r.titre, 140), prix: prix(r.prix), date: jour(r.date), url: lien(r.url) };
