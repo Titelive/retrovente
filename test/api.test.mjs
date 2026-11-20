@@ -604,6 +604,15 @@ test("analyse d'une offre officielle : trop basse face au prix affiché", async 
   const b = analyseOffre(190, 175);
   assert.equal(b.basse, false); assert.equal(b.acceptable, true);
   assert.equal(analyseOffre(null, 140), null);
+  // Offre presque insultante (−39 %) : un tout petit geste seulement, jamais vers le plancher.
+  const c = analyseOffre(330, 200);
+  assert.equal(c.insultante, true); assert.equal(c.contre, 320); assert.equal(c.plancher, 320);
+});
+
+test("pseudo avec des chiffres : gardé tel quel, jamais coupé", async () => {
+  const { sansPrenomInvente } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Bonjour Jram76100, merci pour l'offre !", "Jram76100"), "Bonjour Jram76100, merci pour l'offre !");
+  assert.equal(sansPrenomInvente("Bonjour Kevin54, merci !", ""), "Bonjour, merci !");
 });
 
 test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {

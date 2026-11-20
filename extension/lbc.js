@@ -30,7 +30,7 @@
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
   etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix"]).then(function (r) { if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego"]).then(function (r) { if (r && r.sansNego) etat.sansNego = true; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -717,6 +717,7 @@
     "@media (prefers-color-scheme:dark){.encart .auto input:checked+.rail{background:#3A3A36}}" +
     ".pastille{border:1.5px solid var(--trait);background:var(--carte);color:var(--encre);border-radius:999px;padding:7px 12px;font:600 12.5px/1 var(--texte);cursor:pointer;transition:border-color .2s,background .2s,transform .2s}" +
     ".pastille:hover{border-color:var(--nuit);transform:translateY(-1px)}.pastille[aria-checked=true]{background:var(--nuit);border-color:var(--nuit);color:var(--anis)}" +
+    ".ia-nego{display:flex}.ia .pastille.nego{background:transparent;border-color:rgba(255,255,255,.22);color:#fff}.ia .pastille.nego[aria-checked=true]{background:var(--anis);border-color:var(--anis);color:var(--nuit)}" +
     ".pastille:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
     "@media (prefers-color-scheme:dark){.pastille:hover{border-color:var(--anis)}.pastille[aria-checked=true]{background:var(--anis);border-color:var(--anis);color:#1A1A1A}}" +
     ".vente-t{margin:0;font-size:13px;line-height:1.4}.encart.vente .mini{align-self:flex-start;background:var(--anis);border-color:var(--anis);color:var(--nuit);padding:7px 12px}" +
@@ -1179,7 +1180,9 @@
     }
     // Le jeu de l'encadré de l'annonce (à côté de la conversation), sinon celui dont parle la conversation : on compare
     // les mots du titre (apostrophes, accents et « PAL EU… » tronqués ne gênent pas).
-    var enc = texteEncadre(), a = meilleurJeu(enc) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
+    // D'abord le titre de l'annonce (la description d'un lot cite d'autres jeux), à prix égal de préférence.
+    var enc = texteEncadre(), e = jeuDeLEncadre(enc), px = e && e.prix;
+    var a = (e && meilleurJeu(e.titre, px)) || meilleurJeu(enc, px) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
     return a || jeuDeLEncadre(enc) || (sur ? null : etat.annonces[0]);
   }
   var VIDES = ("the and les des une pour avec sans pal eur ntsc jeu jeux video version edition complet loose boite cartouche notice " +
@@ -1187,12 +1190,12 @@
   function mots(t) {
     return norm(t).replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter(function (m) { return m.length >= 3 && VIDES.indexOf(m) < 0; });
   }
-  function meilleurJeu(texte) {
+  function meilleurJeu(texte, prix) {
     var vus = {}; mots(texte).forEach(function (m) { vus[m] = 1; });
     var meilleur = null, score = 0;
     (etat.annonces || []).forEach(function (a) {
       var m = mots(a.nom || a.titre); if (!m.length) return;
-      var s = m.filter(function (x) { return vus[x]; }).length / m.length + m.length / 1000;   // à égalité, le titre le plus précis
+      var s = m.filter(function (x) { return vus[x]; }).length / m.length + m.length / 1000 + (prix != null && a.prix === prix ? 0.01 : 0);   // à égalité, le prix affiché puis le titre le plus précis
       if (s > score) { score = s; meilleur = a; }
     });
     return score >= 0.6 ? meilleur : null;
@@ -1441,21 +1444,43 @@
     }
     if (i.offre && i.offre.ecart > 0) {
       var of = i.offre;
-      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
-        " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
+      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.insultante ? "Offre très basse : " : of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
+        " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.insultante ? ". Au plus, un petit geste à " + of.contre + " €." : of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
     }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
     else if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
-    var qui = acheteurLu();
+    var qui = acheteurLu(), choisie = etat.choisie || {};
+    // Réponses qui tiennent le prix : on peut y ajouter « Pas de négociation possible… » d'un clic.
+    var tient = (i.reponses || []).some(function (r) { return TIENT_PRIX[r.approche]; });
+    if (tient) {
+      var nego = el("button", { class: "pastille nego", type: "button", role: "switch", "aria-checked": String(!!etat.sansNego), onclick: function () {
+        etat.sansNego = !etat.sansNego; try { RR.storage.local.set({ sansNego: etat.sansNego }); } catch (e) {} dessinerIA(z);
+      } }, [etat.sansNego ? "✓ " : "+ ", "Pas de négociation possible"]);
+      z.appendChild(el("div", { class: "ia-nego" }, [nego]));
+    }
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
-      r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)), gras: r.gras };
+      var tx = smiley(personnaliser(r.texte || "", qui));
+      if (etat.sansNego && TIENT_PRIX[r.approche]) tx = avecSansNego(tx, choisie);
+      r = { approche: r.approche, titre: r.titre, texte: tx, gras: (r.gras || []).concat(etat.sansNego && TIENT_PRIX[r.approche] ? ["Pas de négociation possible"] : []) };
       z.appendChild(el("button", { class: "rep fort" + (sensIA(r) ? " s-" + sensIA(r) : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
         el("span", { class: "ico" }, [icone(ICONE_APPROCHE[r.approche] || "question")]),
         el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte, r.gras)])]),
       ]));
     });
     z.appendChild(parlerIA());
+  }
+  var TIENT_PRIX = { ferme: 1, couper_court: 1 };
+  // « … je préfère le garder à 330 € 🙂 » → « … je préfère le garder à 330 €. Pas de négociation possible, les jeux sont dans la fourchette basse du marché 🙂 »
+  function phraseSansNego(a) {
+    var plusieurs = a && (a.lot || /^lot\b/i.test(a.titre || a.nom || ""));
+    return "Pas de négociation possible, " + (plusieurs ? "les jeux sont" : "le jeu est") + " dans la fourchette basse du marché.";
+  }
+  function avecSansNego(t, a) {
+    if (/pas de n[ée]gociation/i.test(t)) return t;
+    var m = /(\s*(?:\p{Extended_Pictographic}\uFE0F?\s*)+)$/u.exec(t), fin = m ? m[1] : "", corps = (m ? t.slice(0, m.index) : t).replace(/\s+$/, "");
+    if (!/[.!?…]$/.test(corps)) corps += ".";
+    return corps + " " + phraseSansNego(a).replace(/\.$/, fin ? "" : ".") + (fin ? " " + fin.trim() : "");
   }
   // Aucune proposition ne convient : on dit à l'IA ce qu'on veut répondre, elle le rédige dans le même ton.
   function parlerIA(attente) {
