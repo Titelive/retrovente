@@ -782,6 +782,114 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
 .vue-nav{display:flex;align-items:center;justify-content:center;gap:10px;color:#ddd;font-size:13px}
 .vue-nav [value=ok]{margin-left:auto}
 @media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps button{width:72%}}
+/* ===== Lots ===== */
+/* Idées de lots à thème, au-dessus de la liste */
+.idees{margin:26px 0 22px;padding:20px 0 6px;border-top:1px solid var(--trait);min-width:0}
+.id-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:14px}
+.id-tete .pixel{font-size:10px;color:var(--gris);margin:0 0 6px}
+.id-tete h2{margin:0;font:800 26px/1.1 var(--titre);letter-spacing:-.03em}
+.id-ac{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.id-ac svg{width:16px;height:16px;flex:none}
+.id-ac .btn{gap:8px}
+.id-liste{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 4px 30px;margin:0 -4px -12px;scrollbar-width:thin}
+.idee{flex:none;width:310px;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:24px;background:var(--carte);box-shadow:0 0 0 1px var(--trait);animation:carte-in .5s var(--ease) backwards;animation-delay:calc(var(--i,0) * 60ms);min-width:0}
+.idee.complet{box-shadow:0 0 0 2px var(--anis),0 18px 34px -24px rgba(26,26,26,.55)}
+.id-h{display:flex;gap:14px;align-items:center;min-width:0}
+.id-pile{flex:none;position:relative;width:74px;height:74px}
+.id-pile span{position:absolute;width:54px;height:54px;border-radius:14px;background:var(--papier) center/cover no-repeat;box-shadow:0 0 0 2px var(--carte),0 6px 12px -6px rgba(0,0,0,.4)}
+.id-pile span:nth-child(1){left:0;top:0;transform:rotate(-7deg)}
+.id-pile span:nth-child(2){left:10px;top:8px;transform:rotate(3deg)}
+.id-pile span:nth-child(3){left:20px;top:16px;transform:rotate(-2deg)}
+.id-pile b{position:absolute;right:-4px;bottom:-4px;min-width:26px;height:26px;padding:0 7px;border-radius:999px;background:var(--nuit);color:var(--anis);font:800 13px/26px var(--titre);text-align:center;box-shadow:0 0 0 2px var(--carte)}
+.id-nom{min-width:0;display:flex;flex-direction:column;gap:4px}
+.id-type{align-self:flex-start;font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:var(--anis-p);color:var(--encre);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.7)}
+.id-nom b{font:800 19px/1.15 var(--titre);letter-spacing:-.02em;overflow-wrap:anywhere}
+.idee p{margin:0;font-size:13.5px;line-height:1.45;color:var(--gris)}
+.id-titres{font-size:13px;color:var(--gris);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.id-px{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
+.id-px b{font:800 24px/1 var(--titre);letter-spacing:-.03em}
+.id-px s{color:var(--gris);font-size:14px}
+.aj{font:700 12px/1 var(--texte);padding:5px 8px;border-radius:999px;background:var(--papier);color:var(--gris);box-shadow:inset 0 0 0 1px var(--trait);white-space:nowrap}
+.aj.plus{background:var(--st-v-bg);color:var(--st-v-tx);box-shadow:none}
+.id-bt{display:flex;gap:8px}
+.id-bt .btn{flex:1;justify-content:center}
+.id-vide{flex:none;width:310px;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:16px;border-radius:24px;border:1.5px dashed var(--trait);color:var(--gris);font-size:14px}
+.id-charge{flex:none;width:310px;height:212px;border-radius:24px;background:linear-gradient(100deg,var(--carte) 30%,var(--papier) 50%,var(--carte) 70%) 0 0/300% 100%;box-shadow:0 0 0 1px var(--trait);animation:id-reflet 1.4s linear infinite}
+@keyframes id-reflet{to{background-position:-150% 0}}
+@media(max-width:700px){.idees{margin:20px 0 16px}.id-tete h2{font-size:22px}.id-ac{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.id-ac>*{justify-content:center;min-width:0}.id-ac .pl{padding:10px 8px;white-space:normal;text-align:center}.idee,.id-vide,.id-charge{width:min(300px,82vw)}}
+
+/* Carte d'un lot dans la liste : une pile d'articles */
+.jeu.lot{box-shadow:0 0 0 1px var(--trait),5px 5px 0 -1px var(--carte),5px 5px 0 0 var(--trait),10px 10px 0 -1px var(--carte),10px 10px 0 0 var(--trait)}
+.jeu.lot:hover{box-shadow:0 0 0 1px var(--trait),5px 5px 0 -1px var(--carte),5px 5px 0 0 var(--trait),10px 10px 0 -1px var(--carte),10px 10px 0 0 var(--trait),0 24px 40px -24px rgba(0,0,0,.35)}
+.jeu.lot .im{position:relative}
+.jeu .im .ruban{position:absolute;left:10px;top:10px;z-index:1;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:var(--nuit);color:var(--anis);font:400 10px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 6px 14px -6px rgba(0,0,0,.6)}
+.ruban svg{width:13px;height:13px}
+.jeu .px s{font:600 13px/1 var(--texte);color:var(--gris);margin-left:6px;letter-spacing:0}
+.jeu .im .tag-lot{position:absolute;left:10px;top:10px;z-index:1;padding:6px 9px;border-radius:999px;background:var(--anis);color:var(--nuit);font:700 11.5px/1 var(--texte);box-shadow:0 0 0 1.5px var(--nuit)}
+.jeu .im{position:relative}
+
+/* Choix des articles d'un lot */
+.choix-aide{margin:14px 2px 0;padding:12px 16px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.45;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.choix-aide .pl{background:var(--carte)}
+#accueil.choix .liste{padding-bottom:120px}
+#accueil.choix .jeu{cursor:pointer}
+#accueil.choix .jeu .im::before{content:"";position:absolute;right:10px;top:10px;z-index:2;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.92) center/16px no-repeat;box-shadow:inset 0 0 0 2px var(--nuit);transition:transform .2s var(--ease)}
+#accueil.choix .jeu[aria-pressed="true"]{box-shadow:0 0 0 3px var(--anis),0 0 0 4.5px var(--nuit)}
+#accueil.choix .jeu[aria-pressed="true"] .im::before{background-color:var(--anis);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231A1A1A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");transform:scale(1.08)}
+#accueil.choix .jeu.non{opacity:.38;cursor:not-allowed;filter:grayscale(.6)}
+#accueil.choix .jeu.non .im::before{display:none}
+#accueil.choix .jeu:hover{transform:none}
+.barre-lot{position:fixed;z-index:70;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(760px,calc(100vw - 32px));display:flex;align-items:center;gap:14px;padding:12px 12px 12px 22px;border-radius:24px;background:var(--nuit);color:#fff;box-shadow:0 0 0 1px rgba(var(--anis-rgb),.35),0 24px 48px -16px rgba(0,0,0,.6);animation:bl-in .4s var(--ease) both}
+@keyframes bl-in{from{opacity:0;transform:translate(-50%,24px)}}
+.bl-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.bl-tx b{font:800 18px/1.15 var(--titre);letter-spacing:-.02em}
+.bl-tx small{color:#BDBDB5;font-size:13px;line-height:1.35}
+.bl-tx small b{font:inherit;font-weight:700;color:var(--anis);letter-spacing:0}
+.bl-tx small s{color:#8f8f88}
+.bl-bt{display:flex;gap:8px;flex:none}
+.barre-lot .btn.clair{--bg:rgba(255,255,255,.08);--fg:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.barre-lot .btn svg{width:16px;height:16px;flex:none}
+.barre-lot .btn[disabled]{opacity:.45;cursor:not-allowed}
+body:has(#barreLot:not([hidden])) .vers-haut{display:none}
+@media(max-width:700px){.barre-lot{left:10px;right:10px;width:auto;transform:none;bottom:max(10px,env(safe-area-inset-bottom));flex-direction:column;align-items:stretch;gap:10px;padding:14px;border-radius:22px}@keyframes bl-in{from{opacity:0;transform:translateY(24px)}}.bl-bt{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)}.bl-bt .btn{justify-content:center;min-width:0;padding:12px 10px}.bl-tx b{font-size:16px}#accueil.choix .liste{padding-bottom:170px}}
+
+/* Fiche d'un lot */
+#fiche.mode-lot [data-onglet="article"] .champs>:not(.lot-garde),#fiche.mode-lot #fInfos,#fiche.mode-lot #fIa{display:none!important}
+#fiche.mode-lot [data-onglet="article"] .champs{grid-template-columns:minmax(0,1fr) minmax(0,220px)}
+@media(max-width:480px){#fiche.mode-lot [data-onglet="article"] .champs{grid-template-columns:minmax(0,1fr)}}
+#fiche.mode-lot [data-onglet="article"] .champs>.lot-garde.l2{grid-column:auto}
+[data-onglet="annonce"] header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+[data-onglet="annonce"] header h3{margin:0}
+#fLotIa .i{width:16px;height:16px}
+.lot-bloc{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+.lb-tete{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lb-tete h4{margin:0;font:800 18px/1.2 var(--titre);letter-spacing:-.02em}
+.lb-theme{display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:var(--gris)}
+.lb-liste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lb-liste li{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);min-width:0}
+.lb-liste .vg{flex:none;width:48px;height:48px;border-radius:12px;background:var(--carte) center/cover no-repeat;display:grid;place-items:center;font:400 8px/1 var(--pixel);color:var(--gris-c)}
+.lb-liste .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left;background:none;border:0;padding:0;color:inherit;cursor:pointer;font:inherit}
+.lb-liste .tx b{font-weight:600;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-liste .tx small{font-size:12.5px;color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-liste .tx:hover b{text-decoration:underline}
+.lb-liste .val{flex:none;font:800 16px/1 var(--titre)}
+.lb-liste .moins{flex:none;width:32px;height:32px;border-radius:50%;border:0;background:var(--carte);color:var(--gris);box-shadow:inset 0 0 0 1px var(--trait);cursor:pointer;font-size:15px;display:grid;place-items:center}
+.lb-liste .moins:hover{color:#c0392b;box-shadow:inset 0 0 0 1.5px #c0392b}
+.lb-pied{display:flex;gap:8px;flex-wrap:wrap}
+.lb-pied .pl svg{width:15px;height:15px}
+.cote-lot{display:flex;flex-direction:column;gap:12px}
+.cl-calc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cl-calc div{padding:12px;border-radius:16px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);display:flex;flex-direction:column;gap:6px;min-width:0}
+.cl-calc small{font:400 9px/1.2 var(--pixel);letter-spacing:.1em;text-transform:uppercase;color:var(--gris)}
+.cl-calc b{font:800 22px/1 var(--titre);letter-spacing:-.03em}
+.cl-calc .fin{background:var(--anis);box-shadow:none}.cl-calc .fin small,.cl-calc .fin b{color:var(--nuit)}
+.cote .cl-calc div:not(.fin){background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}.cote .cl-calc div:not(.fin) small{color:#BDBDB5}.cote .cl-calc div:not(.fin) b{color:#fff}
+#fiche.mode-lot #dSug{display:none}
+.cl-raisons{margin:0;padding:0 0 0 18px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:4px}
+@media(max-width:420px){.cl-calc{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cl-calc .fin{grid-column:1/-1}}
+.dans-lot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.4}
+.dans-lot>span{flex:1 1 200px;min-width:0}
+.lot-note{margin:0 0 12px}
 </style>
 
 </head>
@@ -867,6 +975,11 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   </section>
   <section class="brouillons" id="brouillons" hidden aria-labelledby="tBr"><h2 id="tBr">Brouillons <small>gardés sur cet appareil</small></h2><div class="br-liste" id="brListe"></div></section>
   <aside class="pub" data-pub hidden aria-label="Publicité"></aside>
+  <section class="idees" id="idees" hidden aria-labelledby="tIdees">
+    <header class="id-tete"><div><p class="pixel">Lots à thème</p><h2 id="tIdees">Ça se vendrait mieux ensemble</h2></div>
+      <div class="id-ac"><button class="pl" type="button" id="ideesIa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Plus d'idées avec l'IA</span></button><button class="btn clair petit" type="button" id="bLot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Composer un lot</button></div></header>
+    <div class="id-liste" id="ideesListe" aria-live="polite"></div>
+  </section>
   <div class="outils">
   <div class="filtres" id="filtres" role="group" aria-label="Filtrer">
     <span class="pastille" aria-hidden="true"></span>
@@ -881,6 +994,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
     <label class="rang"><span>Grouper</span><select id="grp" aria-label="Grouper les articles"><option value="">Sans groupe</option><option value="console">Par support</option><option value="categorie">Par catégorie</option><option value="statut">Par statut</option></select></label>
   </div>
   </div>
+  <p class="choix-aide" id="choixAide" hidden></p>
   <div class="liste" id="liste"></div>
 </main>
 
@@ -921,8 +1035,9 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
       <nav class="onglets" id="fOnglets" aria-label="Parties de la fiche"><button type="button" data-o="article" aria-pressed="true" id="oArticle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/></svg><span>Le jeu</span></button><button type="button" data-o="prix" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="8" cy="8" r="1.6"/></svg><span>Prix</span></button><button type="button" data-o="annonce" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>L'annonce</span></button><button type="button" data-o="suivi" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Suivi</span></button></nav>
       <section class="carte bloc" data-onglet="article">
         <h3 id="fBlocTitre">Le jeu</h3>
+        <div class="dans-lot" id="fDansLot" hidden></div>
         <div class="champs">
-          <label class="f l2"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
+          <label class="f l2 lot-garde"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
           <label class="f noflm"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
           <label class="f flm" hidden>Format<select id="f_format"><option value="">—</option><option value="Blu-Ray 4K UHD">Blu-Ray 4K UHD</option><option value="Blu-Ray 4K UHD + Blu-Ray">Blu-Ray 4K UHD + Blu-Ray</option><option value="Blu-Ray">Blu-Ray</option><option value="Blu-Ray 3D">Blu-Ray 3D</option><option value="DVD">DVD</option><option value="HD DVD">HD DVD</option><option value="VHS">VHS</option></select></label>
           <label class="f"><span id="lRegion">Région</span><input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
@@ -937,12 +1052,13 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
           <label class="f pkm" hidden>Gradation<input type="text" id="f_gradation" maxlength="30" placeholder="ex. PSA 9 (vide si non gradée)"></label>
           <label class="f pkm l2" hidden>État de la carte<select id="f_etatCarte"><option value="">—</option><option value="mint">Mint : parfaite, comme sortie du booster</option><option value="near_mint">Near Mint : quasi parfaite, au plus un point blanc</option><option value="excellent">Excellent : légère usure des bords</option><option value="good">Good : usure nette, sans pli</option><option value="light_played">Light Played : bien jouée, petits défauts</option><option value="played">Played : pli ou rayures marquées</option><option value="poor">Poor : très abîmée</option></select></label>
           <label class="f nopkm">Contenu<select id="f_contenu"><option value="">—</option><option value="seul">Jeu en loose (cartouche ou disque seul)</option><option value="boite">En boîte, sans notice</option><option value="complet">Complet en boîte (CIB : boîte et notice)</option><option value="boite_vide">Boîte seule, sans le jeu (code utilisé, disque absent)</option></select></label>
-          <label class="f">État<select id="f_etat"><option value="">—</option><option value="neuf">Neuf</option><option value="tres_bon">Très bon état</option><option value="bon">Bon état</option><option value="correct">État correct</option><option value="pieces">Pour pièces</option></select></label>
+          <label class="f lot-garde">État<select id="f_etat"><option value="">—</option><option value="neuf">Neuf</option><option value="tres_bon">Très bon état</option><option value="bon">Bon état</option><option value="correct">État correct</option><option value="pieces">Pour pièces</option></select></label>
           <label class="f l2 nopkm">Origine et fonctionnement<select id="f_origine"><option value="origine">D'origine, testé et fonctionnel</option><option value="non_teste">D'origine, non testé</option><option value="modifie">Modifié (je précise)</option><option value="repro">Reproduction (copie non officielle)</option><option value="hs">Ne fonctionne pas, pour pièces</option></select></label>
           <div class="f l2 partic"><label for="f_particularites">Particularités (ce qui est inclus ou non)</label><input type="text" id="f_particularites" maxlength="300" placeholder="ex. code de téléchargement déjà utilisé, poster inclus"><div class="puces-partic" id="fPartic" hidden></div></div>
           <label class="f l2" id="fModifZone" hidden>Ce qui a été modifié<input type="text" id="f_modif" maxlength="160" placeholder="ex. pile de sauvegarde changée, coque de remplacement, région dézonée"></label>
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
         </div>
+        <div class="lot-bloc" id="fLotBloc" hidden></div>
         <!-- Fiche du jeu : jaquette, notes, ma note, descriptif, captures (IGDB et Wikipédia) -->
         <div class="ji" id="fInfos" hidden>
           <input type="hidden" id="f_note"><input type="hidden" id="f_jeuRef">
@@ -972,13 +1088,14 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <label class="f">Prix affiché sur l'annonce (€)<input type="number" id="f_prixDemande" min="0" step="1" inputmode="decimal"></label>
       </section>
       <section class="carte bloc" data-onglet="annonce">
-        <h3>L'annonce</h3>
+        <header><h3>L'annonce</h3><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
         <label class="f">Lien de l'annonce une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
       </section>
       <section class="carte bloc" data-onglet="suivi">
         <h3>Suivi</h3>
+        <p class="note lot-note" id="fLotNote" hidden></p>
         <div class="champs">
           <label class="f">Statut<select id="f_statut"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></label>
           <label class="f">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
@@ -1186,6 +1303,10 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   </div>
   <input type="file" id="camIn" accept="image/*" capture="environment" hidden><input type="file" id="camGalIn" accept="image/*" multiple hidden>
 </div>
+<div class="barre-lot" id="barreLot" hidden role="region" aria-label="Composer un lot">
+    <div class="bl-tx"><b id="blN">Choisis les articles</b><small id="blPx">Touche au moins 2 articles à vendre ensemble.</small></div>
+    <div class="bl-bt"><button class="btn clair petit" type="button" id="blAnnul">Annuler</button><button class="btn jaune petit" type="button" id="blOk" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><span id="blOkTx">Créer le lot</span></button></div>
+  </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01M22 8h.01M15 2h.01M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98-.7.11-1.22.72-1.22 1.43V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg></span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
 
@@ -1263,7 +1384,7 @@ $("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&type
 $("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv]"))renvoyerVerif(e.target.closest("[data-renv]"));if(e.target.closest("[data-formules]"))compte()});
 /* ===== Trophées : calculés à partir des articles et de l'activité (rien n'est stocké) ===== */
 function trophees(){montrer("trophees");dessinerTrophees()}
-function listeTrophees(){var v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
+function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
     plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
   var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
     cartes=OBJ.filter(function(o){return o.categorie==="cartes"}).length,
@@ -1294,6 +1415,7 @@ function listeTrophees(){var v=OBJ.filter(function(o){return o.statut==="vendu"|
     ["🎮","Multi-consoles","Des articles sur 5 plateformes différentes.",Object.keys(plat).length,5],
     ["⚡","Attrapez-les tous","Ajoute une carte Pokémon.",cartes,1],
     ["🎬","Moteur, ça tourne !","Ajoute un film.",films,1],
+    ["📦","Tout en un","Vends un lot de plusieurs articles.",lots,1],
     ["📼","Vidéoclub","10 films dans tes articles.",films,10],
     ["🤖","Duo avec l'IA","10 annonces rédigées avec l'IA.",ia,10],
     ["⏱️","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(tempsGagne()/60),10],
@@ -1318,19 +1440,21 @@ $("cTempsBt").onclick=function(){dessinerTemps();$("dTemps").showModal()};
 $("tpsL").addEventListener("input",function(e){var i=e.target.closest("input");if(!i)return;var v=i.value===""?0:Math.max(0,Math.min(120,Math.round(+i.value)||0));TEMPS[i.dataset.k]=v;majTot();garderTemps()});
 $("tpsRaz").onclick=function(){for(var k in TEMPS_DEF)TEMPS[k]=TEMPS_DEF[k];dessinerTemps();garderTemps()};
 function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();
-  var vendus=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
+  // Les compteurs portent sur les articles : un lot vendu compte par ses articles (chacun a sa part du prix).
+  var ART=articles(),vendus=ART.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
   compter($("cTemps"),tempsGagne(),hm);
-  compter($("cVente"),OBJ.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
+  compter($("cVente"),ART.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
   compter($("cVendus"),vendus.length,function(v){return String(Math.round(v))});
   compter($("cEnc"),vendus.reduce(function(a,o){return a+(o.prixVente||0)},0),function(v){return eur(Math.round(v))});
   // seuil fiscal (année civile)
-  var an=String(new Date().getFullYear()),va=vendus.filter(function(o){return (o.dateVente||"").indexOf(an)===0}),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0);
+  var an=String(new Date().getFullYear()),va=vendus.filter(function(o){return (o.dateVente||"").indexOf(an)===0}),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0),
+    ventes=va.filter(function(o){return !lotDe(o)}).length+OBJ.filter(function(o){return estLot(o)&&(o.statut==="vendu"||o.statut==="envoye")&&(o.dateVente||"").indexOf(an)===0}).length;   // un lot vendu = une seule vente
   $("fAn").textContent=an;
   if(ME.formule.fiscal){
     var j=function(lib,v,max,fmt){var r=v/max,c=r>=1?"depasse":r>=.8?"alerte":"";return '<div class="jauge '+c+'"><small>'+lib+' : <b>'+fmt(v)+'</b> sur '+fmt(max)+'</small><div class="b"><i style="width:'+Math.min(100,r*100)+'%"></i></div></div>'};
     var gros=va.reduce(function(m,o){return Math.max(m,o.prixVente||0)},0);
-    $("fJauges").className="jauges trois";$("fJauges").innerHTML=j("Ventes",va.length,30,String)+j("Montant",mt,2000,eur)+j("Objet le plus cher",gros,5000,eur);
-    var r=Math.max(va.length/30,mt/2000);
+    $("fJauges").className="jauges trois";$("fJauges").innerHTML=j("Ventes",ventes,30,String)+j("Montant",mt,2000,eur)+j("Objet le plus cher",gros,5000,eur);
+    var r=Math.max(ventes/30,mt/2000);
     if(gros>5000){$("fMsg").textContent="Un objet vendu plus de 5 000 € n'est plus exonéré : la plus-value éventuelle (prix de vente moins prix d'achat) se déclare et peut être imposée. Garde la preuve de ton prix d'achat."}else{
     $("fMsg").textContent=r>=1?"Tu as dépassé un seuil : la plateforme transmettra tes ventes aux impôts. Ce n'est pas un impôt, garde simplement trace de tes prix d'achat.":r>=.8?"Tu approches d'un seuil. Pas de panique : vendre tes propres affaires n'est en principe pas imposable.":"Tu es loin des seuils, tout va bien.";
     $("fMsg").textContent+=" Les 5 000 € se comptent objet par objet, pas sur l'année.";}
@@ -1338,12 +1462,16 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     $("fJauges").innerHTML="";$("fMsg").innerHTML="Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre ces seuils. <button class='lien' type='button' id='fUp'>Voir les formules</button>";
     $("fUp").onclick=compte;
   }
-  var l=trierArticles(OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")}));
+  majIdees();
+  // les articles d'un lot se retrouvent dans la fiche du lot ; en composant un lot, on voit tous les articles libres
+  var l=trierArticles(OBJ.filter(function(o){return (FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye"))&&(CHOIX?!estLot(o)||CHOIX.lot===o:!lotDe(o))}));
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
-  if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun article dans cette catégorie.</p>';return}
+  if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">'+(CHOIX?'Aucun article libre dans ce filtre : choisis « Tous ».':'Aucun article dans cette catégorie.')+'</p>';return}
   var carte=function(o,i){
     var px=prixArticle(o);
-    return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    if(estLot(o))return carteLot(o,i);
+    var ch=CHOIX?choixEtat(o):null;
+    return '<button type="button" class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'><div class="im">'+(!CHOIX&&petitPrix(o)&&!lotDe(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'};
   var gs=grouperArticles(l),n=0;
@@ -1374,6 +1502,7 @@ var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Ven
 function grouperArticles(l){
   if(!GRP)return [{nom:"",l:l}];
   var cle=function(o){
+    if(estLot(o)&&GRP!=="statut")return GRP==="console"&&o.plateforme?o.plateforme.trim():"Lots";
     if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres";
     if(GRP==="statut")return STA_GRP[o.statut]||"Autres";
     if(o.categorie==="cartes")return "Cartes Pokémon";
@@ -1381,14 +1510,14 @@ function grouperArticles(l){
     return (o.plateforme||"").trim()||"Sans console"};
   var par={},ordre=[];
   l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
-  var fixe=GRP==="categorie"?["Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:null;
+  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:null;
   return ordre.sort(function(a,b){
     if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
-    var fin=function(g){return g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
+    var fin=function(g){return g.nom==="Lots"?-1:g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
     return fin(a)-fin(b)||b.l.length-a.l.length||NOMS.compare(a.nom,b.nom)})}
 $("tri").addEventListener("change",function(){TRI=this.value;try{localStorage.setItem("rr-tri",TRI)}catch(e){}dessiner()});
 $("grp").addEventListener("change",function(){GRP=this.value;try{localStorage.setItem("rr-grp",GRP)}catch(e){}dessiner()});
-$("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
+$("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b&&CHOIX){basculer(b.dataset.id);return}if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
 $("filtres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;FILTRE=b.dataset.f;[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});pastille();dessiner();majAdresse()});
 function calme(){return document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches}
 function pastille(){var f=$("filtres"),p=f.querySelector(".pastille"),b=f.querySelector('button[aria-pressed="true"]');if(!b||!b.offsetWidth){f.classList.remove("glisse");return}
@@ -1719,7 +1848,7 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
     (c.releves&&c.releves.length?'<div class="releves"><span class="rl-t">Les prix sur lesquels je m\'appuie</span><ul>'+c.releves.map(function(r){return '<li><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer"><span class="rl-s">'+esc(r.site||"Lien")+'</span><span class="rl-n">'+esc(r.titre||"")+'</span><b>'+eur(r.prix)+'</b><small>'+(r.date?dfr(r.date):"")+'</small></a></li>'}).join("")+'</ul></div>':"")+
-    (c.lot?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).')+'</p>':"")+
+    (c.lot||c.conseille!=null&&c.conseille<5?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':estCarte()?'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).':'à ce prix, l\'article part plus vite dans un lot (les frais d\'envoi coûtent presque autant que lui).')+(ED&&!lotDe(ED)&&!vendu(ED)?' <button class="lien" type="button" data-faire-lot>Faire un lot avec '+(estFilm()?'d\'autres films':estCarte()?'d\'autres cartes':'d\'autres articles')+'</button>':'')+'</p>':"")+
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     (c.sources&&c.sources.length?'<div class="src">Sources : '+c.sources.map(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(h)+'</a>'}).join(" · ")+'</div>':"");
   e.hidden=false}
@@ -2329,6 +2458,177 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   setInterval(function(){if($("fiche").hidden)return;etoiles();var k=clef();if(k===CLEF){stable=0;return}if(k!==dern){dern=k;stable=0;return}if(++stable>=1)charger()},800);
   $("f_categorie").addEventListener("change",function(){var r=$("f_jeuRef");if(r.value){r.value="";r.dispatchEvent(new Event("input",{bubbles:true}))}charger()});
 })();
+
+/* ===== Lots : plusieurs articles vendus ensemble =====
+   Un lot est un article qui porte la liste de ses articles (o.articles) ; chaque article du lot porte o.lot.
+   Idées de lots à thème au-dessus de la liste, choix des articles à la main, fiche du lot (contenu, cote, annonce IA). */
+var BOX_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>';
+function occupe(b,on,t){if(on){if(b._html==null)b._html=b.innerHTML;busy(b,true,t)}else{busy(b,false);if(b._html!=null){b.innerHTML=b._html;b._html=null}}}
+var CHOIX=null;   // composition en cours : {ids:[], lot:lot à compléter ou null, theme:{nom,type,complet} ou null}
+function estLot(o){return !!(o&&Array.isArray(o.articles))}
+function articles(){return OBJ.filter(function(o){return !estLot(o)})}
+function parId(id){return OBJ.filter(function(x){return x.id===id})[0]||null}
+function lotDe(o){var l=o&&o.lot?parId(o.lot):null;return estLot(l)?l:null}
+function membres(lot){return (lot.articles||[]).map(parId).filter(Boolean)}
+function valeur(o){var c=o&&o.cote&&o.cote.conseille;return c!=null&&c!==""?+c:o&&o.prixDemande!=null&&o.prixDemande!==""?+o.prixDemande:null}
+function vendu(o){return o.statut==="vendu"||o.statut==="envoye"}
+function lotsVendus(){return OBJ.filter(function(o){return estLot(o)&&vendu(o)}).length}
+/* sous 5 €, un article se vend mieux en lot (même seuil que la cote des cartes et des films) */
+function petitPrix(o){var v=valeur(o);return !!(o.cote&&o.cote.lot)||v!=null&&v<5}
+function libre(o){return !estLot(o)&&!vendu(o)&&!lotDe(o)}
+function pluriel(n,s,p){return n+" "+(n>1?(p||s+"s"):s)}
+var TYPE_NOM={licence:"Licence","série":"Série",studio:"Studio","lignée":"Lignée",univers:"Univers",genre:"Genre","petits prix":"Petits prix",support:"Même console"};
+function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);return '<span class="aj'+(p>0?' plus':'')+'">'+(p>0?"+"+p+" % série complète":"−"+(-p)+" %")+'</span>'}
+
+/* --- carte d'un lot dans la liste --- */
+function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
+  var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
+  return '<button type="button" class="jeu lot'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'><div class="im"><span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
+    '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}
+
+/* --- idées de lots à thème --- */
+var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0;
+function cleIdees(){return articles().filter(function(o){return libre(o)&&o.statut!=="retire"}).map(function(o){return o.id+":"+(valeur(o)||"")}).sort().join(",")}
+function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return libre(o)&&o.statut!=="retire"});
+  z.hidden=lib.length<2||!!CHOIX;if(z.hidden)return;
+  var k=cleIdees();if(k===IDEES.cle){dessinerIdees();return}
+  IDEES.cle=k;IDEES.charge=true;dessinerIdees();
+  // idées de l'IA déjà trouvées pour ces mêmes articles : on les garde (pas de nouvel appel)
+  var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees")||"null")}catch(e){}
+  if(memo&&memo.cle===k&&memo.u===uid()){IDEES.l=memo.l;IDEES.ia=true;IDEES.charge=false;dessinerIdees();return}
+  clearTimeout(IDEE_T);IDEE_T=setTimeout(function(){
+    api("POST","/api/lots/suggestions",{}).then(function(j){if(IDEES.cle!==k)return;IDEES.l=j.suggestions||[];IDEES.ia=false;IDEES.charge=false;dessinerIdees();
+      // formule payante : l'IA cherche aussi les studios, lignées et univers, une fois pour ces articles
+      if(ME&&ME.formule&&ME.formule.id!=="gratuit"&&!(memo&&memo.u===uid()&&Date.now()-(memo.t||0)<600000))ideesIa(true)})
+    .catch(function(){IDEES.charge=false;dessinerIdees()})},250)}
+function ideesIa(auto){var b=$("ideesIa"),k=IDEES.cle;if(!auto)occupe(b,true,"L'IA cherche…");else b.disabled=true;
+  return api("POST","/api/lots/suggestions",{ia:true}).then(function(j){if(IDEES.cle!==k)return;
+      // les idées de l'IA d'abord, puis celles trouvées sans elle qui n'y sont pas déjà
+      var vus={},l=[];(j.suggestions||[]).concat(IDEES.l).forEach(function(x){var c=x.articles.slice().sort().join(",");if(!vus[c]){vus[c]=1;l.push(x)}});
+      IDEES.l=l.slice(0,10);IDEES.ia=true;dessinerIdees();ME.usage.dialogue=(ME.usage.dialogue||0)+1;
+      try{localStorage.setItem("rr-idees",JSON.stringify({cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
+      if(!auto)toast(j.suggestions&&j.suggestions.length?"L'IA a trouvé "+pluriel(j.suggestions.length,"idée")+" de lot.":"Pas d'autre idée de lot pour le moment.","ok")})
+    .catch(function(e){if(!auto)erreur(e,"Les idées de l'IA sont indisponibles.")})
+    .then(function(){if(!auto)occupe(b,false);b.disabled=IDEES.ia;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA"})}
+function dessinerIdees(){var L=$("ideesListe"),b=$("ideesIa");b.disabled=IDEES.ia||IDEES.charge;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA";
+  if(IDEES.charge&&!IDEES.l.length){L.innerHTML='<div class="id-charge"></div><div class="id-charge"></div><div class="id-charge"></div>';return}
+  // les séries complètes d'abord : ce sont les lots qui valent le plus
+  var l=IDEES.l.filter(function(x){return x.articles.filter(function(id){var o=parId(id);return o&&libre(o)}).length>=2}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
+  if(!l.length){L.innerHTML='<div class="id-vide"><b style="color:var(--encre)">Pas encore d\'idée de lot</b>Quand tu auras plusieurs jeux d\'une même série, d\'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.</div>';return}
+  L.innerHTML=l.map(function(x,i){var m=x.articles.map(parId).filter(Boolean),c=x.cote||{};
+    return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span'+(o.photo?' style="background-image:url(/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+')"':'')+'></span>'}).join("")+'<b>'+m.length+'</b></div>'+
+      '<div class="id-nom"><span class="id-type">'+esc(x.complet?"Série complète":TYPE_NOM[x.type]||"Thème")+'</span><b>'+esc(x.theme)+'</b></div></div>'+
+      '<p class="id-titres">'+esc(m.map(function(o){return o.titre}).join(", "))+'</p>'+(x.raison?'<p>'+esc(x.raison)+'</p>':'')+
+      '<div class="id-px">'+(c.conseille!=null?'<b>'+eur(c.conseille)+'</b>'+(c.somme&&Math.round(c.somme)!==c.conseille?'<s>'+eur(Math.round(c.somme))+' à l\'unité</s>':'')+ajTxt(c):'<small style="color:var(--gris)">Ajoute un prix à ces articles pour estimer le lot.</small>')+'</div>'+
+      '<div class="id-bt"><button class="btn jaune petit" type="button" data-creer="'+i+'">Créer ce lot</button><button class="btn clair petit" type="button" data-ajuster="'+i+'">Ajuster</button></div></article>'}).join("");
+  L._l=l}
+$("ideesListe").addEventListener("click",function(e){var c=e.target.closest("[data-creer]"),a=e.target.closest("[data-ajuster]"),l=this._l||[];
+  if(c){var x=l[+c.dataset.creer];creerLot(x.articles.filter(function(id){var o=parId(id);return o&&libre(o)}),{nom:x.theme,type:x.type,complet:x.complet},c)}
+  if(a){var y=l[+a.dataset.ajuster];commencerChoix(y.articles,{nom:y.theme,type:y.type,complet:y.complet})}});
+$("ideesIa").onclick=function(){ideesIa(false)};
+$("bLot").onclick=function(){commencerChoix([])};
+
+/* --- composer un lot : choix des articles dans la liste --- */
+function choixEtat(o){if(CHOIX.lot&&o.lot===CHOIX.lot.id)return{ok:true};
+  if(vendu(o))return{ok:false,pourquoi:"Déjà vendu"};var l=lotDe(o);if(l)return{ok:false,pourquoi:"Déjà dans le lot « "+l.titre+" »"};return{ok:true}}
+function commencerChoix(ids,theme,lot){if(!$("fiche").hidden)montrer("accueil");
+  CHOIX={ids:(ids||[]).filter(function(id){var o=parId(id);return o&&(lot?o.lot===lot.id||libre(o):libre(o))}),theme:theme||null,lot:lot||null};CHOIX.base=CHOIX.ids.slice();
+  if(FILTRE!=="tout"&&FILTRE!=="en_vente"){FILTRE="tout";[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x.dataset.f==="tout"?"true":"false")});pastille();majAdresse()}
+  $("accueil").classList.add("choix");$("barreLot").hidden=false;dessiner();majChoix();
+  setTimeout(function(){var z=$("filtres");scrollTo({top:Math.max(0,z.getBoundingClientRect().top+scrollY-90),behavior:calme()?"auto":"smooth"})},60)}
+function finirChoix(){CHOIX=null;$("accueil").classList.remove("choix");$("barreLot").hidden=true;$("choixAide").hidden=true;dessiner()}
+function basculer(id){var o=parId(id);if(!o||estLot(o))return;var e=choixEtat(o);if(!e.ok){toast(e.pourquoi+" : il ne peut pas aller dans ce lot.","bad");return}
+  var i=CHOIX.ids.indexOf(id);if(i>=0)CHOIX.ids.splice(i,1);else CHOIX.ids.push(id);
+  var b=$("liste").querySelector('.jeu[data-id="'+id+'"]');if(b)b.setAttribute("aria-pressed",String(i<0));majChoix()}
+var COTE_T=0,COTE_N=0;
+function majChoix(){var n=CHOIX.ids.length,lot=CHOIX.lot;
+  $("blN").textContent=n?pluriel(n,"article")+" dans "+(lot?"le lot":"ton lot"):"Choisis les articles";
+  $("blOkTx").textContent=lot?"Enregistrer le lot":"Créer le lot";$("blOk").disabled=n<2;
+  // le conseil du lot (sous 5 €) : on propose d'ajouter d'un coup les autres petits prix de la même catégorie
+  var cat=n?(parId(CHOIX.ids[0])||{}).categorie:"",petits=articles().filter(function(o){return libre(o)&&o.statut!=="retire"&&CHOIX.ids.indexOf(o.id)<0&&(!cat||o.categorie===cat)&&petitPrix(o)});
+  var aide=$("choixAide");aide.hidden=false;
+  var th=themeChoix();aide.innerHTML='<span>'+(th&&th.nom?'Lot <b>'+esc(th.nom)+'</b>'+(th.complet?' (série complète)':'')+' : ':CHOIX.theme&&CHOIX.theme.nom?'Ce n\'est plus seulement le lot <b>'+esc(CHOIX.theme.nom)+'</b> : son prix et son titre n\'en parleront pas. ':'')+(lot?'Touche un article pour l\'ajouter au lot ou l\'en retirer.':'Touche les articles à vendre ensemble. Les articles vendus ou déjà dans un lot sont grisés.')+'</span>'+
+    (petits.length?'<button class="pl" type="button" id="choixPetits">+ '+pluriel(petits.length,"autre")+' '+({films:"film",cartes:"carte",jeux:"jeu"}[cat]?pluriel(petits.length,{films:"film",cartes:"carte",jeux:"jeu"}[cat],{jeux:"jeux"}[cat]).replace(/^\d+ /,""):"article"+(petits.length>1?"s":""))+' à moins de 5 €</button>':'');
+  var pb=$("choixPetits");if(pb)pb.onclick=function(){petits.forEach(function(o){CHOIX.ids.push(o.id)});dessiner();majChoix()};
+  if(n<2){$("blPx").textContent=n?"Ajoute au moins un autre article.":"Touche au moins 2 articles à vendre ensemble.";return}
+  var som=CHOIX.ids.reduce(function(a,id){return a+(valeur(parId(id))||0)},0);$("blPx").innerHTML="À l'unité : "+eur(Math.round(som))+" · calcul du prix du lot…";
+  clearTimeout(COTE_T);var k=++COTE_N;COTE_T=setTimeout(function(){api("POST","/api/lots/cote",{articles:CHOIX.ids,theme:themeChoix()}).then(function(j){if(k!==COTE_N||!CHOIX)return;var c=j.cote;
+    $("blPx").innerHTML=c.conseille!=null?'En lot : <b>'+eur(c.conseille)+'</b> <s>'+eur(Math.round(c.somme))+'</s> · '+(c.ajust>0?"+"+Math.round(c.ajust*100)+" %, série complète":"−"+Math.round(c.remise*100)+" %")+(c.sansPrix?' · '+pluriel(c.sansPrix,"article")+' sans prix':''):'Ces articles n\'ont pas encore de prix : tu fixeras celui du lot sur sa fiche.'}).catch(function(){})},180)}
+$("blAnnul").onclick=function(){var lot=CHOIX&&CHOIX.lot;finirChoix();if(lot)ouvrirFiche(parId(lot.id))};
+$("blOk").onclick=function(){if(!CHOIX||CHOIX.ids.length<2)return;var b=this;
+  if(CHOIX.lot){var lot=CHOIX.lot,ids=CHOIX.ids.slice();occupe(b,true,"Enregistrement…");
+    api("PUT","/api/lots/"+lot.id,{articles:ids}).then(function(){return rechargerObjets()}).then(function(){finirChoix();ouvrirFiche(parId(lot.id));toast("Lot mis à jour : "+pluriel(ids.length,"article")+". Pense à revoir son prix et son annonce.","ok")})
+      .catch(function(e){erreur(e,"Lot impossible à modifier.")}).then(function(){occupe(b,false);$("blOkTx").textContent="Enregistrer le lot"});return}
+  creerLot(CHOIX.ids.slice(),themeChoix(),b)};
+/* Le thème d'une idée ne tient plus si on y ajoute d'autres articles (un Zelda dans un lot Rareware),
+   et une série n'est plus complète si on en retire un jeu. */
+function themeChoix(){var t=CHOIX.theme;if(!t)return null;var b=CHOIX.base||[];
+  if(CHOIX.ids.some(function(id){return b.indexOf(id)<0}))return null;
+  return {nom:t.nom,type:t.type,complet:!!t.complet&&b.every(function(id){return CHOIX.ids.indexOf(id)>=0})}}
+function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner()})}
+
+/* --- création : mosaïque des photos, puis le lot --- */
+function chargerPhoto(o){return new Promise(function(ok){if(!o||!o.photo)return ok(null);var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ok(null)};i.src="/api/photo/"+o.id+"?v="+encodeURIComponent(o.modifie)})}
+/* Première photo du lot : les articles côte à côte (2 : deux colonnes, 3 : une grande et deux petites, puis une grille). */
+function mosaique(l){return Promise.all(l.slice(0,16).map(chargerPhoto)).then(function(im){im=im.filter(Boolean);if(im.length<2)return null;
+  var S=1600,G=14,cv=document.createElement("canvas");cv.width=cv.height=S;var g=cv.getContext("2d");g.fillStyle="#F6F6F1";g.fillRect(0,0,S,S);
+  var cases=[],n=im.length;
+  if(n===2)cases=[[0,0,.5,1],[.5,0,.5,1]];
+  else if(n===3)cases=[[0,0,.6,1],[.6,0,.4,.5],[.6,.5,.4,.5]];
+  else{var c=Math.ceil(Math.sqrt(n)),r=Math.ceil(n/c);for(var k=0;k<n;k++){var y=Math.floor(k/c),ligne=y===r-1?n-c*(r-1):c,x=k-y*c;cases.push([x/ligne,y/r,1/ligne,1/r])}}
+  cases.forEach(function(q,k){var X=q[0]*S+G,Y=q[1]*S+G,W=q[2]*S-2*G,H=q[3]*S-2*G,i=im[k],s=Math.max(W/i.naturalWidth,H/i.naturalHeight),w=W/s,h=H/s;
+    g.save();g.beginPath();if(g.roundRect)g.roundRect(X,Y,W,H,28);else g.rect(X,Y,W,H);g.clip();g.drawImage(i,(i.naturalWidth-w)/2,(i.naturalHeight-h)/2,w,h,X,Y,W,H);g.restore()});
+  return cv.toDataURL("image/jpeg",.86)})}
+function creerLot(ids,theme,b){if(ids.length<2){toast("Choisis au moins 2 articles.","bad");return}
+  if(b)occupe(b,true,"Création du lot…");
+  mosaique(ids.map(parId)).catch(function(){return null}).then(function(photo){return api("POST","/api/lots",{articles:ids,theme:theme,photo:photo})})
+    .then(function(j){var id=j.objet.id;try{localStorage.removeItem("rr-idees")}catch(e){}IDEES.cle="";return rechargerObjets().then(function(){if(CHOIX)finirChoix();ouvrirFiche(parId(id));toast("Lot créé : prix conseillé, annonce et photos sont prêts. Vérifie-les avant de publier.","ok")})})
+    .catch(function(e){erreur(e,"Création du lot impossible.")}).then(function(){if(b&&document.contains(b))occupe(b,false)})}
+
+/* --- fiche d'un lot, et d'un article qui est dans un lot --- */
+function coteLotHtml(c){if(!c||!c.n)return "";
+  return '<div class="cote-lot"><div class="cl-calc"><div><small>À l\'unité</small><b>'+(c.somme?eur(Math.round(c.somme)):"—")+'</b></div><div><small>'+(c.ajust>0?"Prime":"Remise")+'</small><b>'+(c.ajust>0?"+":"−")+Math.round(Math.abs(c.ajust)*100)+' %</b></div><div class="fin"><small>Prix du lot</small><b>'+(c.conseille!=null?eur(c.conseille):"—")+'</b></div></div>'+
+    '<ul class="cl-raisons">'+c.raisons.map(function(r){return '<li>'+esc(r)+'</li>'}).join("")+(c.port?'<li>L\'acheteur économise environ '+eur(c.port)+' de port : c\'est l\'argument qui fait partir un lot.</li>':'')+(c.sansPrix?'<li>'+pluriel(c.sansPrix,"article")+' sans prix : ouvre '+(c.sansPrix>1?"leurs fiches":"sa fiche")+' et trouve le bon prix pour affiner celui du lot.</li>':'')+'</ul>'+
+    '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':'')+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':'')+'</div></div>'}
+var COTE_LOT=null;
+function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot",lot);COTE_LOT=null;
+  $("fLotBloc").hidden=!lot;$("fLotIa").hidden=!lot;$("fLotNote").hidden=!lot;
+  // onglet « Le jeu » → « Le lot » (modeCarte remet le bon nom et la bonne icône à l'ouverture de chaque fiche)
+  if(lot)[[$("oArticle"),"Le lot"],[document.querySelector('#mOnglets [data-m="article"]'),"Lot"]].forEach(function(x){var b=x[0];if(!b)return;var sp=b.querySelector("span"),sv=b.querySelector("svg");if(sp)sp.textContent=x[1];if(sv)sv.innerHTML='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>'});
+  $("fSuppr").textContent=lot?"Défaire le lot":"Supprimer";
+  var dl=o&&!lot?lotDe(o):null;$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dl;
+  if(dl)$("fDansLot").innerHTML='<span>📦 Cet article est dans le lot <b>'+esc(dl.titre)+'</b> : il est vendu avec lui, son statut suit celui du lot.</span><button class="btn clair petit" type="button" data-voir-lot="'+dl.id+'">Voir le lot</button>';
+  if(!lot)return;
+  $("fBlocTitre").textContent="Le lot";$("lTitre").textContent="Nom du lot";$("fCote").textContent="Recalculer le prix du lot";
+  var m=membres(o),ok=!vendu(o);
+  $("fLotNote").textContent=vendu(o)?"Le lot est vendu : ses "+m.length+" articles sont passés en vendu, avec leur part du prix (selon leur valeur).":"Quand le lot passe en vendu, ses "+m.length+" articles passent en vendu aussi, et le prix de vente se partage entre eux selon leur valeur.";
+  $("fLotBloc").innerHTML='<div class="lb-tete"><div><h4>'+pluriel(m.length,"article")+' dans ce lot</h4>'+(o.theme&&o.theme.nom?'<span class="lb-theme">'+esc((o.theme.complet?"Série complète · ":(TYPE_NOM[o.theme.type]||"Thème")+" · ")+o.theme.nom)+'</span>':'')+'</div></div>'+
+    '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x);return '<li><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+
+    (ok?'<div class="lb-pied"><button class="pl" type="button" id="lbAjout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter ou retirer des articles</button></div>':'');
+  calculerCoteLot(o,false)}
+function calculerCoteLot(o,montrerToast){return api("POST","/api/lots/cote",{articles:o.articles,theme:o.theme}).then(function(j){if(ED!==o)return;COTE_LOT=j.cote;var e=$("fCoteBox");e.innerHTML=coteLotHtml(j.cote);e.hidden=false;if(montrerToast)toast("Prix du lot recalculé.","ok")}).catch(function(){})}
+$("fLotBloc").addEventListener("click",function(e){var a=e.target.closest("[data-ouvrir]"),r=e.target.closest("[data-retirer]");if(!ED||!estLot(ED))return;
+  if(a){var go=function(){ouvrirFiche(parId(a.dataset.ouvrir))};if(sale())demanderSortie(go);else go();return}
+  if(r){var lot=ED,ids=lot.articles.filter(function(x){return x!==r.dataset.retirer});r.disabled=true;
+    api("PUT","/api/lots/"+lot.id,{articles:ids}).then(function(){return rechargerObjets()}).then(function(){var l=parId(lot.id);ED=l;ficheLot(l);toast("Article retiré du lot. Pense à revoir le prix et l'annonce.","ok")}).catch(function(e){r.disabled=false;erreur(e,"Impossible de retirer l'article.")});return}
+  if(e.target.closest("#lbAjout")){var go2=function(){var l=ED;commencerChoix(l.articles,l.theme,l)};if(sale())demanderSortie(go2);else go2()}});
+$("fDansLot").addEventListener("click",function(e){var b=e.target.closest("[data-voir-lot]");if(!b)return;var go=function(){ouvrirFiche(parId(b.dataset.voirLot))};if(sale())demanderSortie(go);else go()});
+$("fLotIa").onclick=function(){if(!ED||!estLot(ED))return;var b=this;occupe(b,true,"Rédaction…");iaEtat("lot",{ico:"✍️",titre:"J'écris l'annonce du lot",detail:"À partir des fiches de ses "+ED.articles.length+" articles"});
+  api("POST","/api/lots/"+ED.id+"/annonce",{prixDemande:$("f_prixDemande").value}).then(function(j){$("f_titreAnnonce").value=j.titre;$("f_texteAnnonce").value=j.description;IA_FAITE=true;["f_titreAnnonce","f_texteAnnonce"].forEach(function(k){$(k).dispatchEvent(new Event("input",{bubbles:true}))});ME.usage.dialogue=(ME.usage.dialogue||0)+1;majLbc();toast("Annonce du lot rédigée. Relis-la, puis enregistre.","ok")})
+    .catch(function(e){erreur(e,"Rédaction impossible.")}).then(function(){iaEtat("lot");occupe(b,false)})};
+var _ouvrirFiche=ouvrirFiche;ouvrirFiche=function(o){if(CHOIX)finirChoix();_ouvrirFiche(o);ficheLot(o);if(o&&estLot(o))figer()};
+var _sauver=sauver;sauver=function(rester){var lot=ED&&(estLot(ED)||lotDe(ED));return _sauver(rester).then(function(o){if(!o||!lot)return o;
+  // le serveur a mis à jour les articles du lot (statut, prix de vente) : on recharge la liste
+  return rechargerObjets().then(function(){if(rester&&ED&&ED.id===o.id){ficheLot(ED);figer()}return o})})};
+var _estimer=estimer;estimer=function(){if(ED&&estLot(ED))return calculerCoteLot(ED,true);return _estimer()};$("fCote").onclick=function(){estimer()};
+$("fSuppr").addEventListener("click",function(e){if(!ED||!estLot(ED))return;e.stopImmediatePropagation();var b=this;
+  if(Date.now()-(b._conf||0)>4000){b._conf=Date.now();b.textContent="Sûr ? Re-clique";setTimeout(function(){if(ED&&estLot(ED))b.textContent="Défaire le lot"},4000);return}
+  var lot=ED,n=lot.articles.length;
+  api("DELETE","/api/lots/"+lot.id).then(function(){BR.del(cle());figer();return rechargerObjets()}).then(function(){fermerFiche();dessiner();toast(vendu(lot)?"Lot défait : ses "+n+" articles restent vendus, chacun avec sa part du prix.":"Lot défait : les "+n+" articles sont de nouveau à vendre séparément.","ok")}).catch(function(e){erreur(e,"Impossible de défaire le lot.")})},true);
+/* « Plutôt en lot » (cote sous 5 €) : on compose un lot avec cet article, et les autres petits prix sont proposés d'un geste */
+$("fCoteBox").addEventListener("click",function(e){if(!e.target.closest("[data-faire-lot]"))return;var o=ED;if(!o)return;
+  var go=function(){fermerFiche();commencerChoix([o.id])};if(sale())sauver(true).then(function(r){if(r)go()});else go()});
 
 })();
 </script>

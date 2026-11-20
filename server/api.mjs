@@ -12,6 +12,7 @@ import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
+import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, MIN_LOT, MAX_LOT } from "./lots.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
@@ -56,6 +57,9 @@ function nettoyer(v, avant) {
     ia: !!(v.ia || (avant && avant.ia)),
     photo: !!(avant && photosDe(avant).length),
     photos: ordrePhotos(v.photos, avant),
+    // Lots : la composition ne change que par /api/lots (jamais par la fiche), on la reprend telle quelle.
+    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null } : {}),
+    ...(avant && avant.lot ? { lot: avant.lot } : {}),
   };
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
@@ -74,6 +78,47 @@ const fichierPhoto = (uid, id, pid) => photoPath(uid, pid === "p0" ? id : id + "
 const itemOut = (r) => { const d = JSON.parse(r.data); const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
+
+/* ===== Lots ===== */
+const ID = /^[a-f0-9]{16}$/;
+const VENDU = (st) => st === "vendu" || st === "envoye";
+const ecrire = (uid, it) => { const { id, cree: _c, modifie: _m, ...data } = it; db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(data), now(), id, uid); };
+const estLot = (it) => Array.isArray(it && it.articles);
+const lotDe = (uid, it) => { const l = it && it.lot ? getItem(uid, it.lot) : null; return estLot(l) ? l : null; };
+/** Articles qu'on peut mettre dans un lot : à soi, pas vendus, pas un lot, pas déjà dans un autre lot. */
+function articlesPourLot(uid, ids, lotId = "") {
+  const l = [...new Set((Array.isArray(ids) ? ids : []).map(String))].filter((x) => ID.test(x));
+  if (l.length < MIN_LOT) fail(400, "Choisis au moins 2 articles pour faire un lot.");
+  if (l.length > MAX_LOT) fail(400, `${MAX_LOT} articles au plus dans un lot.`);
+  return l.map((id) => {
+    const it = getItem(uid, id);
+    if (!it) fail(404, "Un des articles est introuvable.");
+    if (estLot(it)) fail(400, "Un lot ne peut pas contenir un autre lot.");
+    if (VENDU(it.statut)) fail(400, `« ${it.titre} » est déjà vendu.`);
+    const autre = lotDe(uid, it);
+    if (autre && autre.id !== lotId) fail(409, `« ${it.titre} » est déjà dans le lot « ${autre.titre} ».`);
+    return it;
+  });
+}
+/** Les articles suivent le lot : même statut ; vendu, le prix et les frais se partagent au prorata de leur valeur. */
+function suivreLot(uid, lot, avant) {
+  const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
+  const vendu = VENDU(lot.statut), etaitVendu = avant && VENDU(avant.statut);
+  const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
+  membres.forEach((m, i) => {
+    m.statut = lot.statut;
+    if (vendu) { m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; }
+    else if (etaitVendu) { m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
+    ecrire(uid, m);
+  });
+}
+/** Défaire un lot : ses articles redeviennent indépendants (un lot vendu laisse ses articles vendus, avec leur part du prix). */
+function defaireLot(uid, lot) {
+  for (const id of lot.articles) { const m = getItem(uid, id); if (m && m.lot === lot.id) { delete m.lot; ecrire(uid, m); } }
+  db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(lot.id, uid);
+  for (const x of photosDe(lot)) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+}
+const themeDe = (t) => (t && typeof t === "object" && txt(t.nom, 60) ? { nom: txt(t.nom, 60), type: txt(t.type, 20), complet: t.complet === true } : null);
 
 function savePhoto(uid, id, data, pid = "p0") {
   const f = fichierPhoto(uid, id, pid);
@@ -155,7 +200,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "lot", "annonce", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -436,6 +481,8 @@ function lienLbc(v) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
     if (method === "PUT") {
       const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
+      // Article d'un lot : son statut suit celui du lot (vendu avec lui, remis en vente avec lui).
+      if (lotDe(u.id, avant)) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
       if (typeof b.photo === "string") {
         const prem = it.photos[0];
         if (b.photo === "") { if (prem) { savePhoto(u.id, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
@@ -444,9 +491,13 @@ function lienLbc(v) {
       }
       it.photo = it.photos.length > 0;
       db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
+      if (estLot(it)) suivreLot(u.id, { ...it, id: avant.id }, avant);
       return ok({ ok: true, objet: getItem(u.id, avant.id) });
     }
     if (method === "DELETE") {
+      if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
+      const l = lotDe(u.id, avant);
+      if (l) fail(409, `Cet article est dans le lot « ${l.titre} » : retire-le du lot (ou défais le lot) avant de le supprimer.`);
       db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(avant.id, u.id);
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
@@ -474,6 +525,73 @@ function lienLbc(v) {
     const { id: _i, cree: _c, modifie: _m, ...data } = avant;
     db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify({ ...data, photos, photo: photos.length > 0 }), now(), avant.id, u.id);
     return ok({ ok: true, objet: getItem(u.id, avant.id) });
+  }
+  /* --- lots --- */
+  if (p === "/api/lots/cote" && method === "POST") {
+    const b = body(), ids = (Array.isArray(b.articles) ? b.articles : []).map(String).filter((x) => ID.test(x)).slice(0, MAX_LOT);
+    return ok({ ok: true, cote: coteLot(ids.map((id) => getItem(u.id, id)).filter(Boolean), themeDe(b.theme)) });
+  }
+  if (p === "/api/lots/suggestions" && method === "POST") {
+    const b = body(), tous = listItems(u.id);
+    const pris = new Set(tous.filter(estLot).flatMap((l) => l.articles));
+    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire" && !pris.has(o.id));
+    let l, parIa = false;
+    if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres); bump(u.id, "dialogue"); parIa = true; }
+    else l = suggestionsLocales(libres, 8);
+    const par = new Map(libres.map((o) => [o.id, o]));
+    return ok({ ok: true, ia: parIa, suggestions: l.map((x) => ({ ...x, cote: coteLot(x.articles.map((id) => par.get(id)).filter(Boolean), { nom: x.theme, type: x.type, complet: x.complet }) })) });
+  }
+  if (p === "/api/lots" && method === "POST") {
+    const b = body(), theme = themeDe(b.theme);
+    const id = crypto.randomBytes(8).toString("hex");
+    const lot = tx(() => {
+      const membres = articlesPourLot(u.id, b.articles), r = resumeLot(membres), c = coteLot(membres, theme);
+      const a = annonceLotSimple(membres, c.conseille, theme);
+      const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), contenu: "", articles: membres.map((m) => m.id), theme };
+      db.prepare("INSERT INTO items(id, user_id, data, created, updated) VALUES (?, ?, ?, ?, ?)").run(id, u.id, JSON.stringify(it), now(), now());
+      for (const m of membres) { m.lot = id; ecrire(u.id, m); }
+      suivreLot(u.id, { ...it, id }, null);
+      return it;
+    });
+    // Photos du lot : la mosaïque composée par l'appli en premier, puis la première photo de chaque article.
+    const photos = [];
+    if (typeof b.photo === "string" && b.photo) { try { if (savePhoto(u.id, id, b.photo, "p0")) photos.push({ id: "p0", legende: txt(`Les ${lot.articles.length} articles du lot réunis`, 200) }); } catch (e) { if (!(e instanceof HttpError)) throw e; } }
+    for (const mid of lot.articles) {
+      if (photos.length >= MAX_PHOTOS) break;
+      const m = getItem(u.id, mid), ph = m && photosDe(m)[0], f = ph && fichierPhoto(u.id, m.id, ph.id);
+      if (!f || !fs.existsSync(f)) continue;
+      const pid = photos.length ? crypto.randomBytes(4).toString("hex") : "p0";
+      fs.mkdirSync(path.dirname(fichierPhoto(u.id, id, pid)), { recursive: true });
+      fs.copyFileSync(f, fichierPhoto(u.id, id, pid));
+      photos.push({ id: pid, legende: txt(m.titre, 200) });
+    }
+    if (photos.length) ecrire(u.id, { ...getItem(u.id, id), photos, photo: true });
+    return ok({ ok: true, objet: getItem(u.id, id) });
+  }
+  const ml = /^\/api\/lots\/([a-f0-9]{16})(\/annonce)?$/.exec(p);
+  if (ml) {
+    const lot = getItem(u.id, ml[1]); if (!estLot(lot)) fail(404, "Lot introuvable.");
+    if (ml[2] && method === "POST") {
+      iaAllowed(u, "dialogue", req);
+      const membres = lot.articles.map((id) => getItem(u.id, id)).filter(Boolean);
+      const a = await ia.annonceLot(membres, { theme: lot.theme, prixDemande: body().prixDemande ?? lot.prixDemande });
+      bump(u.id, "dialogue");
+      return ok({ ok: true, ...a });
+    }
+    if (ml[2]) fail(405, "Méthode non prise en charge.");
+    if (method === "DELETE") { defaireLot(u.id, lot); return ok({ ok: true }); }
+    if (method === "PUT") {
+      if (VENDU(lot.statut)) fail(409, "Ce lot est vendu : sa composition ne change plus.");
+      const membres = tx(() => {
+        const l = articlesPourLot(u.id, body().articles, lot.id), garde = new Set(l.map((m) => m.id));
+        for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && m.lot === lot.id) { delete m.lot; ecrire(u.id, m); } }
+        for (const m of l) if (m.lot !== lot.id) { m.lot = lot.id; ecrire(u.id, m); }
+        const it = { ...lot, articles: l.map((m) => m.id) };
+        ecrire(u.id, it); suivreLot(u.id, it, null);
+        return l;
+      });
+      return ok({ ok: true, objet: getItem(u.id, lot.id), cote: coteLot(membres, lot.theme) });
+    }
   }
   const mp = /^\/api\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
   if (mp && method === "GET") {
@@ -531,7 +649,9 @@ function lienLbc(v) {
   /* --- export --- */
   if (p === "/api/export.csv" && method === "GET") {
     if (!rights(u).export) fail(402, "L'export est inclus dans la formule Collectionneur.");
-    return { status: 200, body: Buffer.from(csv(listItems(u.id))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
+    const tous = listItems(u.id), noms = new Map(tous.filter(estLot).map((l) => [l.id, l.titre]));
+    // les lots n'ont pas de ligne à eux : leurs articles portent chacun sa part du prix, et le nom du lot
+    return { status: 200, body: Buffer.from(csv(tous.filter((o) => !estLot(o)).map((o) => ({ ...o, lot: noms.get(o.lot) || "" })))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
   }
 
   /* --- paiement --- */
