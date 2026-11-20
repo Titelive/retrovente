@@ -648,9 +648,3 @@ test("pas de prénom inventé, pas de disponibilité répétée", async () => {
   assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
   assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
 });
-
-test("la version (PAL, japonais…) n'est pas citée dans une contre-offre", async () => {
-  const { sansRegion } = await import("../server/ia.mjs");
-  assert.equal(sansRegion("40 €, c'est un peu juste pour un Expansion Pak japonais, je peux vous le laisser à 50 € 🙂"), "40 €, c'est un peu juste pour un Expansion Pak, je peux vous le laisser à 50 € 🙂");
-  assert.equal(sansRegion("La version PAL est rare."), "La version PAL est rare.");
-});

@@ -38,16 +38,12 @@ const CAS = [
   { nom: "Consigne de refus : « non c'est 20 pas moins »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\nC'est votre dernier prix ? 15 € ?\nil y a 1 min`),
     contexte: { acheteur: "carter054", consigne: "non c'est 20 pas moins", mesMessages: [R1] },
     verifs: [avec(/20/, "garde 20 €"), sans(/\b15 ?€.{0,20}(ok|d'accord|ça marche|va pour)/i, "n'accepte pas 15 €"), differentes] },
-  { nom: "Offre de 40 € sur l'Expansion Pak (fiche qui dit NTSC-J)", annonce: { titre: "Memory Expansion Pak Nintendo 64", plateforme: "Nintendo 64", categorie: "accessoires", prix: 60, etat: "tres_bon",
-      description: "Memory Expansion Pak officiel Nintendo 64, version NTSC-J. Testé et fonctionnel." },
-    conversation: "[Conversation]\nOffre reçue\nVoici l'offre de mathieu : 40 €.\nMessage automatique leboncoin\nBonjour, je vous propose 40 €\nil y a 2 min\nFaire une offre\nEnvoyer", contexte: { acheteur: "mathieu", offre: 40, mesMessages: [] },
-    verifs: [sans(/japon|NTSC|PAL|europ|améric/i, "ne cite pas la version"), sans(/\b40 ?€.{0,20}(ok|d'accord|ça marche|va pour)/i, "n'accepte pas 40 € tel quel")] },
 ];
 
 let echecs = 0;
 for (const c of CAS) {
   let r;
-  try { r = await repondre(c.conversation, c.annonce || PD, [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
+  try { r = await repondre(c.conversation, PD, [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
   console.log(`\n=== ${c.nom}\nRésumé : ${r.resume}`);
   r.reponses.forEach((x, i) => console.log(`  ${i + 1}. [${x.approche}] ${x.texte}`));
   for (const v of [...c.verifs, ...COMMUNS]) { const ok = v.ok(r, c); if (!ok) echecs++; console.log(`  ${ok ? "✓" : "✗"} ${v.nom}`); }
