@@ -270,7 +270,8 @@ async function envoyerVerif(uid, email) {
 function bilan(uid) {
   const items = listItems(uid), an = String(new Date().getFullYear());
   const vendus = items.filter((v) => ["vendu", "envoye"].includes(v.statut));
-  const annee = vendus.filter((v) => (v.dateVente || "").startsWith(an));
+  // Seuils de déclaration : seules les ventes passées par une plateforme comptent, pas celles remises en main propre.
+  const annee = vendus.filter((v) => (v.dateVente || "").startsWith(an) && v.remise !== "main_propre");
   const somme = (l) => Math.round(l.reduce((a, v) => a + (v.prixVente || 0), 0) * 100) / 100;
   return {
     objets: items.length, enVente: items.filter((v) => v.statut === "en_vente" || v.statut === "reserve").length,
