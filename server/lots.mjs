@@ -20,6 +20,7 @@ export function remiseLot(n) {
   return 0.1;
 }
 // Prix ronds : à l'euro sous 10 €, puis par 5, puis par 10 à partir de 100 €.
+const sousLot = (x) => (x < 10 ? Math.max(1, Math.floor(x)) : Math.floor(x / (x >= 100 ? 10 : 5)) * (x >= 100 ? 10 : 5));
 export const rondLot = (x) => { if (x == null || !isFinite(x)) return null; if (x < 10) return Math.max(1, Math.round(x)); const pas = x >= 100 ? 10 : 5; return Math.round(x / pas) * pas; };
 
 /** Cote d'un lot : somme à l'unité, ajustement conseillé, prix conseillé et prix pour vendre vite.
@@ -36,14 +37,16 @@ export function coteLot(articles, theme = null) {
   let ajust = -base;
   raisons.push(`Lot de ${l.length} : −${Math.round(base * 100)} %, l'acheteur paie un seul envoi au lieu de ${l.length}.`);
   if (theme && theme.complet) {
-    ajust = 0.1;
-    raisons.push(`${theme.nom ? theme.nom + " : s" : "S"}érie complète, elle vaut plus que la somme de ses jeux : +10 %.`);
+    // série complète : elle part vite auprès des collectionneurs, une petite remise suffit (mais le lot reste moins cher qu'à l'unité)
+    ajust = -0.05;
+    raisons.push(`${theme.nom ? theme.nom + " : s" : "S"}érie complète, recherchée par les collectionneurs : la remise descend à 5 %.`);
   } else if (theme && theme.nom && petits * 2 < l.length) {
     ajust = Math.min(-0.05, ajust + 0.05);
     raisons.push(`Lot à thème (${theme.nom}) : il attire les collectionneurs, la remise baisse à ${Math.round(-ajust * 100)} %.`);
   }
   if (petits * 2 >= l.length && l.length >= 3 && !(theme && theme.complet)) raisons.push(`${petits} article${petits > 1 ? "s valent" : " vaut"} moins de ${PRIX_PETIT} € : seul${petits > 1 ? "s" : ""}, ${petits > 1 ? "ils partiraient" : "il partirait"} mal, en lot ${petits > 1 ? "ils trouvent" : "il trouve"} preneur.`);
-  const px = (k) => (somme ? Math.max(PRIX_PETIT, rondLot(somme * (1 + k))) : null);
+  // Un lot coûte toujours moins cher que ses articles à l'unité : si l'arrondi dépasse la somme, on arrondit en dessous.
+  const px = (k) => { if (!somme) return null; const x = somme * (1 + k); let v = rondLot(x); if (v >= somme) v = sousLot(x); return Math.max(PRIX_PETIT, v); };
   return {
     n: l.length, somme, ajust, remise: -ajust,
     conseille: px(ajust),

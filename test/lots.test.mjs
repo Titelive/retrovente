@@ -28,8 +28,13 @@ test("prix d'un lot : remise selon la taille, thème, série complète, petits p
   const a = (p) => ({ prixDemande: p });
   assert.equal(L.coteLot([a(20), a(30)]).conseille, 45);                 // 2 articles : −10 %
   assert.equal(L.coteLot([a(20), a(30), a(50)]).conseille, 85);          // 3 articles : −15 %
-  assert.equal(L.coteLot([a(20), a(30)], { nom: "Rareware" }).conseille, 50);              // thème : −5 % seulement
-  assert.equal(L.coteLot([a(25), a(35)], { nom: "Banjo", complet: true }).conseille, 65);  // série complète : +10 %
+  assert.equal(L.coteLot([a(20), a(30)], { nom: "Rareware" }).conseille, 45);              // thème : −5 %, et jamais le prix à l'unité (50 €)
+  assert.equal(L.coteLot([a(25), a(35)], { nom: "Banjo", complet: true }).conseille, 55);  // série complète : −5 % seulement
+  // un lot coûte toujours moins cher que ses articles à l'unité (arrondi compris), quel que soit le thème
+  for (let x = 6; x <= 400; x += 1) for (const th of [null, { nom: "T" }, { nom: "S", complet: true }]) for (const n of [2, 3, 6]) {
+    const c = L.coteLot(Array.from({ length: n }, (_, i) => a(i ? 1 : x - (n - 1))), th);
+    assert.ok(c.conseille < c.somme && c.rapide <= c.conseille, `${x} € en ${n} articles (${th && th.nom}) : ${c.conseille}`);
+  }
   const petits = L.coteLot([a(2), a(3), a(2), a(4)]);
   assert.equal(petits.petits, 4); assert.ok(petits.raisons.some((r) => /moins de 5 €/.test(r)));
   assert.equal(petits.conseille, 9);
@@ -67,14 +72,14 @@ test("lot : création, photos, vente répartie, défaire", async () => {
   assert.equal(s.status, 200, JSON.stringify(s.json));
   const banjo = s.json.suggestions.find((x) => /banjo/i.test(x.theme));
   assert.ok(banjo && banjo.complet);
-  assert.equal(banjo.cote.conseille, 65);
+  assert.equal(banjo.cote.conseille, 55);
 
   assert.equal((await call("POST", "/api/lots", { articles: [b1.id] }, c)).status, 400);   // un seul article
   const r = await call("POST", "/api/lots", { articles: [b1.id, b2.id], theme: { nom: "Banjo", type: "série", complet: true }, photo: PHOTO }, c);
   assert.equal(r.status, 200, JSON.stringify(r.json));
   const lot = r.json.objet;
   assert.deepEqual(lot.articles, [b1.id, b2.id]);
-  assert.equal(lot.prixDemande, 65);
+  assert.equal(lot.prixDemande, 55);
   assert.equal(lot.etat, "bon");                       // l'état le moins bon du lot
   assert.match(lot.titre, /^Lot Banjo \(série complète\)/);
   assert.match(lot.texteAnnonce, /- Banjo-Kazooie, complet en boîte, très bon état/);

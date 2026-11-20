@@ -123,7 +123,9 @@ function recomposer(uid, lot, ids, theme, ratio) {
   const anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean), nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
   const auto = annonceLotSimple(anciens, lot.prixDemande, lot.theme);
   const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
-  const prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
+  let prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
+  // le lot était moins cher que ses articles à l'unité : il le reste après l'arrondi
+  if (c1.somme && prixDemande >= c1.somme && lot.prixDemande != null && c0.somme && lot.prixDemande < c0.somme) prixDemande = c1.conseille;
   const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
   const titreAuto = lot.titre === auto.titre, annonceAuto = lot.texteAnnonce === auto.description || !lot.texteAnnonce;
   return {
