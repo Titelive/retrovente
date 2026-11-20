@@ -87,11 +87,18 @@ export function calculerCote(releves, cible = {}, auj = new Date()) {
   const bas = Math.min(...pts.map((p) => p.prix)), haut = Math.max(...pts.map((p) => p.prix));
   const probable = arrondi(medianePonderee(pts));
 
-  // Prix affiché : le prix probable plus la marge de négociation, arrondi à l'euro, sans dépasser le haut de la fourchette.
-  let conseille = Math.round(probable * (1 + MARGE));
-  if (conseille > haut) conseille = Math.floor(haut);
-  // Vendre vite : sous le prix probable, sans descendre sous le prix le plus bas constaté.
-  let rapide = Math.round(Math.max(bas, probable * (1 - REMISE_RAPIDE)));
+  // Annonces en ligne comparables : elles ne comptent pas comme des ventes, mais ce sont les concurrentes de l'acheteur.
+  const annComp = rs.filter((r) => r.type === "annonce").map((r) => ({ prix: r.prix, poids: poidsEtat(r.etat, cible.etat) * poidsContenu(r.contenu, cible.contenu) })).filter((r) => r.poids >= SEUIL);
+  const plafondAnnonces = !depuisAnnonces && annComp.length ? arrondi(medianePonderee(annComp)) : null;
+
+  // Prix affiché : le prix probable plus la marge de négociation, arrondi à l'euro. Plafond : le prix médian des annonces
+  // concurrentes quand il y en a (au-delà, les acheteurs ne viennent pas), sinon le plus haut des prix constatés.
+  const voulu = Math.round(probable * (1 + MARGE));
+  const plafond = plafondAnnonces ?? haut, limite = voulu > plafond ? (plafondAnnonces != null ? "annonces" : "haut") : "";
+  let conseille = Math.min(voulu, Math.floor(plafond));
+  if (conseille < probable - 0.5) conseille = Math.round(probable);
+  // Vendre vite : sous le prix probable, sans descendre sous le prix le plus bas constaté s'il est en dessous.
+  let rapide = Math.round(bas < probable - 0.5 ? Math.max(bas, probable * (1 - REMISE_RAPIDE)) : probable * (1 - REMISE_RAPIDE));
   if (rapide > probable) rapide = Math.floor(probable);
   if (rapide >= conseille) rapide = null;
 
@@ -109,14 +116,16 @@ export function calculerCote(releves, cible = {}, auj = new Date()) {
   } else {
     const parType = ["vente", "cote"].map((t) => [t, base.filter((r) => r.type === t).length]).filter(([, n]) => n).map(([t, n]) => pluriel(n, ...libType[t])).join(" et ");
     const types = new Set(base.map((r) => r.type)).size;
-    phr.push(`Je compte ${types > 1 ? `${pluriel(base.length, "prix", "prix")} (${parType})` : parType}${quoi ? `${", pondéré" + (types > 1 ? "" : "e") + (base.length > 1 ? "s" : "")} selon leur ressemblance avec ton objet (${quoi})` : ""} : ${fourchette}.`);
+    phr.push(`Je compte ${types > 1 ? `${pluriel(base.length, "prix", "prix")} (${parType})` : parType}${quoi ? `${", pondéré" + (types > 1 ? "" : "e") + (base.length > 1 ? "s" : "")} selon ${base.length > 1 ? "leur" : "sa"} ressemblance avec ton objet (${quoi})` : ""} : ${fourchette}.`);
   }
   phr.push(base.length > 1 ? `Leur médiane pondérée donne le prix de vente probable : ${eur(probable)}.` : `Ce seul prix sert de prix de vente probable : ${eur(probable)}.`);
   const ecart = conseille - probable;
-  phr.push(ecart > 0.5 ? `Prix conseillé ${eur(conseille)} : ${eur(arrondi(ecart))} de marge pour la négociation${conseille < Math.round(probable * (1 + MARGE)) ? ", sans dépasser le haut de la fourchette" : ` (+${pct(MARGE)})`}.`
-    : `Prix conseillé ${eur(conseille)} : le haut de la fourchette ne laisse pas de marge, je ne l'affiche pas plus cher.`);
-  if (rapide != null) phr.push(rapide <= bas + 0.5 ? `Pour vendre vite, ${eur(rapide)} : le prix le plus bas constaté.` : `Pour vendre vite, ${eur(rapide)} : ${pct(REMISE_RAPIDE)} sous le prix probable.`);
-  if (annonces.length && !depuisAnnonces) phr.push(annonces.length > 1 ? "Les annonces encore en ligne ne sont pas comptées : ce ne sont pas des ventes." : "L'annonce encore en ligne n'est pas comptée : ce n'est pas une vente.");
+  const pourquoi = limite === "annonces" ? `sans dépasser le prix médian des annonces concurrentes (${eur(plafondAnnonces)})` : limite === "haut" ? "sans dépasser le plus haut des prix constatés" : "";
+  phr.push(ecart > 0.5 ? `Prix conseillé ${eur(conseille)} : ${eur(arrondi(ecart))} de marge pour la négociation${pourquoi ? ", " + pourquoi : ` (+${pct(MARGE)})`}.`
+    : `Prix conseillé ${eur(conseille)}, au niveau du prix probable : ${pourquoi ? pourquoi.replace(/^sans dépasser/, "plus cher, il dépasserait") : "pas de marge possible"}, et les acheteurs iraient voir ailleurs.`);
+  if (rapide != null) phr.push(rapide <= bas + 0.5 && bas < probable - 0.5 ? `Pour vendre vite, ${eur(rapide)} : le prix le plus bas constaté.` : `Pour vendre vite, ${eur(rapide)} : ${pct(REMISE_RAPIDE)} sous le prix probable.`);
+  const annPrix = rs.filter((r) => r.type === "annonce").map((r) => r.prix);
+  if (annPrix.length && !depuisAnnonces) { const a = Math.min(...annPrix), b = Math.max(...annPrix); phr.push(`${annPrix.length > 1 ? `Les ${annPrix.length} annonces encore en ligne (${a === b ? eur(a) : `de ${eur(a)} à ${eur(b)}`}) ne sont pas comptées comme des ventes` : `L'annonce encore en ligne (${eur(a)}) n'est pas comptée comme une vente`}${plafondAnnonces != null ? (annPrix.length > 1 ? ", mais elles servent de repère : ce sont tes concurrentes" : ", mais elle sert de repère : c'est ta concurrente") : ""}.`); }
   if (ecartes.length) phr.push(`${pluriel(ecartes.length, "prix est écarté", "prix sont écartés")}, trop différent${ecartes.length > 1 ? "s" : ""} de ton objet (état ou contenu).`);
 
   return { bas, haut, probable, conseille, rapide, methode: phr.join(" "), releves: sortie, depuisAnnonces };
