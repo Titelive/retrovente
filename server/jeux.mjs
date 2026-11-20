@@ -52,6 +52,10 @@ export function score(jeu, titre, plateforme) {
   if (surPlateforme(jeu, plateforme)) s += 4;
   if (jeu.cover) s += 0.5;
   if (jeu.version_parent) s -= 1;   // édition spéciale : on préfère le jeu de base
+  // mod, fan game, compilation, pack : jamais devant le vrai jeu
+  if ([3, 5, 12, 13, 14].includes(Number(jeu.game_type ?? jeu.category))) s -= 3;
+  // à score égal, le jeu connu (beaucoup de notes) passe devant l'obscur
+  s += Math.min(1.5, Math.log10(1 + (Number(jeu.total_rating_count) || 0)) / 2);
   return s;
 }
 
@@ -66,7 +70,7 @@ async function jetonTwitch() {
   jeton = { cle: j.access_token, fin: Date.now() + (j.expires_in || 3600) * 1000 };
   return jeton.cle;
 }
-const CHAMPS = "name,slug,url,summary,first_release_date,cover.image_id,screenshots.image_id,artworks.image_id,genres.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name,aggregated_rating,aggregated_rating_count,rating,rating_count,alternative_names.name,version_parent";
+const CHAMPS = "name,slug,url,summary,first_release_date,cover.image_id,screenshots.image_id,artworks.image_id,genres.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name,aggregated_rating,aggregated_rating_count,rating,rating_count,alternative_names.name,version_parent,game_type,category,total_rating_count";
 async function igdb(requete) {
   const h = { "Client-ID": process.env.TWITCH_CLIENT_ID || "", accept: "application/json", "content-type": "text/plain" };
   if (!process.env.IGDB_URL) h.Authorization = "Bearer " + (await jetonTwitch());
@@ -79,7 +83,12 @@ const echappe = (s) => String(s).replace(/["\\]/g, " ").slice(0, 120);
 async function chercherIgdb(titre, plateforme, ref) {
   if (ref) return { choisi: (await igdb(`fields ${CHAMPS}; where id = ${Number(ref)};`))[0] || null, autres: [] };
   const nom = String(titre).replace(/\s[-–—|]\s.*$/, "").replace(/[([].*$/, "").trim() || titre;
-  const liste = await igdb(`search "${echappe(nom)}"; fields ${CHAMPS}; limit 15;`);
+  // La recherche IGDB ignore souvent les noms européens (« Lylat Wars » = Star Fox 64) : on cherche aussi dans les autres noms.
+  const [trouves, alias] = await Promise.all([
+    igdb(`search "${echappe(nom)}"; fields ${CHAMPS}; limit 15;`),
+    igdb(`fields ${CHAMPS}; where alternative_names.name ~ *"${echappe(nom)}"* | name ~ *"${echappe(nom)}"*; sort total_rating_count desc; limit 10;`).catch(() => []),
+  ]);
+  const vus = new Set(), liste = [...(Array.isArray(trouves) ? trouves : []), ...(Array.isArray(alias) ? alias : [])].filter((j) => j && !vus.has(j.id) && vus.add(j.id));
   if (!Array.isArray(liste) || !liste.length) return { choisi: null, autres: [] };
   const notes = liste.map((j) => ({ j, s: score(j, titre, plateforme) })).sort((a, b) => b.s - a.s);
   const choisi = notes[0].s >= 5 ? notes[0].j : null;   // sinon on ne devine pas : la personne choisit dans la liste
@@ -163,7 +172,7 @@ export async function infosJeu({ titre, plateforme = "", ref = null }, traduire 
   if (!titre && !ref) return null;
   if (FAKE()) return /introuvable/i.test(titre) ? null : exemple(titre);
   if (!configure()) return null;
-  const cle = ref ? "ref:" + ref : "q:" + nomSeul(titre) + "|" + abrevs(plateforme).join(",");
+  const cle = ref ? "ref:" + ref : "q2:" + nomSeul(titre) + "|" + abrevs(plateforme).join(",");
   const deja = lireCache(cle, 30);
   if (deja !== undefined && (deja && !deja.introuvable || lireCache(cle, 7) !== undefined)) return deja;
 
