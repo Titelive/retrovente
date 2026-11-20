@@ -661,13 +661,14 @@ ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui v
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
   3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
-sinon (question, disponibilité, envoi…), trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
+sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur le prix (ni « prix ferme », ni « je ne descends pas », ni contre-offre) tant que personne n'en parle : trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
 `}Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
 - écris comme un vrai passionné de retro qui parle à un autre, spontané et naturel, pas comme un service client : phrases simples, un peu d'enthousiasme, une touche d'humour léger si ça colle ; bannis les formules toutes faites (« c'est une belle attention », « je comprends tout à fait », « correspond au marché actuel », « n'hésitez pas à revenir vers moi », « je reste à votre disposition », « nous ne parvenons pas à nous entendre ») ; exemple du ton voulu face à « c'est pour mon fils » avec une offre trop basse : « Ah c'est chouette que votre fils s'intéresse à Conker, c'est un vrai culte de la N64 ! Par contre 140 €, je ne peux pas, je peux descendre à 180 € 🙂 » (adapte au jeu de la fiche, ne recopie pas cet exemple) ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
 - tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
 - 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon commence directement (« Merci Garnier, … ») ;
+- ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
 - un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ; si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), réagis-y avec un vrai mot personnel et sincère (pas une formule), puis dis clairement que ce prix-là n'est pas possible, sans brader ;
@@ -680,7 +681,7 @@ sinon (question, disponibilité, envoi…), trois formulations utiles et différ
 - l'encadré « À propos de cet acheteur » donne sa ville ou son département (« Moselle ») : ce n'est JAMAIS son prénom. Sans prénom ni pseudo connu, dis simplement « Bonjour » ;
 - remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » : propose directement de se retrouver dans la ville qu'il cite (« On peut se retrouver à Nancy, … ») et demande-lui quel jour et quelle heure l'arrangent. Parle depuis le vendeur, sans juger la distance : jamais « c'est tout près », « vous êtes du coin » ni « ça tombe bien », car tu ne sais pas où il habite exactement ;
 - l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
-- si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message cordial sur l'annonce (disponible, état, remise ou envoi).
+- si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message court et cordial (« Bonjour, oui il est toujours disponible 🙂 »), sans redécrire l'annonce.
 ${consigne ? `
 LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est lui qui décide, sa consigne passe avant toutes les règles ci-dessus (prix, ton, plancher) :
 """
@@ -708,11 +709,24 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
+  // Personne ne parle de prix : pas de « prix ferme » ni de contre-offre hors sujet.
+  if (!consigne && montantOffre == null && !lot && !parlePrix(conversation)) {
+    const utiles = l.filter((r) => !["ferme", "contre_offre", "couper_court"].includes(r.approche) && !/descendre|baisser|négoci|dernier prix|prix (fixe|ferme)/i.test(r.texte));
+    if (utiles.length) l.splice(0, l.length, ...utiles);
+  }
   if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
   let resume = phrase(o.resume, 260);
-  if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
+  if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes|page (fournie|transmise)/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
   return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+}
+
+// La conversation parle-t-elle de prix (offre, baisse, « dernier prix », un montant) ? Les boutons et l'encadré de l'annonce ne comptent pas.
+export function parlePrix(conversation) {
+  const c = String(conversation || ""), i = c.indexOf("[Conversation]");
+  const corps = (i >= 0 ? c.slice(i + 14) : c).split("\n").map((x) => x.trim())
+    .filter((x) => x && !/^(faire une offre|envoyer|\d+(?:[.,]\d+)?\s?€)$/i.test(x)).join("\n");
+  return /\d\s?(€|euros?\b)|\bprix\b|\boffre\b|baiss|descend|n[ée]goci|moins cher|dernier prix|\bmoins\b|\bfaire [àa]\b|\bremise\b|budget/i.test(corps);
 }
 
 // Lieu affiché par Le Bon Coin sous « À propos de cet acheteur » (ville, département ou région).
