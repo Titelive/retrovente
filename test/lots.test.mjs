@@ -99,8 +99,9 @@ test("lot : création, photos, vente répartie, défaire", async () => {
   assert.equal(de(z.id).lot, undefined);
   assert.equal(de(b1.id).lot, lot.id);
 
-  // le statut d'un article du lot suit le lot, même si on essaie de le changer sur sa fiche
-  await call("PUT", "/api/objets/" + b1.id, { objet: { statut: "retire" } }, c);
+  // chaque article du lot garde son propre statut tant que le lot n'est pas vendu (réservé, retiré…)
+  const ret = await call("PUT", "/api/objets/" + b1.id, { objet: { statut: "reserve" } }, c);
+  assert.equal(ret.json.objet.statut, "reserve"); assert.equal(ret.json.objet.lot, lot.id); assert.equal(ret.json.lot, undefined);
   // vendre le lot : chaque article passe en vendu, avec sa part du prix et des frais
   const v = await call("PUT", "/api/objets/" + lot.id, { objet: { statut: "vendu", prixVente: 60, frais: 6 } }, c);
   assert.equal(v.status, 200);
@@ -131,4 +132,58 @@ test("lots : isolation entre comptes", async () => {
   assert.equal((await call("POST", "/api/lots", { articles: [x.id, y.id] }, d)).status, 404);
   const lot = (await call("POST", "/api/lots", { articles: [x.id, y.id] }, c)).json.objet;
   assert.equal((await call("DELETE", "/api/lots/" + lot.id, null, d)).status, 404);
+});
+
+test("lot : un article vendu à l'unité quitte le lot, et y revient si on annule", async () => {
+  const c = await compte("unite@exemple.fr");
+  const o = (titre, prixDemande) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande }, PHOTO);
+  const ge = await o("GoldenEye 007", 20), pd = await o("Perfect Dark", 30), bk = await o("Banjo-Kazooie", 25);
+  const lot = (await call("POST", "/api/lots", { articles: [ge.id, pd.id, bk.id], theme: { nom: "Rareware", type: "studio" }, photo: PHOTO }, c)).json.objet;
+  assert.equal(lot.photos.length, 4);
+  // créer le lot ne retire pas ses articles de la vente à l'unité
+  let tous = (await call("GET", "/api/objets", null, c)).json.objets;
+  assert.ok([ge, pd, bk].every((x) => tous.find((y) => y.id === x.id).statut === "en_vente"));
+
+  // Perfect Dark part seul : il quitte le lot, le prix du lot baisse, sa photo s'en va, la mosaïque est à refaire
+  const v = await call("PUT", "/api/objets/" + pd.id, { objet: { statut: "vendu", prixVente: 30 } }, c);
+  assert.equal(v.status, 200, JSON.stringify(v.json));
+  assert.equal(v.json.objet.statut, "vendu"); assert.equal(v.json.objet.lot, undefined);
+  assert.equal(v.json.lot.action, "retire");
+  tous = (await call("GET", "/api/objets", null, c)).json.objets;
+  let l = tous.find((x) => x.id === lot.id);
+  assert.deepEqual(l.articles, [ge.id, bk.id]);
+  assert.equal(l.prixDemande, L.coteLot([ge, bk], { nom: "Rareware", type: "studio" }).conseille);
+  assert.ok(l.prixDemande < lot.prixDemande);
+  assert.equal(l.photos.length, 3); assert.ok(!l.photos.some((x) => x.de === pd.id));
+  assert.ok(l.mosaiqueAFaire);
+  assert.doesNotMatch(l.texteAnnonce, /Perfect Dark/);            // l'annonce écrite par l'appli suit
+  assert.deepEqual(l.alerte.vendus.map((x) => x.titre), ["Perfect Dark"]);
+  assert.equal(l.alerte.annonce, false);
+  // les autres restent en vente, à l'unité et dans le lot
+  assert.equal(tous.find((x) => x.id === ge.id).statut, "en_vente");
+
+  // « Annuler » : remis en vente, il revient dans le lot, au prix d'avant
+  const an = await call("PUT", "/api/objets/" + pd.id, { objet: { statut: "en_vente", prixVente: null } }, c);
+  assert.equal(an.json.lot.action, "remis"); assert.equal(an.json.objet.lot, lot.id);
+  l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.equal(l.articles.length, 3); assert.equal(l.prixDemande, lot.prixDemande); assert.equal(l.texteAnnonce, lot.texteAnnonce);
+  assert.equal(l.photos.length, 4); assert.equal(l.alerte, undefined);
+
+  // annonce réécrite à la main : elle ne change pas toute seule, le lot le signale
+  await call("PUT", "/api/objets/" + lot.id, { objet: { texteAnnonce: "Mon annonce à moi : GoldenEye, Perfect Dark, Banjo." } }, c);
+  await call("PUT", "/api/objets/" + pd.id, { objet: { statut: "vendu" } }, c);
+  l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.equal(l.alerte.annonce, true); assert.match(l.texteAnnonce, /Mon annonce/);
+  // la mosaïque refaite et l'alerte lue
+  await call("PUT", "/api/objets/" + lot.id + "/photos/" + l.photos[0].id, { photo: PHOTO, legende: "Les 2 articles du lot réunis" }, c);
+  const f = await call("PUT", "/api/objets/" + lot.id, { objet: {}, fermerAlerte: true }, c);
+  assert.equal(f.json.objet.alerte, undefined); assert.equal(f.json.objet.mosaiqueAFaire, undefined);
+
+  // vendu lui aussi : il ne reste qu'un article, le lot se défait
+  const d = await call("PUT", "/api/objets/" + bk.id, { objet: { statut: "vendu" } }, c);
+  assert.equal(d.json.lot.action, "defait");
+  tous = (await call("GET", "/api/objets", null, c)).json.objets;
+  assert.ok(!tous.some((x) => x.id === lot.id));
+  assert.equal(tous.find((x) => x.id === ge.id).lot, undefined);
+  assert.equal(tous.find((x) => x.id === ge.id).statut, "en_vente");
 });
