@@ -71,6 +71,11 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
+  assert.equal(moi.json.bilan.annee.ventes, 1); assert.equal(moi.json.bilan.annee.montant, 40);
+  // remis en main propre : toujours vendu, mais hors des seuils de déclaration des plateformes
+  await call("PUT", "/api/objets/" + o.id, { objet: { remise: "main_propre" } }, c);
+  const moi2 = await call("GET", "/api/moi", null, c);
+  assert.equal(moi2.json.bilan.vendus, 1); assert.equal(moi2.json.bilan.annee.ventes, 0); assert.equal(moi2.json.bilan.annee.montant, 0);
   assert.equal((await call("DELETE", "/api/objets/" + o.id, null, c)).status, 200);
   assert.equal((await call("GET", "/api/objets", null, c)).json.objets.length, 0);
 });
