@@ -2825,9 +2825,8 @@ function vendu(o){return o.statut==="vendu"||o.statut==="envoye"}
 function lotsVendus(){return OBJ.filter(function(o){return estLot(o)&&vendu(o)}).length}
 /* sous 5 €, un article se vend mieux en lot (même seuil que la cote des cartes et des films) */
 function petitPrix(o){var v=valeur(o);return !!(o.cote&&o.cote.lot)||v!=null&&v<5}
-/* libre : peut aller dans un lot (pas vendu). horsLot : libre et dans aucun lot (pour les idées de lots). */
+/* libre : peut aller dans un lot (pas vendu), même s'il est déjà dans d'autres lots */
 function libre(o){return !estLot(o)&&!vendu(o)}
-function horsLot(o){return libre(o)&&!lotsDe(o).length}
 function pluriel(n,s,p){return n+" "+(n>1?(p||s+"s"):s)}
 var TYPE_NOM={licence:"Licence","série":"Série",studio:"Studio","lignée":"Lignée",univers:"Univers",genre:"Genre","petits prix":"Petits prix",support:"Même console"};
 function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);return '<span class="aj'+(p>0?' plus':'')+'">'+(p>0?"+"+p+" %":"−"+(-p)+" %")+'</span>'}
@@ -2841,13 +2840,13 @@ function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(val
 
 /* --- idées de lots à thème --- */
 var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0;
-function cleIdees(){return articles().filter(function(o){return horsLot(o)&&o.statut!=="retire"}).map(function(o){return o.id+":"+(valeur(o)||"")}).sort().join(",")}
-function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return horsLot(o)&&o.statut!=="retire"});
+function cleIdees(){return articles().filter(function(o){return libre(o)&&o.statut!=="retire"}).map(function(o){return o.id+":"+(valeur(o)||"")}).sort().join(",")}
+function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return libre(o)&&o.statut!=="retire"});
   z.hidden=lib.length<2||!!CHOIX;if(z.hidden)return;
   var k=cleIdees();if(k===IDEES.cle){dessinerIdees();return}
   IDEES.cle=k;IDEES.charge=true;dessinerIdees();
   // idées de l'IA déjà trouvées pour ces mêmes articles : on les garde (pas de nouvel appel)
-  var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees")||"null")}catch(e){}
+  var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees2")||"null")}catch(e){}
   if(memo&&memo.cle===k&&memo.u===uid()){IDEES.l=memo.l;IDEES.ia=true;IDEES.charge=false;dessinerIdees();return}
   clearTimeout(IDEE_T);IDEE_T=setTimeout(function(){
     api("POST","/api/lots/suggestions",{}).then(function(j){if(IDEES.cle!==k)return;IDEES.l=j.suggestions||[];IDEES.ia=false;IDEES.charge=false;dessinerIdees();
@@ -2859,14 +2858,16 @@ function ideesIa(auto){var b=$("ideesIa"),k=IDEES.cle;if(!auto)occupe(b,true,"L'
       // les idées de l'IA d'abord, puis celles trouvées sans elle qui n'y sont pas déjà
       var vus={},l=[];(j.suggestions||[]).concat(IDEES.l).forEach(function(x){var c=x.articles.slice().sort().join(",");if(!vus[c]){vus[c]=1;l.push(x)}});
       IDEES.l=l.slice(0,10);IDEES.ia=true;dessinerIdees();ME.usage.dialogue=(ME.usage.dialogue||0)+1;
-      try{localStorage.setItem("rr-idees",JSON.stringify({cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
+      try{localStorage.setItem("rr-idees2",JSON.stringify({cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
       if(!auto)toast(j.suggestions&&j.suggestions.length?"L'IA a trouvé "+pluriel(j.suggestions.length,"idée")+" de lot.":"Pas d'autre idée de lot pour le moment.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Les idées de l'IA sont indisponibles.")})
     .then(function(){if(!auto)occupe(b,false);b.disabled=IDEES.ia;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA"})}
 function dessinerIdees(){var L=$("ideesListe"),b=$("ideesIa");b.disabled=IDEES.ia||IDEES.charge;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA";
   if(IDEES.charge&&!IDEES.l.length){L.innerHTML='<div class="id-charge"></div><div class="id-charge"></div><div class="id-charge"></div>';return}
   // les séries complètes d'abord : ce sont les lots qui valent le plus
-  var l=IDEES.l.filter(function(x){return x.articles.filter(function(id){var o=parId(id);return o&&horsLot(o)}).length>=2}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
+  // un jeu déjà dans un lot compte aussi (il peut être dans plusieurs lots) ; une idée identique à un lot existant ne revient pas
+  var existe={};OBJ.forEach(function(o){if(estLot(o)&&!vendu(o))existe[o.articles.slice().sort().join(",")]=1});
+  var l=IDEES.l.filter(function(x){var ok=x.articles.filter(function(id){var o=parId(id);return o&&libre(o)});return ok.length>=2&&!existe[ok.slice().sort().join(",")]}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
   if(!l.length){L.innerHTML='<div class="id-vide"><b style="color:var(--encre)">Pas encore d\'idée de lot</b>Quand tu auras plusieurs jeux d\'une même série, d\'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.</div>';return}
   L.innerHTML=l.map(function(x,i){var m=x.articles.map(parId).filter(Boolean),c=x.cote||{};
     return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span'+(o.photo?' style="background-image:url(/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+')"':'')+'></span>'}).join("")+'<b>'+m.length+'</b></div>'+

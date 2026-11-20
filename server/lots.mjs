@@ -42,7 +42,8 @@ export function coteLot(articles, theme = null) {
     // série complète : elle part vite auprès des collectionneurs, une petite remise suffit (mais le lot reste moins cher qu'à l'unité)
     ajust = -0.05;
     raisons.push(`${theme.nom ? "**" + theme.nom + "** : s" : "S"}érie **complète**, recherchée par les collectionneurs : la remise descend à **5 %**.`);
-  } else if (theme && theme.nom && petits * 2 < l.length) {
+  } else if (theme && theme.nom && !["support", "petits prix"].includes(theme.type) && petits * 2 < l.length) {
+    // (un lot « même console » ou « petits prix » n'est pas un thème de collection : il garde toute sa remise)
     ajust = Math.min(-0.05, Math.round((ajust + 0.05) * 100) / 100);
     raisons.push(`Lot à thème (**${theme.nom}**) : il attire **les collectionneurs**, la remise baisse à **${Math.round(-ajust * 100)} %**.`);
   }
