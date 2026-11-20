@@ -39,7 +39,7 @@ async function claude(content, opts = {}) {
   const e = await claude1(content, { ...opts, max: Math.max(opts.max || 1500, PLANCHER) * 2, timeout: Math.max(opts.timeout || 30000, 45000) });
   return e && e._vide ? (opts.brut ? { _texte: "" } : null) : e;
 }
-async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null, effort = "" } = {}) {
+async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null, effort = "", libre = false } = {}) {
   max = Math.max(max, PLANCHER);
   const t0 = Date.now(), modele = model || process.env.CLAUDE_MODEL || "claude-haiku-5-5";
   const note = (x) => { if (trace) trace.push({ modele, ms: Date.now() - t0, ...x }); };
@@ -55,11 +55,13 @@ async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = 
       ...(effort && /claude-(haiku|sonnet|opus|fable)-5/.test(modele) ? { output_config: { effort } } : {}),
       ...(web ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: web }] } : {}),
       // Sortie structurée : le modèle remplit un outil au schéma imposé (pas de JSON à relire dans du texte).
-      ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: { type: "tool", name: outil.name } } : {}),
+      ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: libre ? { type: "auto" } : { type: "tool", name: outil.name } } : {}),
       messages: [{ role: "user", content }],
     }),
   }); } catch (e) { note({ erreur: e.name === "TimeoutError" ? "délai dépassé (" + timeout / 1000 + " s)" : String(e.message || e).slice(0, 120) }); throw e; }
-  if (!r.ok) { const corps = (await r.text().catch(() => "")).slice(0, 300); console.error("IA", r.status, corps); note({ statut: r.status, erreur: corps.slice(0, 200) }); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
+  if (!r.ok) { const corps = (await r.text().catch(() => "")).slice(0, 300);
+    // Certains modèles refusent l'outil imposé : on le laisse libre (la consigne demande déjà de s'en servir).
+    if (r.status === 400 && outil && !libre && /tool_choice/.test(corps)) return claude1(content, { web, max, timeout, model, brut, outil, trace, effort, libre: true }); console.error("IA", r.status, corps); note({ statut: r.status, erreur: corps.slice(0, 200) }); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
   const d = await r.json();
   const t = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const vus = new Set();
