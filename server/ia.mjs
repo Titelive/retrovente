@@ -674,6 +674,7 @@ sinon (question, disponibilité, envoi…), trois formulations utiles et différ
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment ;
 - n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
+- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » : propose directement un rendez-vous (lieu simple et public, ou chez toi, et un ou deux créneaux), en lui demandant ce qui l'arrange ;
 - l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
 - si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message cordial sur l'annonce (disponible, état, remise ou envoi).
 ${consigne ? `
