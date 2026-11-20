@@ -978,6 +978,10 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
 @media(max-width:420px){.cl-calc{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cl-calc .fin{grid-column:1/-1}}
 .dans-lot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.4}
 .dans-lot>span{flex:1 1 200px;min-width:0}
+.lb-liste li.double{box-shadow:inset 0 0 0 1.5px #F2C879}
+.lb-double{margin:10px 0 0;padding:10px 12px;border-radius:14px;background:#FFF1D6;color:#4A2B00;font-size:13.5px;line-height:1.45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lb-double{background:#3A2A10;color:#FFE3B3}}
+:root[data-theme="dark"] .lb-double{background:#3A2A10;color:#FFE3B3}
 .jeu .im .tag-lot.en-lot{display:inline-flex;align-items:center;gap:5px;background:var(--nuit);color:var(--anis);box-shadow:none}
 .jeu .im .tag-lot.en-lot svg{width:12px;height:12px}
 .jeu .im .tag-lot.alerte{left:auto;right:10px;background:#FFE3B3;color:#6B3D00;box-shadow:0 0 0 1.5px #6B3D00}
@@ -2787,7 +2791,8 @@ function articles(){return OBJ.filter(function(o){return !estLot(o)})}
 function parId(id){return OBJ.filter(function(x){return x.id===id})[0]||null}
 function lotDe(o){var l=o&&o.lot?parId(o.lot):null;return estLot(l)?l:null}
 function membres(lot){return (lot.articles||[]).map(parId).filter(Boolean)}
-function valeur(o){var c=o&&o.cote&&o.cote.conseille;return c!=null&&c!==""?+c:o&&o.prixDemande!=null&&o.prixDemande!==""?+o.prixDemande:null}
+/* valeur à l'unité : le prix affiché (ce que l'acheteur paierait), sinon le prix conseillé de la cote */
+function valeur(o){var c=o&&o.cote&&o.cote.conseille;return o&&o.prixDemande!=null&&o.prixDemande!==""?+o.prixDemande:c!=null&&c!==""?+c:null}
 function vendu(o){return o.statut==="vendu"||o.statut==="envoye"}
 function lotsVendus(){return OBJ.filter(function(o){return estLot(o)&&vendu(o)}).length}
 /* sous 5 €, un article se vend mieux en lot (même seuil que la cote des cartes et des films) */
@@ -2891,7 +2896,7 @@ function majMosaiques(){OBJ.filter(function(o){return estLot(o)&&o.mosaiqueAFair
     .catch(function(){}).then(function(){setTimeout(function(){delete MOSA_EN_COURS[l.id]},30000)})})}
 /* Réponse du serveur quand un article vendu à l'unité quitte son lot (ou y revient après « Annuler ») */
 function noteLot(r){if(!r)return "";
-  return r.action==="retire"?" Retiré du lot « "+r.titre+" »"+(r.prix!=null&&r.prix!==r.ancienPrix?", qui passe à "+eur(r.prix):"")+".":r.action==="remis"?" De retour dans le lot « "+r.titre+" »"+(r.prix!=null?" à "+eur(r.prix):"")+".":r.action==="defait"?" Le lot « "+r.titre+" » n'avait plus qu'un article : il est défait.":""}
+  return r.action==="retire"?" Retiré du lot « "+r.titre+" »"+(r.prix!=null&&r.prix!==r.ancienPrix?", qui passe à "+eur(r.prix):"")+".":r.action==="remis"?" De retour dans le lot « "+r.titre+" »"+(r.prix!=null?" à "+eur(r.prix):"")+".":r.action==="prix"?" Le lot « "+r.titre+" » suit"+(r.prix!=null&&r.prix!==r.ancienPrix?" : "+eur(r.ancienPrix)+" → "+eur(r.prix):"")+".":r.action==="defait"?" Le lot « "+r.titre+" » n'avait plus qu'un article : il est défait.":""}
 function dessinerAlerteLot(o){var z=$("fLotAlerte"),a=o&&o.alerte,v=a&&a.vendus||[];z.hidden=!v.length;if(!v.length){z.innerHTML="";return}
   z.innerHTML='<span>⚠️ <b>'+esc(v.map(function(x){return x.titre}).join(", "))+'</b> '+(v.length>1?"ont été vendus":"a été vendu")+' à l\'unité et '+(v.length>1?"ont quitté":"a quitté")+' le lot. '+
     (a.ancienPrix!=null&&o.prixDemande!=null&&a.ancienPrix!==o.prixDemande?'Prix du lot ajusté : '+eur(a.ancienPrix)+' → <b>'+eur(o.prixDemande)+'</b>. ':'')+
@@ -2951,8 +2956,10 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   $("fBlocTitre").textContent="Le lot";$("lTitre").textContent="Nom du lot";$("fCote").textContent="Recalculer le prix du lot";
   var m=membres(o),ok=!vendu(o);
   $("fLotNote").textContent=vendu(o)?"Le lot est vendu : ses "+m.length+" articles sont passés en vendu, avec leur part du prix (selon leur valeur).":"Chaque article reste aussi en vente à l'unité : s'il part seul, il quitte le lot et le prix du lot baisse. Quand le lot passe en vendu, ses "+m.length+" articles passent en vendu aussi, et le prix de vente se partage entre eux selon leur valeur.";
+  var vus={},doubles={};m.forEach(function(x){var k=(x.titre||"").toLowerCase()+"|"+(x.plateforme||"");if(vus[k])doubles[k]=1;vus[k]=1});
+  var nd=Object.keys(doubles).length;
   $("fLotBloc").innerHTML='<div class="lb-tete"><div><h4>'+pluriel(m.length,"article")+' dans ce lot</h4>'+(o.theme&&o.theme.nom?'<span class="lb-theme">'+esc((o.theme.complet?"Série complète · ":(TYPE_NOM[o.theme.type]||"Thème")+" · ")+o.theme.nom)+'</span>':'')+'</div></div>'+
-    '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x);return '<li><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+
+    '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x),dbl=doubles[(x.titre||"").toLowerCase()+"|"+(x.plateforme||"")];return '<li'+(dbl?' class="double"':'')+'><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+(nd?'<p class="lb-double">⚠️ Un même article apparaît deux fois dans ce lot. Si tu n\'en as qu\'un, ouvre le doublon et supprime-le : il quitte le lot, et le prix du lot se recalcule.</p>':'')+
     (ok?'<div class="lb-pied"><button class="pl" type="button" id="lbAjout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter ou retirer des articles</button><button class="pl" type="button" id="lbMosa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Refaire la mosaïque</button></div>':'');
   calculerCoteLot(o,false)}
 function calculerCoteLot(o,montrerToast){return api("POST","/api/lots/cote",{articles:o.articles,theme:o.theme}).then(function(j){if(ED!==o)return;COTE_LOT=j.cote;var e=$("fCoteBox");e.innerHTML=coteLotHtml(j.cote);e.hidden=false;if(montrerToast)toast("Prix du lot recalculé.","ok")}).catch(function(){})}
@@ -2973,6 +2980,7 @@ var _sauver=sauver;sauver=function(rester){var lot=ED&&(estLot(ED)||lotDe(ED)),d
   return rechargerObjets().then(function(){if(rester&&ED&&ED.id===o.id){ficheLot(ED);figer()}
     var n=parId(o.id),l2=dl&&parId(dl.id);
     if(dl&&n&&!n.lot)toast(l2?"Vendu à l'unité : retiré du lot « "+l2.titre+" »"+(l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null?", qui passe à "+eur(l2.prixDemande):"")+".":"Vendu à l'unité : le lot « "+dl.titre+" » n'avait plus qu'un article, il est défait.","ok");
+    else if(dl&&l2&&n&&n.lot===dl.id&&l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null)toast("C'est enregistré ✓ Le lot « "+l2.titre+" » suit : "+(dl.prixDemande!=null?eur(dl.prixDemande)+" → ":"")+eur(l2.prixDemande)+".","ok");
     else if(!dl&&ex&&n&&n.lot)toast("De retour dans le lot « "+(parId(n.lot)||{}).titre+" ».","ok");
     return o})})};
 var _estimer=estimer;estimer=function(){if(ED&&estLot(ED))return calculerCoteLot(ED,true);return _estimer()};$("fCote").onclick=function(){estimer()};

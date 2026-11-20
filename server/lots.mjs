@@ -9,8 +9,9 @@ export const PRIX_PETIT = 5;
 export const PORT_MOYEN = 4.5;
 
 const num = (v) => (v == null || v === "" || !isFinite(+v) ? null : +v);
-/** Valeur d'un article à l'unité : prix conseillé de sa cote, sinon le prix affiché. */
-export const valeurArticle = (o) => num(o && o.cote && o.cote.conseille) ?? num(o && o.prixDemande);
+/** Valeur d'un article à l'unité : son prix affiché, sinon le prix conseillé de sa cote. */
+// Le prix affiché d'abord : c'est ce que l'acheteur paierait à l'unité (la cote ne sert que si aucun prix n'est fixé).
+export const valeurArticle = (o) => num(o && o.prixDemande) ?? num(o && o.cote && o.cote.conseille);
 
 /** Remise conseillée selon la taille du lot : l'acheteur gagne du temps et des frais de port, il attend un geste. */
 export function remiseLot(n) {
