@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 jobs:
   construire:
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
