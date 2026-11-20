@@ -287,6 +287,7 @@ dialog form{display:flex;flex-direction:column;gap:14px}
 #toast{visibility:hidden;position:fixed;left:50%;bottom:24px;z-index:80;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;background:var(--nuit);color:#fff;padding:13px 20px;border-radius:999px;font-weight:600;font-size:15px;max-width:calc(100% - 32px);transition:transform .35s var(--ease);box-shadow:0 20px 40px -16px rgba(0,0,0,.6)}
 #toast::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:#E05A4F}
 #toast.ok::before{background:var(--anis)}
+#toast .toast-act{flex:none;margin-left:6px;border:0;border-radius:999px;padding:6px 12px;background:rgba(255,255,255,.14);color:var(--anis);font:700 14px/1 var(--texte);cursor:pointer}#toast .toast-act:hover{background:rgba(255,255,255,.24)}
 /* Annonce publiée sur Le Bon Coin : carte de fête + confettis */
 #fete{position:fixed;left:50%;top:24px;z-index:90;width:min(420px,calc(100% - 32px));transform:translate(-50%,-140%);transition:transform .55s var(--ease);background:var(--nuit);color:#F4F4EE;border-radius:22px;padding:18px 18px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 24px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px var(--anis)}
 #fete.on{transform:translate(-50%,0)}
@@ -605,6 +606,65 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 /* ===== Couleurs Le Bon Coin ===== */
 #fLbcBt,#fLbc,#bLbc{--bg:#EC5A13;--fg:#fff;background:#EC5A13;color:#fff;box-shadow:0 14px 30px -14px rgba(236,90,19,.8)}
 #fLbcBt:hover,#fLbc:hover,#bLbc:hover{background:#D24C0C}
+/* ===== Statut de chaque vente : pastille cliquable, menu et choix dans la fiche ===== */
+:root{--st-e-bg:#E3EBFF;--st-e-tx:#1F3F8F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-e-bg:#16223F;--st-e-tx:#A9C1FF}}
+:root[data-theme="dark"]{--st-e-bg:#16223F;--st-e-tx:#A9C1FF}
+.st svg{width:12px;height:12px;flex:none}
+.st.envoye{background:var(--st-e-bg);color:var(--st-e-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-e-tx) 25%,transparent)}
+.jeu-ouvrir{position:absolute;inset:0;z-index:1;border:0;padding:0;margin:0;background:none;border-radius:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.jeu-ouvrir:focus-visible{outline:3px solid var(--anis-f);outline-offset:2px}
+.st-bt{position:relative;z-index:2;display:inline-flex;align-items:center;gap:5px;border:0;font-family:inherit;cursor:pointer;transition:transform .2s var(--ease),filter .2s}
+.st-bt.en_vente::before{margin-right:0}
+.st-bt .chev{width:10px;height:10px;opacity:.55;margin-right:-2px;transition:transform .2s var(--ease),opacity .2s}
+.st-bt:hover{filter:brightness(.96);transform:translateY(-1px)}.st-bt:hover .chev{opacity:1;transform:translateY(1px)}
+.st-bt[aria-expanded="true"] .chev{transform:rotate(180deg);opacity:1}
+.st-bt:focus-visible{outline:2px solid var(--encre);outline-offset:2px}
+.st-bt.pop{animation:pop .45s var(--ease)}
+.jeu.en-cours{pointer-events:none}.jeu.en-cours .st-bt{opacity:.6}
+/* menu des statuts (même allure que « Nouvel article ») */
+.nouv-menu.st-menu{position:fixed;right:auto;width:280px;z-index:85;transform-origin:top right}
+.st-menu.dessus{transform-origin:bottom right}
+.st-menu-t{margin:4px 12px 6px;font-size:12.5px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-menu-t b{color:var(--encre);font-weight:600}
+.st-menu button{position:relative}
+.st-menu button[aria-checked="true"]{background:var(--papier)}
+.st-menu .ok{width:18px;height:18px;margin-left:auto;flex:none;color:var(--encre);opacity:0;transform:scale(.6);transition:.2s var(--ease)}
+.st-menu button[aria-checked="true"] .ok{opacity:1;transform:none}
+.st-ico{font-style:normal;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 18%,transparent)}
+.st-ico svg{width:18px;height:18px}
+.st-ico.en_vente{background:var(--st-v-bg);color:var(--st-v-tx)}
+.st-ico.reserve{background:var(--st-r-bg);color:var(--st-r-tx)}
+.st-ico.vendu{background:var(--st-f-bg);color:var(--st-f-tx)}
+.st-ico.envoye{background:var(--st-e-bg);color:var(--st-e-tx)}
+.st-ico.retire{background:var(--papier);color:var(--gris)}
+.st-menu .st-ico{width:36px;height:36px}
+.nouv-menu.st-menu i.st-ico{font-size:0}
+.nouv-menu.st-menu i.st-ico.en_vente{background:var(--st-v-bg)}.nouv-menu.st-menu i.st-ico.reserve{background:var(--st-r-bg)}.nouv-menu.st-menu i.st-ico.vendu{background:var(--st-f-bg)}.nouv-menu.st-menu i.st-ico.envoye{background:var(--st-e-bg)}.nouv-menu.st-menu i.st-ico.retire{background:var(--papier)}
+.st-voile{position:fixed;inset:0;z-index:84;background:rgba(10,10,10,.38);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);animation:voile-in .2s ease}
+@keyframes voile-in{from{opacity:0}}
+@media(min-width:641px){.st-voile{background:none;backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(max-width:640px){.nouv-menu.st-menu{left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));top:auto;width:auto;padding:8px;border-radius:24px;transform-origin:bottom center}
+  .st-menu-t{margin:6px 12px 10px;font-size:13.5px;text-align:center}
+  .st-menu button{padding:12px}}
+/* fiche : les cinq statuts en pastilles */
+.st-f>span{display:block}
+.st-choix{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:2px}
+.st-choix button{display:grid;justify-items:center;gap:7px;padding:12px 4px 10px;border:0;border-radius:16px;background:var(--papier);color:var(--gris);font:600 13px/1.15 var(--texte);cursor:pointer;box-shadow:inset 0 0 0 1px var(--trait);transition:background .2s,color .2s,box-shadow .2s,transform .2s var(--ease);min-width:0}
+.st-choix button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-choix button .st-ico{width:34px;height:34px;border-radius:11px;opacity:.7;filter:saturate(.6);transition:.2s}
+.st-choix button:hover{color:var(--encre);transform:translateY(-1px)}
+.st-choix button:hover .st-ico{opacity:1;filter:none}
+.st-choix button:focus-visible{outline:2px solid var(--encre);outline-offset:2px}
+.st-choix button[aria-checked="true"]{background:var(--carte);color:var(--encre);box-shadow:inset 0 0 0 2px var(--encre),0 10px 22px -16px rgba(0,0,0,.5)}
+.st-choix button[aria-checked="true"] .st-ico{opacity:1;filter:none;transform:scale(1.06)}
+.st-choix-aide{margin:6px 2px 0;font-size:12.5px;color:var(--gris);font-weight:400;min-height:1.3em}
+#f_statut{display:none!important}
+#fSt{flex:none;font-size:13px;padding:7px 11px}
+@media(max-width:700px){#fSt{display:none}}
+@media(max-width:640px){.st-choix{gap:6px}.st-choix button{font-size:12px;letter-spacing:-.01em;padding:10px 2px 8px}.st-choix button span{overflow:visible}}
+@media(max-width:380px){.st-choix{gap:6px}.st-choix button{font-size:11.5px;padding:10px 2px 8px}.st-choix button .st-ico{width:30px;height:30px}}
+@media (prefers-reduced-motion:reduce){.st-bt,.st-choix button,.st-menu .ok{transition:none}.st-bt.pop{animation:none}}
 /* ===== Bulles de statut : même arrondi que les cartes ===== */
 .photo .attente span{border-radius:16px;max-width:86%;text-align:left;line-height:1.35;padding:12px 16px}
 .photo .attente span::before{flex:none}
@@ -886,7 +946,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
 
 <!-- ========== Fiche d'un jeu ========== -->
 <section id="fiche" class="vue" hidden aria-labelledby="fTitre">
-  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button class="btn clair petit" type="button" id="fFermer" aria-label="Mes articles"><span aria-hidden="true">←</span><span class="pc-seul"> Mes articles</span></button></div></div>
+  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button type="button" class="st st-bt en_vente" id="fSt" aria-haspopup="menu" aria-expanded="false"></button><button class="btn clair petit" type="button" id="fFermer" aria-label="Mes articles"><span aria-hidden="true">←</span><span class="pc-seul"> Mes articles</span></button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
      <section class="carte bloc photos-carte" data-mo="photos" aria-labelledby="tPhotos">
@@ -980,7 +1040,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
       <section class="carte bloc" data-onglet="suivi">
         <h3>Suivi</h3>
         <div class="champs">
-          <label class="f">Statut<select id="f_statut"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></label>
+          <div class="f l2 st-f"><span id="lStatut">Statut</span><div class="st-choix" id="fStChoix" role="radiogroup" aria-labelledby="lStatut"></div><p class="st-choix-aide" id="fStAide"></p><select id="f_statut" data-habille="1" hidden tabindex="-1" aria-hidden="true"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></div>
           <label class="f">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
           <label class="f vte">Vendu à (€)<input type="number" id="f_prixVente" min="0" step="0.01" inputmode="decimal"></label>
           <label class="f vte">Vendu le<input type="date" id="f_dateVente"></label>
@@ -1187,6 +1247,8 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   <input type="file" id="camIn" accept="image/*" capture="environment" hidden><input type="file" id="camGalIn" accept="image/*" multiple hidden>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div class="st-voile" id="stVoile" hidden></div>
+<div class="nouv-menu st-menu" id="stMenu" role="menu" aria-labelledby="stMenuT" hidden><p class="st-menu-t" id="stMenuT"></p><div id="stMenuL"></div></div>
 <div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01M22 8h.01M15 2h.01M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98-.7.11-1.22.72-1.22 1.43V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg></span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
 
 <div class="lbc-feuille" id="lbcFeuille" hidden><div class="lbc-fond" data-ferme></div>
@@ -1208,6 +1270,12 @@ var $=function(i){return document.getElementById(i)};
 var GAL=[],SEL=0,DELS=[],MQ=matchMedia("(max-width:700px)");
 var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,ORIG=null,ROT=0,COTE=null,PER="mois",IA_FAITE=false;
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
+/* Statut de chaque vente : icônes, explications et ordre du parcours */
+var STA_ORDRE=["en_vente","reserve","vendu","envoye","retire"],
+  STA_AIDE={en_vente:"Annonce en ligne, en attente d'un acheteur",reserve:"Un acheteur s'est engagé, pas encore payé",vendu:"Payé, reste à le remettre ou l'envoyer",envoye:"Colis parti ou remis en main propre",retire:"Plus en vente, gardé dans ta liste"},
+  STA_SVG={en_vente:'<path d="M3 12.5V4h8.5l9 9-8.5 8.5z"/><circle cx="7.5" cy="8.5" r="1.4"/>',reserve:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',vendu:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',envoye:'<path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/>',retire:'<rect x="3.5" y="4" width="17" height="5" rx="1.5"/><path d="M5.5 9v10.5h13V9M10 13h4"/>'};
+function icoSta(k,cl){return '<svg'+(cl?' class="'+cl+'"':'')+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(k==="chev"?'<path d="m6 9 6 6 6-6"/>':k==="ok"?'<path d="M5 12.5l4.5 4.5L19 7.5"/>':STA_SVG[k])+'</svg>'}
+function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
 var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
@@ -1225,7 +1293,7 @@ function eur(n){n=n||0;return n.toLocaleString("fr-FR",{maximumFractionDigits:Ma
 function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+String(r).padStart(2,"0"):"")}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function dfr(s){if(!s)return"";var d=new Date(s);return d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
-var tt;function toast(t,k){var e=$("toast");e.textContent=t;e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"?6500:3500)}
+var tt;function toast(t,k,act){var e=$("toast");e.textContent=t;if(act){var b=document.createElement("button");b.type="button";b.className="toast-act";b.textContent=act[0];b.onclick=function(){clearTimeout(tt);e.className="";act[1]()};e.appendChild(b)}e.className="on "+(k||"");clearTimeout(tt);tt=setTimeout(function(){e.className=""},k==="bad"||act?6500:3500)}
 function busy(b,on,t){b.classList.toggle("busy",on);b.disabled=on;if(t!=null){var sp=b.id==="fSave"&&b.querySelector("span");if(sp)sp.textContent=t;else if(/<span/.test(t))b.innerHTML=t;else b.textContent=t}}
 
 /* Identifiant de l'appareil (anti comptes en série pour l'essai gratuit de l'IA) */
@@ -1242,7 +1310,7 @@ function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ton <b>
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
-function montrer(v,titre){if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche","trophees"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";$("ajout").hidden=!(v==="fiche"||v==="compte");fermerAjout();if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
+function montrer(v,titre){if(typeof fermerStatut==="function")fermerStatut();if(!SORTIE_OK&&v!=="fiche"&&v!=="auth"&&typeof sale==="function"&&sale()){demanderSortie(function(){montrer(v,titre)});return}if(v!=="fiche"&&!$("fiche").hidden&&!sale()&&CLE)BR.del(cle());["auth","accueil","compte","fiche","trophees"].forEach(function(x){var e=$(x),on=x===v;if(on&&e.hidden){e.classList.remove("entre");void e.offsetWidth;e.classList.add("entre")}e.hidden=!on});$("fabSave").hidden=v!=="fiche";$("ajout").hidden=!(v==="fiche"||v==="compte");fermerAjout();if(v!=="fiche"&&!$("lbcFeuille").hidden)panneauLbc(false);if(v==="accueil")requestAnimationFrame(pastille);
   $("bCompte").hidden=v==="auth";$("bTroph").hidden=v==="auth";$("quota").hidden=v==="auth";document.body.classList.toggle("fiche-ouverte",v==="fiche");
   var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="trophees")f.push(["Trophées"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
@@ -1343,9 +1411,9 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun article dans cette catégorie.</p>';return}
   var carte=function(o,i){
     var px=prixArticle(o);
-    return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<div class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="Ouvrir '+esc(o.titre)+'"></button><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
-      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'};
+      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><button type="button" class="st st-bt '+o.statut+'" aria-haspopup="menu" aria-expanded="false" aria-label="Statut : '+STA[o.statut]+'. Changer le statut">'+pastilleSta(o.statut)+'</button></div></div></div>'};
   var gs=grouperArticles(l),n=0;
   $("liste").innerHTML=gs.map(function(g){
     var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
@@ -1388,7 +1456,7 @@ function grouperArticles(l){
     return fin(a)-fin(b)||b.l.length-a.l.length||NOMS.compare(a.nom,b.nom)})}
 $("tri").addEventListener("change",function(){TRI=this.value;try{localStorage.setItem("rr-tri",TRI)}catch(e){}dessiner()});
 $("grp").addEventListener("change",function(){GRP=this.value;try{localStorage.setItem("rr-grp",GRP)}catch(e){}dessiner()});
-$("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
+$("liste").addEventListener("click",function(e){var sb=e.target.closest(".st-bt");if(sb){var c=sb.closest(".jeu"),x=OBJ.filter(function(y){return y.id===c.dataset.id})[0];if(x)menuStatut(sb,x.statut,x.titre,function(s){statutRapide(x,s,c)});return}var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
 $("filtres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;FILTRE=b.dataset.f;[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});pastille();dessiner();majAdresse()});
 function calme(){return document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches}
 function pastille(){var f=$("filtres"),p=f.querySelector(".pastille"),b=f.querySelector('button[aria-pressed="true"]');if(!b||!b.offsetWidth){f.classList.remove("glisse");return}
@@ -1824,7 +1892,46 @@ $("fLbc").onclick=function(e){LBC_FAIT={};majLbc();api("POST","/api/compter",{qu
   sauver(true).then(function(o){if(!o){if(w)w.close();return}var u=versLbc(o.id);if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
 
 /* ===== Fiche ===== */
-function majVente(){var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
+function majStatutFiche(){var s=$("f_statut").value||"en_vente";
+  [].forEach.call($("fStChoix").children,function(b){var on=b.dataset.s===s;b.setAttribute("aria-checked",on);b.tabIndex=on?0:-1});
+  $("fStAide").textContent=STA_AIDE[s]||"";var h=$("fSt");h.className="st st-bt "+s;h.innerHTML=pastilleSta(s);h.setAttribute("aria-label","Statut : "+STA[s]+". Changer le statut")}
+function choisirStatutFiche(s){if($("f_statut").value===s)return;$("f_statut").value=s;majVente();var h=$("fSt");h.classList.remove("pop");void h.offsetWidth;h.classList.add("pop")}
+$("fStChoix").innerHTML=STA_ORDRE.map(function(k){return '<button type="button" role="radio" aria-checked="false" data-s="'+k+'" title="'+STA_AIDE[k]+'"><i class="st-ico '+k+'">'+icoSta(k)+'</i><span>'+STA[k]+'</span></button>'}).join("");
+$("fStChoix").addEventListener("click",function(e){var b=e.target.closest("button[data-s]");if(b)choisirStatutFiche(b.dataset.s)});
+$("fStChoix").addEventListener("keydown",function(e){var d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!d)return;e.preventDefault();var i=STA_ORDRE.indexOf($("f_statut").value),k=STA_ORDRE[(i+d+STA_ORDRE.length)%STA_ORDRE.length];choisirStatutFiche(k);$("fStChoix").querySelector('[data-s="'+k+'"]').focus()});
+$("fSt").onclick=function(){menuStatut(this,$("f_statut").value,$("f_titre").value||"Nouvel article",choisirStatutFiche)};
+/* menu des statuts, ouvert depuis une carte de Mes articles ou l'en-tête de la fiche */
+var ST_MENU=null;
+function menuStatut(ancre,actuel,titre,choisir){if(ST_MENU&&ST_MENU.ancre===ancre){fermerStatut(true);return}fermerStatut();
+  var m=$("stMenu");$("stMenuT").innerHTML='Statut de <b>'+esc(titre)+'</b>';
+  $("stMenuL").innerHTML=STA_ORDRE.map(function(k){return '<button type="button" role="menuitemradio" aria-checked="'+(k===actuel)+'" data-s="'+k+'"><i class="st-ico '+k+'">'+icoSta(k)+'</i><span>'+STA[k]+'<small>'+STA_AIDE[k]+'</small></span>'+icoSta("ok","ok")+'</button>'}).join("");
+  var ra=ancre.getBoundingClientRect();if(ra.top<70||ra.bottom>innerHeight-12)ancre.scrollIntoView({block:"center",behavior:"instant"});
+  ST_MENU={ancre:ancre,choisir:choisir};ancre.setAttribute("aria-expanded","true");m.hidden=false;$("stVoile").hidden=false;
+  placerStatut();
+  var c=m.querySelector('[aria-checked="true"]')||m.querySelector("button");if(c)c.focus({preventScroll:true})}
+function placerStatut(){if(!ST_MENU)return;var m=$("stMenu");m.style.cssText="";m.classList.remove("dessus");if(matchMedia("(max-width:640px)").matches)return;
+  var r=ST_MENU.ancre.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight){fermerStatut();return}
+  var w=m.offsetWidth,h=m.offsetHeight,g=Math.max(12,Math.min(innerWidth-w-12,r.right-w)),bas=r.bottom+8+h<=innerHeight-12||r.top-8-h<12;
+  m.style.left=g+"px";if(bas)m.style.top=(r.bottom+8)+"px";else{m.classList.add("dessus");m.style.top=(r.top-8-h)+"px"}}
+function fermerStatut(rendre){if(!ST_MENU)return;var a=ST_MENU.ancre;ST_MENU=null;$("stMenu").hidden=true;$("stVoile").hidden=true;a.setAttribute("aria-expanded","false");if(rendre&&document.contains(a))a.focus({preventScroll:true})}
+$("stMenuL").addEventListener("click",function(e){var b=e.target.closest("button[data-s]");if(!b||!ST_MENU)return;var f=ST_MENU.choisir,s=b.dataset.s;fermerStatut(true);f(s)});
+$("stMenu").addEventListener("keydown",function(e){var l=[].slice.call($("stMenuL").children),i=l.indexOf(document.activeElement),d={ArrowDown:1,ArrowUp:-1}[e.key];
+  if(d){e.preventDefault();l[(i+d+l.length)%l.length].focus()}else if(e.key==="Home"||e.key==="End"){e.preventDefault();l[e.key==="Home"?0:l.length-1].focus()}else if(e.key==="Tab"){e.preventDefault();fermerStatut(true)}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&ST_MENU){e.stopPropagation();fermerStatut(true)}},true);
+$("stVoile").addEventListener("pointerdown",function(e){e.preventDefault();fermerStatut()});
+addEventListener("resize",placerStatut);addEventListener("scroll",placerStatut,{passive:true});
+/* Mes articles : changer le statut d'un clic, enregistré tout de suite, avec « Annuler » */
+function statutRapide(o,s,carte){if(o.statut===s)return;
+  var avant={statut:o.statut,prixVente:o.prixVente,dateVente:o.dateVente},nv={statut:s},vente=s==="vendu"||s==="envoye";
+  if(vente&&o.prixVente==null&&o.prixDemande!=null)nv.prixVente=o.prixDemande;
+  if(carte)carte.classList.add("en-cours");
+  var maj=function(corps){return api("PUT","/api/objets/"+o.id,{objet:corps}).then(function(j){var i=OBJ.map(function(x){return x.id}).indexOf(o.id);if(i>=0)OBJ[i]=j.objet;dessiner();
+    var c=document.querySelector('#liste .jeu[data-id="'+o.id+'"] .st-bt');if(c){c.classList.add("pop")}return j.objet})};
+  maj(nv).then(function(n){var fete=vente&&(avant.statut==="en_vente"||avant.statut==="reserve");if(fete&&typeof confettis==="function")confettis();
+    var cache=FILTRE!=="tout"&&!(n.statut===FILTRE||(FILTRE==="vendu"&&n.statut==="envoye"));
+    toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+".","ok",["Annuler",function(){maj(avant).then(function(){toast("Statut remis : "+STA[avant.statut].toLowerCase()+".","ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
+  .catch(function(e){if(carte)carte.classList.remove("en-cours");erreur(e,"Statut non enregistré.")})}
+function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value}
 $("f_statut").onchange=majVente;
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
