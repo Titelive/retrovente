@@ -659,7 +659,33 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .st-choix button[aria-checked="true"]{background:var(--carte);color:var(--encre);box-shadow:inset 0 0 0 2px var(--encre),0 10px 22px -16px rgba(0,0,0,.5)}
 .st-choix button[aria-checked="true"] .st-ico{opacity:1;filter:none;transform:scale(1.06)}
 .st-choix-aide{margin:6px 2px 0;font-size:12.5px;color:var(--gris);font-weight:400;min-height:1.3em}
-#f_statut{display:none!important}
+#f_statut,#f_remise{display:none!important}
+/* Suivi : encart « La vente » (remise, prix, date, frais) */
+.vente-encart{display:grid;gap:14px;padding:14px;border-radius:20px;background:color-mix(in srgb,var(--anis) 7%,var(--carte));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--anis-f) 35%,var(--trait))}
+.vente-encart[hidden]{display:none}
+.vente-encart>header{display:flex;align-items:center;gap:10px}
+.vente-encart>header .st-ico{width:30px;height:30px;border-radius:10px}.vente-encart>header .st-ico svg{width:16px;height:16px}
+.vente-encart h4{margin:0;font:700 16px/1.2 var(--texte);color:var(--encre);letter-spacing:-.01em}
+.vente-encart .f>span:first-child{display:block;margin-bottom:6px}
+.vente-encart .f{font-size:13px;font-weight:600;color:var(--gris)}
+.vente-grille{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.vente-grille>.l2{grid-column:1/-1}
+.vente-grille>.f[hidden]{display:none}
+.st-choix.duo{grid-template-columns:repeat(2,minmax(0,1fr))}
+.st-choix.duo button{grid-template-columns:auto 1fr;justify-items:start;align-items:center;text-align:left;padding:10px 12px;gap:10px}
+.st-ico.rem{background:var(--anis-p);color:var(--encre)}
+.champ-eur{position:relative;display:block}
+.champ-eur input{padding-right:34px!important}
+.champ-eur b{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--gris);pointer-events:none}
+.vente-net{margin:0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;color:var(--gris)}
+.vente-net:empty{display:none}
+.vente-net b{color:var(--encre);font-weight:700}
+.vente-net .plus{color:var(--st-v-tx)}.vente-net .moins{color:#C92A2A}
+/* dates : même hauteur et même alignement que les autres champs (Safari sur iPhone centre et élargit les dates) */
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:50px;text-align:left;line-height:1.4}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
+input[type=date]::-webkit-calendar-picker-indicator{opacity:.6;cursor:pointer}
+html.etabli #fiche [data-onglet] input[type=date]{min-height:42px}
 #fSt{flex:none;font-size:13px;padding:7px 11px}
 @media(max-width:700px){#fSt{display:none}}
 @media(max-width:640px){.st-choix{gap:6px}.st-choix button{font-size:12px;letter-spacing:-.01em;padding:10px 2px 8px}.st-choix button span{overflow:visible}}
@@ -1041,11 +1067,18 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <h3>Suivi</h3>
         <div class="champs">
           <div class="f l2 st-f"><span id="lStatut">Statut</span><div class="st-choix" id="fStChoix" role="radiogroup" aria-labelledby="lStatut"></div><p class="st-choix-aide" id="fStAide"></p><select id="f_statut" data-habille="1" hidden tabindex="-1" aria-hidden="true"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></div>
-          <label class="f">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
-          <label class="f vte">Vendu à (€)<input type="number" id="f_prixVente" min="0" step="0.01" inputmode="decimal"></label>
-          <label class="f vte">Vendu le<input type="date" id="f_dateVente"></label>
-          <label class="f vte">Frais (envoi, commission)<input type="number" id="f_frais" min="0" step="0.01" inputmode="decimal"></label>
-          <label class="f vte">Remise<select id="f_remise"><option value="">—</option><option value="main_propre">En main propre</option><option value="envoi">Envoi</option></select></label>
+          <section class="l2 vente-encart vte" aria-labelledby="tVente">
+            <header><i class="st-ico vendu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><h4 id="tVente">La vente</h4></header>
+            <div class="f"><span id="lRemise">Remise à l'acheteur</span><div class="st-choix duo" id="fRemChoix" role="radiogroup" aria-labelledby="lRemise"></div>
+              <select id="f_remise" data-habille="1" hidden tabindex="-1" aria-hidden="true"><option value="">—</option><option value="main_propre">En main propre</option><option value="envoi">Envoi</option></select></div>
+            <div class="vente-grille">
+              <label class="f">Vendu à<span class="champ-eur"><input type="number" id="f_prixVente" min="0" step="0.01" inputmode="decimal" placeholder="0"><b aria-hidden="true">€</b></span></label>
+              <label class="f">Vendu le<input type="date" id="f_dateVente"></label>
+              <label class="f l2" id="fFraisZone">Frais d'envoi et commission<span class="champ-eur"><input type="number" id="f_frais" min="0" step="0.01" inputmode="decimal" placeholder="0"><b aria-hidden="true">€</b></span></label>
+            </div>
+            <p class="vente-net" id="fVenteNet" aria-live="polite"></p>
+          </section>
+          <label class="f l2">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
           <label class="f l2">Notes perso<textarea id="f_notes" maxlength="1000" style="min-height:70px"></textarea></label>
         </div>
       </section>
@@ -1892,6 +1925,16 @@ $("fLbc").onclick=function(e){LBC_FAIT={};majLbc();api("POST","/api/compter",{qu
   sauver(true).then(function(o){if(!o){if(w)w.close();return}var u=versLbc(o.id);if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
 
 /* ===== Fiche ===== */
+/* Suivi : remise en pastilles, frais masqués en main propre, net de la vente */
+var REM=[["main_propre","En main propre",'<path d="M8 12.5V6.8a1.4 1.4 0 0 1 2.8 0V11m0-.5V5.4a1.4 1.4 0 0 1 2.8 0v5.1m0-.3V6.8a1.4 1.4 0 0 1 2.8 0v6.4c0 4-2.4 6.8-6.2 6.8-2.6 0-4.2-1.5-5.2-3.6l-1.5-3a1.4 1.4 0 0 1 2.4-1.4L8 13.6"/>'],["envoi","Envoi",STA_SVG.envoye]];
+$("fRemChoix").innerHTML=REM.map(function(r){return '<button type="button" role="radio" aria-checked="false" data-r="'+r[0]+'"><i class="st-ico rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+r[2]+'</svg></i><span>'+r[1]+'</span></button>'}).join("");
+function majRemise(){var r=$("f_remise").value;[].forEach.call($("fRemChoix").children,function(b,i){var on=b.dataset.r===r;b.setAttribute("aria-checked",on);b.tabIndex=on||(!r&&i===0)?0:-1});$("fFraisZone").hidden=r==="main_propre";majNet()}
+$("fRemChoix").addEventListener("click",function(e){var b=e.target.closest("button[data-r]");if(!b)return;var r=$("f_remise").value===b.dataset.r?"":b.dataset.r;$("f_remise").value=r;if(r==="main_propre")$("f_frais").value="";majRemise()});
+$("fRemChoix").addEventListener("keydown",function(e){var d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!d)return;e.preventDefault();var i=REM.map(function(r){return r[0]}).indexOf($("f_remise").value),k=REM[(i+d+REM.length*2)%REM.length][0];$("f_remise").value=k;if(k==="main_propre")$("f_frais").value="";majRemise();$("fRemChoix").querySelector('[data-r="'+k+'"]').focus()});
+function majNet(){var e=$("fVenteNet"),pv=parseFloat($("f_prixVente").value),fr=$("fFraisZone").hidden?0:parseFloat($("f_frais").value)||0,pa=parseFloat($("f_prixAchat").value);
+  if(isNaN(pv)||["vendu","envoye"].indexOf($("f_statut").value)<0){e.innerHTML="";return}var net=Math.round((pv-fr)*100)/100;
+  e.innerHTML='<span>Il te reste <b>'+eur(net)+'</b></span>'+(isNaN(pa)?"":'<span>Bénéfice <b class="'+(net-pa>=0?"plus":"moins")+'">'+(net-pa>=0?"+":"−")+eur(Math.abs(Math.round((net-pa)*100)/100))+'</b></span>')}
+["f_prixVente","f_frais","f_prixAchat"].forEach(function(k){$(k).addEventListener("input",majNet)});
 function majStatutFiche(){var s=$("f_statut").value||"en_vente";
   [].forEach.call($("fStChoix").children,function(b){var on=b.dataset.s===s;b.setAttribute("aria-checked",on);b.tabIndex=on?0:-1});
   $("fStAide").textContent=STA_AIDE[s]||"";var h=$("fSt");h.className="st st-bt "+s;h.innerHTML=pastilleSta(s);h.setAttribute("aria-label","Statut : "+STA[s]+". Changer le statut")}
@@ -1932,7 +1975,7 @@ function statutRapide(o,s,carte){if(o.statut===s)return;
     toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+".","ok",["Annuler",function(){maj(avant).then(function(){toast("Statut remis : "+STA[avant.statut].toLowerCase()+".","ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
   .catch(function(e){if(carte)carte.classList.remove("en-cours");erreur(e,"Statut non enregistré.")})}
 function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
-  if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value}
+  if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value;majRemise()}
 $("f_statut").onchange=majVente;
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
   F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();PARTIC=[];puces();
