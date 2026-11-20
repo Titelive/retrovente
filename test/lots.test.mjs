@@ -309,3 +309,25 @@ test("lot « même console » : toute la remise, ce n'est pas un thème de colle
   assert.equal(L.coteLot(a, { nom: "Jeux Nintendo 64", type: "support" }).remise, 0.13);   // 10 × 50 € : proche des 41 € de port
   assert.equal(L.coteLot(a, { nom: "Rareware", type: "studio" }).remise, 0.08);
 });
+
+test("lot : l'annonce de l'appli suit la composition, même ancienne ; une annonce à soi ne bouge pas", async () => {
+  const c = await compte("annonce@exemple.fr");
+  const o = (titre) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande: 20 });
+  const a = await o("Donkey Kong 64"), b = await o("Rayman 2: The Great Escape"), d = await o("Banjo-Kazooie"), e = await o("Mario Party");
+  const lot = (await call("POST", "/api/lots", { articles: [a.id, b.id, d.id] }, c)).json.objet;
+  // annonce d'un ancien lot : au format de l'appli, mais écrite pour une autre composition et un autre prix
+  const vieux = lot.texteAnnonce.replace(/\n- Banjo-Kazooie/, "\n- Lylat Wars, loose\n- Banjo-Kazooie").replace(/le lot est à \d+ €/, "le lot est à 99 €");
+  await call("PUT", "/api/objets/" + lot.id, { objet: { texteAnnonce: vieux, titreAnnonce: lot.titre } }, c);
+  const m = await call("PUT", "/api/lots/" + lot.id, { articles: [a.id, d.id, e.id] }, c);
+  assert.equal(m.status, 200);
+  let l = m.json.objet;
+  assert.doesNotMatch(l.texteAnnonce, /Rayman|Lylat/); assert.match(l.texteAnnonce, /- Mario Party/);
+  assert.equal(l.titreAnnonce, l.titre);
+  // annonce sans IA à la demande (gratuite)
+  const s = await call("POST", "/api/lots/" + lot.id + "/annonce", { simple: true }, c);
+  assert.equal(s.json.description, l.texteAnnonce);
+  // annonce réécrite à la main : elle reste telle quelle
+  await call("PUT", "/api/objets/" + lot.id, { objet: { texteAnnonce: "Trois jeux N64, envoi rapide." } }, c);
+  l = (await call("PUT", "/api/lots/" + lot.id, { articles: [a.id, d.id] }, c)).json.objet;
+  assert.equal(l.texteAnnonce, "Trois jeux N64, envoi rapide.");
+});
