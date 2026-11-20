@@ -64,7 +64,11 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal((await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, d)).status, 404);
   const v = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, c);
   assert.equal(v.json.objet.statut, "vendu"); assert.ok(v.json.objet.dateVente);
-  assert.equal(v.json.objet.titre, "Zelda");
+  assert.equal(v.json.objet.titre, "Zelda"); assert.equal(v.json.objet.photo, true);   // changer seulement le statut garde le reste
+  const r2 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "en_vente" } }, c);
+  assert.equal(r2.json.objet.statut, "en_vente"); assert.equal(r2.json.objet.dateVente, "");
+  const r3 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40, dateVente: v.json.objet.dateVente } }, c);
+  assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
   assert.equal((await call("DELETE", "/api/objets/" + o.id, null, c)).status, 200);
