@@ -165,6 +165,8 @@ const COMMUNS = new Set(("wars war star stars quest racing racer racers rally pa
   "kids junior baby little mega ultra hyper extreme turbo rush jump dance live man army space galaxy planet time zone world worlds ghost ghosts zero resident king kings " +
   "queen prince princess lord lords mega shadow shadows dream dreams magic power powers rock road crazy wild fire water earth wind storm thunder iron steel attack " +
   "revenge return returns rise rising fall origins origin collection trilogy anniversary").split(" "));
+/** Un nom de thème fait d'un seul mot courant (« Wars », « Star ») : ce n'est pas une vraie série. */
+export const themeDouteux = (nom) => { const w = norm(nom).trim().split(/[^a-z0-9]+/).filter(Boolean); return w.length === 1 && COMMUNS.has(w[0]); };
 const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
 /** Lots proposés à partir des articles libres (pas vendus, pas déjà dans un lot). Renvoie au plus `max` idées. */

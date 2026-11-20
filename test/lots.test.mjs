@@ -63,6 +63,8 @@ test("idées de lots par thème : studio, lignée, licence, série, petits prix"
   assert.equal(par["GoldenEye et Perfect Dark"], "cd");
   assert.equal(par["Star Wars"], "gh");          // pas Lylat Wars : « Wars » seul n'est pas une série
   assert.ok(!s.some((x) => x.articles.includes("k") && x.type === "série"));
+  assert.ok(!s.some((x) => ["Wars", "Star"].includes(x.theme)));
+  assert.ok(L.themeDouteux("Wars") && L.themeDouteux("star") && !L.themeDouteux("Star Wars") && !L.themeDouteux("Zelda"));
   assert.ok(!s.some((x) => x.articles.includes("l") && x.articles.includes("d")));   // Dark Souls n'est pas un Perfect Dark
   assert.equal(par.Banjo, "ab");
   assert.equal(par.Zelda, "ef");

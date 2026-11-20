@@ -2839,7 +2839,7 @@ function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(val
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
 /* --- idées de lots à thème --- */
-var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0;
+var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0,IDEES_V=2;
 function cleIdees(){return articles().filter(function(o){return libre(o)&&o.statut!=="retire"}).map(function(o){return o.id+":"+(valeur(o)||"")}).sort().join(",")}
 function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return libre(o)&&o.statut!=="retire"});
   z.hidden=lib.length<2||!!CHOIX;if(z.hidden)return;
@@ -2847,18 +2847,19 @@ function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return li
   IDEES.cle=k;IDEES.charge=true;dessinerIdees();
   // idées de l'IA déjà trouvées pour ces mêmes articles : on les garde (pas de nouvel appel)
   var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees2")||"null")}catch(e){}
-  if(memo&&memo.cle===k&&memo.u===uid()){IDEES.l=memo.l;IDEES.ia=true;IDEES.charge=false;dessinerIdees();return}
+  // IDEES_V : à changer quand le calcul des idées change, pour ne pas resservir de vieilles idées (« Wars », « Star »…) ; 1 jour au plus
+  if(memo&&memo.v===IDEES_V&&memo.cle===k&&memo.u===uid()&&Date.now()-(memo.t||0)<864e5){IDEES.l=memo.l;IDEES.ia=true;IDEES.charge=false;dessinerIdees();return}
   clearTimeout(IDEE_T);IDEE_T=setTimeout(function(){
     api("POST","/api/lots/suggestions",{}).then(function(j){if(IDEES.cle!==k)return;IDEES.l=j.suggestions||[];IDEES.ia=false;IDEES.charge=false;dessinerIdees();
       // formule payante : l'IA cherche aussi les studios, lignées et univers, une fois pour ces articles
-      if(ME&&ME.formule&&ME.formule.id!=="gratuit"&&!(memo&&memo.u===uid()&&Date.now()-(memo.t||0)<600000))ideesIa(true)})
+      if(ME&&ME.formule&&ME.formule.id!=="gratuit"&&!(memo&&memo.v===IDEES_V&&memo.u===uid()&&Date.now()-(memo.t||0)<600000))ideesIa(true)})
     .catch(function(){IDEES.charge=false;dessinerIdees()})},250)}
 function ideesIa(auto){var b=$("ideesIa"),k=IDEES.cle;if(!auto)occupe(b,true,"L'IA cherche…");else b.disabled=true;
   return api("POST","/api/lots/suggestions",{ia:true}).then(function(j){if(IDEES.cle!==k)return;
       // les idées de l'IA d'abord, puis celles trouvées sans elle qui n'y sont pas déjà
       var vus={},l=[];(j.suggestions||[]).concat(IDEES.l).forEach(function(x){var c=x.articles.slice().sort().join(",");if(!vus[c]){vus[c]=1;l.push(x)}});
       IDEES.l=l.slice(0,10);IDEES.ia=true;dessinerIdees();ME.usage.dialogue=(ME.usage.dialogue||0)+1;
-      try{localStorage.setItem("rr-idees2",JSON.stringify({cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
+      try{localStorage.setItem("rr-idees2",JSON.stringify({v:IDEES_V,cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
       if(!auto)toast(j.suggestions&&j.suggestions.length?"L'IA a trouvé "+pluriel(j.suggestions.length,"idée")+" de lot.":"Pas d'autre idée de lot pour le moment.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Les idées de l'IA sont indisponibles.")})
     .then(function(){if(!auto)occupe(b,false);b.disabled=IDEES.ia;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA"})}
@@ -2967,7 +2968,7 @@ function refaireMosaique(lot){return mosaique(membres(lot)).then(function(photo)
 function creerLot(ids,theme,b){if(ids.length<2){toast("Choisis au moins 2 articles.","bad");return}
   if(b)occupe(b,true,"Création du lot…");
   mosaique(ids.map(parId)).catch(function(){return null}).then(function(photo){return api("POST","/api/lots",{articles:ids,theme:theme,photo:photo})})
-    .then(function(j){var id=j.objet.id;try{localStorage.removeItem("rr-idees")}catch(e){}IDEES.cle="";return rechargerObjets().then(function(){if(CHOIX)finirChoix();ouvrirFiche(parId(id));toast("Lot créé : prix conseillé, annonce et photos sont prêts. Vérifie-les avant de publier.","ok")})})
+    .then(function(j){var id=j.objet.id;try{localStorage.removeItem("rr-idees2")}catch(e){}IDEES.cle="";return rechargerObjets().then(function(){if(CHOIX)finirChoix();ouvrirFiche(parId(id));toast("Lot créé : prix conseillé, annonce et photos sont prêts. Vérifie-les avant de publier.","ok")})})
     .catch(function(e){erreur(e,"Création du lot impossible.")}).then(function(){if(b&&document.contains(b))occupe(b,false)})}
 
 /* --- fiche d'un lot, et d'un article qui est dans un lot --- */
