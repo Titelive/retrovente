@@ -665,6 +665,17 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .st-choix button[aria-checked="true"] .st-ico{opacity:1;filter:none;transform:scale(1.06)}
 .st-choix-aide{margin:6px 2px 0;font-size:12.5px;color:var(--gris);font-weight:400;min-height:1.3em}
 #f_statut,#f_remise{display:none!important}
+/* Cartes vendues : teintées, pour les repérer d'un coup d'œil (Vendu aux couleurs de la formule, Envoyé en bleu comme sa pastille) */
+:root{--carte-vendu:color-mix(in srgb,var(--anis) 32%,var(--carte));--trait-vendu:var(--anis-f);--carte-envoye:color-mix(in srgb,var(--st-e-bg) 75%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}}
+:root[data-theme="dark"]{--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
+.jeu.v-vendu{--carte:var(--carte-vendu);--trait:var(--trait-vendu)}
+.jeu.v-envoye{--carte:var(--carte-envoye);--trait:var(--trait-envoye)}
+.jeu.v-vendu .im,.jeu.v-envoye .im{background:color-mix(in srgb,var(--carte) 70%,var(--papier))}
+.jeu .im .tampon{position:absolute;right:10px;top:10px;z-index:1;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font:400 10px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 6px 16px -8px rgba(0,0,0,.5)}
+.jeu .im .tampon svg{width:13px;height:13px}
+.jeu.v-vendu .tampon{background:var(--st-f-bg);color:var(--st-f-tx)}
+.jeu.v-envoye .tampon{background:var(--st-e-bg);color:var(--st-e-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-e-tx) 30%,transparent),0 6px 16px -8px rgba(0,0,0,.5)}
 .fisc-main{display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:10px;padding:7px 12px;border-radius:12px;background:var(--anis-p);color:var(--encre);font-size:13.5px;line-height:1.35;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--anis-f) 40%,var(--trait))}
 .fisc-main svg{width:16px;height:16px;flex:none}
 /* Suivi : encart « La vente » (remise, prix, date, frais) */
@@ -1546,6 +1557,7 @@ var STA_ORDRE=["en_vente","reserve","vendu","envoye","retire"],
   STA_AIDE={en_vente:"Annonce en ligne, en attente d'un acheteur",reserve:"Un acheteur s'est engagé, pas encore payé",vendu:"Payé, reste à le remettre ou l'envoyer",envoye:"Colis parti ou remis en main propre",retire:"Plus en vente, gardé dans ta liste"},
   STA_SVG={en_vente:'<path d="M3 12.5V4h8.5l9 9-8.5 8.5z"/><circle cx="7.5" cy="8.5" r="1.4"/>',reserve:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',vendu:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',envoye:'<path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/>',retire:'<rect x="3.5" y="4" width="17" height="5" rx="1.5"/><path d="M5.5 9v10.5h13V9M10 13h4"/>'};
 function icoSta(k,cl){return '<svg'+(cl?' class="'+cl+'"':'')+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(k==="chev"?'<path d="m6 9 6 6 6-6"/>':k==="ok"?'<path d="M5 12.5l4.5 4.5L19 7.5"/>':STA_SVG[k])+'</svg>'}
+function tamponSta(o){return o.statut==="vendu"||o.statut==="envoye"?'<span class="tampon">'+icoSta(o.statut)+STA[o.statut]+'</span>':""}
 function boutonSta(o){return CHOIX?'<span class="st '+o.statut+'">'+STA[o.statut]+'</span>':'<button type="button" class="st st-bt '+o.statut+'" aria-haspopup="menu" aria-expanded="false" aria-label="Statut : '+STA[o.statut]+'. Changer le statut">'+pastilleSta(o.statut)+'</button>'}
 function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
@@ -1772,7 +1784,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+(!CHOIX&&lotDe(o)?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsDe(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsDe(o)))+'">'+BOX_SVG+(lotsDe(o).length>1?'Dans '+lotsDe(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
@@ -2820,7 +2832,9 @@ function estLot(o){return !!(o&&Array.isArray(o.articles))}
 function articles(){return OBJ.filter(function(o){return !estLot(o)})}
 function parId(id){return OBJ.filter(function(x){return x.id===id})[0]||null}
 function lotsIds(o){var l=o&&Array.isArray(o.lots)?o.lots.slice():[];if(o&&o.lot&&l.indexOf(o.lot)<0)l.push(o.lot);return l}
-function lotsDe(o){return lotsIds(o).map(parId).filter(function(l){return estLot(l)&&l.articles.indexOf(o.id)>=0})}
+function lotsDe(o){return lotsIds(o).filter(function(id,i,t){return t.indexOf(id)===i}).map(parId).filter(function(l){return estLot(l)&&l.articles.indexOf(o.id)>=0})}
+/* lots où l'article est proposé en ce moment (pas ceux retirés de la vente) : c'est ce que compte le badge de la carte */
+function lotsActifs(o){return lotsDe(o).filter(function(l){return l.statut!=="retire"})}
 function dansLot(o,lot){return !!lot&&lotsIds(o).indexOf(lot.id)>=0}
 /* le lot d'un article : celui avec lequel il est parti s'il est vendu, sinon le premier */
 function lotDe(o){var l=lotsDe(o);return l.filter(vendu)[0]||l[0]||null}
@@ -2841,7 +2855,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 /* --- carte d'un lot dans la liste --- */
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
-  return '<div class="jeu lot'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im"><span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+  return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
     '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
