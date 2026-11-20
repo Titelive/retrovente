@@ -668,6 +668,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
 - tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
 - 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon commence directement (« Merci Garnier, … ») ;
+- disponibilité : dis-le clairement, « le jeu est toujours disponible » (« la console », « la manette », « la carte », « le film »… selon l'objet), jamais « il est bien là », « il est encore là » ni « toujours dispo » ;
 - ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
@@ -709,7 +710,8 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
-  l.forEach((r) => { r.texte = sansOuIlHabite(r.texte); });
+  const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  l.forEach((r) => { r.texte = dispoClaire(sansOuIlHabite(r.texte), objet); });
   // Personne ne parle de prix : pas de « prix ferme » ni de contre-offre hors sujet.
   if (!consigne && montantOffre == null && !lot && !parlePrix(conversation)) {
     const utiles = l.filter((r) => !["ferme", "contre_offre", "couper_court"].includes(r.approche) && !/descendre|baisser|négoci|dernier prix|prix (fixe|ferme)/i.test(r.texte));
@@ -747,6 +749,12 @@ export function sansLieu(t, lieux) {
     s = s.replace(new RegExp(`\\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci(?: beaucoup| bien)?)\\s+${e}\\b\\s*`, "gu"), "$1 ").replace(/ +([,!?.])/g, (m, p) => (p === "," || p === "." ? p : " " + p));
   }
   return s.replace(/ {2,}/g, " ");
+}
+
+// « oui il est bien là » → « oui le jeu est toujours disponible ».
+export function dispoClaire(t, objet = "le jeu") {
+  return String(t).replace(/\b(il|elle) est (?:bien|encore|toujours) (?:là|dispo)(?!\p{L})|\b(il|elle) est toujours disponible\b/giu,
+    (m, a, b, i) => { const o = i === 0 ? objet.charAt(0).toUpperCase() + objet.slice(1) : objet; return `${o} est toujours disponible`; });
 }
 
 // « Si vous venez de Nancy, on peut… » → « On peut… » : on ne reformule pas où habite l'acheteur.

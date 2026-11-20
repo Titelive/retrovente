@@ -625,3 +625,9 @@ test("on ne reformule pas où habite l'acheteur", async () => {
   const ok = "Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy.";
   assert.equal(sansOuIlHabite(ok), ok);
 });
+
+test("disponibilité dite clairement : « le jeu est toujours disponible »", async () => {
+  const { dispoClaire } = await import("../server/ia.mjs");
+  assert.equal(dispoClaire("Bonjour, oui il est bien là 🙂"), "Bonjour, oui le jeu est toujours disponible 🙂");
+  assert.equal(dispoClaire("Bonjour, elle est encore là !", "la console"), "Bonjour, la console est toujours disponible !");
+});
