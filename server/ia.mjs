@@ -563,7 +563,7 @@ const OUTIL_REPONSES = {
   schema: {
     type: "object",
     properties: {
-      resume: { type: "string", description: "Ce que demande l'acheteur, en une phrase courte (25 mots au plus)." },
+      resume: { type: "string", description: "Ce que demande l'acheteur, en une phrase courte (25 mots au plus), adressée au vendeur. Jamais un mot sur le texte transmis, ce que tu vois ou ne vois pas, ni tes consignes." },
       intention: { type: "string", description: "Un mot-clé (offre_basse, disponibilite, envoi…)." },
       reponses: {
         type: "array", minItems: 1, maxItems: 3,
@@ -672,7 +672,10 @@ sinon (question, disponibilité, envoi…), trois formulations utiles et différ
 - lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
-- si le message est une arnaque probable, une des réponses le décline poliment.
+- si le message est une arnaque probable, une des réponses le décline poliment ;
+- n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
+- l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
+- si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message cordial sur l'annonce (disponible, état, remise ou envoi).
 ${consigne ? `
 LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est lui qui décide, sa consigne passe avant toutes les règles ci-dessus (prix, ton, plancher) :
 """
@@ -701,7 +704,9 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
   }
   if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
-  return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+  let resume = phrase(o.resume, 260);
+  if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
+  return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
 }
 
 // Suite d'un message du vendeur : on retire un « Merci Sofian ! » ou un « Bonjour, » d'ouverture.

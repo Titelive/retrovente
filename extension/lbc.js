@@ -725,7 +725,7 @@
     ".rep .ico{flex:none;width:30px;height:30px;border-radius:10px;background:var(--anis-p);color:var(--nuit);display:grid;place-items:center}.rep .ic{width:17px;height:17px}.rep .q{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
     ".rep .ap2{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rep strong{color:var(--encre);font-weight:800}" +
     ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:#fff;font-weight:800}" +
-    ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
+    ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.emo.ph{background-size:cover;background-position:center}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     // Couleur pastel selon le sens de la réponse : vert quand on va dans le sens de l'acheteur, rouge quand on refuse.
     "details.types>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:600 11px/1 var(--texte);letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:10px 2px}" +
@@ -879,9 +879,8 @@
     [/pac-?man/, "🟡"], [/tomb raider/, "🏺"], [/harry potter/, "🧙"], [/lego/, "🧩"], [/rayman/, "✊"], [/animal crossing/, "🍃"], [/pikmin/, "🌱"], [/fire emblem/, "🔥"],
     [/kingdom hearts/, "🗝️"], [/gta|grand theft/, "🚓"], [/call of duty|battlefield/, "🎖️"], [/minecraft/, "⛏️"], [/splatoon/, "🦑"], [/xenoblade|chrono/, "⏳"],
   ];
-  var PALETTE = ["🎮", "🕹️", "👾", "🎲", "💎", "🌟", "🍀", "🎯", "🚀", "🦄", "🌈", "🍒", "🐸", "🦊", "🐙", "🌵", "🍉", "🎸", "🛸", "🪐", "🐢", "🦋", "🍩", "🎈", "🧸", "🐳", "🦉", "🌻"];
   function emojis(l) {
-    var pris = {}, out = {};
+    var out = {};
     l.forEach(function (a) {
       var n = norm(a.titre + " " + (a.nom || "")), e = "";
       if (a.lot) e = "📦";
@@ -889,10 +888,20 @@
       else if (a.categorie === "cartes") e = "🃏";
       else if (a.categorie === "films") e = "🎬";
       var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
-      if (!e || pris[e]) { var h = 0; for (var i = 0; i < String(a.id).length; i++) h = (h * 31 + String(a.id).charCodeAt(i)) >>> 0; for (var j = 0; j < PALETTE.length; j++) { var c = PALETTE[(h + j) % PALETTE.length]; if (!pris[c]) { e = c; break; } } }
-      pris[e] = true; out[a.id] = e;
+      // Sans emoji parlant : la manette (la photo de l'article prend sa place dès qu'elle est chargée).
+      out[a.id] = e || "🎮";
     });
     return out;
+  }
+  // Vignette d'un article : sa photo (chargée une fois), sinon un emoji.
+  var vignettes = {};
+  function vignette(a) {
+    var v = el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) });
+    if (a && a.photo && !a.lot && !a.externe && /^[a-f0-9]{16}$/.test(String(a.id || ""))) {
+      (vignettes[a.id] = vignettes[a.id] || rrDemander({ type: "photo", id: a.id }).then(function (r) { return "data:" + (r.type || "image/jpeg") + ";base64," + r.base64; }))
+        .then(function (u) { v.style.backgroundImage = "url(" + u + ")"; v.classList.add("ph"); v.textContent = ""; }, function () { delete vignettes[a.id]; });
+    }
+    return v;
   }
   var emojiDe = function (a) { if (a && a.lot) return "📦"; if (!etat.emojis) etat.emojis = emojis(etat.annonces || []); return (a && etat.emojis[a.id]) || "🎮"; };
 
@@ -905,7 +914,7 @@
     if (!etat.choisie || (!etat.choisie.lot && !etat.choisie.externe && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
     var a = etat.choisie;
     var choix = el("button", { class: "choix", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Annonce à déposer : " + a.titre + ". Changer (" + RACCOURCI + ")", onclick: function () { liste.hidden ? ouvrirListe() : fermerListe(); } }, [
-      el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) }),
+      vignette(a),
       el("span", { class: "q" }, [el("span", { class: "nom", texte: a.titre }), el("span", { class: "meta", texte: metaTxt(a) || "Changer d'article" })]),
       a.prix != null ? el("span", { class: "px", texte: prixTxt(a) }) : null,
       el("kbd", { class: "k", texte: RACCOURCI }),
@@ -924,7 +933,7 @@
         if (x.publiee) nom.appendChild(el("span", { class: "pub", texte: "publiée" }));
         opts.appendChild(el("li", { class: "opt" + (i === actif ? " actif" : ""), id: "rr-o" + i, role: "option", "aria-selected": String(x.id === a.id),
           onmousedown: function (e) { e.preventDefault(); }, onmousemove: function () { if (actif !== i) { actif = i; marquer(); } }, onclick: function () { prendre(x); } },
-          [el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(x) }), el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
+          [vignette(x), el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
       });
       marquer();
     }
@@ -1012,6 +1021,9 @@
     var z = zoneMessage(); if (!z) return document.querySelector("main") || document.body;
     var w0 = Math.max(260, (z.closest("form") || z.parentElement || z).getBoundingClientRect().width), c = z;
     while (c.parentElement && c.parentElement !== document.body && c.parentElement.getBoundingClientRect().width <= w0 * 1.3 + 60) c = c.parentElement;
+    // Zone de saisie plus étroite que la liste des messages : on remonte jusqu'à englober de vrais messages.
+    var base = (z.closest("form") || z.parentElement || z), propre = function (x) { return ((x.innerText || "").length - (base.innerText || "").length); };
+    for (var i = 0; i < 5 && propre(c) < 60 && c.parentElement && c.parentElement !== document.body && c.parentElement.getBoundingClientRect().width < innerWidth * 0.8; i++) c = c.parentElement;
     return c;
   }
   // L'encadré de l'annonce discutée (à côté de la conversation : « Lot de 2 articles · 203 € » ou titre et prix).
@@ -1236,16 +1248,19 @@
   function texteConversation() {
     var t = colonneConversation().innerText || "", enc = texteEncadre().trim();
     var z = zoneMessage(); if (z && !(z instanceof HTMLTextAreaElement) && !(z instanceof HTMLInputElement) && z.innerText) t = t.split(z.innerText).join(" ");
+    // « Envoyez une réponse rapide » : suggestions de l'IA de Le Bon Coin, jamais des messages de la conversation.
+    blocsSuggestions(colonneConversation()).forEach(function (b) { var bt = (b.innerText || "").trim(); if (bt) t = t.split(bt).join(" "); });
     t = t.replace(/\n{3,}/g, "\n\n").trim().slice(-4200);
     return (enc ? "[Annonce concernée]\n" + enc.slice(0, 600) + "\n\n[Conversation]\n" : "") + t;
   }
   // Messages déjà envoyés par le vendeur : les bulles calées à droite de la conversation (pour que l'IA ne répète pas
   // ses arguments ni sa présentation).
   function mesMessages() {
-    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), vus = [];
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), vus = [], sugg = blocsSuggestions(col);
     if (cr.width < 200) return [];
     [].forEach.call(col.querySelectorAll("div, p, li, article, section"), function (x) {
       if ((hote && hote.contains(x)) || (z && (x.contains(z) || z.contains(x)))) return;
+      if (sugg.some(function (b) { return b.contains(x) || x.contains(b); })) return;   // réponses rapides de Le Bon Coin
       var t = (x.innerText || "").trim(); if (t.length < 20 || t.length > 1500) return;
       var r = x.getBoundingClientRect();
       if (r.width < 120 || r.width > cr.width * 0.85) return;
@@ -1276,6 +1291,15 @@
   }
   // Bloc de suggestions de Le Bon Coin (titre « Envoyez une réponse rapide », boutons de réponses toutes faites) :
   // jamais pris pour un message de la conversation. (Une offre reçue, elle, compte : c'est l'acheteur qui a agi.)
+  // Encadrés « Envoyez une réponse rapide » : le plus grand bloc qui commence par ce titre (titre + boutons).
+  function blocsSuggestions(racine) {
+    var l = [].filter.call((racine || document).querySelectorAll("div, section, aside, ul"), function (x) {
+      if (hote && hote.contains(x)) return false;
+      var t = norm((x.innerText || "").slice(0, 700));
+      return /^(envoyez une reponse rapide|reponses? rapides?)\b/.test(t) && (x.innerText || "").length < 700;
+    });
+    return l.filter(function (x) { return !l.some(function (y) { return y !== x && y.contains(x); }); });
+  }
   function suggestionsLbc(x) {
     for (var e = x, i = 0; e && i < 6; e = e.parentElement, i++) {
       var t = norm((e.innerText || "").slice(0, 200));
