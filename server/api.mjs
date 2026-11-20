@@ -59,8 +59,9 @@ function nettoyer(v, avant) {
     photos: ordrePhotos(v.photos, avant),
     // Lots : la composition ne change que par /api/lots (jamais par la fiche), on la reprend telle quelle.
     ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null, ...(avant.alerte ? { alerte: avant.alerte } : {}), ...(avant.mosaiqueAFaire ? { mosaiqueAFaire: true } : {}) } : {}),
-    ...(avant && avant.lot ? { lot: avant.lot } : {}),
-    ...(avant && avant.exLot ? { exLot: avant.exLot } : {}),
+    // Un article peut être dans plusieurs lots tant qu'il n'est pas vendu (« lots ») ; « lot » est l'ancien champ, à un seul lot.
+    ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
+    ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
   };
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
@@ -85,10 +86,21 @@ const ID = /^[a-f0-9]{16}$/;
 const VENDU = (st) => st === "vendu" || st === "envoye";
 const ecrire = (uid, it) => { const { id, cree: _c, modifie: _m, ...data } = it; db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(data), now(), id, uid); };
 const estLot = (it) => Array.isArray(it && it.articles);
-const lotDe = (uid, it) => { const l = it && it.lot ? getItem(uid, it.lot) : null; return estLot(l) ? l : null; };
-/** Articles qu'on peut mettre dans un lot : à soi, pas vendus, pas un lot, pas déjà dans un autre lot. */
-function articlesPourLot(uid, ids, lotId = "") {
-  const l = [...new Set((Array.isArray(ids) ? ids : []).map(String))].filter((x) => ID.test(x));
+/* Un article peut être dans plusieurs lots à la fois tant qu'il n'est pas vendu : il porte la liste de ses lots (« lots »).
+   Quand il se vend (à l'unité ou avec un de ses lots), il quitte les autres, et y revient si la vente est annulée (« exLots »). */
+const uniques = (...l) => [...new Set(l.flat().filter(Boolean).map(String))];
+function lotsIds(it) { return it ? uniques(Array.isArray(it.lots) ? it.lots : [], it.lot || []) : []; }
+function exLotsIds(it) { return it ? uniques(Array.isArray(it.exLots) ? it.exLots : [], it.exLot || []) : []; }
+const poser = (m, k, l) => { if (l.length) m[k] = l; else delete m[k]; };
+const mettreLots = (m, l) => { delete m.lot; poser(m, "lots", uniques(l)); };
+const mettreExLots = (m, l) => { delete m.exLot; poser(m, "exLots", uniques(l)); };
+const ajouterAuLot = (m, id) => { mettreLots(m, [...lotsIds(m), id]); mettreExLots(m, exLotsIds(m).filter((x) => x !== id)); };
+const oterDuLot = (m, id) => mettreLots(m, lotsIds(m).filter((x) => x !== id));
+/** Les lots d'un article (ceux qui le contiennent vraiment). */
+const lotsDe = (uid, it) => lotsIds(it).map((id) => getItem(uid, id)).filter((l) => estLot(l) && l.articles.includes(it.id));
+/** Articles qu'on peut mettre dans un lot : à soi, pas vendus, pas un lot. Un article peut être dans plusieurs lots. */
+function articlesPourLot(uid, liste) {
+  const l = [...new Set((Array.isArray(liste) ? liste : []).map(String))].filter((x) => ID.test(x));
   if (l.length < MIN_LOT) fail(400, "Choisis au moins 2 articles pour faire un lot.");
   if (l.length > MAX_LOT) fail(400, `${MAX_LOT} articles au plus dans un lot.`);
   return l.map((id) => {
@@ -96,17 +108,16 @@ function articlesPourLot(uid, ids, lotId = "") {
     if (!it) fail(404, "Un des articles est introuvable.");
     if (estLot(it)) fail(400, "Un lot ne peut pas contenir un autre lot.");
     if (VENDU(it.statut)) fail(400, `« ${it.titre} » est déjà vendu.`);
-    const autre = lotDe(uid, it);
-    if (autre && autre.id !== lotId) fail(409, `« ${it.titre} » est déjà dans le lot « ${autre.titre} ».`);
     return it;
   });
 }
 /** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
     Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
-    son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu. */
+    son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu.
+    Les articles du lot vendu quittent les autres lots où ils étaient ; ils y reviennent si la vente du lot est annulée. */
 function suivreLot(uid, lot, avant) {
   const vendu = VENDU(lot.statut), etaitVendu = !!(avant && VENDU(avant.statut));
-  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente))) return;
+  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente))) return [];
   const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
   const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
   membres.forEach((m, i) => {
@@ -114,6 +125,15 @@ function suivreLot(uid, lot, avant) {
     else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
     ecrire(uid, m);
   });
+  const autres = [];
+  for (const m of membres) {
+    if (vendu && !etaitVendu) for (const id of lotsIds(m)) {
+      const l = id !== lot.id && getItem(uid, id);
+      if (estLot(l) && !VENDU(l.statut) && l.articles.includes(m.id)) autres.push(sortirDuLot(uid, l, getItem(uid, m.id)));
+    }
+    if (!vendu && etaitVendu) for (const id of exLotsIds(m)) { const r = revenirDansLot(uid, getItem(uid, id), getItem(uid, m.id)); if (r) autres.push(r); }
+  }
+  return autres;
 }
 /* Un article du lot vendu à l'unité quitte le lot : prix du lot recalculé, sa photo retirée, mosaïque à refaire.
    S'il revient en vente (« Annuler »), il y retourne. Le titre et l'annonce écrits par l'appli suivent ; ceux que
@@ -145,7 +165,7 @@ function photoMembre(uid, lot, m) {
 }
 function sortirDuLot(uid, lot, m) {
   const reste = lot.articles.filter((id) => id !== m.id);
-  delete m.lot; m.exLot = lot.id; ecrire(uid, m);
+  oterDuLot(m, lot.id); mettreExLots(m, [...exLotsIds(m), lot.id]); ecrire(uid, m);
   if (reste.length < MIN_LOT) { defaireLot(uid, lot); return { id: lot.id, titre: lot.titre, action: "defait" }; }
   const avant = champsLot(lot);
   const theme = lot.theme ? { ...lot.theme, complet: false } : null;
@@ -169,8 +189,9 @@ function suivrePrix(uid, lot, avantArticle) {
   return { id: lot.id, titre: l.titre, action: "prix", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
 }
 function revenirDansLot(uid, lot, m) {
-  if (!estLot(lot) || VENDU(lot.statut) || lot.articles.includes(m.id) || lot.articles.length >= MAX_LOT) { delete m.exLot; ecrire(uid, m); return null; }
-  m.lot = lot.id; delete m.exLot; ecrire(uid, m);
+  const lid = lot && lot.id;
+  if (!estLot(lot) || VENDU(lot.statut) || lot.articles.includes(m.id) || lot.articles.length >= MAX_LOT) { mettreExLots(m, exLotsIds(m).filter((x) => x !== lid)); ecrire(uid, m); return null; }
+  ajouterAuLot(m, lot.id); ecrire(uid, m);
   const a = lot.alerte || {}, vendus = (a.vendus || []).filter((x) => x.id !== m.id), dernier = !vendus.length && a.avant;
   const n = recomposer(uid, lot, [...lot.articles, m.id], lot.theme);
   const { _annonceAJour, _ratio, ...l } = n;
@@ -184,7 +205,7 @@ function revenirDansLot(uid, lot, m) {
 }
 /** Défaire un lot : ses articles redeviennent indépendants (un lot vendu laisse ses articles vendus, avec leur part du prix). */
 function defaireLot(uid, lot) {
-  for (const id of lot.articles) { const m = getItem(uid, id); if (m && m.lot === lot.id) { delete m.lot; ecrire(uid, m); } }
+  for (const id of lot.articles) { const m = getItem(uid, id); if (m && lotsIds(m).includes(lot.id)) { oterDuLot(m, lot.id); ecrire(uid, m); } }
   db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(lot.id, uid);
   for (const x of photosDe(lot)) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
 }
@@ -551,9 +572,9 @@ function lienLbc(v) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
     if (method === "PUT") {
       const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
-      const sonLot = estLot(avant) ? null : lotDe(u.id, avant);
+      const sesLots = estLot(avant) ? [] : lotsDe(u.id, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
       // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
-      if (sonLot && VENDU(sonLot.statut)) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+      if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
       if (estLot(avant) && b.fermerAlerte) delete it.alerte;
       if (typeof b.photo === "string") {
         const prem = it.photos[0];
@@ -563,20 +584,23 @@ function lienLbc(v) {
       }
       it.photo = it.photos.length > 0;
       db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
-      let lot = null;
-      if (estLot(it)) suivreLot(u.id, { ...it, id: avant.id }, avant);
-      // Vendu à l'unité alors que son lot est encore en vente : il quitte le lot. Remis en vente : il y revient.
-      else if (sonLot && !VENDU(sonLot.statut) && VENDU(it.statut) && !VENDU(avant.statut)) lot = tx(() => sortirDuLot(u.id, sonLot, getItem(u.id, avant.id)));
-      else if (sonLot && !VENDU(sonLot.statut) && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lot = tx(() => suivrePrix(u.id, sonLot, avant));
-      else if (!sonLot && avant.exLot && VENDU(avant.statut) && !VENDU(it.statut)) lot = tx(() => revenirDansLot(u.id, getItem(u.id, avant.exLot), getItem(u.id, avant.id)));
-      return ok({ ok: true, objet: getItem(u.id, avant.id), ...(lot ? { lot } : {}) });
+      let lots = [];
+      if (estLot(it)) lots = tx(() => suivreLot(u.id, { ...it, id: avant.id }, avant));
+      // Vendu à l'unité alors que ses lots sont encore en vente : il les quitte tous. Remis en vente : il y revient.
+      else if (lotVendu) lots = [];
+      else if (sesLots.length && VENDU(it.statut) && !VENDU(avant.statut)) lots = tx(() => sesLots.map((l) => sortirDuLot(u.id, getItem(u.id, l.id), getItem(u.id, avant.id))));
+      else if (sesLots.length && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lots = tx(() => sesLots.map((l) => suivrePrix(u.id, getItem(u.id, l.id), avant)).filter(Boolean));
+      else if (exLotsIds(avant).length && VENDU(avant.statut) && !VENDU(it.statut)) lots = tx(() => exLotsIds(avant).map((id) => revenirDansLot(u.id, getItem(u.id, id), getItem(u.id, avant.id))).filter(Boolean));
+      // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
+      return ok({ ok: true, objet: getItem(u.id, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
     }
     if (method === "DELETE") {
       if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
-      const l = lotDe(u.id, avant);
-      if (l && VENDU(l.statut)) fail(409, `Cet article est parti avec le lot « ${l.titre} » : défais le lot avant de le supprimer.`);
-      // supprimé (un doublon, par exemple) : il quitte d'abord son lot, qui se recalcule
-      if (l) tx(() => {
+      const sesLots = lotsDe(u.id, avant), lv = sesLots.find((l) => VENDU(l.statut));
+      if (lv) fail(409, `Cet article est parti avec le lot « ${lv.titre} » : défais le lot avant de le supprimer.`);
+      // supprimé (un doublon, par exemple) : il quitte d'abord ses lots, qui se recalculent
+      if (sesLots.length) tx(() => sesLots.forEach(({ id: lid }) => {
+        const l = getItem(u.id, lid); if (!estLot(l)) return;
         const reste = l.articles.filter((id) => id !== avant.id);
         if (reste.length < MIN_LOT) return defaireLot(u.id, l);
         const { _annonceAJour, _ratio, ...n } = recomposer(u.id, l, reste, l.theme && !reste.some((id) => (getItem(u.id, id) || {}).titre === avant.titre) ? { ...l.theme, complet: false } : l.theme);
@@ -584,7 +608,7 @@ function lienLbc(v) {
         for (const x of part) fs.rmSync(fichierPhoto(u.id, l.id, x.id), { force: true });
         const photos = ph.filter((x) => !part.includes(x));
         ecrire(u.id, { ...n, photos, photo: photos.length > 0 });
-      });
+      }));
       db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(avant.id, u.id);
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
@@ -622,12 +646,15 @@ function lienLbc(v) {
   }
   if (p === "/api/lots/suggestions" && method === "POST") {
     const b = body(), tous = listItems(u.id);
-    const pris = new Set(tous.filter(estLot).flatMap((l) => l.articles));
-    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire" && !pris.has(o.id));
+    // Tous les articles à vendre comptent, même ceux déjà dans un lot (un jeu peut être dans plusieurs lots) ;
+    // on ne repropose pas un lot qui existe déjà avec exactement les mêmes articles.
+    const existants = new Set(tous.filter((l) => estLot(l) && !VENDU(l.statut)).map((l) => [...l.articles].sort().join(",")));
+    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire");
     let l, parIa = false;
     if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres); bump(u.id, "dialogue"); parIa = true; }
     else l = suggestionsLocales(libres, 8);
     const par = new Map(libres.map((o) => [o.id, o]));
+    l = l.filter((x) => !existants.has([...x.articles].sort().join(",")));
     return ok({ ok: true, ia: parIa, suggestions: l.map((x) => ({ ...x, cote: coteLot(x.articles.map((id) => par.get(id)).filter(Boolean), { nom: x.theme, type: x.type, complet: x.complet }) })) });
   }
   if (p === "/api/lots" && method === "POST") {
@@ -638,7 +665,7 @@ function lienLbc(v) {
       const a = annonceLotSimple(membres, c.conseille, theme);
       const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), contenu: "", articles: membres.map((m) => m.id), theme };
       db.prepare("INSERT INTO items(id, user_id, data, created, updated) VALUES (?, ?, ?, ?, ?)").run(id, u.id, JSON.stringify(it), now(), now());
-      for (const m of membres) { m.lot = id; delete m.exLot; ecrire(u.id, m); }
+      for (const m of membres) { ajouterAuLot(m, id); ecrire(u.id, m); }
       return it;
     });
     // Photos du lot : la mosaïque composée par l'appli en premier, puis la première photo de chaque article.
@@ -671,9 +698,9 @@ function lienLbc(v) {
     if (method === "PUT") {
       if (VENDU(lot.statut)) fail(409, "Ce lot est vendu : sa composition ne change plus.");
       const membres = tx(() => {
-        const l = articlesPourLot(u.id, body().articles, lot.id), garde = new Set(l.map((m) => m.id));
-        for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && m.lot === lot.id) { delete m.lot; ecrire(u.id, m); } }
-        for (const m of l) if (m.lot !== lot.id) { m.lot = lot.id; delete m.exLot; ecrire(u.id, m); }
+        const l = articlesPourLot(u.id, body().articles), garde = new Set(l.map((m) => m.id));
+        for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && lotsIds(m).includes(lot.id)) { oterDuLot(m, lot.id); ecrire(u.id, m); } }
+        for (const m of l) if (!lotsIds(m).includes(lot.id)) { ajouterAuLot(m, lot.id); ecrire(u.id, m); }
         const it = { ...lot, articles: l.map((m) => m.id), mosaiqueAFaire: true };
         ecrire(u.id, it);
         return l;
@@ -739,7 +766,7 @@ function lienLbc(v) {
     if (!rights(u).export) fail(402, "L'export est inclus dans la formule Collectionneur.");
     const tous = listItems(u.id), noms = new Map(tous.filter(estLot).map((l) => [l.id, l.titre]));
     // les lots n'ont pas de ligne à eux : leurs articles portent chacun sa part du prix, et le nom du lot
-    return { status: 200, body: Buffer.from(csv(tous.filter((o) => !estLot(o)).map((o) => ({ ...o, lot: noms.get(o.lot) || "" })))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
+    return { status: 200, body: Buffer.from(csv(tous.filter((o) => !estLot(o)).map((o) => ({ ...o, lot: lotsIds(o).map((id) => noms.get(id)).filter(Boolean).join(" ; ") })))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
   }
 
   /* --- paiement --- */

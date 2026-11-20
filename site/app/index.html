@@ -1765,7 +1765,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+(!CHOIX&&lotDe(o)?'<span class="tag-lot en-lot" title="Aussi dans le lot « '+esc(lotDe(o).titre)+' »">'+BOX_SVG+'Aussi en lot</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<div class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+(!CHOIX&&lotDe(o)?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsDe(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsDe(o)))+'">'+BOX_SVG+(lotsDe(o).length>1?'Dans '+lotsDe(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
@@ -2803,7 +2803,8 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
 })();
 
 /* ===== Lots : plusieurs articles vendus ensemble =====
-   Un lot est un article qui porte la liste de ses articles (o.articles) ; chaque article du lot porte o.lot.
+   Un lot est un article qui porte la liste de ses articles (o.articles) ; chaque article porte la liste de ses lots (o.lots).
+   Un article peut être dans plusieurs lots tant qu'il n'est pas vendu : quand il part (seul ou avec un lot), il quitte les autres.
    Idées de lots à thème au-dessus de la liste, choix des articles à la main, fiche du lot (contenu, cote, annonce IA). */
 var BOX_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>';
 function occupe(b,on,t){if(on){if(b._html==null)b._html=b.innerHTML;busy(b,true,t)}else{busy(b,false);if(b._html!=null){b.innerHTML=b._html;b._html=null}}}
@@ -2811,7 +2812,12 @@ var CHOIX=null;   // composition en cours : {ids:[], lot:lot à compléter ou nu
 function estLot(o){return !!(o&&Array.isArray(o.articles))}
 function articles(){return OBJ.filter(function(o){return !estLot(o)})}
 function parId(id){return OBJ.filter(function(x){return x.id===id})[0]||null}
-function lotDe(o){var l=o&&o.lot?parId(o.lot):null;return estLot(l)?l:null}
+function lotsIds(o){var l=o&&Array.isArray(o.lots)?o.lots.slice():[];if(o&&o.lot&&l.indexOf(o.lot)<0)l.push(o.lot);return l}
+function lotsDe(o){return lotsIds(o).map(parId).filter(function(l){return estLot(l)&&l.articles.indexOf(o.id)>=0})}
+function dansLot(o,lot){return !!lot&&lotsIds(o).indexOf(lot.id)>=0}
+/* le lot d'un article : celui avec lequel il est parti s'il est vendu, sinon le premier */
+function lotDe(o){var l=lotsDe(o);return l.filter(vendu)[0]||l[0]||null}
+function nomsLots(l){return l.map(function(x){return "« "+x.titre+" »"}).join(", ")}
 function membres(lot){return (lot.articles||[]).map(parId).filter(Boolean)}
 /* valeur à l'unité : le prix affiché (ce que l'acheteur paierait), sinon le prix conseillé de la cote */
 function valeur(o){var c=o&&o.cote&&o.cote.conseille;return o&&o.prixDemande!=null&&o.prixDemande!==""?+o.prixDemande:c!=null&&c!==""?+c:null}
@@ -2819,7 +2825,8 @@ function vendu(o){return o.statut==="vendu"||o.statut==="envoye"}
 function lotsVendus(){return OBJ.filter(function(o){return estLot(o)&&vendu(o)}).length}
 /* sous 5 €, un article se vend mieux en lot (même seuil que la cote des cartes et des films) */
 function petitPrix(o){var v=valeur(o);return !!(o.cote&&o.cote.lot)||v!=null&&v<5}
-function libre(o){return !estLot(o)&&!vendu(o)&&!lotDe(o)}
+/* libre : peut aller dans un lot (pas vendu), même s'il est déjà dans d'autres lots */
+function libre(o){return !estLot(o)&&!vendu(o)}
 function pluriel(n,s,p){return n+" "+(n>1?(p||s+"s"):s)}
 var TYPE_NOM={licence:"Licence","série":"Série",studio:"Studio","lignée":"Lignée",univers:"Univers",genre:"Genre","petits prix":"Petits prix",support:"Même console"};
 function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);return '<span class="aj'+(p>0?' plus':'')+'">'+(p>0?"+"+p+" %":"−"+(-p)+" %")+'</span>'}
@@ -2839,8 +2846,8 @@ function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return li
   var k=cleIdees();if(k===IDEES.cle){dessinerIdees();return}
   IDEES.cle=k;IDEES.charge=true;dessinerIdees();
   // idées de l'IA déjà trouvées pour ces mêmes articles : on les garde (pas de nouvel appel)
-  var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees")||"null")}catch(e){}
-  // IDEES_V : à changer quand le calcul des idées change, pour ne pas reservir de vieilles idées (« Wars », « Star »…) ; 1 jour au plus
+  var memo=null;try{memo=JSON.parse(localStorage.getItem("rr-idees2")||"null")}catch(e){}
+  // IDEES_V : à changer quand le calcul des idées change, pour ne pas resservir de vieilles idées (« Wars », « Star »…) ; 1 jour au plus
   if(memo&&memo.v===IDEES_V&&memo.cle===k&&memo.u===uid()&&Date.now()-(memo.t||0)<864e5){IDEES.l=memo.l;IDEES.ia=true;IDEES.charge=false;dessinerIdees();return}
   clearTimeout(IDEE_T);IDEE_T=setTimeout(function(){
     api("POST","/api/lots/suggestions",{}).then(function(j){if(IDEES.cle!==k)return;IDEES.l=j.suggestions||[];IDEES.ia=false;IDEES.charge=false;dessinerIdees();
@@ -2852,14 +2859,16 @@ function ideesIa(auto){var b=$("ideesIa"),k=IDEES.cle;if(!auto)occupe(b,true,"L'
       // les idées de l'IA d'abord, puis celles trouvées sans elle qui n'y sont pas déjà
       var vus={},l=[];(j.suggestions||[]).concat(IDEES.l).forEach(function(x){var c=x.articles.slice().sort().join(",");if(!vus[c]){vus[c]=1;l.push(x)}});
       IDEES.l=l.slice(0,10);IDEES.ia=true;dessinerIdees();ME.usage.dialogue=(ME.usage.dialogue||0)+1;
-      try{localStorage.setItem("rr-idees",JSON.stringify({v:IDEES_V,cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
+      try{localStorage.setItem("rr-idees2",JSON.stringify({v:IDEES_V,cle:k,u:uid(),t:Date.now(),l:IDEES.l}))}catch(e){}
       if(!auto)toast(j.suggestions&&j.suggestions.length?"L'IA a trouvé "+pluriel(j.suggestions.length,"idée")+" de lot.":"Pas d'autre idée de lot pour le moment.","ok")})
     .catch(function(e){if(!auto)erreur(e,"Les idées de l'IA sont indisponibles.")})
     .then(function(){if(!auto)occupe(b,false);b.disabled=IDEES.ia;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA"})}
 function dessinerIdees(){var L=$("ideesListe"),b=$("ideesIa");b.disabled=IDEES.ia||IDEES.charge;var t=b.querySelector("span");if(t)t.textContent=IDEES.ia?"Idées de l'IA ajoutées":"Plus d'idées avec l'IA";
   if(IDEES.charge&&!IDEES.l.length){L.innerHTML='<div class="id-charge"></div><div class="id-charge"></div><div class="id-charge"></div>';return}
   // les séries complètes d'abord : ce sont les lots qui valent le plus
-  var l=IDEES.l.filter(function(x){return x.articles.filter(function(id){var o=parId(id);return o&&libre(o)}).length>=2}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
+  // un jeu déjà dans un lot compte aussi (il peut être dans plusieurs lots) ; une idée identique à un lot existant ne revient pas
+  var existe={};OBJ.forEach(function(o){if(estLot(o)&&!vendu(o))existe[o.articles.slice().sort().join(",")]=1});
+  var l=IDEES.l.filter(function(x){var ok=x.articles.filter(function(id){var o=parId(id);return o&&libre(o)});return ok.length>=2&&!existe[ok.slice().sort().join(",")]}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
   if(!l.length){L.innerHTML='<div class="id-vide"><b style="color:var(--encre)">Pas encore d\'idée de lot</b>Quand tu auras plusieurs jeux d\'une même série, d\'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.</div>';return}
   L.innerHTML=l.map(function(x,i){var m=x.articles.map(parId).filter(Boolean),c=x.cote||{};
     return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span'+(o.photo?' style="background-image:url(/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+')"':'')+'></span>'}).join("")+'<b>'+m.length+'</b></div>'+
@@ -2875,10 +2884,11 @@ $("ideesIa").onclick=function(){ideesIa(false)};
 $("bLot").onclick=function(){commencerChoix([])};
 
 /* --- composer un lot : choix des articles dans la liste --- */
-function choixEtat(o){if(CHOIX.lot&&o.lot===CHOIX.lot.id)return{ok:true};
-  if(vendu(o))return{ok:false,pourquoi:"Déjà vendu"};var l=lotDe(o);if(l)return{ok:false,pourquoi:"Déjà dans le lot « "+l.titre+" »"};return{ok:true}}
+// un article déjà dans d'autres lots peut s'ajouter à celui-ci : seuls les articles vendus sont grisés
+function choixEtat(o){if(CHOIX.lot&&dansLot(o,CHOIX.lot))return{ok:true};
+  if(vendu(o))return{ok:false,pourquoi:"Déjà vendu"};return{ok:true}}
 function commencerChoix(ids,theme,lot){if(!$("fiche").hidden)montrer("accueil");
-  CHOIX={ids:(ids||[]).filter(function(id){var o=parId(id);return o&&(lot?o.lot===lot.id||libre(o):libre(o))}),theme:theme||null,lot:lot||null};CHOIX.base=CHOIX.ids.slice();
+  CHOIX={ids:(ids||[]).filter(function(id){var o=parId(id);return o&&(dansLot(o,lot)||libre(o))}),theme:theme||null,lot:lot||null};CHOIX.base=CHOIX.ids.slice();
   if(FILTRE!=="tout"&&FILTRE!=="en_vente"){FILTRE="tout";[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x.dataset.f==="tout"?"true":"false")});pastille();majAdresse()}
   $("accueil").classList.add("choix");$("barreLot").hidden=false;dessiner();majChoix();
   setTimeout(function(){var z=$("filtres");scrollTo({top:Math.max(0,z.getBoundingClientRect().top+scrollY-90),behavior:calme()?"auto":"smooth"})},60)}
@@ -2893,7 +2903,7 @@ function majChoix(){var n=CHOIX.ids.length,lot=CHOIX.lot;
   // le conseil du lot (sous 5 €) : on propose d'ajouter d'un coup les autres petits prix de la même catégorie
   var cat=n?(parId(CHOIX.ids[0])||{}).categorie:"",petits=articles().filter(function(o){return libre(o)&&o.statut!=="retire"&&CHOIX.ids.indexOf(o.id)<0&&(!cat||o.categorie===cat)&&petitPrix(o)});
   var aide=$("choixAide");aide.hidden=false;
-  var th=themeChoix();aide.innerHTML='<span>'+(th&&th.nom?'Lot <b>'+esc(th.nom)+'</b>'+(th.complet?' (série complète)':'')+' : ':CHOIX.theme&&CHOIX.theme.nom?'Ce n\'est plus seulement le lot <b>'+esc(CHOIX.theme.nom)+'</b> : son prix et son titre n\'en parleront pas. ':'')+(lot?'Touche un article pour l\'ajouter au lot ou l\'en retirer.':'Touche les articles à vendre ensemble. Les articles vendus ou déjà dans un lot sont grisés.')+'</span>'+
+  var th=themeChoix();aide.innerHTML='<span>'+(th&&th.nom?'Lot <b>'+esc(th.nom)+'</b>'+(th.complet?' (série complète)':'')+' : ':CHOIX.theme&&CHOIX.theme.nom?'Ce n\'est plus seulement le lot <b>'+esc(CHOIX.theme.nom)+'</b> : son prix et son titre n\'en parleront pas. ':'')+(lot?'Touche un article pour l\'ajouter au lot ou l\'en retirer.':'Touche les articles à vendre ensemble. Un article peut être dans plusieurs lots ; seuls les articles vendus sont grisés.')+'</span>'+
     (petits.length?'<button class="pl" type="button" id="choixPetits">+ '+pluriel(petits.length,"autre")+' '+({films:"film",cartes:"carte",jeux:"jeu"}[cat]?pluriel(petits.length,{films:"film",cartes:"carte",jeux:"jeu"}[cat],{jeux:"jeux"}[cat]).replace(/^\d+ /,""):"article"+(petits.length>1?"s":""))+' à moins de 5 €</button>':'');
   var pb=$("choixPetits");if(pb)pb.onclick=function(){petits.forEach(function(o){CHOIX.ids.push(o.id)});dessiner();majChoix()};
   if(n<2){$("blPx").textContent=n?"Ajoute au moins un autre article.":"Touche au moins 2 articles à vendre ensemble.";return}
@@ -2958,7 +2968,7 @@ function refaireMosaique(lot){return mosaique(membres(lot)).then(function(photo)
 function creerLot(ids,theme,b){if(ids.length<2){toast("Choisis au moins 2 articles.","bad");return}
   if(b)occupe(b,true,"Création du lot…");
   mosaique(ids.map(parId)).catch(function(){return null}).then(function(photo){return api("POST","/api/lots",{articles:ids,theme:theme,photo:photo})})
-    .then(function(j){var id=j.objet.id;try{localStorage.removeItem("rr-idees")}catch(e){}IDEES.cle="";return rechargerObjets().then(function(){if(CHOIX)finirChoix();ouvrirFiche(parId(id));toast("Lot créé : prix conseillé, annonce et photos sont prêts. Vérifie-les avant de publier.","ok")})})
+    .then(function(j){var id=j.objet.id;try{localStorage.removeItem("rr-idees2")}catch(e){}IDEES.cle="";return rechargerObjets().then(function(){if(CHOIX)finirChoix();ouvrirFiche(parId(id));toast("Lot créé : prix conseillé, annonce et photos sont prêts. Vérifie-les avant de publier.","ok")})})
     .catch(function(e){erreur(e,"Création du lot impossible.")}).then(function(){if(b&&document.contains(b))occupe(b,false)})}
 
 /* --- fiche d'un lot, et d'un article qui est dans un lot --- */
@@ -2974,8 +2984,8 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   // onglet « Le jeu » → « Le lot » (modeCarte remet le bon nom et la bonne icône à l'ouverture de chaque fiche)
   if(lot)[[$("oArticle"),"Le lot"],[document.querySelector('#mOnglets [data-m="article"]'),"Lot"]].forEach(function(x){var b=x[0];if(!b)return;var sp=b.querySelector("span"),sv=b.querySelector("svg");if(sp)sp.textContent=x[1];if(sv)sv.innerHTML='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>'});
   $("fSuppr").textContent=lot?"Défaire le lot":"Supprimer";
-  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl);$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;
-  if(dl)$("fDansLot").innerHTML='<span>📦 '+(dv?'Cet article est parti avec le lot <b>'+esc(dl.titre)+'</b> : son statut suit celui du lot.':'Cet article est aussi dans le lot <b>'+esc(dl.titre)+'</b>. Il reste en vente à l\'unité : s\'il part seul, il quitte le lot et le prix du lot baisse.')+'</span><button class="btn clair petit" type="button" data-voir-lot="'+dl.id+'">Voir le lot</button>';
+  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl),dls=dl&&!dv?lotsDe(o):dl?[dl]:[];$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;
+  if(dl)$("fDansLot").innerHTML='<span>📦 '+(dv?'Cet article est parti avec le lot <b>'+esc(dl.titre)+'</b> : son statut suit celui du lot.':dls.length>1?'Cet article est aussi dans '+dls.length+' lots : '+dls.map(function(x){return '<b>'+esc(x.titre)+'</b>'}).join(", ")+'. Il reste en vente à l\'unité : s\'il part seul ou avec un de ces lots, il quitte les autres, et leur prix baisse.':'Cet article est aussi dans le lot <b>'+esc(dl.titre)+'</b>. Il reste en vente à l\'unité : s\'il part seul, il quitte le lot et le prix du lot baisse.')+'</span>'+dls.map(function(x){return '<button class="btn clair petit" type="button" data-voir-lot="'+x.id+'">'+(dls.length>1?'Voir « '+esc(x.titre.length>28?x.titre.slice(0,27)+"…":x.titre)+' »':'Voir le lot')+'</button>'}).join("");
   dessinerAlerteLot(lot&&!vendu(o)?o:null);
   if(!lot)return;
   $("fBlocTitre").textContent="Le lot";$("lTitre").textContent="Nom du lot";$("fCote").textContent="Recalculer le prix du lot";
@@ -3000,13 +3010,22 @@ $("fLotIa").onclick=function(){if(!ED||!estLot(ED))return;var b=this;occupe(b,tr
   api("POST","/api/lots/"+ED.id+"/annonce",{prixDemande:$("f_prixDemande").value}).then(function(j){$("f_titreAnnonce").value=j.titre;$("f_texteAnnonce").value=j.description;IA_FAITE=true;["f_titreAnnonce","f_texteAnnonce"].forEach(function(k){$(k).dispatchEvent(new Event("input",{bubbles:true}))});ME.usage.dialogue=(ME.usage.dialogue||0)+1;majLbc();toast("Annonce du lot rédigée. Relis-la, puis enregistre.","ok")})
     .catch(function(e){erreur(e,"Rédaction impossible.")}).then(function(){iaEtat("lot");occupe(b,false)})};
 var _ouvrirFiche=ouvrirFiche;ouvrirFiche=function(o){if(CHOIX)finirChoix();_ouvrirFiche(o);ficheLot(o);majStatutFiche();if(o&&estLot(o))figer()};
-var _sauver=sauver;sauver=function(rester){var lot=ED&&(estLot(ED)||lotDe(ED)),dl=ED&&!estLot(ED)?lotDe(ED):null,ex=ED&&ED.exLot;return _sauver(rester).then(function(o){if(!o||!(lot||ex))return o;
-  // le serveur a mis à jour le lot (article vendu à l'unité, retiré du lot) ou ses articles (lot vendu) : on recharge la liste
+var _sauver=sauver;sauver=function(rester){var est=ED&&estLot(ED),dls=ED&&!est?lotsDe(ED):[],ex=ED&&!est?(ED.exLots||[]).concat(ED.exLot?[ED.exLot]:[]):[],
+    // lot vendu : ses articles quittent les autres lots où ils étaient
+    autres=est?membres(ED).reduce(function(a,m){lotsDe(m).forEach(function(l){if(l.id!==ED.id&&!vendu(l)&&a.indexOf(l)<0)a.push(l)});return a},[]):[],avantVendu=est&&vendu(ED);
+  return _sauver(rester).then(function(o){if(!o||!(est||dls.length||ex.length))return o;
+  // le serveur a mis à jour les lots (article vendu à l'unité, retiré de ses lots) ou leurs articles (lot vendu) : on recharge la liste
   return rechargerObjets().then(function(){if(rester&&ED&&ED.id===o.id){ficheLot(ED);figer()}
-    var n=parId(o.id),l2=dl&&parId(dl.id);
-    if(dl&&n&&!n.lot)toast(l2?"Vendu à l'unité : retiré du lot « "+l2.titre+" »"+(l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null?", qui passe à "+eur(l2.prixDemande):"")+".":"Vendu à l'unité : le lot « "+dl.titre+" » n'avait plus qu'un article, il est défait.","ok");
-    else if(dl&&l2&&n&&n.lot===dl.id&&l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null)toast("C'est enregistré ✓ Le lot « "+l2.titre+" » suit : "+(dl.prixDemande!=null?eur(dl.prixDemande)+" → ":"")+eur(l2.prixDemande)+".","ok");
-    else if(!dl&&ex&&n&&n.lot)toast("De retour dans le lot « "+(parId(n.lot)||{}).titre+" ».","ok");
+    var n=parId(o.id);if(!n)return o;
+    var partis=dls.filter(function(l){return !dansLot(n,l)}),suivent=dls.filter(function(l){var l2=parId(l.id);return l2&&dansLot(n,l2)&&l2.prixDemande!==l.prixDemande&&l2.prixDemande!=null}),
+      revenus=ex.map(parId).filter(function(l){return l&&dansLot(n,l)});
+    if(partis.length===1){var dl=partis[0],l2=parId(dl.id);toast(l2?"Vendu à l'unité : retiré du lot « "+l2.titre+" »"+(l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null?", qui passe à "+eur(l2.prixDemande):"")+".":"Vendu à l'unité : le lot « "+dl.titre+" » n'avait plus qu'un article, il est défait.","ok")}
+    else if(partis.length)toast("Vendu à l'unité : retiré de ses "+partis.length+" lots ("+nomsLots(partis)+"). Leur prix suit.","ok");
+    else if(suivent.length===1){var a=suivent[0],b=parId(a.id);toast("C'est enregistré ✓ Le lot « "+b.titre+" » suit : "+(a.prixDemande!=null?eur(a.prixDemande)+" → ":"")+eur(b.prixDemande)+".","ok")}
+    else if(suivent.length)toast("C'est enregistré ✓ Ses "+suivent.length+" lots suivent le nouveau prix.","ok");
+    else if(revenus.length)toast("De retour dans "+(revenus.length>1?"les lots ":"le lot ")+nomsLots(revenus)+".","ok");
+    else if(est&&!avantVendu&&vendu(n)&&autres.length){var touches=autres.filter(function(l){var l2=parId(l.id);return !l2||l2.articles.length!==l.articles.length});
+      if(touches.length)toast("Lot vendu ✓ Ses articles quittent "+(touches.length>1?"les "+touches.length+" autres lots où ils étaient":"l'autre lot où ils étaient, « "+touches[0].titre+" »")+".","ok")}
     return o})})};
 var _estimer=estimer;estimer=function(){if(ED&&estLot(ED))return calculerCoteLot(ED,true);return _estimer()};$("fCote").onclick=function(){estimer()};
 $("fSuppr").addEventListener("click",function(e){if(!ED||!estLot(ED))return;e.stopImmediatePropagation();var b=this;

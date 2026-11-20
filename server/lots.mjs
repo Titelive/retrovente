@@ -13,13 +13,12 @@ const num = (v) => (v == null || v === "" || !isFinite(+v) ? null : +v);
 // Le prix affiché d'abord : c'est ce que l'acheteur paierait à l'unité (la cote ne sert que si aucun prix n'est fixé).
 export const valeurArticle = (o) => num(o && o.prixDemande) ?? num(o && o.cote && o.cote.conseille);
 
-/** Remise conseillée selon la taille du lot : l'acheteur gagne du temps et des frais de port, il attend un geste. */
-export function remiseLot(n) {
-  if (n >= 10) return 0.25;
-  if (n >= 5) return 0.2;
-  if (n >= 3) return 0.15;
-  return 0.1;
-}
+/** Remise conseillée selon la taille du lot : l'acheteur gagne du temps et des frais de port, il attend un geste.
+    Chaque article en plus fait monter la remise, de moins en moins vite, jusqu'à un plafond : au-delà de 25 %,
+    on brade (les gros lots se vendent déjà bien, l'acheteur paie un seul envoi). */
+const REMISES = [0.1, 0.1, 0.1, 0.15, 0.17, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24];
+export const REMISE_MAX = 0.25;
+export function remiseLot(n) { return n < REMISES.length ? REMISES[Math.max(0, n)] : REMISE_MAX; }
 // Prix ronds : à l'euro sous 10 €, puis par 5, puis par 10 à partir de 100 €.
 const sousLot = (x) => (x < 20 ? Math.max(1, Math.floor(x)) : Math.floor(x / (x >= 100 ? 10 : 5)) * (x >= 100 ? 10 : 5));
 // au-dessous de 20 €, à l'euro près (arrondir 17 € à 15 € ferait une remise de 17 % au lieu de 5 %)
@@ -43,8 +42,9 @@ export function coteLot(articles, theme = null) {
     // série complète : elle part vite auprès des collectionneurs, une petite remise suffit (mais le lot reste moins cher qu'à l'unité)
     ajust = -0.05;
     raisons.push(`${theme.nom ? "**" + theme.nom + "** : s" : "S"}érie **complète**, recherchée par les collectionneurs : la remise descend à **5 %**.`);
-  } else if (theme && theme.nom && petits * 2 < l.length) {
-    ajust = Math.min(-0.05, ajust + 0.05);
+  } else if (theme && theme.nom && !["support", "petits prix"].includes(theme.type) && petits * 2 < l.length) {
+    // (un lot « même console » ou « petits prix » n'est pas un thème de collection : il garde toute sa remise)
+    ajust = Math.min(-0.05, Math.round((ajust + 0.05) * 100) / 100);
     raisons.push(`Lot à thème (**${theme.nom}**) : il attire **les collectionneurs**, la remise baisse à **${Math.round(-ajust * 100)} %**.`);
   }
   if (petits * 2 >= l.length && l.length >= 3 && !(theme && theme.complet)) raisons.push(`**${petits} article${petits > 1 ? "s" : ""}** ${petits > 1 ? "valent" : "vaut"} **moins de ${PRIX_PETIT} €** : seul${petits > 1 ? "s" : ""}, ${petits > 1 ? "ils partiraient" : "il partirait"} mal, en lot ${petits > 1 ? "ils trouvent" : "il trouve"} **preneur**.`);
