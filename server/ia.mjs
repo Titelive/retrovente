@@ -679,7 +679,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - si le message est une arnaque probable, une des réponses le décline poliment ;
 - n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
 - l'encadré « À propos de cet acheteur » donne sa ville ou son département (« Moselle ») : ce n'est JAMAIS son prénom. Sans prénom ni pseudo connu, dis simplement « Bonjour » ;
-- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » et ne lui répète pas ce qu'il vient de dire (jamais « vous êtes du côté de Nancy », « c'est tout près », « vous êtes du coin »). Réponds court, du genre : « Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy. Quel jour vous arrange ? ». Lieu par défaut : le centre de la ville qu'il cite ;
+- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » et ne reformule JAMAIS où il habite (jamais « si vous venez de Nancy », « vous êtes du côté de Nancy », « c'est tout près », « vous êtes du coin »). Réponds court, du genre : « Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy. Quel jour vous arrange ? ». Lieu par défaut : le centre de la ville qu'il cite ;
 - l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
 - si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message court et cordial (« Bonjour, oui il est toujours disponible 🙂 »), sans redécrire l'annonce.
 ${consigne ? `
@@ -709,6 +709,7 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
+  l.forEach((r) => { r.texte = sansOuIlHabite(r.texte); });
   // Personne ne parle de prix : pas de « prix ferme » ni de contre-offre hors sujet.
   if (!consigne && montantOffre == null && !lot && !parlePrix(conversation)) {
     const utiles = l.filter((r) => !["ferme", "contre_offre", "couper_court"].includes(r.approche) && !/descendre|baisser|négoci|dernier prix|prix (fixe|ferme)/i.test(r.texte));
@@ -746,6 +747,15 @@ export function sansLieu(t, lieux) {
     s = s.replace(new RegExp(`\\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci(?: beaucoup| bien)?)\\s+${e}\\b\\s*`, "gu"), "$1 ").replace(/ +([,!?.])/g, (m, p) => (p === "," || p === "." ? p : " " + p));
   }
   return s.replace(/ {2,}/g, " ");
+}
+
+// « Si vous venez de Nancy, on peut… » → « On peut… » : on ne reformule pas où habite l'acheteur.
+const OU_IL_HABITE = /(^|[.!?…]\s+|,\s*|\s)(?:si |comme |puisque |vu que )?vous (?:venez|êtes|habitez)(?: juste)? (?:de |d'|à côté de |a cote de |près de |pres de |du côté de |sur |dans le coin|du coin|pas loin)[^,.!?]{0,30}[,.!?]?\s*/giu;
+export function sansOuIlHabite(t) {
+  const s = String(t).replace(OU_IL_HABITE, (m, avant) => (/[.!?…]/.test(avant) ? avant : avant.startsWith(",") ? ", " : avant))
+    .replace(/,\s*,/g, ",").replace(/\s+([,.!?])/g, (m, p) => (p === "," || p === "." ? p : " " + p)).replace(/ {2,}/g, " ").trim()
+    .replace(/(^|[.!?…]\s+|🙂\s+|😊\s+)(\p{Ll})/gu, (m, a, c) => a + c.toUpperCase());
+  return s.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").length >= 8 ? s : String(t);
 }
 
 // Suite d'un message du vendeur : on retire un « Merci Sofian ! » ou un « Bonjour, » d'ouverture.
