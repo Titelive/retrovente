@@ -979,6 +979,70 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
 .dans-lot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.4}
 .dans-lot>span{flex:1 1 200px;min-width:0}
 .lot-note{margin:0 0 12px}
+/* ===== Graphique des ventes (Mes articles) : encaissé, bénéfice ou nombre de ventes par mois ===== */
+:root{--vt-barre:#1A1A1A;--vt-cours:var(--anis);--vt-neg:#D9443A;--vt-hausse:#2F7A14;--vt-baisse:#C2362D}
+:root[data-theme="dark"]{--vt-barre:#E9E9E2;--vt-neg:#FF7A70;--vt-hausse:#8FE06A;--vt-baisse:#FF8A80}
+.ventes{display:flex;flex-direction:column;gap:16px;min-width:0}
+.vt-tete{display:flex;justify-content:space-between;align-items:flex-start;gap:14px 20px;flex-wrap:wrap}
+.vt-tete .pixel{font-size:10px;color:var(--gris);margin:0 0 8px;display:flex;align-items:center;gap:7px}
+.vt-tete .pixel svg{width:14px;height:14px;color:var(--encre)}
+.vt-tot{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;margin:0}
+.vt-tot b{font:800 34px/1 var(--titre);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.vt-evo{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);font-variant-numeric:tabular-nums}
+.vt-evo svg{width:12px;height:12px}
+.vt-evo.hausse{color:var(--vt-hausse)}.vt-evo.baisse{color:var(--vt-baisse)}.vt-evo.egal{color:var(--gris)}
+.vt-sous{display:block;font-size:13.5px;color:var(--gris);margin-top:6px}
+.vt-ctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.vt-seg{display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait)}
+.vt-seg button{border:0;background:transparent;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--gris);cursor:pointer;white-space:nowrap;transition:background-color .2s,color .2s}
+.vt-seg button:hover{color:var(--encre)}
+.vt-seg button[aria-pressed="true"]{background:var(--nuit);color:#fff}
+:root[data-theme="dark"] .vt-seg button[aria-pressed="true"]{background:var(--anis);color:var(--nuit)}
+.vt-graph{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 10px;height:220px;padding-bottom:26px}
+.vt-axe{position:relative;width:max-content;min-width:24px}
+.vt-axe span{position:absolute;right:0;transform:translateY(50%);font-size:11.5px;color:var(--gris);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vt-zone{position:relative;min-width:0}
+.vt-ligne{position:absolute;left:0;right:0;height:0;border-top:1px dashed var(--trait)}
+.vt-ligne.zero{border-top:1.5px solid var(--gris-c);opacity:.6}
+.vt-cols{position:absolute;inset:0;display:flex;gap:6px}
+.vt-col{position:relative;flex:1 1 0;min-width:0;border:0;padding:0;background:transparent;cursor:pointer;border-radius:10px;font:inherit;color:inherit}
+.vt-col::before{content:"";position:absolute;inset:-4px -3px;border-radius:10px;background:var(--encre);opacity:0;transition:opacity .2s}
+.vt-col:hover::before,.vt-col.actif::before{opacity:.05}
+.vt-col:focus-visible{outline-offset:2px}
+.vt-b{position:absolute;left:50%;width:min(72%,34px);transform:translateX(-50%);background:var(--vt-barre);border-radius:6px 6px 2px 2px;transform-origin:bottom;transition:filter .2s}
+.vt-b.neg{background:var(--vt-neg);border-radius:2px 2px 6px 6px;transform-origin:top}
+.vt-b.cours{background:var(--vt-cours);box-shadow:inset 0 0 0 1.5px var(--vt-barre)}
+.vt-b.vide{background:transparent}
+.vt-col:hover .vt-b,.vt-col.actif .vt-b{filter:brightness(1.12)}
+:root[data-theme="dark"] .vt-col:hover .vt-b,:root[data-theme="dark"] .vt-col.actif .vt-b{filter:brightness(.9)}
+.vt-m{position:absolute;left:0;right:0;bottom:-24px;text-align:center;font-size:11.5px;color:var(--gris);white-space:nowrap;text-transform:capitalize}
+.vt-m .c{display:none}
+.vt-col.cours .vt-m{color:var(--encre);font-weight:700}
+.vt-val{position:absolute;left:50%;transform:translate(-50%,-6px);font-size:11.5px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
+.vt-bulle{position:absolute;z-index:3;left:0;top:0;min-width:178px;padding:11px 13px;border-radius:14px;background:var(--nuit);color:#fff;font-size:13px;line-height:1.45;box-shadow:0 18px 40px -16px rgba(0,0,0,.55);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s}
+.vt-bulle.vu{opacity:1;transform:none}
+:root[data-theme="dark"] .vt-bulle{background:#2A2A2A;box-shadow:0 0 0 1px #3A3A3A,0 18px 40px -16px rgba(0,0,0,.8)}
+.vt-bulle b{display:block;font:700 14px/1.3 var(--titre);margin-bottom:5px;text-transform:capitalize}
+.vt-bulle .r{display:flex;justify-content:space-between;gap:14px;color:#C9C9C1}.vt-bulle .r span:last-child{color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.vt-bulle .r.sel span:first-child{color:#fff}
+.vt-bulle small{display:block;margin-top:5px;color:#A8A8A0;font-size:12px}
+.vt-note{margin:0;font-size:13px;color:var(--gris)}
+.vt-vide{position:absolute;inset:0 0 26px;display:grid;place-items:center;text-align:center;padding:0 18px;font-size:14px;color:var(--gris);z-index:2}
+.vt-vide b{display:block;color:var(--encre);font:700 16px/1.3 var(--titre);margin-bottom:4px}
+.ventes.sans .vt-b{background:var(--trait);box-shadow:none}
+.vt-tab{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.vt-b.pousse{animation:vt-pousse .7s var(--ease) both}
+@keyframes vt-pousse{from{transform:translateX(-50%) scaleY(0)}}
+html.sans-anim .vt-b.pousse{animation:none}
+@media(prefers-reduced-motion:reduce){.vt-b.pousse{animation:none}}
+@media(max-width:700px){
+  .vt-tete{flex-direction:column}.vt-ctl{justify-content:flex-start;width:100%}
+  .vt-seg{flex:1 1 auto}.vt-seg button{flex:1 1 auto;padding:8px 10px}
+  .vt-tot b{font-size:30px}
+  .vt-graph{height:190px}.vt-cols{gap:3px}
+}
+.vt-zone{container-type:inline-size}
+@container (max-width:460px){.vt-m .l{display:none}.vt-m .c{display:inline}}
 </style>
 
 </head>
@@ -1057,6 +1121,28 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
     <div><small>Vendus</small><b id="cVendus">0</b></div>
     <div><small>Encaissé</small><b id="cEnc">0 €</b></div>
   </div>
+  <section class="carte ventes" id="ventes" aria-labelledby="tVentes" hidden>
+    <header class="vt-tete">
+      <div>
+        <p class="pixel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span id="tVentes">Mes ventes</span></p>
+        <p class="vt-tot"><b id="vtTot">0 €</b><span class="vt-evo" id="vtEvo" hidden></span></p>
+        <small class="vt-sous" id="vtSous"></small>
+      </div>
+      <div class="vt-ctl">
+        <div class="vt-seg" id="vtMesure" role="group" aria-label="Ce que montre le graphique">
+          <button type="button" data-m="enc" aria-pressed="true">Encaissé</button>
+          <button type="button" data-m="ben" aria-pressed="false">Bénéfice</button>
+          <button type="button" data-m="nb" aria-pressed="false">Ventes</button>
+        </div>
+        <div class="vt-seg" id="vtPeriode" role="group" aria-label="Période">
+          <button type="button" data-p="6" aria-pressed="false">6 mois</button>
+          <button type="button" data-p="12" aria-pressed="true">12 mois</button>
+        </div>
+      </div>
+    </header>
+    <div class="vt-graph" id="vtGraph"></div>
+    <p class="vt-note" id="vtNote" hidden></p>
+  </section>
   <section class="carte fisc" id="fisc" aria-labelledby="tFisc">
     <header style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 id="tFisc">Seuil fiscal <span id="fAn"></span></h3><small style="color:var(--gris)">Les plateformes déclarent aux impôts les vendeurs à partir de 30 ventes ou 2 000 € par an. Un objet vendu plus de 5 000 € peut être imposé sur sa plus-value.</small></header>
     <div class="jauges" id="fJauges"></div>
@@ -1544,6 +1630,72 @@ function garderTemps(){try{localStorage.setItem("rr-temps",JSON.stringify(TEMPS)
 $("cTempsBt").onclick=function(){dessinerTemps();$("dTemps").showModal()};
 $("tpsL").addEventListener("input",function(e){var i=e.target.closest("input");if(!i)return;var v=i.value===""?0:Math.max(0,Math.min(120,Math.round(+i.value)||0));TEMPS[i.dataset.k]=v;majTot();garderTemps()});
 $("tpsRaz").onclick=function(){for(var k in TEMPS_DEF)TEMPS[k]=TEMPS_DEF[k];dessinerTemps();garderTemps()};
+/* ===== Graphique des ventes : par mois, l'encaissé (prix de vente), le bénéfice (prix de vente − frais − prix d'achat) ou le nombre d'articles vendus.
+   Un lot vendu compte par ses articles, comme les compteurs. Le mois en cours est en couleur. */
+var VT={m:"enc",p:12};try{var vtg=JSON.parse(localStorage.getItem("rr-ventes")||"{}");if(/^(enc|ben|nb)$/.test(vtg.m))VT.m=vtg.m;if(vtg.p===6||vtg.p===12)VT.p=vtg.p}catch(e){}
+var VT_MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],VT_C=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+var VT_LIB={enc:"Encaissé",ben:"Bénéfice",nb:"Ventes"};
+function vtCle(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+function vtFmt(m,v){return m==="nb"?String(v):(v<0?"−":"")+eur(Math.round(Math.abs(v)))}
+function vtCourt(m,v){if(m==="nb")return String(v);var a=Math.abs(v);return (v<0?"−":"")+(a>=1000?(Math.round(a/100)/10).toLocaleString("fr-FR")+" k€":Math.round(a)+" €")}
+/* graduation lisible : 1, 2, 2,5 ou 5 × 10^k, au plus 4 crans */
+function vtPas(max){if(max<=0)return 1;var e=Math.pow(10,Math.floor(Math.log10(max/4))),c=[1,2,2.5,5,10];for(var i=0;i<c.length;i++)if(max/(c[i]*e)<=4)return c[i]*e;return 10*e}
+function vtDonnees(n){var auj=new Date(),mois=[],idx={};
+  for(var i=2*n-1;i>=0;i--){var d=new Date(auj.getFullYear(),auj.getMonth()-i,1),k=vtCle(d);idx[k]=mois.length;mois.push({k:k,m:d.getMonth(),a:d.getFullYear(),enc:0,ben:0,nb:0,sansAchat:0})}
+  var sansDate=0,sansAchat=0;
+  articles().forEach(function(o){if(o.statut!=="vendu"&&o.statut!=="envoye")return;if(!o.dateVente){sansDate++;return}
+    var x=mois[idx[o.dateVente.slice(0,7)]];if(!x)return;var pv=+o.prixVente||0;
+    x.enc+=pv;x.nb++;x.ben+=pv-(+o.frais||0)-(+o.prixAchat||0);if(o.prixAchat==null||o.prixAchat===""){x.sansAchat++}});
+  var avant=mois.slice(0,n),cur=mois.slice(n);cur.forEach(function(x){sansAchat+=x.sansAchat});
+  return {mois:cur,avant:avant,sansDate:sansDate,sansAchat:sansAchat}}
+function dessinerVentes(){var sec=$("ventes");if(!sec)return;var ART=articles();sec.hidden=!ART.length;if(!ART.length)return;
+  var D=vtDonnees(VT.p),m=VT.m,mois=D.mois,vals=mois.map(function(x){return x[m]});
+  var tot=vals.reduce(function(a,v){return a+v},0),totAv=D.avant.reduce(function(a,x){return a+x[m]},0),nbTot=mois.reduce(function(a,x){return a+x.nb},0);
+  [].forEach.call($("vtMesure").querySelectorAll("button"),function(b){b.setAttribute("aria-pressed",b.dataset.m===m?"true":"false")});
+  [].forEach.call($("vtPeriode").querySelectorAll("button"),function(b){b.setAttribute("aria-pressed",+b.dataset.p===VT.p?"true":"false")});
+  $("vtTot").textContent=m==="nb"?nbTot+(nbTot>1?" ventes":" vente"):vtFmt(m,tot);
+  $("vtSous").textContent=(m==="enc"?"encaissés ":m==="ben"?"de bénéfice ":"")+"sur les "+VT.p+" derniers mois";
+  // évolution par rapport aux mois d'avant (seulement si la période d'avant a des ventes)
+  var ev=$("vtEvo");if(totAv>0&&nbTot){var pc=Math.round((tot-totAv)/totAv*100),cl=pc>0?"hausse":pc<0?"baisse":"egal";
+    ev.className="vt-evo "+cl;ev.hidden=false;
+    ev.innerHTML=(cl==="egal"?"":'<svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="'+(cl==="hausse"?"M6 2l4.5 6h-9z":"M6 10L1.5 4h9z")+'"/></svg>')+(pc>0?"+":pc<0?"−":"")+Math.abs(pc)+" %"+'<span class="vt-tab"> par rapport aux '+VT.p+" mois d'avant</span>";
+    ev.title="Par rapport aux "+VT.p+" mois d'avant ("+vtFmt(m,totAv)+")"}else ev.hidden=true;
+  // échelle : de min(0, plus bas) à max(0, plus haut), graduée proprement
+  var hi=Math.max(0,Math.max.apply(null,vals)),lo=Math.min(0,Math.min.apply(null,vals)),sans=!nbTot;
+  if(sans){hi=4;lo=0}
+  var pas=vtPas(Math.max(hi,-lo,m==="nb"?1:10));if(m==="nb")pas=Math.max(1,Math.round(pas));
+  var top=Math.max(pas,Math.ceil(hi/pas)*pas),bas=lo<0?Math.floor(lo/pas)*pas:0,et=top-bas,pc0=function(v){return (v-bas)/et*100};
+  var axe="",lignes="";for(var t=bas;t<=top+1e-9;t+=pas){var y=pc0(t);axe+='<span style="bottom:'+y+'%">'+(sans?"":vtCourt(m,t))+'</span>';lignes+='<i class="vt-ligne'+(t===0?" zero":"")+'" style="bottom:'+y+'%"></i>'}
+  var maxI=-1,maxV=0;vals.forEach(function(v,i){if(v>maxV){maxV=v;maxI=i}});
+  var anim=!sec.dataset.vu&&!calme();sec.dataset.vu="1";
+  var cols=mois.map(function(x,i){var v=sans?[1.4,2.2,1.8,3,2.6,3.4,2.4,3.1,2.8,3.6,3,3.8][(i+12-VT.p)%12]:x[m],z=pc0(0),h=Math.abs(v)/et*100,cours=i===mois.length-1,
+      st=v>=0?"bottom:"+z+"%;height:"+h+"%":"top:"+(100-z)+"%;height:"+h+"%";
+    return '<button type="button" class="vt-col'+(cours?" cours":"")+'" data-i="'+i+'"'+(sans?' tabindex="-1" aria-hidden="true"':' aria-label="'+esc(VT_MOIS[x.m]+" "+x.a+" : "+vtFmt("enc",x.enc)+" encaissés, bénéfice "+vtFmt("ben",x.ben)+", "+x.nb+(x.nb>1?" articles vendus":" article vendu"))+'"')+'>'+
+      (v?'<i class="vt-b'+(v<0?" neg":"")+(cours&&!sans?" cours":"")+(anim?" pousse":"")+'" style="'+st+(anim?";animation-delay:"+(i*35)+"ms":"")+'"></i>':"")+
+      (!sans&&i===maxI&&maxV>0&&(m!=="nb"||maxV>1)?'<span class="vt-val" style="bottom:'+(z+h)+'%">'+vtCourt(m,maxV)+'</span>':"")+
+      '<span class="vt-m"><span class="l">'+VT_C[x.m]+(x.m===0&&i>0?" "+String(x.a).slice(2):"")+'</span><span class="c">'+VT_C[x.m].charAt(0).toUpperCase()+'</span></span></button>'}).join("");
+  $("vtGraph").innerHTML='<div class="vt-axe" aria-hidden="true">'+axe+'</div><div class="vt-zone">'+lignes+'<div class="vt-cols" id="vtCols">'+cols+'</div><div class="vt-bulle" id="vtBulle" role="status"></div></div>'+
+    (sans?'<div class="vt-vide"><div><b>Ton premier graphique arrive</b>Passe un article en « Vendu » avec sa date : tes ventes s\'afficheront ici, mois par mois.</div></div>':"");
+  sec.classList.toggle("sans",sans);
+  var n=[];if(m==="ben"&&D.sansAchat)n.push(D.sansAchat+(D.sansAchat>1?" ventes sans prix d'achat sont comptées":" vente sans prix d'achat est comptée")+" comme si l'article ne t'avait rien coûté.");
+  if(D.sansDate)n.push(D.sansDate+(D.sansDate>1?" ventes sans date de vente ne sont pas dans le graphique.":" vente sans date de vente n'est pas dans le graphique."));
+  $("vtNote").hidden=!n.length;$("vtNote").textContent=n.join(" ");VT.d=mois}
+function vtBulle(col){var b=$("vtBulle");if(!b)return;[].forEach.call($("vtCols").children,function(x){x.classList.toggle("actif",x===col)});
+  if(!col){b.classList.remove("vu");return}var x=VT.d[+col.dataset.i],cours=col.classList.contains("cours");
+  var r=function(k,lib,v){return '<div class="r'+(VT.m===k?" sel":"")+'"><span>'+lib+'</span><span>'+v+'</span></div>'};
+  b.innerHTML='<b>'+VT_MOIS[x.m]+" "+x.a+'</b>'+r("enc","Encaissé",vtFmt("enc",x.enc))+r("ben","Bénéfice",vtFmt("ben",x.ben))+r("nb","Articles vendus",String(x.nb))+(cours?"<small>Mois en cours</small>":"");
+  b.classList.add("vu");var zl=b.parentNode.offsetWidth,w=b.offsetWidth,g=col.offsetLeft+col.offsetWidth+8,d=col.offsetLeft-w-8;
+  // la bulle se place à côté de la colonne (à droite, sinon à gauche), en haut du graphique, sans cacher la barre
+  b.style.left=(g+w<=zl?g:d>=0?d:Math.max(0,Math.min(zl-w,col.offsetLeft+col.offsetWidth/2-w/2)))+"px";b.style.top="0px"}
+$("vtGraph").addEventListener("mouseover",function(e){var c=e.target.closest(".vt-col");if(c&&!c.hasAttribute("aria-hidden"))vtBulle(c)});
+$("vtGraph").addEventListener("mouseleave",function(){vtBulle(null)});
+$("vtGraph").addEventListener("focusin",function(e){var c=e.target.closest(".vt-col");if(c&&!c.hasAttribute("aria-hidden"))vtBulle(c)});
+$("vtGraph").addEventListener("focusout",function(){vtBulle(null)});
+$("vtGraph").addEventListener("click",function(e){var c=e.target.closest(".vt-col");if(!c||c.hasAttribute("aria-hidden"))return;if(c.classList.contains("actif")&&e.pointerType!=="mouse")vtBulle(null);else vtBulle(c)});
+document.addEventListener("click",function(e){if(!e.target.closest("#vtGraph"))vtBulle(null)});
+function vtGarder(){try{localStorage.setItem("rr-ventes",JSON.stringify({m:VT.m,p:VT.p}))}catch(e){}}
+$("vtMesure").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||b.dataset.m===VT.m)return;VT.m=b.dataset.m;vtGarder();delete $("ventes").dataset.vu;dessinerVentes()});
+$("vtPeriode").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||+b.dataset.p===VT.p)return;VT.p=+b.dataset.p;vtGarder();delete $("ventes").dataset.vu;dessinerVentes()});
 function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();
   // Les compteurs portent sur les articles : un lot vendu compte par ses articles (chacun a sa part du prix).
   var ART=articles(),vendus=ART.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
@@ -1551,6 +1703,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   compter($("cVente"),ART.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
   compter($("cVendus"),vendus.length,function(v){return String(Math.round(v))});
   compter($("cEnc"),vendus.reduce(function(a,o){return a+(o.prixVente||0)},0),function(v){return eur(Math.round(v))});
+  try{dessinerVentes()}catch(e){console.error(e)}
   // seuil fiscal (année civile)
   var an=String(new Date().getFullYear()),va=vendus.filter(function(o){return (o.dateVente||"").indexOf(an)===0}),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0),
     ventes=va.filter(function(o){return !lotDe(o)}).length+OBJ.filter(function(o){return estLot(o)&&(o.statut==="vendu"||o.statut==="envoye")&&(o.dateVente||"").indexOf(an)===0}).length;   // un lot vendu = une seule vente
