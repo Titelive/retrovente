@@ -1038,6 +1038,17 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
 .vt-bulle .r{display:flex;justify-content:space-between;gap:14px;color:#C9C9C1}.vt-bulle .r span:last-child{color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
 .vt-bulle .r.sel span:first-child{color:#fff}
 .vt-bulle small{display:block;margin-top:5px;color:#A8A8A0;font-size:12px}
+.vt-bulle{width:236px;min-width:0}
+.vt-objs{list-style:none;margin:2px 0 9px;padding:0 0 9px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid rgba(255,255,255,.12)}
+.vt-objs li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:9px;align-items:center}
+.vt-objs .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font-weight:600;font-size:12.5px}
+.vt-objs .p{color:#C9C9C1;font-size:12.5px;font-variant-numeric:tabular-nums}
+.vt-ph{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#8A8A82}
+.vt-ph img{width:100%;height:100%;object-fit:cover}
+.vt-ph svg{width:18px;height:18px}
+.vt-mos{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:2px 0 9px;padding:0 0 9px;border-bottom:1px solid rgba(255,255,255,.12)}
+.vt-mos .vt-ph{width:100%;height:auto;aspect-ratio:1}
+.vt-ph.plus{font-weight:700;font-size:13px;color:#fff;background:rgba(var(--anis-rgb),.18);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.45)}
 .vt-note{margin:0;font-size:13px;color:var(--gris)}
 .vt-vide{position:absolute;inset:0 0 26px;display:grid;place-items:center;text-align:center;padding:0 18px;font-size:14px;color:var(--gris);z-index:2}
 .vt-vide b{display:block;color:var(--encre);font:700 16px/1.3 var(--titre);margin-bottom:4px}
@@ -1654,11 +1665,11 @@ function vtCourt(m,v){if(m==="nb")return String(v);var a=Math.abs(v);return (v<0
 /* graduation lisible : 1, 2, 2,5 ou 5 × 10^k, au plus 4 crans */
 function vtPas(max){if(max<=0)return 1;var e=Math.pow(10,Math.floor(Math.log10(max/4))),c=[1,2,2.5,5,10];for(var i=0;i<c.length;i++)if(max/(c[i]*e)<=4)return c[i]*e;return 10*e}
 function vtDonnees(n){var auj=new Date(),mois=[],idx={};
-  for(var i=2*n-1;i>=0;i--){var d=new Date(auj.getFullYear(),auj.getMonth()-i,1),k=vtCle(d);idx[k]=mois.length;mois.push({k:k,m:d.getMonth(),a:d.getFullYear(),enc:0,ben:0,nb:0,sansAchat:0})}
+  for(var i=2*n-1;i>=0;i--){var d=new Date(auj.getFullYear(),auj.getMonth()-i,1),k=vtCle(d);idx[k]=mois.length;mois.push({k:k,m:d.getMonth(),a:d.getFullYear(),enc:0,ben:0,nb:0,sansAchat:0,objs:[]})}
   var sansDate=0,sansAchat=0;
   articles().forEach(function(o){if(o.statut!=="vendu"&&o.statut!=="envoye")return;if(!o.dateVente){sansDate++;return}
     var x=mois[idx[o.dateVente.slice(0,7)]];if(!x)return;var pv=+o.prixVente||0;
-    x.enc+=pv;x.nb++;x.ben+=pv-(+o.frais||0)-(+o.prixAchat||0);if(o.prixAchat==null||o.prixAchat===""){x.sansAchat++}});
+    x.enc+=pv;x.nb++;x.objs.push(o);x.ben+=pv-(+o.frais||0)-(+o.prixAchat||0);if(o.prixAchat==null||o.prixAchat===""){x.sansAchat++}});
   var avant=mois.slice(0,n),cur=mois.slice(n);cur.forEach(function(x){sansAchat+=x.sansAchat});
   return {mois:cur,avant:avant,sansDate:sansDate,sansAchat:sansAchat}}
 function dessinerVentes(){var sec=$("ventes");if(!sec)return;var ART=articles();sec.hidden=!ART.length;if(!ART.length)return;
@@ -1693,13 +1704,20 @@ function dessinerVentes(){var sec=$("ventes");if(!sec)return;var ART=articles();
   var n=[];if(m==="ben"&&D.sansAchat)n.push(D.sansAchat+(D.sansAchat>1?" ventes sans prix d'achat sont comptées":" vente sans prix d'achat est comptée")+" comme si l'article ne t'avait rien coûté.");
   if(D.sansDate)n.push(D.sansDate+(D.sansDate>1?" ventes sans date de vente ne sont pas dans le graphique.":" vente sans date de vente n'est pas dans le graphique."));
   $("vtNote").hidden=!n.length;$("vtNote").textContent=n.join(" ");VT.d=mois}
+/* les objets vendus du mois, en photo : en liste jusqu'à 3 (photo, titre, prix), en mosaïque au-delà (les plus chers d'abord) */
+function vtVignette(o){return '<span class="vt-ph">'+(o.photo?'<img alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie||"")+'">':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 11v3M6.5 12.5h3"/><circle cx="15.5" cy="12" r=".6" fill="currentColor"/><circle cx="17.5" cy="13.5" r=".6" fill="currentColor"/></svg>')+'</span>'}
+function vtPhotos(objs){if(!objs.length)return "";var l=objs.slice().sort(function(a,b){return (+b.prixVente||0)-(+a.prixVente||0)});
+  if(l.length<=3)return '<ul class="vt-objs">'+l.map(function(o){return '<li>'+vtVignette(o)+'<span class="t">'+esc(o.titre||"Sans titre")+'</span><span class="p">'+vtFmt("enc",+o.prixVente||0)+'</span></li>'}).join("")+'</ul>';
+  var n=l.length>5?4:5;return '<div class="vt-mos">'+l.slice(0,n).map(vtVignette).join("")+(l.length>n?'<span class="vt-ph plus">+'+(l.length-n)+'</span>':"")+'</div>'}
 function vtBulle(col){var b=$("vtBulle");if(!b)return;[].forEach.call($("vtCols").children,function(x){x.classList.toggle("actif",x===col)});
   if(!col){b.classList.remove("vu");return}var x=VT.d[+col.dataset.i],cours=col.classList.contains("cours");
   var r=function(k,lib,v){return '<div class="r'+(VT.m===k?" sel":"")+'"><span>'+lib+'</span><span>'+v+'</span></div>'};
-  b.innerHTML='<b>'+VT_MOIS[x.m]+" "+x.a+'</b>'+r("enc","Encaissé",vtFmt("enc",x.enc))+r("ben","Bénéfice",vtFmt("ben",x.ben))+r("nb","Articles vendus",String(x.nb))+(cours?"<small>Mois en cours</small>":"");
+  b.innerHTML='<b>'+VT_MOIS[x.m]+" "+x.a+'</b>'+vtPhotos(x.objs)+r("enc","Encaissé",vtFmt("enc",x.enc))+r("ben","Bénéfice",vtFmt("ben",x.ben))+r("nb","Articles vendus",String(x.nb))+(cours?"<small>Mois en cours</small>":"");
   b.classList.add("vu");var zl=b.parentNode.offsetWidth,w=b.offsetWidth,g=col.offsetLeft+col.offsetWidth+8,d=col.offsetLeft-w-8;
   // la bulle se place à côté de la colonne (à droite, sinon à gauche), en haut du graphique, sans cacher la barre
-  b.style.left=(g+w<=zl?g:d>=0?d:Math.max(0,Math.min(zl-w,col.offsetLeft+col.offsetWidth/2-w/2)))+"px";b.style.top="0px"}
+  b.style.left=(g+w<=zl?g:d>=0?d:Math.max(0,Math.min(zl-w,col.offsetLeft+col.offsetWidth/2-w/2)))+"px";
+  // une bulle plus haute que le graphique (photos) remonte au lieu de déborder sur l'encart suivant
+  b.style.top=Math.min(0,b.parentNode.offsetHeight+26-b.offsetHeight)+"px"}
 $("vtGraph").addEventListener("mouseover",function(e){var c=e.target.closest(".vt-col");if(c&&!c.hasAttribute("aria-hidden"))vtBulle(c)});
 $("vtGraph").addEventListener("mouseleave",function(){vtBulle(null)});
 $("vtGraph").addEventListener("focusin",function(e){var c=e.target.closest(".vt-col");if(c&&!c.hasAttribute("aria-hidden"))vtBulle(c)});
