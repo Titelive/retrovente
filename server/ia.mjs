@@ -594,7 +594,10 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
   const ana = !(contexte && contexte.lot) ? analyseOffre(a.prix, montantOffre) : null;
   const offre = montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
-  const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
+  // La ville ou le département de l'acheteur (« À propos de cet acheteur : Moselle ») n'est jamais son nom.
+  const lieux = lieuxAcheteur(conversation);
+  let qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
+  if (lieux.some((x) => x.toLowerCase() === qui.toLowerCase())) qui = "";
   // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
   const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
   // Le vendeur a écrit le dernier message et l'acheteur n'a pas répondu : on complète, sans remercier ni resaluer.
@@ -674,7 +677,8 @@ sinon (question, disponibilité, envoi…), trois formulations utiles et différ
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
 - si le message est une arnaque probable, une des réponses le décline poliment ;
 - n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
-- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » : propose directement un rendez-vous (lieu simple et public, ou chez toi, et un ou deux créneaux), en lui demandant ce qui l'arrange ;
+- l'encadré « À propos de cet acheteur » donne sa ville ou son département (« Moselle ») : ce n'est JAMAIS son prénom. Sans prénom ni pseudo connu, dis simplement « Bonjour » ;
+- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » : propose directement de se retrouver dans la ville qu'il cite (« On peut se retrouver à Nancy, … ») et demande-lui quel jour et quelle heure l'arrangent. Parle depuis le vendeur, sans juger la distance : jamais « c'est tout près », « vous êtes du coin » ni « ça tombe bien », car tu ne sais pas où il habite exactement ;
 - l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
 - si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message cordial sur l'annonce (disponible, état, remise ou envoi).
 ${consigne ? `
@@ -703,11 +707,31 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
     if (adieux.length) l.splice(0, l.length, ...adieux);
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
+  if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
   if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
   let resume = phrase(o.resume, 260);
   if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
   return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+}
+
+// Lieu affiché par Le Bon Coin sous « À propos de cet acheteur » (ville, département ou région).
+export function lieuxAcheteur(conversation) {
+  const l = String(conversation || "").split("\n").map((x) => x.trim()).filter(Boolean), out = [];
+  l.forEach((x, i) => {
+    if (!/^[àa] propos de cet acheteur$/i.test(x)) return;
+    for (const y of l.slice(i + 1, i + 3)) if (!/membre depuis|transaction|\d/i.test(y) && y.length <= 40) out.push(y);
+  });
+  return [...new Set(out)];
+}
+// « Bonjour Moselle, … » → « Bonjour, … » : un lieu pris pour un prénom.
+export function sansLieu(t, lieux) {
+  let s = String(t);
+  for (const lieu of lieux) {
+    const e = lieu.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    s = s.replace(new RegExp(`\\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci(?: beaucoup| bien)?)\\s+${e}\\b\\s*`, "gu"), "$1 ").replace(/ +([,!?.])/g, (m, p) => (p === "," || p === "." ? p : " " + p));
+  }
+  return s.replace(/ {2,}/g, " ");
 }
 
 // Suite d'un message du vendeur : on retire un « Merci Sofian ! » ou un « Bonjour, » d'ouverture.

@@ -602,3 +602,11 @@ test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
   const o2 = (await call("PUT", "/api/objets/" + o.id, { objet: { ...o, note: 9, jeuRef: "pas un nombre" } }, c)).json.objet;
   assert.equal(o2.note, 5); assert.equal(o2.jeuRef, "");
 });
+
+test("le lieu de l'acheteur (« Moselle ») n'est jamais pris pour son prénom", async () => {
+  const { lieuxAcheteur, sansLieu } = await import("../server/ia.mjs");
+  const lieux = lieuxAcheteur("À propos de cet acheteur\nMoselle\nMembre depuis novembre 2015\nhier\nBonjour, je suis d'à côté de Nancy");
+  assert.deepEqual(lieux, ["Moselle"]);
+  assert.equal(sansLieu("Bonjour Moselle, oui le jeu est encore là !", lieux), "Bonjour, oui le jeu est encore là !");
+  assert.equal(sansLieu("Merci Moselle ! À bientôt", lieux), "Merci ! À bientôt");
+});
