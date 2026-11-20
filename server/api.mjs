@@ -111,6 +111,31 @@ function articlesPourLot(uid, liste) {
     return it;
   });
 }
+/** Modifie un article ou un lot (fiche, statut, photo) et fait suivre ses lots. */
+function modifierObjet(uid, avant, b) {
+  const it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
+  const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
+  // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
+  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+  if (estLot(avant) && b.fermerAlerte) delete it.alerte;
+  if (typeof b.photo === "string") {
+    const prem = it.photos[0];
+    if (b.photo === "") { if (prem) { savePhoto(uid, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
+    else if (prem) savePhoto(uid, avant.id, b.photo, prem.id);
+    else { savePhoto(uid, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
+  }
+  it.photo = it.photos.length > 0;
+  db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, uid);
+  let lots = [];
+  if (estLot(it)) lots = tx(() => suivreLot(uid, { ...it, id: avant.id }, avant));
+  // Vendu à l'unité alors que ses lots sont encore en vente : il les quitte tous. Remis en vente : il y revient.
+  else if (lotVendu) lots = [];
+  else if (sesLots.length && VENDU(it.statut) && !VENDU(avant.statut)) lots = tx(() => sesLots.map((l) => sortirDuLot(uid, getItem(uid, l.id), getItem(uid, avant.id))));
+  else if (sesLots.length && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lots = tx(() => sesLots.map((l) => suivrePrix(uid, getItem(uid, l.id), avant)).filter(Boolean));
+  else if (exLotsIds(avant).length && VENDU(avant.statut) && !VENDU(it.statut)) lots = tx(() => exLotsIds(avant).map((id) => revenirDansLot(uid, getItem(uid, id), getItem(uid, avant.id))).filter(Boolean));
+  // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
+  return ({ ok: true, objet: getItem(uid, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
+}
 /** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
     Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
     son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu.
@@ -319,6 +344,11 @@ export function annonceLbc(v) {
     photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", modifie: v.modifie,
   };
 }
+// Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
+function avecContenu(uid, l) {
+  const noms = new Map(listItems(uid).map((v) => [v.id, [v.titre, v.plateforme].filter(Boolean).join(" ")]));
+  return l.map((v) => (estLot(v) ? { ...annonceLbc(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annonceLbc(v)));
+}
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 
 /* ===== Résiliation et rétractation en ligne ===== */
@@ -367,7 +397,7 @@ export async function handleApi(req) {
     const eu = extUser(req);
     if (!eu) return { status: 401, json: { error: "Extension déconnectée : reconnecte-la depuis Mon compte sur retrorevente.fr." }, headers: CORS };
     if (p === "/api/extension/annonces" && method === "GET") {
-      const l = listItems(eu.id).filter((v) => v.statut === "en_vente").map(annonceLbc);
+      const l = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente"));
       const r = rights(eu);
       return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom }, annonces: l }, headers: CORS };
     }
@@ -398,12 +428,23 @@ export async function handleApi(req) {
       }
       return { status: 200, json: { ok: true, url, prix: nouveauPrix != null ? nouveauPrix : (it.prixDemande != null ? Math.round(it.prixDemande) : null), prixChange }, headers: CORS };
     }
+    /* Vente conclue sur Le Bon Coin (offre acceptée) : les annonces achetées passent en Vendu, le prix réparti au
+       prorata de leur prix. Une annonce-lot fait passer ses jeux en Vendu avec elle. */
+    if (p === "/api/extension/vendu" && method === "POST") {
+      const b = body(), ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).filter((x) => /^[a-f0-9]{16}$/.test(String(x))))].slice(0, 20);
+      const l = ids.map((id) => getItem(eu.id, id)).filter((x) => x && !VENDU(x.statut));
+      if (!l.length) return { status: 400, json: { error: "Aucun article à passer en vendu." }, headers: CORS };
+      const total = prix(b.prix), parts = repartir(total, l);
+      const remise = REMISES.includes(b.remise) ? b.remise : "";
+      const faits = l.map((x, i) => modifierObjet(eu.id, getItem(eu.id, x.id), { objet: { statut: "vendu", prixVente: parts[i] ?? x.prixDemande, ...(remise ? { remise } : {}) } }).objet);
+      return { status: 200, json: { ok: true, vendus: faits.map((o) => ({ id: o.id, titre: o.titre, prixVente: o.prixVente })) }, headers: CORS };
+    }
     // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
     if (p === "/api/extension/reponse" && method === "POST") {
       if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
       try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
-      const tous = listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve").map(annonceLbc);
+      const tous = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve"));
       const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
@@ -571,30 +612,7 @@ function lienLbc(v) {
   const mo = /^\/api\/objets\/([a-f0-9]{16})$/.exec(p);
   if (mo) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
-    if (method === "PUT") {
-      const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
-      const sesLots = estLot(avant) ? [] : lotsDe(u.id, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
-      // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
-      if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
-      if (estLot(avant) && b.fermerAlerte) delete it.alerte;
-      if (typeof b.photo === "string") {
-        const prem = it.photos[0];
-        if (b.photo === "") { if (prem) { savePhoto(u.id, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
-        else if (prem) savePhoto(u.id, avant.id, b.photo, prem.id);
-        else { savePhoto(u.id, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
-      }
-      it.photo = it.photos.length > 0;
-      db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
-      let lots = [];
-      if (estLot(it)) lots = tx(() => suivreLot(u.id, { ...it, id: avant.id }, avant));
-      // Vendu à l'unité alors que ses lots sont encore en vente : il les quitte tous. Remis en vente : il y revient.
-      else if (lotVendu) lots = [];
-      else if (sesLots.length && VENDU(it.statut) && !VENDU(avant.statut)) lots = tx(() => sesLots.map((l) => sortirDuLot(u.id, getItem(u.id, l.id), getItem(u.id, avant.id))));
-      else if (sesLots.length && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lots = tx(() => sesLots.map((l) => suivrePrix(u.id, getItem(u.id, l.id), avant)).filter(Boolean));
-      else if (exLotsIds(avant).length && VENDU(avant.statut) && !VENDU(it.statut)) lots = tx(() => exLotsIds(avant).map((id) => revenirDansLot(u.id, getItem(u.id, id), getItem(u.id, avant.id))).filter(Boolean));
-      // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
-      return ok({ ok: true, objet: getItem(u.id, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
-    }
+    if (method === "PUT") return ok(modifierObjet(u.id, avant, body()));
     if (method === "DELETE") {
       if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
       const sesLots = lotsDe(u.id, avant), lv = sesLots.find((l) => VENDU(l.statut));

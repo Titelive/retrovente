@@ -585,18 +585,23 @@ const OUTIL_REPONSES = {
     required: ["resume", "reponses"],
   },
 };
+export const venteConclue = (t) => /\bvendu\s?!|offre (?:a été )?accept[ée]e|vous avez accept[ée] (?:l'|son |cette )?offre|paiement (?:a été )?(?:effectué|reçu|validé)|a (?:bien )?(?:payé|acheté) (?:votre|ton|l'|le |les )/i.test(String(t || ""));
 export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
   const conv = txt(conversation, 5000);
   const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${rond(prix(contexte.lot.prix) * 0.85, true)} €).` : "";
   const articles = contexte && contexte.lot ? contenuLot(contexte.lot.articles, autres) : [];
   const somme = articles.length && articles.every((x) => x.annonce && prix(x.annonce.prix) != null) ? articles.reduce((n, x) => n + prix(x.annonce.prix), 0) : null;
-  const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}` : "";
+  // Une annonce peut être un lot RetroRevente (« Lot Star Wars : 2 jeux ») : le nombre de jeux n'est pas le nombre d'annonces.
+  const nbJeux = articles.reduce((n, x) => n + Math.max(1, (x.annonce && x.annonce.contient && x.annonce.contient.length) || 1), 0);
+  const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}${x.annonce.contient && x.annonce.contient.length ? ` ; CETTE ANNONCE EST ELLE-MÊME UN LOT DE ${x.annonce.contient.length} JEUX : ${x.annonce.contient.map((n) => txt(n, 80)).join(", ")}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}${nbJeux > articles.length ? `\nLe « lot de ${articles.length} articles » de Le Bon Coin regroupe ${articles.length} ANNONCES, soit ${nbJeux} jeux en tout : l'acheteur a raison s'il parle de ${nbJeux} jeux, ne le corrige jamais sur ce nombre.` : ""}` : "";
   // L'offre officielle (« Voici l'offre de mm : 140 €. »), envoyée par l'extension ou relue dans la conversation.
   const mOffre = /offre de [^:\n]{1,60}:\s*(\d[\d\s\u00a0\u202f]{0,6})\s?€/gi; let vueOffre = null, mo;
   while ((mo = mOffre.exec(String(conversation || "")))) vueOffre = prix(mo[1].replace(/[\s\u00a0\u202f]/g, ""));
   const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
   const ana = !(contexte && contexte.lot) ? analyseOffre(a.prix, montantOffre) : null;
-  const offre = montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
+  // Vente déjà conclue (« Vendu ! », offre acceptée, paiement fait) : plus de négociation, on confirme l'envoi ou la remise.
+  const conclue = venteConclue(conversation);
+  const offre = conclue ? `LA VENTE EST CONCLUE${montantOffre != null ? ` à ${montantOffre} €` : ""} : l'offre a été acceptée. Ne négocie plus, ne parle plus du prix ni de la disponibilité ; les trois réponses remercient et confirment l'envoi soigné (ou la remise en main propre si c'est ce qui est prévu).` : montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
   // La ville ou le département de l'acheteur (« À propos de cet acheteur : Moselle ») n'est jamais son nom.
   const lieux = lieuxAcheteur(conversation);
   let qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
@@ -650,7 +655,7 @@ Particularités des cartes Pokémon :
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
 
-${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", lot, detailLot, offre].filter(Boolean).join("\n")}${qui || lot || offre ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre].filter(Boolean).join("\n")}${qui || lot || offre ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
 """
 ${conv}
 """
@@ -677,6 +682,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
 - un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ; si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), réagis-y avec un vrai mot personnel et sincère (pas une formule), puis dis clairement que ce prix-là n'est pas possible, sans brader ;
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
+- vente conclue (« Vendu ! », offre acceptée, « Le paiement a été effectué », achat confirmé) : on ne négocie plus et on ne reparle pas du prix ; on remercie, on confirme l'envoi (emballage soigné, colis envoyé rapidement) ou le rendez-vous de remise en main propre, et c'est tout ;
 - lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
