@@ -12,7 +12,7 @@ import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
-import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
@@ -119,8 +119,8 @@ function suivreLot(uid, lot, avant) {
    S'il revient en vente (« Annuler »), il y retourne. Le titre et l'annonce écrits par l'appli suivent ; ceux que
    la personne a réécrits restent, et le lot le signale. */
 const champsLot = (l) => ({ titre: l.titre, titreAnnonce: l.titreAnnonce, texteAnnonce: l.texteAnnonce, prixDemande: l.prixDemande, theme: l.theme || null });
-function recomposer(uid, lot, ids, theme, ratio) {
-  const anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean), nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
+function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean)) {
+  const nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
   const auto = annonceLotSimple(anciens, lot.prixDemande, lot.theme);
   const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
   let prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
@@ -129,7 +129,7 @@ function recomposer(uid, lot, ids, theme, ratio) {
   const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
   const titreAuto = lot.titre === auto.titre, annonceAuto = lot.texteAnnonce === auto.description || !lot.texteAnnonce;
   return {
-    ...lot, articles: nouveaux.map((m) => m.id), theme, prixDemande, mosaiqueAFaire: true,
+    ...lot, articles: nouveaux.map((m) => m.id), theme, prixDemande, ...(ids.length !== lot.articles.length ? { mosaiqueAFaire: true } : {}),
     ...(titreAuto ? { titre: neuf.titre } : {}),
     ...(annonceAuto ? { texteAnnonce: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce ? neuf.titre : lot.titreAnnonce } : {}),
     _annonceAJour: annonceAuto, _ratio: ratio,
@@ -159,6 +159,14 @@ function sortirDuLot(uid, lot, m) {
   const { _annonceAJour, _ratio, ...l } = n;
   ecrire(uid, { ...l, photos, photo: photos.length > 0, alerte: { vendus, annonce: !!a.annonce || !_annonceAJour, avant: a.avant || avant, ancienPrix: a.ancienPrix ?? lot.prixDemande, apres: champsLot(l) } });
   return { id: lot.id, titre: l.titre, action: "retire", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
+}
+/* Le prix d'un article du lot change : le prix du lot suit (même remise), et l'annonce écrite par l'appli aussi. */
+function suivrePrix(uid, lot, avantArticle) {
+  const anciens = lot.articles.map((id) => (id === avantArticle.id ? avantArticle : getItem(uid, id))).filter(Boolean);
+  const { _annonceAJour, _ratio, ...l } = recomposer(uid, lot, lot.articles, lot.theme, null, anciens);
+  if (l.prixDemande === lot.prixDemande && l.texteAnnonce === lot.texteAnnonce) return null;
+  ecrire(uid, l);
+  return { id: lot.id, titre: l.titre, action: "prix", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
 }
 function revenirDansLot(uid, lot, m) {
   if (!estLot(lot) || VENDU(lot.statut) || lot.articles.includes(m.id) || lot.articles.length >= MAX_LOT) { delete m.exLot; ecrire(uid, m); return null; }
@@ -559,13 +567,24 @@ function lienLbc(v) {
       if (estLot(it)) suivreLot(u.id, { ...it, id: avant.id }, avant);
       // Vendu à l'unité alors que son lot est encore en vente : il quitte le lot. Remis en vente : il y revient.
       else if (sonLot && !VENDU(sonLot.statut) && VENDU(it.statut) && !VENDU(avant.statut)) lot = tx(() => sortirDuLot(u.id, sonLot, getItem(u.id, avant.id)));
+      else if (sonLot && !VENDU(sonLot.statut) && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lot = tx(() => suivrePrix(u.id, sonLot, avant));
       else if (!sonLot && avant.exLot && VENDU(avant.statut) && !VENDU(it.statut)) lot = tx(() => revenirDansLot(u.id, getItem(u.id, avant.exLot), getItem(u.id, avant.id)));
       return ok({ ok: true, objet: getItem(u.id, avant.id), ...(lot ? { lot } : {}) });
     }
     if (method === "DELETE") {
       if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
       const l = lotDe(u.id, avant);
-      if (l) fail(409, `Cet article est dans le lot « ${l.titre} » : retire-le du lot (ou défais le lot) avant de le supprimer.`);
+      if (l && VENDU(l.statut)) fail(409, `Cet article est parti avec le lot « ${l.titre} » : défais le lot avant de le supprimer.`);
+      // supprimé (un doublon, par exemple) : il quitte d'abord son lot, qui se recalcule
+      if (l) tx(() => {
+        const reste = l.articles.filter((id) => id !== avant.id);
+        if (reste.length < MIN_LOT) return defaireLot(u.id, l);
+        const { _annonceAJour, _ratio, ...n } = recomposer(u.id, l, reste, l.theme && !reste.some((id) => (getItem(u.id, id) || {}).titre === avant.titre) ? { ...l.theme, complet: false } : l.theme);
+        const ph = photosDe(l), part = ph.filter((x) => x.de === avant.id || (!x.de && x.id !== (ph[0] && ph[0].id) && x.legende === avant.titre)).slice(0, 1);
+        for (const x of part) fs.rmSync(fichierPhoto(u.id, l.id, x.id), { force: true });
+        const photos = ph.filter((x) => !part.includes(x));
+        ecrire(u.id, { ...n, photos, photo: photos.length > 0 });
+      });
       db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(avant.id, u.id);
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });

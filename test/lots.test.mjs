@@ -38,8 +38,9 @@ test("prix d'un lot : remise selon la taille, thème, série complète, petits p
   const petits = L.coteLot([a(2), a(3), a(2), a(4)]);
   assert.equal(petits.petits, 4); assert.ok(petits.raisons.some((r) => /moins de 5 €/.test(r)));
   assert.equal(petits.conseille, 9);
-  // la cote d'un article passe avant son prix affiché
-  assert.equal(L.valeurArticle({ prixDemande: 10, cote: { conseille: 14 } }), 14);
+  // le prix affiché passe avant la cote (c'est ce que l'acheteur paierait à l'unité)
+  assert.equal(L.valeurArticle({ prixDemande: 10, cote: { conseille: 14 } }), 10);
+  assert.equal(L.valeurArticle({ cote: { conseille: 14 } }), 14);
   // le prix de vente se partage au centime près
   const parts = L.repartir(50, [a(10), a(30), a(10)]);
   assert.deepEqual(parts, [10, 30, 10]);
@@ -89,8 +90,6 @@ test("lot : création, photos, vente répartie, défaire", async () => {
   // un article ne va pas dans deux lots, ni un lot dans un lot
   assert.equal((await call("POST", "/api/lots", { articles: [b1.id, z.id] }, c)).status, 409);
   assert.equal((await call("POST", "/api/lots", { articles: [lot.id, z.id] }, c)).status, 400);
-  // un article du lot ne se supprime pas seul
-  assert.equal((await call("DELETE", "/api/objets/" + b1.id, null, c)).status, 409);
 
   // annonce rédigée par l'IA (simulée)
   const an = await call("POST", "/api/lots/" + lot.id + "/annonce", {}, c);
@@ -191,4 +190,28 @@ test("lot : un article vendu à l'unité quitte le lot, et y revient si on annul
   assert.ok(!tous.some((x) => x.id === lot.id));
   assert.equal(tous.find((x) => x.id === ge.id).lot, undefined);
   assert.equal(tous.find((x) => x.id === ge.id).statut, "en_vente");
+});
+
+test("lot : le prix suit celui de ses articles, et un doublon supprimé quitte le lot", async () => {
+  const c = await compte("prixsuit@exemple.fr");
+  const o = (titre, prixDemande) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande }, PHOTO);
+  const pm = await o("Paper Mario", 130), mp = await o("Mario Party", 35), sm = await o("Super Mario 64", 20), pm2 = await o("Paper Mario", 130);
+  const lot = (await call("POST", "/api/lots", { articles: [pm.id, mp.id, sm.id, pm2.id], photo: PHOTO }, c)).json.objet;
+  assert.equal(lot.prixDemande, L.coteLot([pm, mp, sm, pm2]).conseille);
+  // Paper Mario baisse à 120 € : le lot suit, l'annonce aussi
+  const r = await call("PUT", "/api/objets/" + pm.id, { objet: { prixDemande: 120 } }, c);
+  assert.equal(r.json.lot.action, "prix");
+  let l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.ok(l.prixDemande < lot.prixDemande, `${l.prixDemande} < ${lot.prixDemande}`);
+  assert.match(l.texteAnnonce, /environ 305 €/);
+  assert.equal(l.mosaiqueAFaire, undefined);
+  // le doublon supprimé quitte le lot : prix recalculé, sa photo retirée, mosaïque à refaire
+  assert.equal((await call("DELETE", "/api/objets/" + pm2.id, null, c)).status, 200);
+  l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.deepEqual(l.articles, [pm.id, mp.id, sm.id]);
+  assert.equal(l.photos.length, 4); assert.ok(l.mosaiqueAFaire);
+  assert.ok(l.prixDemande < 175);
+  // lot vendu : ses articles ne se suppriment plus seuls
+  await call("PUT", "/api/objets/" + lot.id, { objet: { statut: "vendu" } }, c);
+  assert.equal((await call("DELETE", "/api/objets/" + mp.id, null, c)).status, 409);
 });
