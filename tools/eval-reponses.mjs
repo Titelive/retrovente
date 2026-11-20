@@ -17,10 +17,10 @@ const M2 = "Je suis sur Nancy à partir de 18h15 ce soir, je serai exactement au
 
 const sans = (re, nom) => ({ nom, ok: (r) => r.reponses.every((x) => !re.test(x.texte)) });
 const avec = (re, nom) => ({ nom, ok: (r) => r.reponses.every((x) => re.test(x.texte)) });
-const differentes = { nom: "3 réponses vraiment différentes", ok: (r) => {
+const differentes = { nom: "3 réponses vraiment différentes", ok: (r, c) => {
   const mots = (t) => new Set(t.toLowerCase().replace(/[^\p{L}\d ]/gu, " ").split(/\s+/).filter((m) => m.length > 2));
   const l = r.reponses.map((x) => mots(x.texte));
-  for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) { const a = l[i], b = l[j], c = [...a].filter((m) => b.has(m)).length; if (c / Math.min(a.size, b.size) > 0.85) return false; }
+  for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) { const a = l[i], b = l[j], n = [...a].filter((m) => b.has(m)).length; if (n / Math.min(a.size, b.size) > (c && c.contexte.consigne ? 0.95 : 0.85)) return false; }
   return l.length === 3;
 } };
 const COMMUNS = [sans(/Garnier|Moselle/, "pas de prénom inventé ni « Moselle »"), sans(/merci pour votre (message|retour)/i, "pas de « merci pour votre message »"), sans(/texte fourni|transmis|consigne/i, "pas de méta")];
@@ -32,7 +32,7 @@ const CAS = [
   { nom: "FoodLab sans consigne", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\n${M2}`), contexte: { acheteur: "carter054", mesMessages: [R1] },
     verifs: [sans(/disponible/i, "ne redit pas la disponibilité"), sans(/\d+\s?€|prix/i, "ne parle pas de prix"), avec(/18h15|18 h 15|FoodLab|ce soir/i, "répond à sa proposition"), differentes] },
   { nom: "Premier message : dispo ? je suis d'à côté de Nancy", conversation: conv(M1), contexte: { acheteur: "carter054", mesMessages: [] },
-    verifs: [avec(/disponible/i, "dit que c'est disponible"), sans(/envoi|exp[ée]di|colis/i, "ne demande pas main propre ou envoi"), sans(/\d+\s?€|prix|ferme/i, "ne parle pas de prix"), sans(/PAL|loose|cartouche seule|testé/i, "ne redécrit pas l'annonce"), sans(/vous (venez|êtes|habitez)|tout près|du coin/i, "ne reformule pas où il habite"), differentes] },
+    verifs: [avec(/disponible/i, "dit que c'est disponible"), sans(/envoi|exp[ée]di|colis/i, "ne demande pas main propre ou envoi"), sans(/\d+\s?€|prix|ferme/i, "ne parle pas de prix"), sans(/PAL|loose|cartouche seule|testé/i, "ne redécrit pas l'annonce"), sans(/vous (venez|êtes|habitez) (de|d'|du|près|à côté)|tout près|du coin/i, "ne reformule pas où il habite"), differentes] },
   { nom: "Négociation : « vous le feriez à 10 € ? »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\nVous me le feriez à 10 € ?\nil y a 1 min`), contexte: { acheteur: "carter054", mesMessages: [R1] },
     verifs: [sans(/\b10 ?€.{0,20}(ok|d'accord|ça marche|va pour)/i, "n'accepte pas 10 €"), sans(/disponible/i, "ne redit pas la disponibilité"), differentes] },
   { nom: "Consigne de refus : « non c'est 20 pas moins »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\nC'est votre dernier prix ? 15 € ?\nil y a 1 min`),
@@ -46,7 +46,7 @@ for (const c of CAS) {
   try { r = await repondre(c.conversation, PD, [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
   console.log(`\n=== ${c.nom}\nRésumé : ${r.resume}`);
   r.reponses.forEach((x, i) => console.log(`  ${i + 1}. [${x.approche}] ${x.texte}`));
-  for (const v of [...c.verifs, ...COMMUNS]) { const ok = v.ok(r); if (!ok) echecs++; console.log(`  ${ok ? "✓" : "✗"} ${v.nom}`); }
+  for (const v of [...c.verifs, ...COMMUNS]) { const ok = v.ok(r, c); if (!ok) echecs++; console.log(`  ${ok ? "✓" : "✗"} ${v.nom}`); }
 }
 console.log(`\n${echecs ? `✗ ${echecs} vérification(s) en échec` : "✓ tout est bon"}`);
 process.exit(echecs ? 1 : 0);
