@@ -42,7 +42,7 @@ const CAS = [
   { nom: "Lot de 2 à 57 €, offre de 55 € (« ces trois jeux »)", annonce: {},
     conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nMembre depuis mai 2017\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nVous avez 48 heures pour accepter.\nil y a 2 min - Message automatique leboncoin\nrebonjour\nil y a 1 min\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min\nVoir l'offre\nEnvoyer",
     contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57 }, mesMessages: [] },
-    verifs: [sans(/Grand Theft|GTA/i, "pas de jeu inventé")] },
+    verifs: [sans(/Grand Theft|GTA/i, "pas de jeu inventé"), sans(/pas (3|trois)\b|(2|deux) articles,? pas/i, "ne corrige pas « trois jeux »")] },
   { nom: "Lot de 2 annonces = 3 jeux (dont un lot Star Wars)", annonce: {}, autres: AUTRES_LOT,
     conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 2 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min",
     contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
@@ -50,7 +50,7 @@ const CAS = [
   { nom: "Vente conclue (« Vendu ! ») : confirmer l'envoi", annonce: {}, autres: AUTRES_LOT,
     conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 20 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 15 min\nVendu !\nVous avez accepté l'offre de Volzenki. Expédiez le colis sous 5 jours.\nil y a 1 min - Message automatique leboncoin",
     contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
-    verifs: [sans(/contre|plancher|je peux (vous )?(le |les )?faire à|dernier prix|négoci/i, "ne négocie plus"), avec(/envo|exp[ée]di|colis/i, "confirme l'envoi")] },
+    verifs: [sans(/contre|plancher|je peux (vous )?(le |les )?faire à|dernier prix|négoci/i, "ne négocie plus"), avec(/envo|exp[ée]di|colis|emball|part/i, "confirme l'envoi")] },
 ];
 
 let echecs = 0;
