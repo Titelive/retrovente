@@ -746,6 +746,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-notes:empty{display:none}
 .ji-n{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);font-size:12.5px;color:var(--gris);white-space:nowrap}
 .ji-n b{display:grid;place-items:center;min-width:30px;height:24px;padding:0 6px;border-radius:999px;font-size:13px;color:#fff;background:#6b7280}
+.ji-n small{font-size:11px;opacity:.7;margin-left:-4px}
 .ji-n b.haut{background:#2f9e44}.ji-n b.moyen{background:#d08c00}.ji-n b.bas{background:#c92a2a}
 .ji-moi{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--gris)}
 .ji-etoiles{display:inline-flex}
@@ -759,9 +760,14 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-plus::after{content:"";width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
 .ji-plus.ouvert::after{transform:translateY(1px) rotate(-135deg)}
 .ji-plus:hover{color:var(--gris)}
-.ji-caps{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;padding-bottom:4px;min-width:0;max-width:100%;scrollbar-width:thin}
+.ji-corps{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ji-corps[hidden]{display:none}
+.ji-caps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}
 .ji-caps:empty{display:none}
-.ji-caps button{flex:none;width:min(220px,62%);aspect-ratio:16/9;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);scroll-snap-align:start;cursor:zoom-in}
+.ji-caps button{position:relative;width:100%;aspect-ratio:16/9;padding:0;border:0;border-radius:12px;overflow:hidden;background:var(--papier);box-shadow:0 0 0 1px var(--trait);cursor:zoom-in;transition:transform .2s}
+.ji-caps button:hover{transform:translateY(-2px)}
+.ji-caps button[hidden]{display:none}
+.ji-caps button.plus::after{content:attr(data-reste);position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,10,10,.55);color:#fff;font:700 18px/1 var(--texte,inherit)}
 .ji-caps img{width:100%;height:100%;object-fit:cover;display:block}
 .ji-pied{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .ji-src{margin:0;flex:1 1 200px;min-width:0;font-size:11px;color:var(--gris);line-height:1.5;opacity:.85}
@@ -774,14 +780,64 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-choix button:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
 .ji-choix button small{color:var(--gris);font-weight:500;white-space:nowrap}
 .ji-attente{margin:0;font-size:13px;color:var(--gris)}
-.ji.charge .ji-jaq,.ji.charge .ji-caps button{animation:ji-pulse 1.2s ease-in-out infinite}
-@keyframes ji-pulse{50%{opacity:.55}}
 dialog.vue-img{max-width:min(1100px,calc(100% - 24px));padding:12px;background:#0d0d0d}
 dialog.vue-img form{gap:10px}
 dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margin:auto;border-radius:12px;object-fit:contain}
 .vue-nav{display:flex;align-items:center;justify-content:center;gap:10px;color:#ddd;font-size:13px}
 .vue-nav [value=ok]{margin-left:auto}
-@media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps button{width:72%}}
+@media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps{gap:6px}.ji-caps button{border-radius:9px}}
+
+/* ===== Fiche du jeu : animations (coupées si « animations » est décoché ou si le système demande moins de mouvement) ===== */
+.ji-squelette{display:flex;gap:14px;align-items:flex-start}
+.ji-squelette[hidden]{display:none}
+.ji:has(#jiAttente:not([hidden])) .ji-tete{display:none}
+.ji-squelette .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ji-squelette .sq-jaq{flex:none;width:96px;aspect-ratio:3/4;border-radius:10px}
+.ji-squelette .sq-l{flex:1;display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.ji-squelette i{display:block;height:12px;border-radius:6px}
+.ji-squelette i:nth-child(1){width:55%;height:16px}.ji-squelette i:nth-child(2){width:80%}.ji-squelette i:nth-child(3){width:40%;height:22px;border-radius:999px}
+.ji-squelette .sq-jaq,.ji-squelette i{background:linear-gradient(100deg,var(--papier) 30%,var(--trait) 50%,var(--papier) 70%) 0 0/300% 100%}
+@media (max-width:700px){.ji-squelette .sq-jaq{width:84px}}
+@media (prefers-reduced-motion:no-preference){
+  html:not(.sans-anim) .ji-squelette .sq-jaq,html:not(.sans-anim) .ji-squelette i{animation:ji-reflet 1.3s linear infinite}
+  /* apparition en cascade quand les infos arrivent */
+  html:not(.sans-anim) .ji.entre .ji-jaq{animation:ji-jaq .6s var(--ease,cubic-bezier(.2,.8,.2,1)) both}
+  html:not(.sans-anim) .ji.entre :is(.ji-nom,.ji-meta,.ji-equipe,.ji-moi,.ji-desc,.ji-plus,.ji-pied){animation:ji-monte .5s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(var(--k,0) * 60ms)}
+  html:not(.sans-anim) .ji.entre .ji-nom{--k:1}html:not(.sans-anim) .ji.entre .ji-meta{--k:2}html:not(.sans-anim) .ji.entre .ji-equipe{--k:3}html:not(.sans-anim) .ji.entre .ji-moi{--k:5}
+  html:not(.sans-anim) .ji.entre .ji-desc{--k:6}html:not(.sans-anim) .ji.entre .ji-plus{--k:7}html:not(.sans-anim) .ji.entre .ji-pied{--k:11}
+  html:not(.sans-anim) .ji.entre .ji-n{animation:ji-pop .5s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(180ms + var(--k,0) * 80ms)}
+  html:not(.sans-anim) .ji.entre .ji-caps button{animation:ji-monte .55s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(420ms + var(--k,0) * 70ms)}
+  html:not(.sans-anim) .ji.entre .ji-etoiles button{animation:ji-pop .4s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(320ms + var(--k,0) * 45ms)}
+  /* jaquette : légère inclinaison et reflet au survol */
+  html:not(.sans-anim) .ji-jaq{transition:transform .35s var(--ease,cubic-bezier(.2,.8,.2,1)),box-shadow .35s;position:relative}
+  html:not(.sans-anim) .ji-jaq::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%) 150% 0/250% 100% no-repeat;pointer-events:none;transition:background-position .7s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) .ji-jaq:hover{transform:perspective(500px) rotateY(-8deg) rotateX(3deg) scale(1.04);box-shadow:0 0 0 1px var(--trait),14px 18px 30px -14px rgba(0,0,0,.55)}
+  html:not(.sans-anim) .ji-jaq:hover::after{background-position:-50% 0}
+  /* captures : l'image s'approche au survol */
+  html:not(.sans-anim) .ji-caps img{transition:transform .5s var(--ease,cubic-bezier(.2,.8,.2,1)),filter .3s}
+  html:not(.sans-anim) .ji-caps button:hover img{transform:scale(1.08)}
+  html:not(.sans-anim) .ji-caps button.plus::after{transition:background-color .3s,letter-spacing .3s}
+  html:not(.sans-anim) .ji-caps button.plus:hover::after{background:rgba(10,10,10,.35);letter-spacing:.06em}
+  /* ma note : les étoiles se remplissent en vague, celle qu'on pointe annonce la note */
+  html:not(.sans-anim) .ji-etoiles.vague button.on{animation:ji-etoile .45s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--k,0) * 55ms)}
+  html:not(.sans-anim) .ji-etoiles:hover button{color:var(--trait)}
+  html:not(.sans-anim) .ji-etoiles:hover button:has(~ button:hover),html:not(.sans-anim) .ji-etoiles button:hover{color:#f5b301;opacity:.85}
+  /* « Lire la suite » : le texte se déplie en douceur */
+  html:not(.sans-anim) .ji-desc{transition:max-height .45s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) .ji-plus::after{transition:transform .3s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  /* liste « Pas le bon jeu ? » et visionneuse */
+  html:not(.sans-anim) .ji-choix:not([hidden]) button{animation:ji-monte .35s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(var(--k,0) * 40ms)}
+  html:not(.sans-anim) dialog.vue-img[open]{animation:ji-zoom .35s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) dialog.vue-img[open]::backdrop{animation:fondu .3s}
+  html:not(.sans-anim) #dVueImg.change{animation:ji-fondu .3s ease}
+}
+@keyframes ji-reflet{to{background-position:-150% 0}}
+@keyframes ji-monte{from{opacity:0;transform:translateY(10px)}}
+@keyframes ji-jaq{from{opacity:0;transform:perspective(500px) rotateY(-18deg) scale(.9)}}
+@keyframes ji-pop{from{opacity:0;transform:scale(.6)}}
+@keyframes ji-etoile{0%{transform:scale(1)}40%{transform:scale(1.45) rotate(-12deg)}100%{transform:scale(1)}}
+@keyframes ji-zoom{from{opacity:0;transform:scale(.94)}}
+@keyframes ji-fondu{from{opacity:.2;transform:scale(.985)}}
 </style>
 
 </head>
@@ -963,7 +1019,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
             <div class="ji-pied"><p class="ji-src" id="jiSrc"></p><button class="pl" type="button" id="jiAutre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Pas le bon jeu ?</button></div>
             <div class="ji-choix" id="jiChoix" hidden></div>
           </div>
-          <p class="ji-attente" id="jiAttente" hidden>Je cherche la jaquette et les captures…</p>
+          <div class="ji-squelette" id="jiAttente" hidden role="status"><span class="sq-jaq"></span><span class="sq-l"><i></i><i></i><i></i></span><span class="sr">Je cherche la jaquette et les captures…</span></div>
         </div>
       </section>
       <section class="carte bloc" data-onglet="prix">
@@ -2226,20 +2282,25 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   var E=$("jiEtoiles");
   for(var i=1;i<=5;i++){var b=el("button",null,"★");b.type="button";b.dataset.n=i;b.setAttribute("role","radio");b.setAttribute("aria-label",i+(i>1?" étoiles":" étoile"));E.appendChild(b)}
   function etoiles(){var n=Number($("f_note").value)||0;[].forEach.call(E.children,function(b){var k=Number(b.dataset.n);b.classList.toggle("on",k<=n);b.setAttribute("aria-checked",k===n?"true":"false");b.tabIndex=(k===(n||1))?0:-1})}
-  function noter(n){var f=$("f_note");f.value=String(Number(f.value)===n?0:n);f.dispatchEvent(new Event("input",{bubbles:true}));etoiles()}
+  function noter(n){var f=$("f_note");f.value=String(Number(f.value)===n?0:n);f.dispatchEvent(new Event("input",{bubbles:true}));etoiles();vague()}
+  /* petite vague sur les étoiles allumées */
+  function vague(){E.classList.remove("vague");void E.offsetWidth;E.classList.add("vague");clearTimeout(E._v);E._v=setTimeout(function(){E.classList.remove("vague")},800)}
+  [].forEach.call(E.children,function(b,k){b.style.setProperty("--k",k)});
+
   E.addEventListener("click",function(e){var b=e.target.closest("button");if(b)noter(Number(b.dataset.n))});
   E.addEventListener("keydown",function(e){var n=Number($("f_note").value)||0,k={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!k)return;e.preventDefault();n=Math.max(1,Math.min(5,n+k));$("f_note").value=String(n);$("f_note").dispatchEvent(new Event("input",{bubbles:true}));etoiles();E.children[n-1].focus()});
-  /* note de référence : presse sur 100, joueurs ramenés sur 5 */
-  function pastille(v,lib,titre,sur5){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5?String(Math.round(v/2)/10).replace(".",","):String(v));s.title=titre;s.appendChild(b);s.appendChild(document.createTextNode(lib));return s}
+  /* presse et joueurs sur la même échelle : sur 5, avec une décimale */
+  function sur5(v){return (Math.round(v/2)/10).toFixed(1).replace(".",",")}
+  function pastille(v,lib,titre){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5(v));s.style.setProperty("--k",$("jiNotes").children.length);if(!calme()){var t0=0;b.textContent="0,0";setTimeout(function(){requestAnimationFrame(function pas(t){if(!t0)t0=t;var x=Math.min(1,(t-t0)/700);b.textContent=sur5(v*(1-Math.pow(1-x,3)));if(x<1)requestAnimationFrame(pas)})},250+80*$("jiNotes").children.length)}s.title=titre;s.setAttribute("aria-label",lib+" : "+sur5(v)+" sur 5");s.appendChild(b);s.appendChild(el("span",null,lib));s.appendChild(el("small",null,"/5"));return s}
   function notes(n){var z=$("jiNotes");z.textContent="";if(!n)return;
-    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse",(n.presse.source?n.presse.source+" : m":"M")+"oyenne"+(n.presse.nb?" de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":""):" des critiques")+" (sur 100)"));
-    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,film()?"Spectateurs /5":"Joueurs /5","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+(film()?" de spectateurs TMDB":" de joueurs IGDB"),true))}
+    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse",(n.presse.source?n.presse.source+" : m":"M")+"oyenne"+(n.presse.nb?" de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":""):" des critiques")));
+    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,film()?"Spectateurs":"Joueurs","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+(film()?" de spectateurs TMDB":" de joueurs IGDB")))}
   function source(i){var z=$("jiSrc");z.textContent="";function a(t,u){var x=el("a",null,t);x.href=u;x.target="_blank";x.rel="noopener";return x}
     if(i.lien){z.appendChild(document.createTextNode("Images et notes "));z.appendChild(a(i.source==="TMDB"?"TMDB":"IGDB",i.lien))}
     var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(", "+d.licence))}
     if(i.source==="TMDB")z.appendChild(el("span","ji-tmdb"," Ce service utilise l'API TMDB sans être approuvé ni certifié par TMDB."))}
   function choix(autres,titre){var z=$("jiChoix");z.textContent="";if(titre)z.appendChild(el("p","ji-attente",titre));
-    (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
+    (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.style.setProperty("--k",z.children.length);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
     if($("f_jeuRef").value){var r=el("button",null,"Revenir à la recherche automatique");r.type="button";r.onclick=function(){$("f_jeuRef").value="";$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(r)}
     z.hidden=!z.children.length}
   function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiEquipe").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiPlus").textContent="Lire la suite";$("jiPlus").classList.remove("ouvert");$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
@@ -2257,13 +2318,21 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
     var mot=film()?"Affiche":"Jaquette";if(i.jaquette&&sur(i.jaquette.petite)){var j=$("jiJaq");j.querySelector("img").src=sur(i.jaquette.petite);j.querySelector("img").alt=mot+" de "+i.nom;j.setAttribute("aria-label","Agrandir l'"+mot.toLowerCase());j.hidden=false;IMGS.push({src:sur(i.jaquette.grande)||sur(i.jaquette.petite),alt:mot+" de "+i.nom})}
     $("jiCaps").setAttribute("aria-label",film()?"Images du film":"Captures d'écran");
     var d=$("jiDesc");d.textContent=i.description||"";d.classList.add("court");requestAnimationFrame(function(){$("jiPlus").hidden=!(i.description&&d.scrollHeight>d.clientHeight+2)});
-    (i.captures||[]).forEach(function(c,k){if(!sur(c.petite))return;var b=el("button"),im=el("img");b.type="button";b.setAttribute("aria-label",(film()?"Agrandir l'image ":"Agrandir la capture ")+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:(film()?"Image ":"Capture d'écran ")+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
-    source(i);$("jiChoix").hidden=true}
-  $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire";this.classList.toggle("ouvert",!c)};
+    var caps=(i.captures||[]).filter(function(c){return sur(c.petite)}),vis=3;
+    caps.forEach(function(c,k){var b=el("button"),im=el("img");if(k>=vis)b.hidden=true;if(k===vis-1&&caps.length>vis){b.classList.add("plus");b.dataset.reste="+"+(caps.length-vis)}b.type="button";b.setAttribute("aria-label",(film()?"Agrandir l'image ":"Agrandir la capture ")+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:(film()?"Image ":"Capture d'écran ")+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
+    source(i);$("jiChoix").hidden=true;
+    [].forEach.call($("jiCaps").children,function(b,k){b.style.setProperty("--k",k)});
+    B.classList.remove("entre");void B.offsetWidth;B.classList.add("entre");clearTimeout(B._entre);B._entre=setTimeout(function(){B.classList.remove("entre")},1600)}
+  $("jiPlus").onclick=function(){var d=$("jiDesc"),b=this,ouvrir=d.classList.contains("court"),h0=d.clientHeight;
+    b.textContent=ouvrir?"Réduire":"Lire la suite";b.classList.toggle("ouvert",ouvrir);
+    if(calme()){d.classList.toggle("court",!ouvrir);return}
+    if(ouvrir){d.classList.remove("court");var h1=d.scrollHeight;d.style.maxHeight=h0+"px";void d.offsetHeight;d.style.maxHeight=h1+"px"}
+    else{d.style.maxHeight=d.scrollHeight+"px";void d.offsetHeight;var tmp=d.cloneNode(true);tmp.classList.add("court");tmp.style.cssText="position:absolute;visibility:hidden;max-height:none;width:"+d.clientWidth+"px";d.parentNode.appendChild(tmp);var h2=tmp.clientHeight;tmp.remove();d.style.maxHeight=h2+"px"}
+    d.style.overflow="hidden";clearTimeout(d._t);d._t=setTimeout(function(){if(!ouvrir)d.classList.add("court");d.style.maxHeight="";d.style.overflow=""},460)};
   $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,film()?"Choisis le bon film :":"Choisis le bon jeu :");else choix([],film()?"Pas d'autre film proche. Corrige le titre ou l'année dans la fiche.":"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
   $("jiJaq").onclick=function(){voir(0)};
   /* visionneuse : jaquette et captures en grand, flèches du clavier ou boutons */
-  function voir(n){if(!IMGS.length)return;VUE=(n+IMGS.length)%IMGS.length;var x=IMGS[VUE];$("dVueImg").src=x.src;$("dVueImg").alt=x.alt;$("dVueN").textContent=(VUE+1)+" / "+IMGS.length;$("dVuePrec").hidden=$("dVueSuiv").hidden=IMGS.length<2;if(!$("dVue").open)$("dVue").showModal()}
+  function voir(n){if(!IMGS.length)return;VUE=(n+IMGS.length)%IMGS.length;var x=IMGS[VUE],im=$("dVueImg");im.classList.remove("change");void im.offsetWidth;im.classList.add("change");im.src=x.src;$("dVueImg").alt=x.alt;$("dVueN").textContent=(VUE+1)+" / "+IMGS.length;$("dVuePrec").hidden=$("dVueSuiv").hidden=IMGS.length<2;if(!$("dVue").open)$("dVue").showModal()}
   $("dVuePrec").onclick=function(){voir(VUE-1)};$("dVueSuiv").onclick=function(){voir(VUE+1)};
   $("dVue").addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){e.preventDefault();voir(VUE-1)}if(e.key==="ArrowRight"){e.preventDefault();voir(VUE+1)}});
   $("dVue").addEventListener("click",function(e){if(e.target===this)this.close()});
@@ -2271,7 +2340,7 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   function clef(){return estJeu()?[$("f_categorie").value,$("f_titre").value.trim().toLowerCase(),film()?$("f_annee").value.trim():$("f_plateforme").value.trim().toLowerCase(),$("f_jeuRef").value].join("|"):""}
   function charger(force){var k=clef();if(!force&&k===CLEF)return;CLEF=k;etoiles();
     B.hidden=!estJeu();B.classList.toggle("film",film());if(B.hidden||!$("f_titre").value.trim()){INFOS=null;vide();$("jiAttente").hidden=true;return}
-    var n=++REQ;B.classList.add("charge");$("jiAttente").textContent=film()?"Je cherche l'affiche, le synopsis et les notes…":"Je cherche la jaquette et les captures…";$("jiAttente").hidden=!!INFOS;
+    var n=++REQ;B.classList.add("charge");$("jiAttente").querySelector(".sr").textContent=film()?"Je cherche l'affiche, le synopsis et les notes…":"Je cherche la jaquette et les captures…";$("jiAttente").hidden=!!INFOS;
     $("jiAutre").lastChild.textContent=film()?"Pas le bon film ?":"Pas le bon jeu ?";
     api("POST",film()?"/api/film-infos":"/api/jeu-infos",film()?{titre:$("f_titre").value.trim(),annee:$("f_annee").value.trim(),ref:$("f_jeuRef").value||null}:{titre:$("f_titre").value.trim(),plateforme:$("f_plateforme").value.trim(),ref:$("f_jeuRef").value||null})
       .then(function(j){if(n===REQ)montrerInfos(j.infos)}).catch(function(){if(n===REQ){montrerInfos(null)}})}
