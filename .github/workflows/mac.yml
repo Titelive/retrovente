@@ -1,0 +1,51 @@
+name: App Mac
+on:
+  pull_request:
+    paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
+  push:
+    branches: [main]
+    paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  construire:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fabriquer RetroRevente.app
+        run: BUILD=${{ github.run_number }} sh mac/construire.sh
+      - name: Vérifier l'app
+        run: |
+          lipo -info mac/build/RetroRevente.app/Contents/MacOS/RetroRevente
+          codesign -dv mac/build/RetroRevente.app 2>&1 | head -5
+      - name: Lancer l'app et prendre des captures
+        continue-on-error: true
+        run: |
+          APP=mac/build/RetroRevente.app
+          for demo in appli deposer compte; do
+            open --env RR_DEMO=$demo "$APP"
+            sleep 22
+            pgrep -x RetroRevente
+            screencapture -x mac/build/capture-$demo.png
+            osascript -e 'tell application "RetroRevente" to quit' || pkill -x RetroRevente || true
+            sleep 3
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RetroRevente-mac
+          path: |
+            mac/build/RetroRevente-mac.zip
+            mac/build/capture-*.png
+          if-no-files-found: warn
+      - name: Publier l'app (GitHub Releases) pour l'installation
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then TAG=mac; TITRE="RetroRevente pour Mac"; PRE=""; else TAG=mac-essai; TITRE="RetroRevente pour Mac (essai)"; PRE="--prerelease"; fi
+          NOTES="Installer ou mettre à jour : dans Terminal, curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/mac/installer.sh | sh"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TITRE" $PRE --target "$GITHUB_SHA" --notes "$NOTES"
+          gh release upload "$TAG" mac/build/RetroRevente-mac.zip --clobber
+          for f in mac/build/capture-*.png; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber; done; true
