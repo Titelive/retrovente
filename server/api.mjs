@@ -58,7 +58,7 @@ function nettoyer(v, avant) {
     photo: !!(avant && photosDe(avant).length),
     photos: ordrePhotos(v.photos, avant),
     // Lots : la composition ne change que par /api/lots (jamais par la fiche), on la reprend telle quelle.
-    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null, ...(avant.alerte ? { alerte: avant.alerte } : {}), ...(avant.mosaiqueAFaire ? { mosaiqueAFaire: true } : {}) } : {}),
+    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null, ...(avant.alerte ? { alerte: avant.alerte } : {}), ...(avant.annonceGeneree ? { annonceGeneree: avant.annonceGeneree } : {}), ...(avant.mosaiqueAFaire ? { mosaiqueAFaire: true } : {}) } : {}),
     // Un article peut être dans plusieurs lots tant qu'il n'est pas vendu (« lots ») ; « lot » est l'ancien champ, à un seul lot.
     ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
@@ -164,6 +164,11 @@ function suivreLot(uid, lot, avant) {
    S'il revient en vente (« Annuler »), il y retourne. Le titre et l'annonce écrits par l'appli suivent ; ceux que
    la personne a réécrits restent, et le lot le signale. */
 const champsLot = (l) => ({ titre: l.titre, titreAnnonce: l.titreAnnonce, texteAnnonce: l.texteAnnonce, prixDemande: l.prixDemande, theme: l.theme || null });
+/** Texte au format de l'annonce sans IA : 1re ligne « <titre> : », puis des lignes « - … », puis les phrases fixes. */
+function formatAppli(titre, texte) {
+  const l = String(texte || "").split("\n");
+  return /^Lot\b/.test(String(titre || "")) && l[0] === `${titre} :` && l.length > 2 && /^- /.test(l[1]) && /Remise en main propre ou envoi soigné, en un seul colis\.$/.test(l[l.length - 1]);
+}
 function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean)) {
   const nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
   const auto = annonceLotSimple(anciens, lot.prixDemande, lot.theme);
@@ -172,11 +177,15 @@ function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id)
   // le lot était moins cher que ses articles à l'unité : il le reste après l'arrondi
   if (c1.somme && prixDemande >= c1.somme && lot.prixDemande != null && c0.somme && lot.prixDemande < c0.somme) prixDemande = c1.conseille;
   const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
-  const titreAuto = lot.titre === auto.titre, annonceAuto = lot.texteAnnonce === auto.description || !lot.texteAnnonce;
+  // L'annonce est « de l'appli » si c'est la dernière qu'elle a écrite (annonceGeneree), celle qu'elle écrirait pour
+  // l'ancienne composition, ou (lots d'avant annonceGeneree) une annonce au format de l'appli : « Lot … : » puis une
+  // ligne « - … » par article. Une annonce réécrite à la main ou par l'IA ne change pas : le lot le signale.
+  const titreAuto = lot.titre === auto.titre || (lot.titre === lot.titreAnnonce && formatAppli(lot.titreAnnonce, lot.texteAnnonce));
+  const annonceAuto = !lot.texteAnnonce || lot.texteAnnonce === lot.annonceGeneree || lot.texteAnnonce === auto.description || formatAppli(lot.titreAnnonce, lot.texteAnnonce);
   return {
     ...lot, articles: nouveaux.map((m) => m.id), theme, prixDemande, ...(ids.length !== lot.articles.length ? { mosaiqueAFaire: true } : {}),
     ...(titreAuto ? { titre: neuf.titre } : {}),
-    ...(annonceAuto ? { texteAnnonce: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce ? neuf.titre : lot.titreAnnonce } : {}),
+    ...(annonceAuto ? { texteAnnonce: neuf.description, annonceGeneree: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce || formatAppli(lot.titreAnnonce, lot.texteAnnonce) ? neuf.titre : lot.titreAnnonce } : {}),
     _annonceAJour: annonceAuto, _ratio: ratio,
   };
 }
@@ -682,7 +691,7 @@ function lienLbc(v) {
     const lot = tx(() => {
       const membres = articlesPourLot(u.id, b.articles), r = resumeLot(membres), c = coteLot(membres, theme);
       const a = annonceLotSimple(membres, c.conseille, theme);
-      const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), contenu: "", articles: membres.map((m) => m.id), theme };
+      const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), annonceGeneree: a.description, contenu: "", articles: membres.map((m) => m.id), theme };
       db.prepare("INSERT INTO items(id, user_id, data, created, updated) VALUES (?, ?, ?, ?, ?)").run(id, u.id, JSON.stringify(it), now(), now());
       for (const m of membres) { ajouterAuLot(m, id); ecrire(u.id, m); }
       return it;
@@ -705,6 +714,12 @@ function lienLbc(v) {
   const ml = /^\/api\/lots\/([a-f0-9]{16})(\/annonce)?$/.exec(p);
   if (ml) {
     const lot = getItem(u.id, ml[1]); if (!estLot(lot)) fail(404, "Lot introuvable.");
+    if (ml[2] && method === "POST" && body().simple) {
+      // l'annonce de l'appli pour la composition actuelle, sans l'IA (gratuit)
+      const px = prix(body().prixDemande) ?? lot.prixDemande;
+      const a = annonceLotSimple(lot.articles.map((id) => getItem(u.id, id)).filter(Boolean), px, lot.theme);
+      return ok({ ok: true, ...a });
+    }
     if (ml[2] && method === "POST") {
       iaAllowed(u, "dialogue", req);
       const membres = lot.articles.map((id) => getItem(u.id, id)).filter(Boolean);
@@ -720,8 +735,9 @@ function lienLbc(v) {
         const l = articlesPourLot(u.id, body().articles), garde = new Set(l.map((m) => m.id));
         for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && lotsIds(m).includes(lot.id)) { oterDuLot(m, lot.id); ecrire(u.id, m); } }
         for (const m of l) if (!lotsIds(m).includes(lot.id)) { ajouterAuLot(m, lot.id); ecrire(u.id, m); }
-        const it = { ...lot, articles: l.map((m) => m.id), mosaiqueAFaire: true };
-        ecrire(u.id, it);
+        // prix, titre et annonce de l'appli suivent la nouvelle composition
+        const { _annonceAJour, _ratio, ...it } = recomposer(u.id, lot, l.map((m) => m.id), lot.theme);
+        ecrire(u.id, { ...it, mosaiqueAFaire: true });
         return l;
       });
       return ok({ ok: true, objet: getItem(u.id, lot.id), cote: coteLot(membres, lot.theme) });

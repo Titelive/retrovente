@@ -1303,6 +1303,7 @@ html.sans-anim .vt-b.pousse{animation:none}
       </section>
       <section class="carte bloc" data-onglet="annonce">
         <header><h3>L'annonce</h3><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
+        <div class="lot-alerte" id="fLotAnnonce" role="status" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
         <label class="f">Lien de l'annonce une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
@@ -3018,6 +3019,20 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
     '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x),dbl=doubles[(x.titre||"").toLowerCase()+"|"+(x.plateforme||"")];return '<li'+(dbl?' class="double"':'')+'><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+(nd?'<p class="lb-double">⚠️ Un même article apparaît deux fois dans ce lot. Si tu n\'en as qu\'un, ouvre le doublon et supprime-le : il quitte le lot, et le prix du lot se recalcule.</p>':'')+
     (ok?'<div class="lb-pied"><button class="pl" type="button" id="lbAjout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter ou retirer des articles</button><button class="pl" type="button" id="lbMosa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Refaire la mosaïque</button></div>':'');
   calculerCoteLot(o,false)}
+/* L'annonce du lot liste-t-elle encore les bons articles ? (une ligne « - Titre, … » par article) */
+function annonceLotPerimee(o){if(!o||!estLot(o)||vendu(o))return null;var t=$("f_texteAnnonce").value||"",m=membres(o);
+  var l=t.split("\n").filter(function(x){return /^- /.test(x)}).map(function(x){return x.slice(2)});if(!l.length)return null;
+  var de=function(x){return m.some(function(y){return x.indexOf(y.titre)===0})};
+  var trop=l.filter(function(x){return !de(x)}).map(function(x){return x.split(/, |\s\(/)[0]}),manque=m.filter(function(y){return t.indexOf(y.titre)<0});
+  return trop.length||manque.length?{trop:trop,manque:manque}:null}
+function majAnnonceLot(){var z=$("fLotAnnonce"),o=ED&&estLot(ED)?ED:null,p=annonceLotPerimee(o);z.hidden=!p;if(!p){z.innerHTML="";return}
+  z.innerHTML='<span>⚠️ <b>L\'annonce ne correspond plus au lot.</b> '+(p.trop.length?'Elle parle encore de <b>'+esc(p.trop.slice(0,4).join(", "))+(p.trop.length>4?"…":"")+'</b>'+(p.trop.length>1?", qui ne sont plus dans le lot":", qui n\'est plus dans le lot")+'. ':'')+(p.manque.length?'Il y manque <b>'+esc(p.manque.slice(0,4).map(function(x){return x.titre}).join(", "))+(p.manque.length>4?"…":"")+'</b>. ':'')+'</span>'+
+    '<div class="rangee"><button class="btn jaune petit" type="button" data-annonce="simple">Mettre à jour l\'annonce</button><button class="btn clair petit" type="button" data-annonce="ia">Réécrire avec l\'IA</button></div>'}
+$("fLotAnnonce").addEventListener("click",function(e){var b=e.target.closest("[data-annonce]");if(!b||!ED||!estLot(ED))return;
+  if(b.dataset.annonce==="ia"){$("fLotIa").click();return}
+  occupe(b,true,"Mise à jour…");api("POST","/api/lots/"+ED.id+"/annonce",{simple:true,prixDemande:$("f_prixDemande").value||null}).then(function(j){$("f_titreAnnonce").value=j.titre;$("f_texteAnnonce").value=j.description;["f_titreAnnonce","f_texteAnnonce"].forEach(function(k){$(k).dispatchEvent(new Event("input",{bubbles:true}))});majLbc();majAnnonceLot();toast("Annonce mise à jour avec les "+ED.articles.length+" articles du lot. Enregistre, puis modifie-la sur Le Bon Coin.","ok")})
+    .catch(function(e){erreur(e,"Mise à jour impossible.")}).then(function(){if(document.contains(b))occupe(b,false)})});
+$("f_texteAnnonce").addEventListener("input",function(){if(ED&&estLot(ED))majAnnonceLot()});
 function calculerCoteLot(o,montrerToast){return api("POST","/api/lots/cote",{articles:o.articles,theme:o.theme}).then(function(j){if(ED!==o)return;COTE_LOT=j.cote;var e=$("fCoteBox");e.innerHTML=coteLotHtml(j.cote);e.hidden=false;if(montrerToast)toast("Prix du lot recalculé.","ok")}).catch(function(){})}
 $("fLotBloc").addEventListener("click",function(e){var a=e.target.closest("[data-ouvrir]"),r=e.target.closest("[data-retirer]");if(!ED||!estLot(ED))return;
   if(a){var go=function(){ouvrirFiche(parId(a.dataset.ouvrir))};if(sale())demanderSortie(go);else go();return}
@@ -3030,7 +3045,7 @@ $("fDansLot").addEventListener("click",function(e){var b=e.target.closest("[data
 $("fLotIa").onclick=function(){if(!ED||!estLot(ED))return;var b=this;occupe(b,true,"Rédaction…");iaEtat("lot",{ico:"✍️",titre:"J'écris l'annonce du lot",detail:"À partir des fiches de ses "+ED.articles.length+" articles"});
   api("POST","/api/lots/"+ED.id+"/annonce",{prixDemande:$("f_prixDemande").value}).then(function(j){$("f_titreAnnonce").value=j.titre;$("f_texteAnnonce").value=j.description;IA_FAITE=true;["f_titreAnnonce","f_texteAnnonce"].forEach(function(k){$(k).dispatchEvent(new Event("input",{bubbles:true}))});ME.usage.dialogue=(ME.usage.dialogue||0)+1;majLbc();toast("Annonce du lot rédigée. Relis-la, puis enregistre.","ok")})
     .catch(function(e){erreur(e,"Rédaction impossible.")}).then(function(){iaEtat("lot");occupe(b,false)})};
-var _ouvrirFiche=ouvrirFiche;ouvrirFiche=function(o){if(CHOIX)finirChoix();_ouvrirFiche(o);ficheLot(o);majStatutFiche();if(o&&estLot(o))figer()};
+var _ouvrirFiche=ouvrirFiche;ouvrirFiche=function(o){if(CHOIX)finirChoix();_ouvrirFiche(o);ficheLot(o);majAnnonceLot();majStatutFiche();if(o&&estLot(o))figer()};
 var _sauver=sauver;sauver=function(rester){var est=ED&&estLot(ED),dls=ED&&!est?lotsDe(ED):[],ex=ED&&!est?(ED.exLots||[]).concat(ED.exLot?[ED.exLot]:[]):[],
     // lot vendu : ses articles quittent les autres lots où ils étaient
     autres=est?membres(ED).reduce(function(a,m){lotsDe(m).forEach(function(l){if(l.id!==ED.id&&!vendu(l)&&a.indexOf(l)<0)a.push(l)});return a},[]):[],avantVendu=est&&vendu(ED);
