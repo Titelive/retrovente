@@ -25,6 +25,7 @@ const differentes = { nom: "3 réponses vraiment différentes", ok: (r, c) => {
 } };
 const COMMUNS = [sans(/Garnier|Moselle/, "pas de prénom inventé ni « Moselle »"), sans(/merci pour votre (message|retour)/i, "pas de « merci pour votre message »"), sans(/texte fourni|transmis|consigne/i, "pas de méta")];
 
+const AUTRES_LOT = [{ id: "a1", nom: "Lot Star Wars : 2 jeux Nintendo 64", titre: "Lot Star Wars : 2 jeux Nintendo 64", prix: 30, etat: "tres_bon", contient: ["Star Wars Rogue Squadron Nintendo 64", "Star Wars Episode I Racer Nintendo 64"] }, { id: "a2", nom: "Rayman 2 The Great Escape", titre: "Rayman 2 The Great Escape Nintendo 64 PAL loose", prix: 25, etat: "tres_bon", contenu: "seul" }];
 const CAS = [
   { nom: "FoodLab + consigne « Aucun souci, je suis en vacances »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\n${M2}`),
     contexte: { acheteur: "carter054", consigne: "Aucun souci, je suis en vacances, ahah", mesMessages: [R1] },
@@ -52,7 +53,6 @@ const CAS = [
     verifs: [sans(/contre|plancher|je peux (vous )?(le |les )?faire à|dernier prix|négoci/i, "ne négocie plus"), avec(/envo|exp[ée]di|colis/i, "confirme l'envoi")] },
 ];
 
-const AUTRES_LOT = [{ id: "a1", nom: "Lot Star Wars : 2 jeux Nintendo 64", titre: "Lot Star Wars : 2 jeux Nintendo 64", prix: 30, etat: "tres_bon", contient: ["Star Wars Rogue Squadron Nintendo 64", "Star Wars Episode I Racer Nintendo 64"] }, { id: "a2", nom: "Rayman 2 The Great Escape", titre: "Rayman 2 The Great Escape Nintendo 64 PAL loose", prix: 25, etat: "tres_bon", contenu: "seul" }];
 let echecs = 0;
 for (const c of CAS) {
   let r;
