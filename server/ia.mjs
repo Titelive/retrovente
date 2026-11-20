@@ -3,7 +3,7 @@
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
-import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, themeDouteux, MIN_LOT, MAX_LOT } from "./lots.mjs";
 export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
@@ -909,7 +909,7 @@ Réponds uniquement par un objet JSON : {"lots": [{"theme": "nom court du thème
   for (const x of (o && Array.isArray(o.lots) ? o.lots : []).slice(0, 8)) {
     const ids = [...new Set((Array.isArray(x.articles) ? x.articles : []).map((n) => l[Number(n) - 1]).filter(Boolean).map((a) => a.id))].slice(0, MAX_LOT);
     const k = [...ids].sort().join(",");
-    if (ids.length < MIN_LOT || vus.has(k) || !txt(x.theme, 60)) continue;
+    if (ids.length < MIN_LOT || vus.has(k) || !txt(x.theme, 60) || themeDouteux(x.theme)) continue;
     vus.add(k);
     out.push({ theme: txt(x.theme, 60), type: parmi(x.type, ["licence", "série", "studio", "lignée", "univers", "genre", "petits prix"], "série"), articles: ids, complet: x.complet === true, raison: affirme(txt(x.raison, 200)) });
   }
