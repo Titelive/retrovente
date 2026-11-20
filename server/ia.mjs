@@ -698,8 +698,9 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
 ` : ""}Donne ta proposition avec l'outil « proposer_reponses » (trois réponses).`;
   let o = null;
   for (let essai = 0; essai < 2 && !(o && Array.isArray(o.reponses) && o.reponses.length); essai++) {
-    try { o = await claude(consigneIA, { max: 2500, timeout: 45000, outil: OUTIL_REPONSES, model: process.env.CLAUDE_MODEL_REPONSES || process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" }); }
-    catch (e) { if (essai || !(e instanceof IaError) || /configuré/.test(e.message)) throw e; console.error("IA réponse, nouvel essai :", e.message); }
+    // Deuxième essai sur le modèle de base : si le modèle solide est surchargé, on répond quand même.
+    try { o = await claude(consigneIA, { max: 2500, timeout: 45000, outil: OUTIL_REPONSES, model: essai ? (process.env.CLAUDE_MODEL || "claude-haiku-5-5") : (process.env.CLAUDE_MODEL_REPONSES || process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5") }); }
+    catch (e) { if (essai || /configuré/.test(e.message)) throw (e instanceof IaError ? e : new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant.")); console.error("IA réponse, nouvel essai :", e.message); }
   }
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "au_revoir", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   // Passages à mettre en gras : seulement ceux qui figurent vraiment dans le texte.
