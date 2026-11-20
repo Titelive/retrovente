@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin",
   "short_name": "RetroRevente",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
@@ -16,8 +16,10 @@
     "default_title": "RetroRevente",
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icones/icone-16.png",
-      "32": "icones/icone-32.png"
+      "16": "icones/barre-16.png",
+      "19": "icones/barre-19.png",
+      "32": "icones/barre-32.png",
+      "38": "icones/barre-38.png"
     }
   },
   "background": {
