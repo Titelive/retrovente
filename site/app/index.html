@@ -1066,7 +1066,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
     <h2>Extension Le Bon Coin</h2>
     <p style="color:var(--gris)" id="cExtTx">L'extension RetroRevente pour Safari, Chrome et Firefox remplit tout seul chaque étape du dépôt d'annonce sur Le Bon Coin (titre, description, état, prix, photo) et propose des réponses types aux acheteurs. Tu relis et tu publies toi-même.</p>
     <div class="rangee"><button class="btn" type="button" id="cExtCo">Connecter l'extension</button><button class="btn clair" type="button" id="cExtDeco" hidden>Déconnecter l'extension</button></div>
-    <div id="cExtCle" hidden><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
+    <div id="cExtCle" hidden><p id="cExtSafari" hidden style="font-size:14px;line-height:1.5;background:rgba(212,245,122,.12);border:1px solid rgba(212,245,122,.35);border-radius:12px;padding:10px 14px">Sur Safari, l'extension doit d'abord être autorisée sur ce site : clique sur l'icône <b>RetroRevente</b> de la barre d'outils, choisis <b>« Toujours autoriser sur ce site web »</b>, recharge la page puis clique à nouveau sur « Connecter l'extension ». (Ou : Safari → Réglages → Extensions → RetroRevente → <b>Modifier les sites web…</b> → retrorevente.fr : Autoriser.)</p><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
       <div class="rangee"><input type="text" id="cExtCleIn" readonly style="flex:1;min-width:0;font-family:monospace;font-size:13px"><button class="btn clair petit" type="button" id="cExtCopie">Copier</button></div></div>
   </section>
   <section class="carte zone">
@@ -2005,7 +2005,7 @@ function extMaj(){if(!ME)return;var n=ME.extension||0;$("cExtDeco").hidden=!n;$(
 $("cExtCo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Connexion…");
   api("POST","/api/extension/cle").then(function(j){busy(b,false,t);$("cExtCleIn").value=j.cle;
     window.postMessage({source:"retrorevente-app",type:"cle",cle:j.cle},location.origin);
-    extT=setTimeout(function(){$("cExtCle").hidden=false;ME.extension=(ME.extension||0)+1;extMaj()},EXT?6000:1500)})
+    extT=setTimeout(function(){$("cExtCle").hidden=false;$("cExtSafari").hidden=EXT||!(/Safari\//.test(navigator.userAgent)&&!/Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent));ME.extension=(ME.extension||0)+1;extMaj()},EXT?6000:1500)})
   .catch(function(e){busy(b,false,t);erreur(e,"Impossible de créer la clé.")})};
 $("cExtCopie").onclick=function(){copier($("cExtCleIn").value).then(function(){toast("Clé copiée.","ok")},function(){$("cExtCleIn").select()})};
 $("cExtDeco").onclick=function(){var b=this,t=b.textContent;busy(b,true,"…");
