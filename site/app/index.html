@@ -935,6 +935,8 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
 /* Choix des articles d'un lot */
 .choix-aide{margin:14px 2px 0;padding:12px 16px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.45;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
 .choix-aide .pl{background:var(--carte)}
+.choix-tout{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+@media(max-width:560px){.choix-tout{margin-left:0;width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.choix-tout .pl{justify-content:center;white-space:normal;text-align:center;min-width:0}.choix-tout .pl:only-child{grid-column:1/-1}}
 #accueil.choix .liste{padding-bottom:120px}
 #accueil.choix .jeu{cursor:pointer}
 #accueil.choix .jeu .im::before{content:"";position:absolute;right:10px;top:10px;z-index:2;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.92) center/16px no-repeat;box-shadow:inset 0 0 0 2px var(--nuit);transition:transform .2s var(--ease)}
@@ -1792,6 +1794,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   $("liste").innerHTML=gs.map(function(g){
     var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
     return (g.nom?'<div class="groupe"><h3>'+esc(g.nom)+'</h3><small>'+g.l.length+' article'+(g.l.length>1?'s':'')+(tot?' · '+eur(tot):'')+'</small></div>':'')+g.l.map(function(o){return carte(o,n++)}).join("")}).join("");
+  if(CHOIX&&typeof majChoix==="function")majChoix();   // « Tout sélectionner » suit le filtre affiché
 }
 // tri et regroupement de la liste (choix gardé sur l'appareil)
 var TRI="recent",GRP="";
@@ -2828,7 +2831,7 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
    Idées de lots à thème au-dessus de la liste, choix des articles à la main, fiche du lot (contenu, cote, annonce IA). */
 var BOX_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>';
 function occupe(b,on,t){if(on){if(b._html==null)b._html=b.innerHTML;busy(b,true,t)}else{busy(b,false);if(b._html!=null){b.innerHTML=b._html;b._html=null}}}
-var CHOIX=null;   // composition en cours : {ids:[], lot:lot à compléter ou null, theme:{nom,type,complet} ou null}
+var MAX_LOT=30,CHOIX=null;   // composition en cours : {ids:[], lot:lot à compléter ou null, theme:{nom,type,complet} ou null}
 function estLot(o){return !!(o&&Array.isArray(o.articles))}
 function articles(){return OBJ.filter(function(o){return !estLot(o)})}
 function parId(id){return OBJ.filter(function(x){return x.id===id})[0]||null}
@@ -2927,6 +2930,14 @@ function majChoix(){var n=CHOIX.ids.length,lot=CHOIX.lot;
   var aide=$("choixAide");aide.hidden=false;
   var th=themeChoix();aide.innerHTML='<span>'+(th&&th.nom?'Lot <b>'+esc(th.nom)+'</b>'+(th.complet?' (série complète)':'')+' : ':CHOIX.theme&&CHOIX.theme.nom?'Ce n\'est plus seulement le lot <b>'+esc(CHOIX.theme.nom)+'</b> : son prix et son titre n\'en parleront pas. ':'')+(lot?'Touche un article pour l\'ajouter au lot ou l\'en retirer.':'Touche les articles à vendre ensemble. Un article peut être dans plusieurs lots ; seuls les articles vendus sont grisés.')+'</span>'+
     (petits.length?'<button class="pl" type="button" id="choixPetits">+ '+pluriel(petits.length,"autre")+' '+({films:"film",cartes:"carte",jeux:"jeu"}[cat]?pluriel(petits.length,{films:"film",cartes:"carte",jeux:"jeu"}[cat],{jeux:"jeux"}[cat]).replace(/^\d+ /,""):"article"+(petits.length>1?"s":""))+' à moins de 5 €</button>':'');
+  // tout sélectionner : les articles affichés (filtre actif) qui peuvent aller dans le lot ; tout désélectionner
+  var visibles=[].map.call($("liste").querySelectorAll(".jeu[data-id]"),function(c){return parId(c.dataset.id)}).filter(function(o){return o&&!estLot(o)&&choixEtat(o).ok}),
+    restants=visibles.filter(function(o){return CHOIX.ids.indexOf(o.id)<0});
+  if(restants.length||n||petits.length)aide.insertAdjacentHTML("beforeend",'<div class="choix-tout">'+(restants.length?'<button class="pl" type="button" id="choixTout">Tout sélectionner ('+(n?'+':'')+restants.length+')</button>':'')+(n?'<button class="pl" type="button" id="choixAucun">Tout désélectionner</button>':'')+'</div>');
+  var ct=aide.querySelector(".choix-tout"),cp=$("choixPetits");if(ct&&cp)ct.insertBefore(cp,ct.firstChild);   // les boutons ensemble, à droite
+  var bt=$("choixTout");if(bt)bt.onclick=function(){var place=MAX_LOT-CHOIX.ids.length,l=restants.slice(0,Math.max(0,place));l.forEach(function(o){CHOIX.ids.push(o.id)});
+    if(l.length<restants.length)toast(MAX_LOT+" articles au plus dans un lot : les "+l.length+" premiers sont sélectionnés.","bad");dessiner();majChoix()};
+  var ba=$("choixAucun");if(ba)ba.onclick=function(){CHOIX.ids=[];dessiner();majChoix()};
   var pb=$("choixPetits");if(pb)pb.onclick=function(){petits.forEach(function(o){CHOIX.ids.push(o.id)});dessiner();majChoix()};
   if(n<2){$("blPx").textContent=n?"Ajoute au moins un autre article.":"Touche au moins 2 articles à vendre ensemble.";return}
   var som=CHOIX.ids.reduce(function(a,id){return a+(valeur(parId(id))||0)},0);$("blPx").innerHTML="À l'unité : "+eur(Math.round(som))+" · calcul du prix du lot…";
