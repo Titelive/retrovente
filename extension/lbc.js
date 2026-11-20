@@ -1066,10 +1066,14 @@
   // Contenu d'un lot : quand la fenêtre « Lot de 2 articles » est ouverte, on lit ses lignes (une image et un titre
   // par jeu). On s'en souvient pour la suite de la conversation (même lot = même nombre d'articles et même prix).
   var lotsVus = {};
-  try { RR.storage.local.get("lots").then(function (r) { if (r && r.lots) lotsVus = Object.assign(r.lots, lotsVus); }); } catch (e) {}
+  try { RR.storage.local.get("lots2").then(function (r) { if (r && r.lots2) lotsVus = Object.assign(r.lots2, lotsVus); }); RR.storage.local.remove("lots"); } catch (e) {}
+  var DATE_LISTE = /il y a|\bhier\b|aujourd'hui|\s-\s(?:lun|mar|mer|jeu|ven|sam|dim)|\b\d{1,2} (?:janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc)\w*\.? \d{4}\b/i;
   function articlesLotAffiches(n) {
     var titres = [].filter.call(document.querySelectorAll("h1, h2, h3, h4, p, span, div"), function (x) {
-      return x.childElementCount === 0 && visible(x) && new RegExp("^\\s*lot de " + n + " articles?\\s*$", "i").test(x.textContent || "") && !(hote && hote.contains(x));
+      if (!(x.childElementCount === 0 && visible(x) && new RegExp("^\\s*lot de " + n + " articles?\\s*$", "i").test(x.textContent || "") && !(hote && hote.contains(x)))) return false;
+      // Pas l'entrée « Lot de 2 articles » de la liste des conversations (à gauche) : elle porte une date.
+      var entree = x.closest("a, li, button, [role=button], [role=link]");
+      return !(entree && DATE_LISTE.test(entree.innerText || ""));
     });
     for (var i = 0; i < titres.length; i++) {
       var c = titres[i];
@@ -1078,7 +1082,9 @@
         var lignes = [].filter.call(c.querySelectorAll("a, button, li, [role=button], [role=link]"), function (x) {
           return x.querySelector("img") && !x.parentElement.closest("a, button, li, [role=button], [role=link]") && !x.contains(titres[i]);
         }).map(function (x) { return (x.innerText || "").replace(/\s+/g, " ").trim(); })
-          .filter(function (t) { return t.length >= 6 && t.length <= 200 && !/€|il y a|\d{1,2}:\d{2}/i.test(t); });
+          .filter(function (t) { return t.length >= 6 && t.length <= 200 && !/€|\d{1,2}:\d{2}/i.test(t) && !DATE_LISTE.test(t); });
+        // Des entrées de la liste des conversations : ce n'est pas le contenu du lot.
+        if (c.querySelectorAll("a, li, [role=link]").length > 3 * n + 6) break;
         if (lignes.length >= n) return lignes.length === n ? lignes : null;
       }
     }
@@ -1097,7 +1103,7 @@
     if (vus && (lotsVus[cle] || []).join("|") !== vus.join("|")) {
       lotsVus[cle] = vus;
       var garde = {}; Object.keys(lotsVus).slice(-30).forEach(function (k) { garde[k] = lotsVus[k]; });
-      try { RR.storage.local.set({ lots: garde }); } catch (e) {}
+      try { RR.storage.local.set({ lots2: garde }); } catch (e) {}
     }
     if (lotsVus[cle]) lot.articles = lotsVus[cle];
     return lot;

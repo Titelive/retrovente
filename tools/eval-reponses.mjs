@@ -38,6 +38,10 @@ const CAS = [
   { nom: "Consigne de refus : « non c'est 20 pas moins »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\nC'est votre dernier prix ? 15 € ?\nil y a 1 min`),
     contexte: { acheteur: "carter054", consigne: "non c'est 20 pas moins", mesMessages: [R1] },
     verifs: [avec(/20/, "garde 20 €"), sans(/\b15 ?€.{0,20}(ok|d'accord|ça marche|va pour)/i, "n'accepte pas 15 €"), differentes] },
+  { nom: "Lot de 2 à 57 €, offre de 55 € (« ces trois jeux »)", annonce: {},
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nMembre depuis mai 2017\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nVous avez 48 heures pour accepter.\nil y a 2 min - Message automatique leboncoin\nrebonjour\nil y a 1 min\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min\nVoir l'offre\nEnvoyer",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57 }, mesMessages: [] },
+    verifs: [sans(/Grand Theft|GTA/i, "pas de jeu inventé")] },
 ];
 
 let echecs = 0;
