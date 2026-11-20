@@ -672,7 +672,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
 - 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo seulement s'il est donné plus haut (« Prénom ou pseudo de l'acheteur »), sinon pas de nom du tout : n'invente JAMAIS de prénom ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon entre directement dans le sujet ;
 - disponibilité : seulement si l'acheteur le demande et que le vendeur ne l'a pas déjà dit (sinon n'en parle plus) ; dis-le clairement, « le jeu est toujours disponible » (« la console », « la manette », « la carte », « le film »… selon l'objet), jamais « il est bien là », « il est encore là » ni « toujours dispo » ;
-- ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
+- ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Ne cite jamais la version ou la région (PAL, NTSC, japonais, européen, américain…) sauf si l'acheteur la demande : dis « cet Expansion Pak », « le jeu », pas « un Expansion Pak japonais ». Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
 - un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ; si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), réagis-y avec un vrai mot personnel et sincère (pas une formule), puis dis clairement que ce prix-là n'est pas possible, sans brader ;
@@ -715,6 +715,7 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
   const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  if (!/\b(pal|ntsc|jap|europ|am[ée]ric|r[ée]gion|version|zone)/i.test(conv)) l.forEach((r) => { r.texte = sansRegion(r.texte); });
   l.forEach((r) => { r.texte = sansPrenomInvente(dispoClaire(sansOuIlHabite(r.texte), objet), qui); });
   // Le vendeur a déjà dit que c'est disponible : on ne le répète pas.
   if (/disponible|dispo\b/i.test(deja)) l.forEach((r) => { r.texte = sansDispoRepetee(r.texte); });
@@ -772,6 +773,11 @@ export function sansDispoRepetee(t) {
   const garde = phrases.map((p) => p.replace(/^(\s*(?:bonjour|bonsoir)\s*,?\s*)?(?:oui,?\s*)?(?:le jeu|la console|la carte|le film|l'article|l'accessoire|il|elle) est (?:toujours |bien )?disponible\s*[.!,]?\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/iu, (m, salut) => salut ? salut.replace(/,?\s*$/, ", ") : "")).join("").trim();
   if (garde.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic},]/gu, "").length < 8) return String(t);
   return garde.replace(/^(\p{Ll})/u, (c) => c.toUpperCase()).replace(/^((?:Bonjour|Bonsoir), )(\p{Lu})/u, (m, a, c) => a + c.toLowerCase());
+}
+
+// « un Expansion Pak japonais » → « un Expansion Pak » : la version n'est pas dite tant que l'acheteur ne la demande pas.
+export function sansRegion(t) {
+  return String(t).replace(/(?<!\b(?:la|le|les|une|un|cette|ce|sa|son|votre|leur|en|du|de|la version|une version|cette version)),?\s(?:en\s)?(?:version\s)?(?:PAL(?:\sEUR)?|NTSC(?:-[JU])?|EUR|jap(?:onais|onaise)?|europ[ée]en(?:ne)?|am[ée]ricain(?:e)?)(?![\p{L}-])/giu, "").replace(/ {2,}/g, " ");
 }
 
 // « oui il est bien là » → « oui le jeu est toujours disponible ».
