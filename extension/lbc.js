@@ -874,7 +874,7 @@
   var EMOJIS_JEU = [
     [/mario ?kart/, "🏎️"], [/yoshi/, "🦖"], [/luigi/, "👻"], [/mario|peach/, "🍄"], [/zelda|link/, "🗡️"], [/kirby/, "🌸"], [/conker/, "🐿️"], [/pok[eé]mon|pikachu/, "⚡"],
     [/sonic/, "🦔"], [/donkey|diddy/, "🦍"], [/banjo/, "🐻"], [/final fantasy/, "🔮"], [/indiana|jones/, "🤠"], [/metroid/, "🚀"], [/star ?wars|rogue squadron/, "🌌"],
-    [/fifa|pes|foot|soccer/, "⚽"], [/tetris/, "🧱"], [/crash/, "🌀"], [/spyro|dragon/, "🐉"], [/goldeneye|007|bond/, "🕵️"], [/resident evil|zombie/, "🧟"],
+    [/fifa|pes|foot|soccer/, "⚽"], [/tetris/, "🧱"], [/crash/, "🌀"], [/spyro|dragon/, "🐉"], [/perfect dark/, "🌙"], [/goldeneye|007|bond/, "🕵️"], [/resident evil|zombie/, "🧟"],
     [/street fighter|tekken|smash/, "🥊"], [/tony hawk|skate/, "🛹"], [/gran turismo|f-?zero|wave race|course|racing/, "🏁"], [/metal gear/, "📦"], [/castlevania/, "🦇"],
     [/pac-?man/, "🟡"], [/tomb raider/, "🏺"], [/harry potter/, "🧙"], [/lego/, "🧩"], [/rayman/, "✊"], [/animal crossing/, "🍃"], [/pikmin/, "🌱"], [/fire emblem/, "🔥"],
     [/kingdom hearts/, "🗝️"], [/gta|grand theft/, "🚓"], [/call of duty|battlefield/, "🎖️"], [/minecraft/, "⛏️"], [/splatoon/, "🦑"], [/xenoblade|chrono/, "⏳"],
