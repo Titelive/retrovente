@@ -7,20 +7,30 @@ POST /retoucher?rot=0|90|180|270 avec l'image en corps (JPEG, PNG ou WebP) → J
 Pas de détourage ni de fond remplacé : l'acheteur doit voir une vraie photo.
 POST /detourer (ancien) → PNG avec transparence.
 """
-import io, os, sys
+import io, os, sys, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import numpy as np
 from PIL import Image, ImageOps
 from rembg import new_session, remove
 from scipy import ndimage
 import cv2
+import onnxruntime as ort
 import filigrane
 
 MODELE = os.environ.get("REMBG_MODEL", "isnet-general-use")
-SESSION = new_session(MODELE)
+_opts = ort.SessionOptions()
+_opts.enable_cpu_mem_arena = False   # sinon onnxruntime garde pour toujours la mémoire de la plus grosse photo vue
+try:
+    SESSION = new_session(MODELE, sess_opts=_opts)
+except TypeError:                     # rembg trop ancien pour sess_opts
+    SESSION = new_session(MODELE)
 MAX = 12_000_000
 ENTREE = 2400   # côté max traité : le recadrage autour du jeu garde ainsi assez de pixels
 SORTIE = 1600   # côté max rendu
+# Une seule photo traitée à la fois : chaque retouche ajoute environ 1 Go de mémoire, et quatre en parallèle
+# (photos d'une annonce, plusieurs vendeurs) montaient à 4 Go, au-delà de la limite du service (2,5 Go) : il était coupé.
+# Les suivantes attendent leur tour (quelques secondes chacune), bien en dessous du délai de 90 s du site.
+UN_A_LA_FOIS = threading.Lock()
 
 
 def detourer(data: bytes) -> bytes:
@@ -168,12 +178,13 @@ class H(BaseHTTPRequestHandler):
             self.send_response(413); self.end_headers(); return
         try:
             corps = self.rfile.read(n)
-            if chemin == "/retoucher":
-                rot = int(dict(x.split("=", 1) for x in q.split("&") if "=" in x).get("rot", "0"))
-                carre = "carre=1" in q
-                png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre, "filigrane=1" in q)
-            else:
-                png = detourer(corps)
+            with UN_A_LA_FOIS:
+                if chemin == "/retoucher":
+                    rot = int(dict(x.split("=", 1) for x in q.split("&") if "=" in x).get("rot", "0"))
+                    carre = "carre=1" in q
+                    png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre, "filigrane=1" in q)
+                else:
+                    png = detourer(corps)
         except Exception as e:  # image illisible
             print("détourage :", e, file=sys.stderr)
             self.send_response(422); self.end_headers(); return
