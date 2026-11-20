@@ -631,3 +631,10 @@ test("disponibilité dite clairement : « le jeu est toujours disponible »", as
   assert.equal(dispoClaire("Bonjour, oui il est bien là 🙂"), "Bonjour, oui le jeu est toujours disponible 🙂");
   assert.equal(dispoClaire("Bonjour, elle est encore là !", "la console"), "Bonjour, la console est toujours disponible !");
 });
+
+test("pas de prénom inventé, pas de disponibilité répétée", async () => {
+  const { sansPrenomInvente, sansDispoRepetee } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Merci Garnier ! Le jeu part ce soir 🙂", "carter054"), "Merci ! Le jeu part ce soir 🙂");
+  assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
+  assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
+});

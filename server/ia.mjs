@@ -664,11 +664,11 @@ ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui v
 sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur le prix (ni « prix ferme », ni « je ne descends pas », ni contre-offre) tant que personne n'en parle : trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
 `}Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
-- écris comme un vrai passionné de retro qui parle à un autre, spontané et naturel, pas comme un service client : phrases simples, un peu d'enthousiasme, une touche d'humour léger si ça colle ; bannis les formules toutes faites (« c'est une belle attention », « je comprends tout à fait », « correspond au marché actuel », « n'hésitez pas à revenir vers moi », « je reste à votre disposition », « nous ne parvenons pas à nous entendre ») ; exemple du ton voulu face à « c'est pour mon fils » avec une offre trop basse : « Ah c'est chouette que votre fils s'intéresse à Conker, c'est un vrai culte de la N64 ! Par contre 140 €, je ne peux pas, je peux descendre à 180 € 🙂 » (adapte au jeu de la fiche, ne recopie pas cet exemple) ;
+- écris comme un vrai passionné de retro qui parle à un autre, spontané et naturel, pas comme un service client : phrases simples, un peu d'enthousiasme, une touche d'humour léger si ça colle ; bannis les formules toutes faites (« c'est une belle attention », « je comprends tout à fait », « correspond au marché actuel », « n'hésitez pas à revenir vers moi », « je reste à votre disposition », « nous ne parvenons pas à nous entendre », « merci pour votre message », « merci pour votre retour ») ; exemple du ton voulu face à « c'est pour mon fils » avec une offre trop basse : « Ah c'est chouette que votre fils s'intéresse à Conker, c'est un vrai culte de la N64 ! Par contre 140 €, je ne peux pas, je peux descendre à 180 € 🙂 » (adapte au jeu de la fiche, ne recopie pas cet exemple) ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
 - tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
-- 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon commence directement (« Merci Garnier, … ») ;
-- disponibilité : dis-le clairement, « le jeu est toujours disponible » (« la console », « la manette », « la carte », « le film »… selon l'objet), jamais « il est bien là », « il est encore là » ni « toujours dispo » ;
+- 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo seulement s'il est donné plus haut (« Prénom ou pseudo de l'acheteur »), sinon pas de nom du tout : n'invente JAMAIS de prénom ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon entre directement dans le sujet ;
+- disponibilité : seulement si l'acheteur le demande et que le vendeur ne l'a pas déjà dit (sinon n'en parle plus) ; dis-le clairement, « le jeu est toujours disponible » (« la console », « la manette », « la carte », « le film »… selon l'objet), jamais « il est bien là », « il est encore là » ni « toujours dispo » ;
 - ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
@@ -680,7 +680,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - si le message est une arnaque probable, une des réponses le décline poliment ;
 - n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
 - l'encadré « À propos de cet acheteur » donne sa ville ou son département (« Moselle ») : ce n'est JAMAIS son prénom. Sans prénom ni pseudo connu, dis simplement « Bonjour » ;
-- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » et ne reformule JAMAIS où il habite (jamais « si vous venez de Nancy », « vous êtes du côté de Nancy », « c'est tout près », « vous êtes du coin »). Réponds court, du genre : « Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy. Quel jour vous arrange ? ». Lieu par défaut : le centre de la ville qu'il cite ;
+- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » et ne reformule JAMAIS où il habite (jamais « si vous venez de Nancy », « vous êtes du côté de Nancy », « c'est tout près », « vous êtes du coin »). Réponds court, du genre : « Bonjour, oui le jeu est toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy. Quel jour vous arrange ? ». Lieu par défaut : le centre de la ville qu'il cite ;
 - l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;
 - si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message court et cordial (« Bonjour, oui il est toujours disponible 🙂 »), sans redécrire l'annonce.
 ${consigne ? `
@@ -688,13 +688,14 @@ LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est 
 """
 ${consigne}
 """
-${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; les deux autres sont des variantes tout aussi fidèles (une plus courte, une plus chaleureuse). Garde le vouvoiement, le prénom et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
+Sa consigne répond au DERNIER message de l'acheteur, en tenant compte de tout l'échange. « Aucun souci », « ok », « ça marche », « pas de problème », « je suis dispo », « je suis en vacances » veulent dire qu'il est D'ACCORD avec ce que l'acheteur propose (heure, lieu, prix, mode de remise) : la réponse confirme alors cette proposition en reprenant ses détails (heure, lieu), et ne la refuse ni ne la repousse jamais. Exemple : l'acheteur écrit « Je peux passer samedi à 10h à la gare, ça vous va ? » et le vendeur dit « ok pas de souci je suis dispo » → « Pas de souci, je suis dispo 🙂 Samedi 10h à la gare, ça marche ! ».
+${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; la deuxième tient en une phrase très courte ; la troisième est un peu plus chaleureuse. Les trois disent la même décision mais avec des phrases vraiment différentes (pas la même phrase réordonnée), sans rien ajouter d'autre (pas de « merci pour votre message », pas de disponibilité déjà dite). Garde le vouvoiement et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
 ` : ""}${suite ? `
 SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message et l'acheteur n'a rien répondu depuis. Ta réponse est un petit message de plus, juste après le sien, pour ajouter une information. Donc : pas de « merci », pas de « bonjour » ni de nouvelle salutation, pas le prénom de l'acheteur en ouverture, ne réponds à rien. Commence directement par l'information (par exemple « Petite précision : … », « J'oubliais : … », « Au fait, … »).
 ` : ""}Donne ta proposition avec l'outil « proposer_reponses » (trois réponses).`;
   let o = null;
   for (let essai = 0; essai < 2 && !(o && Array.isArray(o.reponses) && o.reponses.length); essai++) {
-    try { o = await claude(consigneIA, { max: 2500, timeout: 35000, outil: OUTIL_REPONSES }); }
+    try { o = await claude(consigneIA, { max: 2500, timeout: 45000, outil: OUTIL_REPONSES, model: process.env.CLAUDE_MODEL_REPONSES || process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" }); }
     catch (e) { if (essai || !(e instanceof IaError) || /configuré/.test(e.message)) throw e; console.error("IA réponse, nouvel essai :", e.message); }
   }
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "au_revoir", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
@@ -711,7 +712,9 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
   const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
-  l.forEach((r) => { r.texte = dispoClaire(sansOuIlHabite(r.texte), objet); });
+  l.forEach((r) => { r.texte = sansPrenomInvente(dispoClaire(sansOuIlHabite(r.texte), objet), qui); });
+  // Le vendeur a déjà dit que c'est disponible : on ne le répète pas.
+  if (/disponible|dispo\b/i.test(deja)) l.forEach((r) => { r.texte = sansDispoRepetee(r.texte); });
   // Personne ne parle de prix : pas de « prix ferme » ni de contre-offre hors sujet.
   if (!consigne && montantOffre == null && !lot && !parlePrix(conversation)) {
     const utiles = l.filter((r) => !["ferme", "contre_offre", "couper_court"].includes(r.approche) && !/descendre|baisser|négoci|dernier prix|prix (fixe|ferme)/i.test(r.texte));
@@ -749,6 +752,23 @@ export function sansLieu(t, lieux) {
     s = s.replace(new RegExp(`\\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci(?: beaucoup| bien)?)\\s+${e}\\b\\s*`, "gu"), "$1 ").replace(/ +([,!?.])/g, (m, p) => (p === "," || p === "." ? p : " " + p));
   }
   return s.replace(/ {2,}/g, " ");
+}
+
+// « Merci Garnier ! » alors que l'acheteur s'appelle autrement (ou qu'on ne connaît pas son nom) → « Merci ! ».
+const PAS_PRENOM = /^(à|a|pour|beaucoup|bien|encore|infiniment|mille|monsieur|madame|tout|à vous)$/i;
+export function sansPrenomInvente(t, qui = "") {
+  const connu = String(qui || "").trim().toLowerCase();
+  return String(t).replace(/\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci|[Ss]alut|[Hh]ello)\s+(\p{Lu}[\p{L}'’-]+)(\s*)([,!.]?)/gu, (m, salut, nom, esp, p) => {
+    if (PAS_PRENOM.test(nom) || (connu && connu.split(/\s+/).includes(nom.toLowerCase()))) return m;
+    return salut + (p === "!" ? " !" : p);
+  });
+}
+
+export function sansDispoRepetee(t) {
+  const phrases = String(t).match(/[^.!?…]+[.!?…]*\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/gu) || [String(t)];
+  const garde = phrases.map((p) => p.replace(/^(\s*(?:bonjour|bonsoir)\s*,?\s*)?(?:oui,?\s*)?(?:le jeu|la console|la carte|le film|l'article|l'accessoire|il|elle) est (?:toujours |bien )?disponible\s*[.!,]?\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/iu, (m, salut) => salut ? salut.replace(/,?\s*$/, ", ") : "")).join("").trim();
+  if (garde.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic},]/gu, "").length < 8) return String(t);
+  return garde.replace(/^(\p{Ll})/u, (c) => c.toUpperCase()).replace(/^((?:Bonjour|Bonsoir), )(\p{Lu})/u, (m, a, c) => a + c.toLowerCase());
 }
 
 // « oui il est bien là » → « oui le jeu est toujours disponible ».
