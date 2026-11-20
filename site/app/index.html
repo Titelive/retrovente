@@ -290,12 +290,12 @@ dialog form{display:flex;flex-direction:column;gap:14px}
 /* Annonce publiée sur Le Bon Coin : carte de fête + confettis */
 #fete{position:fixed;left:50%;top:24px;z-index:90;width:min(420px,calc(100% - 32px));transform:translate(-50%,-140%);transition:transform .55s var(--ease);background:var(--nuit);color:#F4F4EE;border-radius:22px;padding:18px 18px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 24px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px var(--anis)}
 #fete.on{transform:translate(-50%,0)}
-#fete .em{flex:none;width:52px;height:52px;border-radius:16px;background:var(--anis);display:grid;place-items:center;font-size:28px;animation:fete-saut 1.2s var(--ease) 2}
+#fete .em{flex:none;width:52px;height:52px;border-radius:16px;background:rgba(var(--anis-rgb),.14);color:var(--anis);display:grid;place-items:center;animation:fete-saut 1.2s var(--ease) 2}#fete .em svg{width:28px;height:28px}
 #fete b{display:block;font:800 19px/1.15 var(--titre);letter-spacing:-.3px}
 #fete p{margin:4px 0 0;color:#C9C9C0;font-size:14px;line-height:1.4}
 #fete .act{display:flex;gap:8px;margin-top:10px}
-#fete .act a,#fete .act button{border:0;border-radius:999px;padding:8px 14px;font:700 13px/1 var(--titre);cursor:pointer;text-decoration:none}
-#fete .act a{background:var(--anis);color:var(--nuit)}#fete .act button{background:#2E2E2B;color:#F4F4EE}
+#fete .act a,#fete .act button{border:0;border-radius:999px;padding:11px 16px;font:600 14px/1 var(--texte);cursor:pointer;text-decoration:none;transition:transform .2s var(--ease)}#fete .act a:hover,#fete .act button:hover{transform:translateY(-1px)}
+#fete .act a,#fete .act a[hidden]+button{background:var(--anis);color:var(--nuit)}#fete .act a:not([hidden])+button{background:transparent;color:#F4F4EE;box-shadow:inset 0 0 0 1.5px rgba(244,244,238,.28)}
 @keyframes fete-saut{0%,100%{transform:none}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
 #confettis{position:fixed;inset:0;z-index:89;pointer-events:none}
 #toast.on{transform:translate(-50%,0);visibility:visible}
@@ -382,6 +382,7 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche [data-onglet="article"] .champs{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense}
   html.etabli #fiche [data-onglet="article"] .champs>.l2.nopkm:has(#f_origine){grid-column:span 1}
   html.etabli #fiche [data-onglet="article"] .champs>.partic{grid-column:span 2}
+  html.etabli #fiche [data-onglet="article"] .champs.mode-film>.f:has(#f_format){grid-column:span 2}
   html.etabli #fiche [data-onglet] select{height:42px;padding-top:0;padding-bottom:0}
   html.etabli #fiche [data-onglet] label.f,html.etabli #fiche [data-onglet] .f{gap:4px;font-size:12.5px}
   html.etabli #fiche [data-onglet] :is(input[type=text],input[type=number],input[type=date],input[type=url],select){padding-top:9px;padding-bottom:9px}
@@ -562,6 +563,24 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 :root[data-theme="dark"] .offre.actuelle,:root[data-theme="dark"] #fiche .faq details[open]{box-shadow:0 0 0 2px var(--anis)}
 .tete>div{min-width:0;max-width:100%}.tete h1{overflow-wrap:anywhere}
 @media(max-width:560px){.filtres{align-self:stretch;flex-wrap:wrap;justify-content:center;border-radius:20px}.filtres button{padding:9px 12px}}
+/* tri et regroupement de « Mes articles » */
+.outils{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.outils>.filtres{min-width:0}
+.rangs{display:flex;gap:8px;min-width:0}
+.rang{position:relative;display:block;min-width:0}
+.rang>span{position:absolute;z-index:1;left:16px;top:50%;transform:translateY(-50%);font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--gris);pointer-events:none}
+.rang .choix-bt{background:var(--carte);box-shadow:0 0 0 1px var(--trait);border-radius:999px;padding:11px 14px 11px 64px;font:600 14px/1.3 var(--texte);min-height:46px}
+.rang:has(#grp) .choix-bt{padding-left:78px}
+.rang .choix-bt:hover{box-shadow:0 0 0 1.5px var(--encre)}
+.rang .choix-bt svg{width:16px;height:16px}
+.rang .choix-liste{left:auto;right:0;min-width:100%;width:max-content;max-width:min(260px,calc(100vw - 32px))}
+.rang .choix-liste li{white-space:nowrap}
+.groupe{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:14px 2px -4px;min-width:0}
+.groupe:first-child{margin-top:0}
+.groupe h3{margin:0;font:800 22px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre);overflow-wrap:anywhere;min-width:0}
+.groupe small{font-size:13.5px;font-weight:600;color:var(--gris);white-space:nowrap}
+.groupe::after{content:"";flex:1 1 40px;align-self:center;height:1px;background:var(--trait)}
+@media(max-width:700px){.outils{display:grid;grid-template-columns:minmax(0,1fr)}.rangs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.rang>span{top:9px;left:16px;transform:none;font-size:8px}.rang .choix-bt,.rang:has(#grp) .choix-bt{padding:21px 12px 7px 16px;border-radius:18px;font-size:14px}.rang .choix-liste{left:0;right:auto;width:auto;min-width:100%}.rang:last-child .choix-liste{left:auto;right:0}.groupe h3{font-size:19px}}
 .cote .releves{display:flex;flex-direction:column;gap:6px}.cote .rl-t{font:400 9px/1 var(--pixel);letter-spacing:.12em;text-transform:uppercase;color:var(--anis)}
 .cote .releves ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .cote .releves a{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 12px;transition:background-color .2s}
@@ -626,6 +645,10 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   .filtres{flex-wrap:nowrap!important;overflow-x:auto;justify-content:flex-start!important;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .filtres::-webkit-scrollbar{display:none}
   .filtres button{flex:none;min-height:40px}
+  /* tous les filtres visibles sans défilement : colonnes égales, texte un peu plus petit */
+  .filtres{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;overflow:visible}
+  .filtres button{min-width:0;padding:9px 2px;font-size:13.5px;white-space:nowrap;text-align:center}
+  @media(max-width:360px){.filtres button{font-size:12px;letter-spacing:-.01em}}
   /* fiche plein écran : tout tient sans faire défiler la page */
   body.fiche-ouverte{overflow:hidden;padding-bottom:0}
   body.fiche-ouverte #nav,body.fiche-ouverte .sous-barre,body.fiche-ouverte .pied-site{display:none!important}
@@ -675,6 +698,7 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
   #fiche .dial .dial-fil{flex:1;min-height:0;overflow-y:auto}
   #fiche .champs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   #fiche .champs>.l2,#fiche .champs>.partic,#fiche .champs>.f:has(select),#fiche .champs>.f:has(textarea){grid-column:1/-1}
+  #fiche .champs.mode-film>.f:has(#f_region){grid-column:1/-1}
 }
 /* ===== Appareil photo ===== */
 .cam{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:manipulation}
@@ -716,6 +740,8 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .ji-nom{margin:0;font:700 17px/1.2 var(--titre,inherit);color:var(--encre);overflow-wrap:anywhere}
 .ji-meta{margin:0;font-size:13px;color:var(--gris);overflow-wrap:anywhere}
+.ji-equipe{margin:0;font-size:13px;line-height:1.45;color:var(--encre);overflow-wrap:anywhere}.ji-equipe:empty{display:none}.ji-equipe span{color:var(--gris)}
+.ji.film .ji-jaq{aspect-ratio:2/3}
 .ji-notes{display:flex;gap:8px;flex-wrap:wrap}
 .ji-notes:empty{display:none}
 .ji-n{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);font-size:12.5px;color:var(--gris);white-space:nowrap}
@@ -746,20 +772,72 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .ji-pied{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .ji-src{margin:0;flex:1 1 200px;min-width:0;font-size:11px;color:var(--gris);line-height:1.5;opacity:.85}
 .ji-src a{color:inherit;font-weight:600;text-decoration:none}
+.ji-tmdb{display:block;font-size:10.5px;opacity:.8}
+.ji-vo{font:500 13px/1.2 var(--texte,inherit);color:var(--gris)}
 .ji-src a:hover{color:var(--encre);text-decoration:underline;text-underline-offset:2px}
 .ji-choix{display:flex;flex-direction:column;gap:6px}
 .ji-choix button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;border-radius:12px;padding:9px 12px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait);color:var(--encre);font:600 13.5px/1.3 var(--texte,inherit);cursor:pointer;min-width:0}
 .ji-choix button:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
 .ji-choix button small{color:var(--gris);font-weight:500;white-space:nowrap}
 .ji-attente{margin:0;font-size:13px;color:var(--gris)}
-.ji.charge .ji-jaq,.ji.charge .ji-caps button{animation:ji-pulse 1.2s ease-in-out infinite}
-@keyframes ji-pulse{50%{opacity:.55}}
 dialog.vue-img{max-width:min(1100px,calc(100% - 24px));padding:12px;background:#0d0d0d}
 dialog.vue-img form{gap:10px}
 dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margin:auto;border-radius:12px;object-fit:contain}
 .vue-nav{display:flex;align-items:center;justify-content:center;gap:10px;color:#ddd;font-size:13px}
 .vue-nav [value=ok]{margin-left:auto}
 @media (max-width:700px){.ji-jaq{width:84px}.ji-nom{font-size:16px}.ji-caps{gap:6px}.ji-caps button{border-radius:9px}}
+
+/* ===== Fiche du jeu : animations (coupées si « animations » est décoché ou si le système demande moins de mouvement) ===== */
+.ji-squelette{display:flex;gap:14px;align-items:flex-start}
+.ji-squelette[hidden]{display:none}
+.ji:has(#jiAttente:not([hidden])) .ji-tete{display:none}
+.ji-squelette .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ji-squelette .sq-jaq{flex:none;width:96px;aspect-ratio:3/4;border-radius:10px}
+.ji-squelette .sq-l{flex:1;display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.ji-squelette i{display:block;height:12px;border-radius:6px}
+.ji-squelette i:nth-child(1){width:55%;height:16px}.ji-squelette i:nth-child(2){width:80%}.ji-squelette i:nth-child(3){width:40%;height:22px;border-radius:999px}
+.ji-squelette .sq-jaq,.ji-squelette i{background:linear-gradient(100deg,var(--papier) 30%,var(--trait) 50%,var(--papier) 70%) 0 0/300% 100%}
+@media (max-width:700px){.ji-squelette .sq-jaq{width:84px}}
+@media (prefers-reduced-motion:no-preference){
+  html:not(.sans-anim) .ji-squelette .sq-jaq,html:not(.sans-anim) .ji-squelette i{animation:ji-reflet 1.3s linear infinite}
+  /* apparition en cascade quand les infos arrivent */
+  html:not(.sans-anim) .ji.entre .ji-jaq{animation:ji-jaq .6s var(--ease,cubic-bezier(.2,.8,.2,1)) both}
+  html:not(.sans-anim) .ji.entre :is(.ji-nom,.ji-meta,.ji-equipe,.ji-moi,.ji-desc,.ji-plus,.ji-pied){animation:ji-monte .5s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(var(--k,0) * 60ms)}
+  html:not(.sans-anim) .ji.entre .ji-nom{--k:1}html:not(.sans-anim) .ji.entre .ji-meta{--k:2}html:not(.sans-anim) .ji.entre .ji-equipe{--k:3}html:not(.sans-anim) .ji.entre .ji-moi{--k:5}
+  html:not(.sans-anim) .ji.entre .ji-desc{--k:6}html:not(.sans-anim) .ji.entre .ji-plus{--k:7}html:not(.sans-anim) .ji.entre .ji-pied{--k:11}
+  html:not(.sans-anim) .ji.entre .ji-n{animation:ji-pop .5s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(180ms + var(--k,0) * 80ms)}
+  html:not(.sans-anim) .ji.entre .ji-caps button{animation:ji-monte .55s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(420ms + var(--k,0) * 70ms)}
+  html:not(.sans-anim) .ji.entre .ji-etoiles button{animation:ji-pop .4s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(320ms + var(--k,0) * 45ms)}
+  /* jaquette : légère inclinaison et reflet au survol */
+  html:not(.sans-anim) .ji-jaq{transition:transform .35s var(--ease,cubic-bezier(.2,.8,.2,1)),box-shadow .35s;position:relative}
+  html:not(.sans-anim) .ji-jaq::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%) 150% 0/250% 100% no-repeat;pointer-events:none;transition:background-position .7s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) .ji-jaq:hover{transform:perspective(500px) rotateY(-8deg) rotateX(3deg) scale(1.04);box-shadow:0 0 0 1px var(--trait),14px 18px 30px -14px rgba(0,0,0,.55)}
+  html:not(.sans-anim) .ji-jaq:hover::after{background-position:-50% 0}
+  /* captures : l'image s'approche au survol */
+  html:not(.sans-anim) .ji-caps img{transition:transform .5s var(--ease,cubic-bezier(.2,.8,.2,1)),filter .3s}
+  html:not(.sans-anim) .ji-caps button:hover img{transform:scale(1.08)}
+  html:not(.sans-anim) .ji-caps button.plus::after{transition:background-color .3s,letter-spacing .3s}
+  html:not(.sans-anim) .ji-caps button.plus:hover::after{background:rgba(10,10,10,.35);letter-spacing:.06em}
+  /* ma note : les étoiles se remplissent en vague, celle qu'on pointe annonce la note */
+  html:not(.sans-anim) .ji-etoiles.vague button.on{animation:ji-etoile .45s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--k,0) * 55ms)}
+  html:not(.sans-anim) .ji-etoiles:hover button{color:var(--trait)}
+  html:not(.sans-anim) .ji-etoiles:hover button:has(~ button:hover),html:not(.sans-anim) .ji-etoiles button:hover{color:#f5b301;opacity:.85}
+  /* « Lire la suite » : le texte se déplie en douceur */
+  html:not(.sans-anim) .ji-desc{transition:max-height .45s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) .ji-plus::after{transition:transform .3s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  /* liste « Pas le bon jeu ? » et visionneuse */
+  html:not(.sans-anim) .ji-choix:not([hidden]) button{animation:ji-monte .35s var(--ease,cubic-bezier(.2,.8,.2,1)) both;animation-delay:calc(var(--k,0) * 40ms)}
+  html:not(.sans-anim) dialog.vue-img[open]{animation:ji-zoom .35s var(--ease,cubic-bezier(.2,.8,.2,1))}
+  html:not(.sans-anim) dialog.vue-img[open]::backdrop{animation:fondu .3s}
+  html:not(.sans-anim) #dVueImg.change{animation:ji-fondu .3s ease}
+}
+@keyframes ji-reflet{to{background-position:-150% 0}}
+@keyframes ji-monte{from{opacity:0;transform:translateY(10px)}}
+@keyframes ji-jaq{from{opacity:0;transform:perspective(500px) rotateY(-18deg) scale(.9)}}
+@keyframes ji-pop{from{opacity:0;transform:scale(.6)}}
+@keyframes ji-etoile{0%{transform:scale(1)}40%{transform:scale(1.45) rotate(-12deg)}100%{transform:scale(1)}}
+@keyframes ji-zoom{from{opacity:0;transform:scale(.94)}}
+@keyframes ji-fondu{from{opacity:.2;transform:scale(.985)}}
 </style>
 
 </head>
@@ -845,6 +923,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   </section>
   <section class="brouillons" id="brouillons" hidden aria-labelledby="tBr"><h2 id="tBr">Brouillons <small>gardés sur cet appareil</small></h2><div class="br-liste" id="brListe"></div></section>
   <aside class="pub" data-pub hidden aria-label="Publicité"></aside>
+  <div class="outils">
   <div class="filtres" id="filtres" role="group" aria-label="Filtrer">
     <span class="pastille" aria-hidden="true"></span>
     <button type="button" data-f="tout" aria-pressed="true">Tous</button>
@@ -852,6 +931,11 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
     <button type="button" data-f="reserve" aria-pressed="false">Réservés</button>
     <button type="button" data-f="vendu" aria-pressed="false">Vendus</button>
     <button type="button" data-f="retire" aria-pressed="false">Retirés</button>
+  </div>
+  <div class="rangs">
+    <label class="rang"><span>Trier</span><select id="tri" aria-label="Trier les articles"><option value="recent">Plus récents</option><option value="ancien">Plus anciens</option><option value="prix_d">Prix décroissant</option><option value="prix_c">Prix croissant</option><option value="nom">Nom (A → Z)</option></select></label>
+    <label class="rang"><span>Grouper</span><select id="grp" aria-label="Grouper les articles"><option value="">Sans groupe</option><option value="console">Par support</option><option value="categorie">Par catégorie</option><option value="statut">Par statut</option></select></label>
+  </div>
   </div>
   <div class="liste" id="liste"></div>
 </main>
@@ -895,9 +979,13 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
         <h3 id="fBlocTitre">Le jeu</h3>
         <div class="champs">
           <label class="f l2"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
-          <label class="f"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
+          <label class="f noflm"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
+          <label class="f flm" hidden>Format<select id="f_format"><option value="">—</option><option value="Blu-Ray 4K UHD">Blu-Ray 4K UHD</option><option value="Blu-Ray 4K UHD + Blu-Ray">Blu-Ray 4K UHD + Blu-Ray</option><option value="Blu-Ray">Blu-Ray</option><option value="Blu-Ray 3D">Blu-Ray 3D</option><option value="DVD">DVD</option><option value="HD DVD">HD DVD</option><option value="VHS">VHS</option></select></label>
           <label class="f"><span id="lRegion">Région</span><input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
-          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="cartes">Carte Pokémon</option><option value="autres">Autre</option></select></label>
+          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="cartes">Carte Pokémon</option><option value="films">Film</option><option value="autres">Autre</option></select></label>
+          <label class="f flm" hidden>Année de sortie<input type="text" id="f_annee" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="ex. 2024"></label>
+          <label class="f flm" hidden>Réalisateur<input type="text" id="f_realisateur" maxlength="80" placeholder="ex. Denis Villeneuve"></label>
+          <div class="f l2 flm ed-film" hidden><span id="lEdFilm">Édition <small>(touche pour cocher)</small></span><div class="puces-partic" id="fEdFilm" role="group" aria-labelledby="lEdFilm"></div></div>
           <label class="f pkm" hidden>Numéro<input type="text" id="f_numero" maxlength="20" placeholder="ex. 4/102"></label>
           <label class="f pkm" hidden>Rareté<input type="text" id="f_rarete" maxlength="40" placeholder="ex. Holo rare, Reverse, Full art" list="lRaretes"></label>
           <datalist id="lRaretes"><option value="Commune"><option value="Peu commune"><option value="Rare"><option value="Holo rare"><option value="Reverse"><option value="Double rare"><option value="Ultra rare"><option value="Full art"><option value="Illustration rare"><option value="Illustration spéciale rare"><option value="Hyper rare"><option value="Secrète"><option value="Promo"></datalist>
@@ -919,6 +1007,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
             <div class="ji-id">
               <p class="ji-nom" id="jiNom"></p>
               <p class="ji-meta" id="jiMeta"></p>
+              <p class="ji-equipe" id="jiEquipe"></p>
               <div class="ji-notes" id="jiNotes"></div>
               <div class="ji-moi"><span id="jiMoiL">Ma note</span><div class="ji-etoiles" id="jiEtoiles" role="radiogroup" aria-labelledby="jiMoiL"></div></div>
             </div>
@@ -930,7 +1019,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
             <div class="ji-pied"><p class="ji-src" id="jiSrc"></p><button class="pl" type="button" id="jiAutre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Pas le bon jeu ?</button></div>
             <div class="ji-choix" id="jiChoix" hidden></div>
           </div>
-          <p class="ji-attente" id="jiAttente" hidden>Je cherche la jaquette et les captures…</p>
+          <div class="ji-squelette" id="jiAttente" hidden role="status"><span class="sq-jaq"></span><span class="sq-l"><i></i><i></i><i></i></span><span class="sr">Je cherche la jaquette et les captures…</span></div>
         </div>
       </section>
       <section class="carte bloc" data-onglet="prix">
@@ -1033,7 +1122,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
     <h2>Extension Le Bon Coin</h2>
     <p style="color:var(--gris)" id="cExtTx">L'extension RetroRevente pour Safari, Chrome et Firefox remplit tout seul chaque étape du dépôt d'annonce sur Le Bon Coin (titre, description, état, prix, photo) et propose des réponses types aux acheteurs. Tu relis et tu publies toi-même.</p>
     <div class="rangee"><button class="btn" type="button" id="cExtCo">Connecter l'extension</button><button class="btn clair" type="button" id="cExtDeco" hidden>Déconnecter l'extension</button></div>
-    <div id="cExtCle" hidden><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
+    <div id="cExtCle" hidden><p id="cExtSafari" hidden style="font-size:14px;line-height:1.5;background:rgba(212,245,122,.12);border:1px solid rgba(212,245,122,.35);border-radius:12px;padding:10px 14px">Sur Safari, l'extension doit d'abord être autorisée sur ce site : clique sur l'icône <b>RetroRevente</b> de la barre d'outils, choisis <b>« Toujours autoriser sur ce site web »</b>, recharge la page puis clique à nouveau sur « Connecter l'extension ». (Ou : Safari → Réglages → Extensions → RetroRevente → <b>Modifier les sites web…</b> → retrorevente.fr : Autoriser.)</p><p style="font-size:14px;color:var(--gris)">Extension non détectée sur ce navigateur. Copie cette clé et colle-la dans l'extension (icône RetroRevente de la barre d'outils) :</p>
       <div class="rangee"><input type="text" id="cExtCleIn" readonly style="flex:1;min-width:0;font-family:monospace;font-size:13px"><button class="btn clair petit" type="button" id="cExtCopie">Copier</button></div></div>
   </section>
   <section class="carte zone">
@@ -1154,7 +1243,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   <input type="file" id="camIn" accept="image/*" capture="environment" hidden><input type="file" id="camGalIn" accept="image/*" multiple hidden>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
-<div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true">🎉</span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
+<div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01M22 8h.01M15 2h.01M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98-.7.11-1.22.72-1.22 1.43V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg></span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
 
 <div class="lbc-feuille" id="lbcFeuille" hidden><div class="lbc-fond" data-ferme></div>
 <section class="lbc" role="dialog" aria-labelledby="tLbc">
@@ -1177,7 +1266,7 @@ var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null
 var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
+var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque article, pas les appels à l'IA. */
@@ -1202,9 +1291,9 @@ function api(method,path,body){var h=body?{"content-type":"application/json"}:{}
 }
 function erreur(e,def){if(e.status===401){montrer("auth");return}if(e.status===402&&e.quota){quotaPlein();return}if((e.status===402&&e.ia)||(e.status===403&&e.verif)){iaBloquee(e);return}toast(e.message||def,"bad")}
 /* IA réservée aux formules payantes : essai unique en Découverte */
-function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton annonce offerte t'attend":"Garde l'IA à tes côtés";
+function iaBloquee(e){var v=!!e.verif;$("dIaT").textContent=v?"Ton article offert t'attend":"Garde l'IA à tes côtés";
   $("dIaTx").textContent=e.message;$("dIaRenv").hidden=!v;$("dIaFormules").hidden=v;if(!$("dIa").open)$("dIa").showModal();if(ME){ME.ia=v?"verif":"utilise";iaNote()}}
-function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ta <b>première annonce par l'IA est offerte</b> : prends un article en photo, elle s'occupe du reste.",en_cours:"🎁 Ton annonce offerte par l'IA est en cours : profites-en sur cet article.",verif:"🎁 Ta <b>première annonce par l'IA est offerte</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton annonce offerte par l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes articles, dès 4,99 €</button>"}[ME.ia];
+function iaNote(){var n=$("iaNote");if(!n||!ME)return;var t={dispo:"🎁 Ton <b>premier article avec l'IA est offert</b> : prends-le en photo, elle trouve sa cote et prépare sa fiche.",en_cours:"🎁 Ton article offert avec l'IA est en cours : profites-en sur celui-ci.",verif:"🎁 Ton <b>premier article avec l'IA est offert</b> : confirme ton adresse e-mail pour en profiter. <button class='lien' type='button' data-renv>Renvoyer le lien</button>",utilise:"Tu as profité de ton article offert avec l'IA. <button class='lien' type='button' data-formules>Garder l'IA sur tous tes articles, dès 4,99 €</button>"}[ME.ia];
   n.hidden=!t;n.innerHTML=t||""}
 
 /* ===== Vues ===== */
@@ -1230,9 +1319,10 @@ $("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv
 /* ===== Trophées : calculés à partir des articles et de l'activité (rien n'est stocké) ===== */
 function trophees(){montrer("trophees");dessinerTrophees()}
 function listeTrophees(){var v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
-    plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p)plat[p]=1});
+    plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
   var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
     cartes=OBJ.filter(function(o){return o.categorie==="cartes"}).length,
+    films=OBJ.filter(function(o){return o.categorie==="films"}).length,
     ia=OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,
     photos=OBJ.filter(function(o){return o.photo}).length,
     jours=function(a,b){return (new Date(b)-new Date(a))/864e5},
@@ -1258,6 +1348,8 @@ function listeTrophees(){var v=OBJ.filter(function(o){return o.statut==="vendu"|
     ["🍄","64 bits","Ajoute un jeu Nintendo 64.",n64,1],
     ["🎮","Multi-consoles","Des articles sur 5 plateformes différentes.",Object.keys(plat).length,5],
     ["⚡","Attrapez-les tous","Ajoute une carte Pokémon.",cartes,1],
+    ["🎬","Moteur, ça tourne !","Ajoute un film.",films,1],
+    ["📼","Vidéoclub","10 films dans tes articles.",films,10],
     ["🤖","Duo avec l'IA","10 annonces rédigées avec l'IA.",ia,10],
     ["⏱️","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(tempsGagne()/60),10],
     ["🗓️","Vétéran","Membre depuis un an.",anc,365]
@@ -1301,15 +1393,56 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     $("fJauges").innerHTML="";$("fMsg").innerHTML="Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre ces seuils. <button class='lien' type='button' id='fUp'>Voir les formules</button>";
     $("fUp").onclick=compte;
   }
-  var l=OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")});
+  var l=trierArticles(OBJ.filter(function(o){return FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye")}));
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">Aucun article dans cette catégorie.</p>';return}
-  $("liste").innerHTML=l.map(function(o,i){
-    var px=o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande;
+  var carte=function(o,i){
+    var px=prixArticle(o);
     return '<button type="button" class="jeu" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><div class="im">'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
-      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
-      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'}).join("");
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
+      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span><span class="st '+o.statut+'">'+STA[o.statut]+'</span></div></div></button>'};
+  var gs=grouperArticles(l),n=0;
+  $("liste").innerHTML=gs.map(function(g){
+    var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
+    return (g.nom?'<div class="groupe"><h3>'+esc(g.nom)+'</h3><small>'+g.l.length+' article'+(g.l.length>1?'s':'')+(tot?' · '+eur(tot):'')+'</small></div>':'')+g.l.map(function(o){return carte(o,n++)}).join("")}).join("");
 }
+// tri et regroupement de la liste (choix gardé sur l'appareil)
+var TRI="recent",GRP="";
+try{TRI=localStorage.getItem("rr-tri")||TRI;GRP=localStorage.getItem("rr-grp")||""}catch(e){}
+if(!$("tri").querySelector('option[value="'+TRI+'"]'))TRI="recent";
+if(!$("grp").querySelector('option[value="'+GRP+'"]'))GRP="";
+$("tri").value=TRI;$("grp").value=GRP;
+function prixArticle(o){return o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande}
+var NOMS=new Intl.Collator("fr",{sensitivity:"base",numeric:true});
+function trierArticles(l){
+  var num=function(v){return v==null||v===""||isNaN(+v)?null:+v};
+  return l.slice().sort(function(a,b){
+    if(TRI==="nom")return NOMS.compare(a.titre||"",b.titre||"");
+    if(TRI==="prix_d"||TRI==="prix_c"){var x=num(prixArticle(a)),y=num(prixArticle(b));
+      if(x==null||y==null)return x==null&&y==null?0:x==null?1:-1;   // sans prix : à la fin
+      return TRI==="prix_d"?y-x:x-y}
+    var d=String(a.cree||"").localeCompare(String(b.cree||""));
+    return TRI==="ancien"?d:-d})}
+var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",films:"Films",autres:"Autres"};
+function formatCourt(f){return{"Blu-Ray 4K UHD":"4K UHD","Blu-Ray 4K UHD + Blu-Ray":"4K UHD + Blu-Ray"}[f]||f||""}
+var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",retire:"Retirés"};
+function grouperArticles(l){
+  if(!GRP)return [{nom:"",l:l}];
+  var cle=function(o){
+    if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres";
+    if(GRP==="statut")return STA_GRP[o.statut]||"Autres";
+    if(o.categorie==="cartes")return "Cartes Pokémon";
+    if(o.categorie==="films")return "Films "+(/4K/i.test(o.plateforme||"")?"4K UHD":(o.plateforme||"").trim()||"sans format");   // un groupe par format : 4K, Blu-Ray, DVD…
+    return (o.plateforme||"").trim()||"Sans console"};
+  var par={},ordre=[];
+  l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
+  var fixe=GRP==="categorie"?["Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:null;
+  return ordre.sort(function(a,b){
+    if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
+    var fin=function(g){return g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
+    return fin(a)-fin(b)||b.l.length-a.l.length||NOMS.compare(a.nom,b.nom)})}
+$("tri").addEventListener("change",function(){TRI=this.value;try{localStorage.setItem("rr-tri",TRI)}catch(e){}dessiner()});
+$("grp").addEventListener("change",function(){GRP=this.value;try{localStorage.setItem("rr-grp",GRP)}catch(e){}dessiner()});
 $("liste").addEventListener("click",function(e){var b=e.target.closest(".jeu");if(b){var o=OBJ.filter(function(x){return x.id===b.dataset.id})[0];if(o)ouvrirFiche(o)}});
 $("filtres").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;FILTRE=b.dataset.f;[].forEach.call($("filtres").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});pastille();dessiner()});
 function calme(){return document.documentElement.classList.contains("sans-anim")||matchMedia("(prefers-reduced-motion: reduce)").matches}
@@ -1328,7 +1461,7 @@ function modeAuth(m){MODE=m;$("aErr").textContent="";
   $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
   $("lCgv").hidden=m!=="ins";$("lLbc").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
   $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
-  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ta première annonce par l'IA offerte, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
+  var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ton premier article avec l'IA offert, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
   $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
   (m==="reset"?$("aMdp"):$("aEmail")).focus()}
 $("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};
@@ -1395,7 +1528,7 @@ var RE_FRAG=/d'origine(?: \(pas une copie\))?, (?:testée? et fonctionnelle?|non
 function fragOrigine(fem){if($("f_contenu").value==="boite_vide")return"d'origine";var e=fem?"e":"",le=fem?"le":"",m=$("f_modif").value.trim().replace(/\s*\.$/,"");
   return{origine:"d'origine, testé"+e+" et fonctionnel"+le,non_teste:"d'origine, non testé"+e,modifie:"modifié"+e+(m?" ("+m+")":"")+", testé"+e+" et fonctionnel"+le,
     repro:"de reproduction (copie non officielle, pas d'origine)",hs:"hors service, vendu"+e+" pour pièces"}[$("f_origine").value||"origine"]}
-function majOrigine(){if(estCarte())return;if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
+function majOrigine(){if(sansOrigine())return;if($("f_contenu").value==="boite_vide")return majBoite();var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOTOS);if(mp){ph=mp[0];v=v.replace(RE_PHOTOS,"")}
   v=v.replace(RE_ORIG,"").replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"");if(!v.trim())return;
   var fm=v.match(RE_FRAG);
   if(fm){var fem=/testée|fonctionnelle|vendue|modifiée/.test(fm[0])||(!/testé |fonctionnel\b|vendu |modifié\b/.test(fm[0])&&/cartouche/i.test(v));v=v.replace(RE_FRAG,fragOrigine(fem))}
@@ -1425,22 +1558,50 @@ function majBoite(){var t=$("f_texteAnnonce"),v=t.value,ph="",mp=v.match(RE_PHOT
   v=v.replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"")+ph;if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
 $("f_contenu").addEventListener("change",function(){if(this.value==="boite_vide"){majBoite();return}
   var t=$("f_texteAnnonce");if(/^Contenu : boîte d'origine/m.test(t.value)){t.value=t.value.replace(/^Contenu : boîte d'origine[^\n]*\n?/m,"");majParticularites();majOrigine();return}if(RE_ORIG.test($("f_texteAnnonce").value)||RE_FRAG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
-function zoneModif(){$("fModifZone").hidden=estCarte()||$("f_origine").value!=="modifie"}
+function zoneModif(){$("fModifZone").hidden=sansOrigine()||$("f_origine").value!=="modifie"}
 /* Cartes Pokémon : mêmes champs, autres libellés (extension, langue), champs de collectionneur, pas de contenu ni d'origine */
 function estCarte(){return $("f_categorie").value==="cartes"}
 var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
-function modeCarte(){var c=estCarte();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c});
-  var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],autres:["L'article","Nom de l'article","ex. Guide officiel Zelda"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
-  $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":"Région";
-  $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":"ex. code de téléchargement déjà utilisé, poster inclus";
-  if(c)$("f_contenu").value="";zoneModif();
-  var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
+function modeCarte(){var c=estCarte(),fm=estFilm();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".flm").forEach(function(e){e.hidden=!fm});document.querySelectorAll(".noflm").forEach(function(e){e.hidden=fm});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c||fm});
+  var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],films:["Le film","Titre du film","ex. Dune : Deuxième partie"],autres:["L'article","Nom de l'article","ex. Guide officiel Zelda"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
+  $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",films:"Film",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":fm?"Langues et zone":"Région";
+  /* icône de l'onglet : manette, carte ou pellicule */
+  [$("oArticle"),document.querySelector('#mOnglets [data-m="article"]')].forEach(function(b){if(b){var sv=b.querySelector("svg");if(sv&&ICO_FILM)sv.innerHTML=fm?ICO_FILM:ICO_JEU}});
+  if(typeof DLIB==="object"){DLIB.plateforme=c?"Extension":fm?"Format":"Console";DLIB.region=c?"Langue":fm?"Langues et zone":"Région"}
+  $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":fm?"ex. VF, zone B":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":fm?"ex. fourreau inclus, disques sans rayure, jamais lu":"ex. code de téléchargement déjà utilisé, poster inclus";
+  if(c||fm)$("f_contenu").value="";zoneModif();$("f_titre").closest(".champs").classList.toggle("mode-film",fm);if(fm){formatDepuisPlateforme();edFilm()}
+  var sug=c?["Elle est en Near Mint, sortie du booster directement en sleeve","C'est une 1re édition","Quel prix tu me conseilles ?"]:fm?["Les disques n'ont jamais été lus, il y a le fourreau","C'est la VF, zone B","Quel prix tu me conseilles ?"]:["Le code a déjà été utilisé, il reste la boîte et le poster","Rends l'annonce plus courte","Quel prix tu me conseilles ?"];
   [].forEach.call($("dSug").querySelectorAll("button"),function(b,i){if(sug[i])b.textContent=sug[i]})}
+/* Films : format (liste) écrit dans « plateforme », éditions à cocher (steelbook, collector…) écrites dans « edition » */
+var ICO_JEU='<rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/>',
+  ICO_FILM='<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>';
+function estFilm(){return $("f_categorie").value==="films"}
+function sansOrigine(){return estCarte()||estFilm()}
+function formatDepuisPlateforme(){var s=$("f_format"),v=$("f_plateforme").value.trim();
+  if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}
+  if(s.value!==v)s.value=v}
+$("f_format").addEventListener("change",function(){var p=$("f_plateforme");if(p.value===this.value)return;p.value=this.value;p.dispatchEvent(new Event("input",{bubbles:true}));ligneFilm()});
+$("f_plateforme").addEventListener("input",function(){if(estFilm())formatDepuisPlateforme()});
+var ED_FILM=["Steelbook","Édition collector","Édition limitée","Coffret","Mediabook","Digibook"];
+function editionsFilm(){return $("f_edition").value.split(/\s*,\s*/).filter(Boolean)}
+function edFilm(){var cur=editionsFilm(),bas=cur.map(function(x){return x.toLowerCase()}),l=ED_FILM.concat(cur.filter(function(x){return!ED_FILM.some(function(y){return y.toLowerCase()===x.toLowerCase()})}));
+  $("fEdFilm").innerHTML=l.map(function(x){return '<button type="button" aria-pressed="'+(bas.indexOf(x.toLowerCase())>=0)+'">'+esc(x)+'</button>'}).join("")}
+$("fEdFilm").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var x=b.textContent,l=editionsFilm(),k=l.map(function(y){return y.toLowerCase()}).indexOf(x.toLowerCase());
+  if(k>=0)l.splice(k,1);else l.push(x);var f=$("f_edition");f.value=l.join(", ").slice(0,80);f.dispatchEvent(new Event("input",{bubbles:true}));edFilm();ligneFilm()});
+$("f_edition").addEventListener("input",function(){if(estFilm())edFilm()});
+/* Première ligne de l'annonce d'un film (« Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD, édition Steelbook. »),
+   réécrite quand le format, l'édition, l'année ou le réalisateur changent, si elle suit ce modèle. */
+function phraseFilm(){var t=$("f_titre").value.trim(),a=$("f_annee").value.trim(),r=$("f_realisateur").value.trim(),f=$("f_plateforme").value.trim(),e=$("f_edition").value.trim();
+  return "Film "+t+(/^\d{4}$/.test(a)?" ("+a+")":"")+(r?" de "+r:"")+(f?", en "+f:"")+(e?", "+editionTexte(e):"")+"."}
+/* « Steelbook, Édition limitée » → « Steelbook, édition limitée » (les noms de boîtiers gardent leur majuscule) */
+function editionTexte(e){return String(e||"").split(/\s*,\s*/).filter(Boolean).map(function(x){return /book$/i.test(x)?x:x.charAt(0).toLowerCase()+x.slice(1)}).join(", ")}
+function ligneFilm(){if(!estFilm())return;var ta=$("f_texteAnnonce"),v=ta.value;if(!/^Film /.test(v))return;var nv=v.replace(/^Film [^\n]*/,phraseFilm());if(nv!==v){ta.value=nv;ta.dispatchEvent(new Event("input",{bubbles:true}))}}
+$("f_annee").addEventListener("change",ligneFilm);$("f_realisateur").addEventListener("change",ligneFilm);
 $("f_categorie").addEventListener("change",modeCarte);
 $("f_etatCarte").addEventListener("change",function(){var e=ETAT_LBC_CARTE[this.value];if(e){$("f_etat").value=e;$("f_etat").dispatchEvent(new Event("change"))}});
 $("f_origine").addEventListener("change",function(){if(this.value==="hs")$("f_etat").value="pieces";zoneModif();majOrigine()});
 $("f_modif").addEventListener("input",majOrigine);$("f_categorie").addEventListener("change",function(){if(RE_ORIG.test($("f_texteAnnonce").value)){RE_ORIG.lastIndex=0;majOrigine()}RE_ORIG.lastIndex=0});
-$("f_etat").addEventListener("change",function(){if(this.value==="pieces"&&!estCarte()&&$("f_origine").value!=="hs"){$("f_origine").value="hs";zoneModif();majOrigine()}});
+$("f_etat").addEventListener("change",function(){if(this.value==="pieces"&&!sansOrigine()&&$("f_origine").value!=="hs"){$("f_origine").value="hs";zoneModif();majOrigine()}});
 /* Photo numérotée : pastille ronde dans le coin, pour que « photo 3 » de la description se retrouve facilement */
 function numeroter(src,n){return chargerImg(src).then(function(img){var c=document.createElement("canvas");c.width=img.naturalWidth;c.height=img.naturalHeight;var g=c.getContext("2d");g.drawImage(img,0,0);
   /* Le Bon Coin recadre ses vignettes (4:3 en liste, carré ailleurs) et arrondit les coins : la pastille va dans la zone toujours visible */
@@ -1500,7 +1661,8 @@ function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g)
     .then(function(){attente(null);var ch=Promise.resolve();for(var i=debut;i<GAL.length;i++)(function(k){ch=ch.then(function(){return nettoyerPhoto(true,k)})})(i);return ch})
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
-function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});modeCarte()}
+function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});
+  ["annee","realisateur","edition"].forEach(function(k){if(o.categorie==="films")$("f_"+k).value=o[k]||"";else if(k!=="edition")$("f_"+k).value=""});modeCarte()}
 /* Remise à l'endroit : l'IA dit où pointe le haut du texte de l'étiquette ; on ne tourne que si, une fois la photo
    tournée, elle confirme que le texte est à l'endroit (sinon on laisse la photo telle quelle). */
 function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.round(img.naturalWidth*k),h=Math.round(img.naturalHeight*k),q=deg%180!==0;
@@ -1584,7 +1746,7 @@ function decrire(auto,essai,tout,muet){if(!GAL.length)return Promise.resolve();v
       if(!muet)toast("Je n'ai pas pu décrire les photos. Clique « Décrire les photos » pour réessayer.","bad")}).then(function(){busy(b,false,t);iaEtat("leg");iaEtat("jauni")})}
 $("fDecrire").onclick=function(){decrire(false)};
 /* Plastique jauni repéré sur une photo (tranche, dos…) : on le dit dans les particularités, et l'état ne reste pas « neuf » ou « très bon » */
-function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});
+function jauniVu(l,ja){if(sansOrigine())return;var n=-1,net=false;l.forEach(function(x,i){var v=ja[i]||(/jaun/i.test(x||"")?(/nettement|très|fort/i.test(x)?"net":"leger"):"non");if(v==="non")return;if(n<0)n=i;if(v==="net")net=true});
   /* toutes les photos décrites et aucun jaunissement : on retire la mention ajoutée lors d'une analyse précédente (faux positif) */
   if(n<0){if(!l.length||!l.every(Boolean))return;var pp=$("f_particularites"),av=pp.value;pp.value=av.replace(/,?\s*plastique (légèrement|nettement) jauni/ig,"").replace(/^[\s,]+/,"");if(pp.value!==av)majParticularites();
     var tt=$("f_texteAnnonce"),tv=tt.value,nv=tv.replace(/^À noter : plastique (légèrement|nettement) jauni\.?\n?/img,"").replace(/ ?Plastique (légèrement|nettement) jauni\./g,"");if(nv!==tv){tt.value=nv;tt.dispatchEvent(new Event("input",{bubbles:true}))}return}
@@ -1601,8 +1763,9 @@ function jauniVu(l,ja){if(estCarte())return;var n=-1,net=false;l.forEach(functio
 
 /* ===== Cote ===== */
 function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
-  if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});return o}
-function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
+  if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});
+  if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});return o}
+function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
   return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
@@ -1611,7 +1774,7 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
     (c.releves&&c.releves.length?'<div class="releves"><span class="rl-t">Les prix sur lesquels je m\'appuie</span><ul>'+c.releves.map(function(r){return '<li><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer"><span class="rl-s">'+esc(r.site||"Lien")+'</span><span class="rl-n">'+esc(r.titre||"")+'</span><b>'+eur(r.prix)+'</b><small>'+(r.date?dfr(r.date):"")+'</small></a></li>'}).join("")+'</ul></div>':"")+
-    (c.lot?'<p class="rl-m">💡 <b>Astuce :</b> à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).</p>':"")+
+    (c.lot?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).')+'</p>':"")+
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     (c.sources&&c.sources.length?'<div class="src">Sources : '+c.sources.map(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(h)+'</a>'}).join(" · ")+'</div>':"");
   e.hidden=false}
@@ -1644,8 +1807,8 @@ document.addEventListener("click",function(e){var b=e.target.closest(".pub [data
   if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche.","bad");return}
   if(a==="pass"){payer("pass","mois",b);return}compte()});
 /* ===== Discussion avec l'IA sur la fiche ===== */
-var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte"],
-  DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite",numero:"Numéro",rarete:"Rareté",edition:"Édition",gradation:"Gradation",etatCarte:"État de la carte"};
+var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte","annee","realisateur"],
+  DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite",numero:"Numéro",rarete:"Rareté",edition:"Édition",gradation:"Gradation",etatCarte:"État de la carte",annee:"Année",realisateur:"Réalisateur"};
 function ficheDial(){var o={};DCH.forEach(function(k){o[k]=$("f_"+k).value});if(COTE)o.cote=COTE;return o}
 function valLisible(k,v){var e=$("f_"+k);if(e.tagName==="SELECT"){var op=[].filter.call(e.options,function(x){return x.value===String(v)})[0];return op?op.textContent:v}
   if(k==="prixAchat"||k==="prixDemande")return eur(+v);return String(v).length>40?String(v).slice(0,40)+"…":v}
@@ -1684,12 +1847,13 @@ $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-ann
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
 function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
   if(!d&&estCarte())d=["Carte Pokémon "+[$("f_titre").value.trim(),$("f_numero").value.trim()].filter(Boolean).join(" ")+($("f_plateforme").value.trim()?", extension "+$("f_plateforme").value.trim():"")+($("f_region").value.trim()?", en "+$("f_region").value.trim().toLowerCase():"")+".",$("f_gradation").value.trim()?"Carte gradée "+$("f_gradation").value.trim()+".":ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.","Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  if(!d&&estFilm())d=[phraseFilm(),$("f_region").value.trim()?$("f_region").value.trim().replace(/^./,function(c){return c.toUpperCase()})+".":"",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice.",boite_vide:contenuBoite()}[$("f_contenu").value]||"",ligneOrigine(),ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
 function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
 /* Le Bon Coin demande les champs un par un : un bouton « copier » par champ, dans son ordre. */
 var LBC_ETATS={neuf:"État neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État satisfaisant",pieces:"Pour pièces"};
-var LBC_CAT={cartes:"Loisirs › Collection (cartes à collectionner)",jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
+var LBC_CAT={cartes:"Loisirs › Collection (cartes à collectionner)",films:"Loisirs › DVD - Films",jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
 var LBC_FAIT={};
 function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" ")).slice(0,200),
   tx=texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").slice(0,4000),px=$("f_prixDemande").value;
@@ -1897,7 +2061,7 @@ function extMaj(){if(!ME)return;var n=ME.extension||0;$("cExtDeco").hidden=!n;$(
 $("cExtCo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Connexion…");
   api("POST","/api/extension/cle").then(function(j){busy(b,false,t);$("cExtCleIn").value=j.cle;
     window.postMessage({source:"retrorevente-app",type:"cle",cle:j.cle},location.origin);
-    extT=setTimeout(function(){$("cExtCle").hidden=false;ME.extension=(ME.extension||0)+1;extMaj()},EXT?6000:1500)})
+    extT=setTimeout(function(){$("cExtCle").hidden=false;$("cExtSafari").hidden=EXT||!(/Safari\//.test(navigator.userAgent)&&!/Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent));ME.extension=(ME.extension||0)+1;extMaj()},EXT?6000:1500)})
   .catch(function(e){busy(b,false,t);erreur(e,"Impossible de créer la clé.")})};
 $("cExtCopie").onclick=function(){copier($("cExtCleIn").value).then(function(){toast("Clé copiée.","ok")},function(){$("cExtCleIn").select()})};
 $("cExtDeco").onclick=function(){var b=this,t=b.textContent;busy(b,true,"…");
@@ -2111,59 +2275,79 @@ if("serviceWorker" in navigator&&window.isSecureContext)addEventListener("load",
   var B=$("fInfos"),CLEF="",ATT=0,REQ=0,INFOS=null,IMGS=[],VUE=0,DOUX=/^(https:\/\/|data:image\/svg\+xml,)/;
   function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
   function sur(u){return DOUX.test(String(u||""))?u:""}
-  function estJeu(){return $("f_categorie").value==="jeux"}
+  function estJeu(){var c=$("f_categorie").value;return c==="jeux"||c==="films"}
+  function film(){return $("f_categorie").value==="films"}
+  function duree(m){return m?(m>=60?Math.floor(m/60)+"\u00a0h\u00a0"+String(m%60).padStart(2,"0"):m+"\u00a0min"):""}   // espaces insécables : « 2 h 46 » ne se coupe pas
   /* ma note : 5 étoiles, un second clic sur la même étoile l'enlève */
   var E=$("jiEtoiles");
   for(var i=1;i<=5;i++){var b=el("button",null,"★");b.type="button";b.dataset.n=i;b.setAttribute("role","radio");b.setAttribute("aria-label",i+(i>1?" étoiles":" étoile"));E.appendChild(b)}
   function etoiles(){var n=Number($("f_note").value)||0;[].forEach.call(E.children,function(b){var k=Number(b.dataset.n);b.classList.toggle("on",k<=n);b.setAttribute("aria-checked",k===n?"true":"false");b.tabIndex=(k===(n||1))?0:-1})}
-  function noter(n){var f=$("f_note");f.value=String(Number(f.value)===n?0:n);f.dispatchEvent(new Event("input",{bubbles:true}));etoiles()}
+  function noter(n){var f=$("f_note");f.value=String(Number(f.value)===n?0:n);f.dispatchEvent(new Event("input",{bubbles:true}));etoiles();vague()}
+  /* petite vague sur les étoiles allumées */
+  function vague(){E.classList.remove("vague");void E.offsetWidth;E.classList.add("vague");clearTimeout(E._v);E._v=setTimeout(function(){E.classList.remove("vague")},800)}
+  [].forEach.call(E.children,function(b,k){b.style.setProperty("--k",k)});
+
   E.addEventListener("click",function(e){var b=e.target.closest("button");if(b)noter(Number(b.dataset.n))});
   E.addEventListener("keydown",function(e){var n=Number($("f_note").value)||0,k={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!k)return;e.preventDefault();n=Math.max(1,Math.min(5,n+k));$("f_note").value=String(n);$("f_note").dispatchEvent(new Event("input",{bubbles:true}));etoiles();E.children[n-1].focus()});
-  /* note de référence : presse sur 100, joueurs ramenés sur 5 */
   /* presse et joueurs sur la même échelle : sur 5, avec une décimale */
   function sur5(v){return (Math.round(v/2)/10).toFixed(1).replace(".",",")}
-  function pastille(v,lib,titre){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5(v));s.title=titre;s.setAttribute("aria-label",lib+" : "+sur5(v)+" sur 5");s.appendChild(b);s.appendChild(el("span",null,lib));s.appendChild(el("small",null,"/5"));return s}
+  function pastille(v,lib,titre){var s=el("span","ji-n"),b=el("b",v>=75?"haut":v>=50?"moyen":"bas",sur5(v));s.style.setProperty("--k",$("jiNotes").children.length);if(!calme()){var t0=0;b.textContent="0,0";setTimeout(function(){requestAnimationFrame(function pas(t){if(!t0)t0=t;var x=Math.min(1,(t-t0)/700);b.textContent=sur5(v*(1-Math.pow(1-x,3)));if(x<1)requestAnimationFrame(pas)})},250+80*$("jiNotes").children.length)}s.title=titre;s.setAttribute("aria-label",lib+" : "+sur5(v)+" sur 5");s.appendChild(b);s.appendChild(el("span",null,lib));s.appendChild(el("small",null,"/5"));return s}
   function notes(n){var z=$("jiNotes");z.textContent="";if(!n)return;
-    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse","Moyenne de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":"")));
-    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,"Joueurs","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+" de joueurs"))}
+    if(n.presse)z.appendChild(pastille(n.presse.valeur,"Presse",(n.presse.source?n.presse.source+" : m":"M")+"oyenne"+(n.presse.nb?" de "+n.presse.nb+" critique"+(n.presse.nb>1?"s":""):" des critiques")));
+    if(n.joueurs)z.appendChild(pastille(n.joueurs.valeur,film()?"Spectateurs":"Joueurs","Moyenne de "+n.joueurs.nb.toLocaleString("fr-FR")+" note"+(n.joueurs.nb>1?"s":"")+(film()?" de spectateurs TMDB":" de joueurs IGDB")))}
   function source(i){var z=$("jiSrc");z.textContent="";function a(t,u){var x=el("a",null,t);x.href=u;x.target="_blank";x.rel="noopener";return x}
-    if(i.lien){z.appendChild(document.createTextNode("Images et notes "));z.appendChild(a("IGDB",i.lien))}
-    var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(", "+d.licence))}}
+    if(i.lien){z.appendChild(document.createTextNode("Images et notes "));z.appendChild(a(i.source==="TMDB"?"TMDB":"IGDB",i.lien))}
+    var d=i.descriptionSource;if(d&&i.description){z.appendChild(document.createTextNode((i.lien?" · ":"")+"Texte "));if(/^https:/.test(d.url||""))z.appendChild(a(d.nom,d.url));else z.appendChild(document.createTextNode(d.nom));if(d.licence)z.appendChild(document.createTextNode(", "+d.licence))}
+    if(i.source==="TMDB")z.appendChild(el("span","ji-tmdb"," Ce service utilise l'API TMDB sans être approuvé ni certifié par TMDB."))}
   function choix(autres,titre){var z=$("jiChoix");z.textContent="";if(titre)z.appendChild(el("p","ji-attente",titre));
-    (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
+    (autres||[]).forEach(function(a){var b=el("button"),t=el("span",null,a.nom),m=el("small",null,[a.annee,a.plateformes].filter(Boolean).join(" · "));b.type="button";b.appendChild(t);b.appendChild(m);b.style.setProperty("--k",z.children.length);b.onclick=function(){$("f_jeuRef").value=String(a.ref);$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(b)});
     if($("f_jeuRef").value){var r=el("button",null,"Revenir à la recherche automatique");r.type="button";r.onclick=function(){$("f_jeuRef").value="";$("f_jeuRef").dispatchEvent(new Event("input",{bubbles:true}));charger(true)};z.appendChild(r)}
     z.hidden=!z.children.length}
-  function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiPlus").textContent="Lire la suite";$("jiPlus").classList.remove("ouvert");$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
+  function vide(){$("jiJaq").hidden=true;$("jiNom").textContent="";$("jiMeta").textContent="";$("jiEquipe").textContent="";$("jiNotes").textContent="";$("jiDesc").textContent="";$("jiPlus").hidden=true;$("jiPlus").textContent="Lire la suite";$("jiPlus").classList.remove("ouvert");$("jiCaps").textContent="";$("jiSrc").textContent="";$("jiChoix").hidden=true;$("jiCorps").hidden=true;IMGS=[]}
   function montrerInfos(i){INFOS=i;vide();B.classList.remove("charge");$("jiAttente").hidden=true;
     if(!i)return
-    if(i.introuvable){$("jiNom").textContent=$("f_titre").value.trim();$("jiCorps").hidden=false;$("jiAutre").hidden=true;$("jiDesc").textContent="";choix(i.autres,"Je n'ai pas trouvé ce jeu à coup sûr. C'est l'un de ceux-là ?");return}
+    if(i.introuvable){$("jiNom").textContent=$("f_titre").value.trim();$("jiCorps").hidden=false;$("jiAutre").hidden=true;$("jiDesc").textContent="";choix(i.autres,film()?"Je n'ai pas trouvé ce film à coup sûr. C'est l'un de ceux-là ?":"Je n'ai pas trouvé ce jeu à coup sûr. C'est l'un de ceux-là ?");return}
     $("jiCorps").hidden=false;$("jiAutre").hidden=false;
-    $("jiNom").textContent=i.nom;$("jiMeta").textContent=[i.annee,i.genres&&i.genres.join(", "),i.studio].filter(Boolean).join(" · ");
+    $("jiNom").textContent=i.nom+(i.titreOriginal?" ":"");if(i.titreOriginal)$("jiNom").appendChild(el("small","ji-vo","("+i.titreOriginal+")"));
+    $("jiMeta").textContent=[i.annee,i.genres&&i.genres.join(", "),duree(i.duree),i.studio].filter(Boolean).join(" · ");
+    var eq=$("jiEquipe");if(i.realisateur){eq.appendChild(el("span",null,"De "));eq.appendChild(document.createTextNode(i.realisateur))}
+    if(i.acteurs&&i.acteurs.length){eq.appendChild(el("span",null,(i.realisateur?" · a":"A")+"vec "));eq.appendChild(document.createTextNode(i.acteurs.slice(0,3).join(", ")))}
+    /* fiche neuve : l'année et le réalisateur trouvés complètent la fiche (ils servent à l'annonce et au prix) */
+    if(film()&&!ED){var ch=false;[["f_annee",i.annee],["f_realisateur",i.realisateur]].forEach(function(x){var f=$(x[0]);if(!f.value.trim()&&x[1]){f.value=String(x[1]);f.dispatchEvent(new Event("input",{bubbles:true}));ch=true}});if(ch&&typeof ligneFilm==="function")ligneFilm()}
     notes(i.notes);
-    if(i.jaquette&&sur(i.jaquette.petite)){var j=$("jiJaq");j.querySelector("img").src=sur(i.jaquette.petite);j.querySelector("img").alt="Jaquette de "+i.nom;j.hidden=false;IMGS.push({src:sur(i.jaquette.grande)||sur(i.jaquette.petite),alt:"Jaquette de "+i.nom})}
+    var mot=film()?"Affiche":"Jaquette";if(i.jaquette&&sur(i.jaquette.petite)){var j=$("jiJaq");j.querySelector("img").src=sur(i.jaquette.petite);j.querySelector("img").alt=mot+" de "+i.nom;j.setAttribute("aria-label","Agrandir l'"+mot.toLowerCase());j.hidden=false;IMGS.push({src:sur(i.jaquette.grande)||sur(i.jaquette.petite),alt:mot+" de "+i.nom})}
+    $("jiCaps").setAttribute("aria-label",film()?"Images du film":"Captures d'écran");
     var d=$("jiDesc");d.textContent=i.description||"";d.classList.add("court");requestAnimationFrame(function(){$("jiPlus").hidden=!(i.description&&d.scrollHeight>d.clientHeight+2)});
     var caps=(i.captures||[]).filter(function(c){return sur(c.petite)}),vis=3;
-    caps.forEach(function(c,k){var b=el("button"),im=el("img");if(k>=vis)b.hidden=true;if(k===vis-1&&caps.length>vis){b.classList.add("plus");b.dataset.reste="+"+(caps.length-vis)}b.type="button";b.setAttribute("aria-label","Agrandir la capture "+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:"Capture d'écran "+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
-    source(i);$("jiChoix").hidden=true}
-  $("jiPlus").onclick=function(){var d=$("jiDesc"),c=d.classList.toggle("court");this.textContent=c?"Lire la suite":"Réduire";this.classList.toggle("ouvert",!c)};
-  $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,"Choisis le bon jeu :");else choix([],"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
+    caps.forEach(function(c,k){var b=el("button"),im=el("img");if(k>=vis)b.hidden=true;if(k===vis-1&&caps.length>vis){b.classList.add("plus");b.dataset.reste="+"+(caps.length-vis)}b.type="button";b.setAttribute("aria-label",(film()?"Agrandir l'image ":"Agrandir la capture ")+(k+1));im.src=sur(c.petite);im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";b.appendChild(im);var n=IMGS.length;IMGS.push({src:sur(c.grande)||sur(c.petite),alt:(film()?"Image ":"Capture d'écran ")+(k+1)+" de "+i.nom});b.onclick=function(){voir(n)};$("jiCaps").appendChild(b)});
+    source(i);$("jiChoix").hidden=true;
+    [].forEach.call($("jiCaps").children,function(b,k){b.style.setProperty("--k",k)});
+    B.classList.remove("entre");void B.offsetWidth;B.classList.add("entre");clearTimeout(B._entre);B._entre=setTimeout(function(){B.classList.remove("entre")},1600)}
+  $("jiPlus").onclick=function(){var d=$("jiDesc"),b=this,ouvrir=d.classList.contains("court"),h0=d.clientHeight;
+    b.textContent=ouvrir?"Réduire":"Lire la suite";b.classList.toggle("ouvert",ouvrir);
+    if(calme()){d.classList.toggle("court",!ouvrir);return}
+    if(ouvrir){d.classList.remove("court");var h1=d.scrollHeight;d.style.maxHeight=h0+"px";void d.offsetHeight;d.style.maxHeight=h1+"px"}
+    else{d.style.maxHeight=d.scrollHeight+"px";void d.offsetHeight;var tmp=d.cloneNode(true);tmp.classList.add("court");tmp.style.cssText="position:absolute;visibility:hidden;max-height:none;width:"+d.clientWidth+"px";d.parentNode.appendChild(tmp);var h2=tmp.clientHeight;tmp.remove();d.style.maxHeight=h2+"px"}
+    d.style.overflow="hidden";clearTimeout(d._t);d._t=setTimeout(function(){if(!ouvrir)d.classList.add("court");d.style.maxHeight="";d.style.overflow=""},460)};
+  $("jiAutre").onclick=function(){var z=$("jiChoix");if(!z.hidden){z.hidden=true;return}if(INFOS&&INFOS.autres&&INFOS.autres.length)choix(INFOS.autres,film()?"Choisis le bon film :":"Choisis le bon jeu :");else choix([],film()?"Pas d'autre film proche. Corrige le titre ou l'année dans la fiche.":"Pas d'autre jeu proche. Corrige le nom ou la console dans la fiche.");$("jiChoix").hidden=false};
   $("jiJaq").onclick=function(){voir(0)};
   /* visionneuse : jaquette et captures en grand, flèches du clavier ou boutons */
-  function voir(n){if(!IMGS.length)return;VUE=(n+IMGS.length)%IMGS.length;var x=IMGS[VUE];$("dVueImg").src=x.src;$("dVueImg").alt=x.alt;$("dVueN").textContent=(VUE+1)+" / "+IMGS.length;$("dVuePrec").hidden=$("dVueSuiv").hidden=IMGS.length<2;if(!$("dVue").open)$("dVue").showModal()}
+  function voir(n){if(!IMGS.length)return;VUE=(n+IMGS.length)%IMGS.length;var x=IMGS[VUE],im=$("dVueImg");im.classList.remove("change");void im.offsetWidth;im.classList.add("change");im.src=x.src;$("dVueImg").alt=x.alt;$("dVueN").textContent=(VUE+1)+" / "+IMGS.length;$("dVuePrec").hidden=$("dVueSuiv").hidden=IMGS.length<2;if(!$("dVue").open)$("dVue").showModal()}
   $("dVuePrec").onclick=function(){voir(VUE-1)};$("dVueSuiv").onclick=function(){voir(VUE+1)};
   $("dVue").addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){e.preventDefault();voir(VUE-1)}if(e.key==="ArrowRight"){e.preventDefault();voir(VUE+1)}});
   $("dVue").addEventListener("click",function(e){if(e.target===this)this.close()});
   /* recherche : quand la fiche s'ouvre, puis quand le nom, la console ou le jeu choisi changent (après une courte pause) */
-  function clef(){return estJeu()?[$("f_titre").value.trim().toLowerCase(),$("f_plateforme").value.trim().toLowerCase(),$("f_jeuRef").value].join("|"):""}
+  function clef(){return estJeu()?[$("f_categorie").value,$("f_titre").value.trim().toLowerCase(),film()?$("f_annee").value.trim():$("f_plateforme").value.trim().toLowerCase(),$("f_jeuRef").value].join("|"):""}
   function charger(force){var k=clef();if(!force&&k===CLEF)return;CLEF=k;etoiles();
-    B.hidden=!estJeu();if(B.hidden||!$("f_titre").value.trim()){INFOS=null;vide();$("jiAttente").hidden=true;return}
-    var n=++REQ;B.classList.add("charge");$("jiAttente").hidden=!!INFOS;
-    api("POST","/api/jeu-infos",{titre:$("f_titre").value.trim(),plateforme:$("f_plateforme").value.trim(),ref:$("f_jeuRef").value||null})
+    B.hidden=!estJeu();B.classList.toggle("film",film());if(B.hidden||!$("f_titre").value.trim()){INFOS=null;vide();$("jiAttente").hidden=true;return}
+    var n=++REQ;B.classList.add("charge");$("jiAttente").querySelector(".sr").textContent=film()?"Je cherche l'affiche, le synopsis et les notes…":"Je cherche la jaquette et les captures…";$("jiAttente").hidden=!!INFOS;
+    $("jiAutre").lastChild.textContent=film()?"Pas le bon film ?":"Pas le bon jeu ?";
+    api("POST",film()?"/api/film-infos":"/api/jeu-infos",film()?{titre:$("f_titre").value.trim(),annee:$("f_annee").value.trim(),ref:$("f_jeuRef").value||null}:{titre:$("f_titre").value.trim(),plateforme:$("f_plateforme").value.trim(),ref:$("f_jeuRef").value||null})
       .then(function(j){if(n===REQ)montrerInfos(j.infos)}).catch(function(){if(n===REQ){montrerInfos(null)}})}
   window.infosFiche=function(){CLEF="#";INFOS=null;vide();charger(true)};
   var dern="",stable=0;
   setInterval(function(){if($("fiche").hidden)return;etoiles();var k=clef();if(k===CLEF){stable=0;return}if(k!==dern){dern=k;stable=0;return}if(++stable>=1)charger()},800);
-  $("f_categorie").addEventListener("change",function(){charger()});
+  $("f_categorie").addEventListener("change",function(){var r=$("f_jeuRef");if(r.value){r.value="";r.dispatchEvent(new Event("input",{bubbles:true}))}charger()});
 })();
 
 })();

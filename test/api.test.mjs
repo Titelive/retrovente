@@ -352,6 +352,10 @@ test("extension : lien de l'annonce publiée", async () => {
   assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
   const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
   assert.equal(a.publiee, true);
+  // une annonce ne se rattache qu'à un seul jeu
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64 bis" } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 409);
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 200);
 });
 
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
@@ -434,6 +438,49 @@ test("cartes Pokémon : reconnaissance, fiche, cote, annonce pour l'extension", 
     const j = await call("POST", "/api/objets", { objet: { titre: "Kirby 64", categorie: "jeux", numero: "4/102" } }, c);
     assert.equal(j.json.objet.numero, undefined);
   } finally { delete process.env.IA_FAKE_OBJET; }
+});
+
+test("films : reconnaissance, fiche, cote, infos, annonce et réponses pour l'extension", async () => {
+  const c = await compte("film" + Date.now() + "@t.fr", true);
+  process.env.IA_FAKE_OBJET = "film";
+  try {
+    const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const o = r.json.objet;
+    assert.equal(o.categorie, "films"); assert.equal(o.plateforme, "Blu-Ray 4K UHD + Blu-Ray"); assert.equal(o.edition, "Steelbook");
+    assert.equal(o.annee, "2024"); assert.equal(o.realisateur, "Denis Villeneuve"); assert.equal(o.contenu, ""); assert.equal(o.jauni, undefined);
+    // cote : un 4K steelbook vaut plus qu'un DVD, et un DVD courant est signalé « à mettre en lot »
+    const cote = await call("POST", "/api/ia/cote", { objet: { ...o } }, c);
+    assert.equal(cote.status, 200, JSON.stringify(cote.json));
+    const dvd = await call("POST", "/api/ia/cote", { objet: { titre: "Gladiator", categorie: "films", plateforme: "DVD" } }, c);
+    assert.ok(cote.json.cote.conseille > dvd.json.cote.conseille);
+    assert.equal(cote.json.cote.lot, false); assert.equal(dvd.json.cote.lot, true);
+    // fiche : format normalisé, champs de film gardés, contenu ignoré
+    const f = await call("POST", "/api/objets", { objet: { titre: "Dune : Deuxième partie", categorie: "films", plateforme: "4k ultra hd", region: "VF incluse", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook, Édition limitée", contenu: "complet", etat: "tres_bon", prixDemande: 35 } }, c);
+    assert.equal(f.status, 200, JSON.stringify(f.json));
+    const it = f.json.objet;
+    assert.equal(it.plateforme, "Blu-Ray 4K UHD"); assert.equal(it.annee, "2024"); assert.equal(it.edition, "Steelbook, Édition limitée"); assert.equal(it.contenu, "");
+    const mauvais = await call("POST", "/api/objets", { objet: { titre: "Film", categorie: "films", annee: "deux mille" } }, c);
+    assert.equal(mauvais.json.objet.annee, "");
+    const { annonceLbc } = await import("../server/api.mjs");
+    const a = annonceLbc(it);
+    assert.equal(a.categorie, "films"); assert.equal(a.titre, "Dune : Deuxième partie 4K UHD Steelbook"); assert.equal(a.edition, "Steelbook, Édition limitée");
+    assert.match(a.description, /^Film Dune : Deuxième partie \(2024\) de Denis Villeneuve, en Blu-Ray 4K UHD, Steelbook, édition limitée\.\nVF incluse\.\nTrès bon état\./);
+    // fiche du film (exemple hors ligne) et export CSV avec les colonnes de film
+    const inf = await call("POST", "/api/film-infos", { titre: "Dune : Deuxième partie", annee: "2024" }, c);
+    assert.equal(inf.status, 200); assert.equal(inf.json.infos.realisateur, "Denis Villeneuve"); assert.ok(inf.json.infos.jaquette);
+    const csv = await call("GET", "/api/export.csv", null, c);
+    assert.match(String(csv.body || ""), /;annee;realisateur;/);
+    // légendes : pas de jaunissement pour un film
+    process.env.IA_FAKE_JAUNI = "net";
+    const lg = await call("POST", "/api/ia/legender", { photos: [PHOTO], objet: { titre: "Dune", categorie: "films" } }, c);
+    assert.deepEqual(lg.json.jaunis, ["non"]);
+    delete process.env.IA_FAKE_JAUNI;
+    // discussion : l'année et le réalisateur passent, une année fantaisiste non
+    const { changementsSurs } = await import("../server/ia.mjs");
+    assert.deepEqual(changementsSurs({ annee: "1999", realisateur: "Lana Wachowski", edition: "Steelbook" }), { edition: "Steelbook", annee: "1999", realisateur: "Lana Wachowski" });
+    assert.deepEqual(changementsSurs({ annee: "vers 1999" }), {});
+  } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
 });
 
 test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", async () => {
@@ -527,6 +574,14 @@ test("un au revoir ne reparle pas du budget", async () => {
   assert.equal(sansSujet("Merci à vous, bonne soirée 🙂"), "Merci à vous, bonne soirée 🙂");
 });
 
+test("suite de son propre message : ni merci ni bonjour en ouverture", async () => {
+  const { sansPolitesse } = await import("../server/ia.mjs");
+  assert.equal(sansPolitesse("Merci Sofian ! Petite précision : il y a aussi le poster 🙂"), "Petite précision : il y a aussi le poster 🙂");
+  assert.equal(sansPolitesse("Bonjour Sofian, merci pour votre message ! Je précise que le jeu est complet."), "Je précise que le jeu est complet.");
+  assert.equal(sansPolitesse("Bonjour il y a aussi le poster dans la boîte."), "Il y a aussi le poster dans la boîte.");
+  assert.equal(sansPolitesse("Petite précision : poster recto verso."), "Petite précision : poster recto verso.");
+});
+
 test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {
   const { analyseOffre } = await import("../server/ia.mjs");
   const a = analyseOffre(190, 140);
@@ -546,4 +601,40 @@ test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
   assert.equal(o.note, 4); assert.equal(o.jeuRef, "1074");
   const o2 = (await call("PUT", "/api/objets/" + o.id, { objet: { ...o, note: 9, jeuRef: "pas un nombre" } }, c)).json.objet;
   assert.equal(o2.note, 5); assert.equal(o2.jeuRef, "");
+});
+
+test("le lieu de l'acheteur (« Moselle ») n'est jamais pris pour son prénom", async () => {
+  const { lieuxAcheteur, sansLieu } = await import("../server/ia.mjs");
+  const lieux = lieuxAcheteur("À propos de cet acheteur\nMoselle\nMembre depuis novembre 2015\nhier\nBonjour, je suis d'à côté de Nancy");
+  assert.deepEqual(lieux, ["Moselle"]);
+  assert.equal(sansLieu("Bonjour Moselle, oui le jeu est encore là !", lieux), "Bonjour, oui le jeu est encore là !");
+  assert.equal(sansLieu("Merci Moselle ! À bientôt", lieux), "Merci ! À bientôt");
+});
+
+test("pas de « prix ferme » quand l'acheteur ne parle pas de prix", async () => {
+  const { parlePrix } = await import("../server/ia.mjs");
+  assert.equal(parlePrix("[Annonce concernée]\nPerfect Dark\n20 €\n\n[Conversation]\nBonjour, est-elle toujours disponible ? Je suis d'à côté de Nancy\n22:01\nFaire une offre\nEnvoyer"), false);
+  assert.equal(parlePrix("[Conversation]\nBonjour, vous le feriez à 15 € ?"), true);
+  assert.equal(parlePrix("[Conversation]\nC'est votre dernier prix ?"), true);
+});
+
+test("on ne reformule pas où habite l'acheteur", async () => {
+  const { sansOuIlHabite } = await import("../server/ia.mjs");
+  assert.equal(sansOuIlHabite("Bonjour, oui toujours disponible 🙂 Si vous venez de Nancy, on peut se retrouver dans le centre. Quel jour ?"), "Bonjour, oui toujours disponible 🙂 On peut se retrouver dans le centre. Quel jour ?");
+  assert.equal(sansOuIlHabite("Bonjour, toujours dispo ! Vous êtes du côté de Nancy ? On peut se voir dans le centre de Nancy 🙂"), "Bonjour, toujours dispo ! On peut se voir dans le centre de Nancy 🙂");
+  const ok = "Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy.";
+  assert.equal(sansOuIlHabite(ok), ok);
+});
+
+test("disponibilité dite clairement : « le jeu est toujours disponible »", async () => {
+  const { dispoClaire } = await import("../server/ia.mjs");
+  assert.equal(dispoClaire("Bonjour, oui il est bien là 🙂"), "Bonjour, oui le jeu est toujours disponible 🙂");
+  assert.equal(dispoClaire("Bonjour, elle est encore là !", "la console"), "Bonjour, la console est toujours disponible !");
+});
+
+test("pas de prénom inventé, pas de disponibilité répétée", async () => {
+  const { sansPrenomInvente, sansDispoRepetee } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Merci Garnier ! Le jeu part ce soir 🙂", "carter054"), "Merci ! Le jeu part ce soir 🙂");
+  assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
+  assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
 });

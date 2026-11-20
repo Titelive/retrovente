@@ -22,14 +22,15 @@
   };
   // Catégories Le Bon Coin, la plus probable en premier. Les suggestions s'affichent « Électronique › Jeux vidéo » :
   // on compare le dernier niveau.
-  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
+  var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], films: ["DVD - Films", "DVD / Films", "Films", "DVD"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
   etat.continuer = true;
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son"]).then(function (r) { if (r && r.son === false) etat.son = false; if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix"]).then(function (r) { if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -169,7 +170,7 @@
         if ((await ouvrirDeroulantEtat(a, force)) && choisir(ETATS_LBC[a.etat]) === "ok") fait.push("état");
       }
     }
-    if (a.categorie && CATEGORIES_LBC[a.categorie].length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
+    if (a.categorie && (CATEGORIES_LBC[a.categorie] || []).length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
       var cat = await choisirCategorie(a, force);
       if (cat) { etat.compte[k("cat")] = true; if (cat === "ok") fait.push("catégorie"); }
     }
@@ -264,7 +265,7 @@
   var alertesVues = {}, titreAvant = null, clignote = null;
   // Son « à toi » : Safari bloque l'audio tant qu'on n'a pas touché la page. On garde donc un seul AudioContext,
   // débloqué au premier clic ou à la première touche (même pendant le dépôt), et un <audio> en secours.
-  var audio = null, sonWav = null;
+  var audio = null, sonWav = {};
   function contexteAudio() {
     if (!audio) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { audio = new C(); } catch (e) { return null; } }
     return audio;
@@ -276,39 +277,29 @@
     try { var a = new Audio(wav()); a.volume = 0; a.play().then(function () { a.pause(); }, function () {}); } catch (x) {}
   }
   ["pointerdown", "keydown", "touchstart"].forEach(function (t) { window.addEventListener(t, debloquerSon, { capture: true, passive: true }); });
-  function wav() {
-    if (sonWav) return sonWav;
-    var r = 22050, n = Math.round(r * 0.7), d = new DataView(new ArrayBuffer(44 + n * 2)), w = function (o, t) { for (var i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
-    w(0, "RIFF"); d.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
-    d.setUint32(24, r, true); d.setUint32(28, r * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); w(36, "data"); d.setUint32(40, n * 2, true);
-    for (var i = 0; i < n; i++) { var t = i / r, f = t < 0.16 ? 784 : 1175, t0 = t < 0.16 ? t : t - 0.16, env = Math.min(1, t0 / 0.02) * Math.exp(-t0 * 7);
-      d.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * f * t) * env * 0.35 * 32767), true); }
-    var o = "", u = new Uint8Array(d.buffer); for (var k = 0; k < u.length; k += 8192) o += String.fromCharCode.apply(null, u.subarray(k, k + 8192));
-    return (sonWav = "data:audio/wav;base64," + btoa(o));
-  }
-  function jouer(c) {
-    var t = c.currentTime + 0.02;
-    [[784, 0], [1175, 0.16]].forEach(function (n) {
-      var o = c.createOscillator(), g = c.createGain();
-      o.type = "sine"; o.frequency.value = n[0];
-      g.gain.setValueAtTime(0.0001, t + n[1]); g.gain.exponentialRampToValueAtTime(0.25, t + n[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.5);
-      o.connect(g); g.connect(c.destination); o.start(t + n[1]); o.stop(t + n[1] + 0.55);
-    });
+  function choixSon(cle) { return RR_SONS[cle] ? cle : (RR_SONS[etat.sonChoix] ? etat.sonChoix : RR_SON_DEFAUT); }
+  function wav(cle) { cle = choixSon(cle); return sonWav[cle] || (sonWav[cle] = "data:audio/wav;base64," + rrSonWav64(cle)); }
+  function jouer(c, cle) {
+    var x = rrRendreSon(choixSon(cle)), b = c.createBuffer(1, x.length, RR_TAUX), s = c.createBufferSource();
+    b.getChannelData(0).set(x); s.buffer = b; s.connect(c.destination); s.start(c.currentTime + 0.02);
   }
   // 1. Son joué par l'app Mac (NSSound, via le message natif de Safari) : ne dépend pas des règles audio de la page.
   // 2. Sinon (Chrome, Firefox, ou app trop ancienne) : son web.
-  function sonWeb() {
-    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav()); a.volume = 0.8; a.play().then(function () { etat.dernierSon = "web <audio> ok"; }, function (e) { etat.dernierSon = "web <audio> bloqué (" + (e && e.name) + ")"; }); } catch (e) { etat.dernierSon = "web impossible"; } };
+  function sonWeb(cle) {
+    var c = contexteAudio(), secours = function () { try { var a = new Audio(wav(cle)); a.volume = 0.8; a.play().then(function () { etat.dernierSon = "web <audio> ok"; }, function (e) { etat.dernierSon = "web <audio> bloqué (" + (e && e.name) + ")"; }); } catch (e) { etat.dernierSon = "web impossible"; } };
     if (!c) return secours();
-    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") { jouer(c); etat.dernierSon = "web AudioContext ok"; } else secours(); };
+    var fait = false, go = function () { if (fait) return; fait = true; if (c.state === "running") { jouer(c, cle); etat.dernierSon = "web AudioContext ok"; } else secours(); };
     if (c.state === "running") return go();
     try { c.resume().then(go, go); } catch (e) {}
     setTimeout(go, 400);   // Safari peut laisser resume() en attente sans geste : on passe au secours
   }
-  function sonner() {
-    var fini = false, web = function (pourquoi) { if (fini) return; fini = true; etat.sonNatif = pourquoi; sonWeb(); };
+  // cle : le son à jouer (aperçu dans le panneau), sinon celui choisi. « Muet » : rien.
+  function sonner(cle) {
+    cle = cle || etat.sonChoix; if (cle === "muet") { etat.dernierSon = "muet"; return; }
+    cle = choixSon(cle);
+    var fini = false, web = function (pourquoi) { if (fini) return; fini = true; etat.sonNatif = pourquoi; sonWeb(cle); };
     var t = setTimeout(function () { web("délai dépassé"); }, 1500);
-    rrDemander({ type: "son" }).then(function (r) {
+    rrDemander({ type: "son", wav: rrSonWav64(cle) }).then(function (r) {
       clearTimeout(t); if (fini) return;
       if (r && r.ok) { fini = true; etat.sonNatif = "ok"; etat.dernierSon = "app Mac (" + (r.via || "natif") + ")"; }
       else web((r && (r.erreur || r.error)) || "indisponible");
@@ -337,7 +328,7 @@
     rrDemander({ type: "alerte", titre: titre, texte: texte }).then(function (r) {
       if (r && r.ok) return;
       // Safari : notification de la page, seulement si la personne l'a autorisée depuis le panneau.
-      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente", silent: false }); } catch (e) {} }
+      if (window.Notification && Notification.permission === "granted" && !document.hasFocus()) { try { new Notification(titre, { body: texte, tag: "retrorevente", silent: true }); } catch (e) {} }
     }).catch(function () {});
   }
   function optionPayanteCochee() {
@@ -352,7 +343,7 @@
     if (!f) return false;
     var nom = (f.textContent || f.value || "Publier").trim().replace(/\s+/g, " ");
     var payant = optionPayanteCochee();
-    statut("À toi : relis l'annonce, puis clique « " + nom + " » toi-même. " + (payant ? "⚠️ Une option payante est cochée : décoche-la si tu n'en veux pas." : "Aucune option payante n'est cochée."), payant ? "bad" : "toi");
+    statut("À toi : relis l'annonce, puis clique « " + nom + " » toi-même. " + (payant ? "Attention : une option payante est cochée : décoche-la si tu n'en veux pas." : "Aucune option payante n'est cochée."), payant ? "bad" : "toi");
     aToi("final:" + cleEcran(), "À toi de finaliser l'annonce", "Clique « " + nom + " » pour publier" + (etat.choisie ? " « " + etat.choisie.titre + " »" : "") + ".", f);
     return true;
   }
@@ -374,14 +365,37 @@
     if (!b || (hote && hote.contains(b)) || !FINAL.test(norm(b.textContent || b.value || ""))) return;
     var a = etat.choisie; if (!a || a.lot || a.externe) return;
     var p = { id: a.id, titre: a.nom || a.titre, at: Date.now() };
+    depotRecent = true;
     try { RR.storage.local.set({ publication: p }); } catch (x) {}
     suivrePublication(p);
   }, true);
   var suiviPub = null;
+  // Page « Votre annonce sera en ligne dans quelques secondes » (boutons « Déposer une nouvelle annonce » et
+  // « Voir mes annonces ») : la publication est faite, même si on n'a pas vu le clic.
+  function confirmationDepot() {
+    var t = norm(((document.querySelector("main") || document.body).innerText || "").slice(0, 4000));
+    if (/votre annonce (sera en ligne|sera visible|est en ligne|a bien ete (envoyee|deposee|publiee|enregistree))/.test(t)) return true;
+    return !!(boutons(/^voir mes annonces/).length && boutons(/^deposer une nouvelle annonce/).length);
+  }
+  // Seulement après un dépôt commencé avec RetroRevente (inutile de lire la page sinon).
+  var confirmationFetee = false, depotRecent = false;
+  try { RR.storage.local.get(["publication", "depot"]).then(function (r) { r = r || {}; depotRecent = !!((r.publication && Date.now() - r.publication.at < 10 * 60000) || (r.depot && !r.depot.fete && Date.now() - r.depot.at < 3 * 3600e3)); }); } catch (e) {}
+  async function guetterConfirmation() {
+    if (!depotRecent || confirmationFetee || !confirmationDepot()) return;
+    confirmationFetee = true;
+    var st = {}; try { st = (await RR.storage.local.get(["publication", "depot"])) || {}; } catch (e) {}
+    var p = st.publication && Date.now() - st.publication.at < 10 * 60000 ? st.publication : null;
+    var d = st.depot && !st.depot.fete && Date.now() - st.depot.at < 3 * 3600e3 ? st.depot : null;
+    if (!p && d) { p = { id: d.id, titre: d.titre, at: Date.now() }; try { await RR.storage.local.set({ publication: p }); } catch (e) {} }
+    if (!p) return;
+    if (d) { try { await RR.storage.local.set({ depot: Object.assign({}, d, { fete: true }) }); } catch (e) {} }
+    clearInterval(suiviPub); publiee(p);
+  }
   function suivrePublication(p) {
     clearInterval(suiviPub);
     suiviPub = setInterval(function () {
       if (Date.now() - p.at > 60000) { clearInterval(suiviPub); return; }
+      if (confirmationDepot()) { clearInterval(suiviPub); publiee(p); return; }
       if (boutons(FINAL).length || erreurAffichee()) return;
       clearInterval(suiviPub); publiee(p);
     }, 1000);
@@ -389,8 +403,13 @@
   async function publiee(p) {
     try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
     var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
-    statut("🎉 Annonce envoyée ! Je te ramène sur RetroRevente.", "ok");
-    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien }).catch(function () {});
+    statut("Annonce publiée ! Je ferme Le Bon Coin et te ramène sur RetroRevente.", "ok");
+    if (lien) lier(p.id, lien, p.titre);
+    // Son de confettis (sauf si le son est réglé sur « Muet ») et notification ; RetroRevente fait pleuvoir les confettis.
+    if (etat.sonChoix !== "muet") sonner("confettis");
+    rrDemander({ type: "alerte", titre: "Annonce publiée !", texte: "« " + (p.titre || "Ton annonce") + " » est en ligne sur Le Bon Coin." }).catch(function () {});
+    // L'arrière-plan te remet sur RetroRevente puis ferme cet onglet, le temps que le son se termine.
+    rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien, fermer: true }).catch(function () {});
   }
   try { RR.storage.local.get("publication").then(function (r) { if (r && r.publication && Date.now() - r.publication.at < 60000) suivrePublication(r.publication); }); } catch (e) {}
   function continuerSiPret() {
@@ -419,7 +438,7 @@
   function demarrerAuto() {
     observateur.disconnect();
     // Mémorise le jeu en cours de dépôt : son lien sera repris tout seul une fois l'annonce publiée.
-    if (etat.choisie && !etat.choisie.lot) { try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
+    if (etat.choisie && !etat.choisie.lot) { depotRecent = true; try { RR.storage.local.set({ depot: { id: etat.choisie.id, titre: etat.choisie.titre, at: Date.now() } }); } catch (e) {} }
     if (!etat.auto || !etat.choisie) return;
     observateur.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style"] });
     remplir(false).catch(function () {}).then(planifierContinuer);
@@ -524,7 +543,7 @@
      personne le colle dans la discussion quand un écran n'est pas reconnu. */
   function diagnostic() {
     var lignes = ["RetroRevente " + RR.runtime.getManifest().version + " · " + location.pathname + " · " + navigator.userAgent.replace(/.*(Version\/[\d.]+|Chrome\/[\d.]+|Firefox\/[\d.]+).*/, "$1"),
-      "son=" + etat.son + " prevenir=" + etat.prevenir + " dernierSon=" + (etat.dernierSon || "-") + " natif=" + (etat.sonNatif || "-") + " audio=" + (audio ? audio.state : "-") + " notif=" + (window.Notification ? Notification.permission : "-"),
+      "son=" + etat.sonChoix + " prevenir=" + etat.prevenir + " dernierSon=" + (etat.dernierSon || "-") + " natif=" + (etat.sonNatif || "-") + " audio=" + (audio ? audio.state : "-") + " notif=" + (window.Notification ? Notification.permission : "-"),
       "zoneCategorie=" + zoneCategorie() + " categorieVide=" + categorieVide() + " choisie=" + !!etat.choisie + " cat=" + (etat.choisie && etat.choisie.categorie)];
     var main = document.querySelector("main") || document.body;
     (function parcours(n, prof) {
@@ -619,7 +638,7 @@
     return "";
   }
   async function choisirCategorie(a, force) {
-    var libs = CATEGORIES_LBC[a.categorie], cibles = libs.map(norm), k = a.id + ":catliste";
+    var libs = CATEGORIES_LBC[a.categorie] || [], cibles = libs.map(norm), k = a.id + ":catliste";
     var dd = deroulant(CAT_DESC, CAT_LIB);
     if (!force && dd && valeurDe(dd)) return "deja";   // la personne a déjà pris une catégorie dans la liste
     var r = cocherCategorie(cibles, force ? null : groupeDejaChoisi);
@@ -657,7 +676,8 @@
       "position:fixed;right:18px;bottom:18px;z-index:2147483646;font:500 14px/1.45 var(--texte);color:var(--encre);-webkit-font-smoothing:antialiased}" +
     "@media (prefers-color-scheme:dark){.b{--carte:#1E1E1E;--papier:#262626;--encre:#F4F4EE;--gris:#A6A69E;--gris-c:#7A7A72;--trait:#333;--anis-p:#2A3414;--vert-p:#1C2E21;--vert-t:#2D4A35;--vert-f:#BFE8C8;--rouge-p:#33201D;--rouge-t:#553029;--rouge-f:#F6C4B9}}" +
     "button,input{font:inherit;color:inherit}" +
-    ".rond{position:relative;width:58px;height:58px;border-radius:50%;border:0;background:var(--nuit);color:var(--anis);font:800 17px/1 var(--titre);letter-spacing:-.5px;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.28);transition:transform .25s var(--ease)}" +
+    ".rond{position:relative;width:58px;height:58px;padding:0;border-radius:15px;border:0;background:transparent;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.28);transition:transform .25s var(--ease)}" +
+    ".rond img{display:block;width:58px;height:58px;border-radius:15px}" +
     ".rond:hover{transform:translateY(-2px) rotate(-4deg)}" +
     ".rond kbd{position:absolute;right:50%;bottom:calc(100% + 8px);transform:translateX(50%);white-space:nowrap;font:600 11px/1 var(--texte);color:var(--encre);background:var(--carte);border:1px solid var(--trait);border-radius:7px;padding:5px 7px;opacity:0;pointer-events:none;transition:opacity .2s}" +
     ".rond:hover kbd,.rond:focus-visible kbd{opacity:1}" +
@@ -690,6 +710,7 @@
     ".n{font-size:11.5px;color:var(--gris-c)}" +
     ".pile{display:flex;flex-direction:column;gap:12px}.c{display:flex;flex-direction:column;gap:5px;font-size:13px}.c .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris)}.c .l b{color:var(--encre);font-weight:600}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}" +
+    ".son-choix{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;flex-wrap:wrap}.son-choix select{font:600 12.5px/1 var(--texte);color:var(--encre);background:var(--papier);border:1px solid var(--trait);border-radius:999px;padding:5px 10px;cursor:pointer}.son-choix select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
     ".auto{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px;cursor:pointer;position:relative}.auto input{position:absolute;opacity:0;width:1px;height:1px}" +
     ".rail{width:40px;height:24px;border-radius:999px;background:var(--trait);position:relative;transition:background .2s;flex:none}.rail::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}" +
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
@@ -705,7 +726,7 @@
     ".rep .ico{flex:none;width:30px;height:30px;border-radius:10px;background:var(--anis-p);color:var(--nuit);display:grid;place-items:center}.rep .ic{width:17px;height:17px}.rep .q{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}" +
     ".rep .ap2{font-size:12.5px;color:var(--gris);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rep strong{color:var(--encre);font-weight:800}" +
     ".rep.fort .ico{background:var(--anis);color:var(--nuit)}.rep.fort strong{color:#fff;font-weight:800}" +
-    ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.opt.actif .emo{border-color:var(--anis)}" +
+    ".emo{flex:none;width:34px;height:34px;border-radius:11px;background:var(--carte);border:1px solid var(--trait);display:grid;place-items:center;font-size:19px;line-height:1}.emo.ph{background-size:cover;background-position:center}.opt.actif .emo{border-color:var(--anis)}" +
     ".grp{margin:6px 2px 0;font:700 11px/1 var(--texte);letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}.grp:first-child{margin-top:0}" +
     // Couleur pastel selon le sens de la réponse : vert quand on va dans le sens de l'acheteur, rouge quand on refuse.
     "details.types>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:600 11px/1 var(--texte);letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:10px 2px}" +
@@ -782,7 +803,7 @@
   var ouvert = false;
   function replie(oui, puis) {
     var b = boite(); b.textContent = ""; ouvert = !oui;
-    if (oui) { b.appendChild(el("button", { class: "rond", title: "RetroRevente : remplir l'annonce (" + RACCOURCI + ")", "aria-label": "Ouvrir RetroRevente", "aria-keyshortcuts": MAC ? "Meta+K" : "Control+K", onclick: function () { replie(false); } }, ["RR", el("kbd", { texte: RACCOURCI })])); return; }
+    if (oui) { b.appendChild(el("button", { class: "rond", title: "RetroRevente : remplir l'annonce (" + RACCOURCI + ")", "aria-label": "Ouvrir RetroRevente", "aria-keyshortcuts": MAC ? "Meta+K" : "Control+K", onclick: function () { replie(false); } }, [el("img", { src: RR.runtime.getURL("icones/icone-128.png"), alt: "" }), el("kbd", { texte: RACCOURCI })])); return; }
     b.appendChild(el("div", { class: "p", role: "dialog", "aria-label": "RetroRevente" }, [
       el("div", { class: "t" }, [marque(), el("button", { class: "x", "aria-label": "Réduire", title: "Réduire (Échap)", texte: "×", onclick: function () { replie(true); } })]),
       el("div", { class: "corps" }),
@@ -854,24 +875,34 @@
   var EMOJIS_JEU = [
     [/mario ?kart/, "🏎️"], [/yoshi/, "🦖"], [/luigi/, "👻"], [/mario|peach/, "🍄"], [/zelda|link/, "🗡️"], [/kirby/, "🌸"], [/conker/, "🐿️"], [/pok[eé]mon|pikachu/, "⚡"],
     [/sonic/, "🦔"], [/donkey|diddy/, "🦍"], [/banjo/, "🐻"], [/final fantasy/, "🔮"], [/indiana|jones/, "🤠"], [/metroid/, "🚀"], [/star ?wars|rogue squadron/, "🌌"],
-    [/fifa|pes|foot|soccer/, "⚽"], [/tetris/, "🧱"], [/crash/, "🌀"], [/spyro|dragon/, "🐉"], [/goldeneye|007|bond/, "🕵️"], [/resident evil|zombie/, "🧟"],
+    [/fifa|pes|foot|soccer/, "⚽"], [/tetris/, "🧱"], [/crash/, "🌀"], [/spyro|dragon/, "🐉"], [/perfect dark/, "🌙"], [/goldeneye|007|bond/, "🕵️"], [/resident evil|zombie/, "🧟"],
     [/street fighter|tekken|smash/, "🥊"], [/tony hawk|skate/, "🛹"], [/gran turismo|f-?zero|wave race|course|racing/, "🏁"], [/metal gear/, "📦"], [/castlevania/, "🦇"],
     [/pac-?man/, "🟡"], [/tomb raider/, "🏺"], [/harry potter/, "🧙"], [/lego/, "🧩"], [/rayman/, "✊"], [/animal crossing/, "🍃"], [/pikmin/, "🌱"], [/fire emblem/, "🔥"],
     [/kingdom hearts/, "🗝️"], [/gta|grand theft/, "🚓"], [/call of duty|battlefield/, "🎖️"], [/minecraft/, "⛏️"], [/splatoon/, "🦑"], [/xenoblade|chrono/, "⏳"],
   ];
-  var PALETTE = ["🎮", "🕹️", "👾", "🎲", "💎", "🌟", "🍀", "🎯", "🚀", "🦄", "🌈", "🍒", "🐸", "🦊", "🐙", "🌵", "🍉", "🎸", "🛸", "🪐", "🐢", "🦋", "🍩", "🎈", "🧸", "🐳", "🦉", "🌻"];
   function emojis(l) {
-    var pris = {}, out = {};
+    var out = {};
     l.forEach(function (a) {
       var n = norm(a.titre + " " + (a.nom || "")), e = "";
       if (a.lot) e = "📦";
       else if (a.categorie === "consoles") e = "🕹️";
       else if (a.categorie === "cartes") e = "🃏";
+      else if (a.categorie === "films") e = "🎬";
       var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
-      if (!e || pris[e]) { var h = 0; for (var i = 0; i < String(a.id).length; i++) h = (h * 31 + String(a.id).charCodeAt(i)) >>> 0; for (var j = 0; j < PALETTE.length; j++) { var c = PALETTE[(h + j) % PALETTE.length]; if (!pris[c]) { e = c; break; } } }
-      pris[e] = true; out[a.id] = e;
+      // Sans emoji parlant : la manette (la photo de l'article prend sa place dès qu'elle est chargée).
+      out[a.id] = e || "🎮";
     });
     return out;
+  }
+  // Vignette d'un article : sa photo (chargée une fois), sinon un emoji.
+  var vignettes = {};
+  function vignette(a) {
+    var v = el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) });
+    if (a && a.photo && !a.lot && !a.externe && /^[a-f0-9]{16}$/.test(String(a.id || ""))) {
+      (vignettes[a.id] = vignettes[a.id] || rrDemander({ type: "photo", id: a.id }).then(function (r) { return "data:" + (r.type || "image/jpeg") + ";base64," + r.base64; }))
+        .then(function (u) { v.style.backgroundImage = "url(" + u + ")"; v.classList.add("ph"); v.textContent = ""; }, function () { delete vignettes[a.id]; });
+    }
+    return v;
   }
   var emojiDe = function (a) { if (a && a.lot) return "📦"; if (!etat.emojis) etat.emojis = emojis(etat.annonces || []); return (a && etat.emojis[a.id]) || "🎮"; };
 
@@ -884,7 +915,7 @@
     if (!etat.choisie || (!etat.choisie.lot && !etat.choisie.externe && !l.some(function (a) { return a.id === etat.choisie.id; }))) etat.choisie = l.find(function (a) { return !a.publiee; }) || l[0];
     var a = etat.choisie;
     var choix = el("button", { class: "choix", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Annonce à déposer : " + a.titre + ". Changer (" + RACCOURCI + ")", onclick: function () { liste.hidden ? ouvrirListe() : fermerListe(); } }, [
-      el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(a) }),
+      vignette(a),
       el("span", { class: "q" }, [el("span", { class: "nom", texte: a.titre }), el("span", { class: "meta", texte: metaTxt(a) || "Changer d'article" })]),
       a.prix != null ? el("span", { class: "px", texte: prixTxt(a) }) : null,
       el("kbd", { class: "k", texte: RACCOURCI }),
@@ -903,7 +934,7 @@
         if (x.publiee) nom.appendChild(el("span", { class: "pub", texte: "publiée" }));
         opts.appendChild(el("li", { class: "opt" + (i === actif ? " actif" : ""), id: "rr-o" + i, role: "option", "aria-selected": String(x.id === a.id),
           onmousedown: function (e) { e.preventDefault(); }, onmousemove: function () { if (actif !== i) { actif = i; marquer(); } }, onclick: function () { prendre(x); } },
-          [el("span", { class: "emo", "aria-hidden": "true", texte: emojiDe(x) }), el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
+          [vignette(x), el("span", { class: "q" }, [nom, el("span", { class: "meta", texte: metaTxt(x) })]), x.prix != null ? el("span", { class: "px", texte: prixTxt(x) }) : null]));
       });
       marquer();
     }
@@ -941,7 +972,7 @@
       types.addEventListener("toggle", function () { etat.typesOuvert = types.open; });
       corps.appendChild(el("div", { class: "pile" }, [haut, ia, types]));
       dessinerIA(ia);
-      statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
+      statut(a.lot ? "Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -969,12 +1000,17 @@
       el("span", { class: "rail" }), "Me prévenir (notification)",
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
-    var son = el("label", { class: "auto", title: "Un petit son quand c'est à toi de cliquer" }, [
-      el("input", { type: "checkbox", role: "switch", onchange: function (e) { etat.son = e.target.checked; try { RR.storage.local.set({ son: etat.son }); } catch (x) {} if (etat.son) sonner(); } }),
-      el("span", { class: "rail" }), "Son quand c'est à toi",
-    ]);
-    son.querySelector("input").checked = etat.son;
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Joue le son d'alerte maintenant", texte: "Tester le son", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } }), el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    // Son « à toi » : choix parmi les sons rétro, ou muet. Changer de son le fait entendre tout de suite.
+    var choixListe = el("select", { "aria-label": "Son quand c'est à toi", onchange: function (e) {
+      etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
+      try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
+      if (etat.son) sonner(); ecouter.disabled = !etat.son;
+    } }, Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
+    var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
+    var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
+    etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
+    etat.panneauSon();
+    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
     corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
@@ -986,6 +1022,9 @@
     var z = zoneMessage(); if (!z) return document.querySelector("main") || document.body;
     var w0 = Math.max(260, (z.closest("form") || z.parentElement || z).getBoundingClientRect().width), c = z;
     while (c.parentElement && c.parentElement !== document.body && c.parentElement.getBoundingClientRect().width <= w0 * 1.3 + 60) c = c.parentElement;
+    // Zone de saisie plus étroite que la liste des messages : on remonte jusqu'à englober de vrais messages.
+    var base = (z.closest("form") || z.parentElement || z), propre = function (x) { return ((x.innerText || "").length - (base.innerText || "").length); };
+    for (var i = 0; i < 5 && propre(c) < 60 && c.parentElement && c.parentElement !== document.body && c.parentElement.getBoundingClientRect().width < innerWidth * 0.8; i++) c = c.parentElement;
     return c;
   }
   // L'encadré de l'annonce discutée (à côté de la conversation : « Lot de 2 articles · 203 € » ou titre et prix).
@@ -1125,7 +1164,7 @@
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
     // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
     var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux articles" : "des " + (a.n || "") + " articles").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
-      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
+      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : a.categorie === "films" ? "du film dans cette édition : il se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
     var l = [
       // Disponibilité
       { g: "Disponibilité", t: "Toujours disponible", m: "Bonjour, oui, " + nom + " est toujours disponible ! " + det + "Je peux l'envoyer ou le remettre en main propre, comme vous préférez." },
@@ -1161,7 +1200,28 @@
       { g: "Sécurité et suivi", t: "Rendez-vous manqué", m: "Bonjour, je ne vous ai pas vu au rendez-vous, j'espère que tout va bien ! On peut en refixer un si vous êtes toujours intéressé, sinon pas de souci." },
       { g: "Sécurité et suivi", t: "Merci après la vente", m: "Merci beaucoup pour votre achat ! Bon jeu avec " + nom + ", et n'hésitez pas à laisser un avis, ça m'aide beaucoup." },
     ];
-    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : l;
+    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : a.categorie === "films" ? reponsesFilm(l, a, nom) : l;
+  }
+  /* Films : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
+     par les questions propres aux films (disques, langues et zone, steelbook, envoi protégé). */
+  function reponsesFilm(l, a, nom) {
+    var fmt = a.plateforme || "", ed = a.edition ? String(a.edition).split(/\s*,\s*/)[0] : "", steel = /steelbook/i.test(a.edition || "");
+    var film = [
+      { g: "Le film", t: "État des disques", m: "Bonjour ! Les disques sont lus et vérifiés, sans rayure qui gêne la lecture. Je peux vous envoyer une photo des disques en lumière rasante si vous voulez." },
+      { g: "Le film", t: "Langues et sous-titres", m: "Bonjour ! " + (a.region ? "C'est indiqué au dos : " + String(a.region).replace(/^./, function (c) { return c.toLowerCase(); }) + ". " : "") + "Je vous envoie une photo du dos de la jaquette avec la liste des langues et des sous-titres, comme ça vous êtes sûr." },
+      { g: "Le film", t: "Zone et lecteur", m: /4k|uhd/i.test(fmt) ? "Bonjour ! Les disques 4K UHD n'ont pas de zone : il se lit sur tous les lecteurs 4K. Le Blu-Ray éventuellement inclus se lit sur les lecteurs européens." : /dvd/i.test(fmt) ? "Bonjour ! C'est un DVD zone 2 (Europe), il se lit sur tous les lecteurs vendus en France." : "Bonjour ! C'est l'édition française, elle se lit sur les lecteurs Blu-Ray vendus en France (zone B)." },
+      { g: "Le film", t: steel ? "État du steelbook" : "État du boîtier", m: steel ? "Bonjour ! Le steelbook est " + (a.etat === "neuf" ? "neuf, encore sous blister" : "en bon état, sans bosse") + ". Je peux vous envoyer des photos en gros plan des coins et des faces, pour que vous jugiez par vous-même." : "Bonjour ! Le boîtier est en bon état et la jaquette est propre. Je vous envoie d'autres photos si vous voulez." },
+      { g: "Le film", t: "Pourquoi ce prix ?", m: "Bonjour, bonne question ! Je me base sur les ventes réellement conclues ces dernières semaines (eBay, Le Bon Coin, Rakuten) pour ce film" + (fmt ? " en " + fmt : "") + (ed ? ", dans cette édition (" + ed.toLowerCase() + ")" : "") + "." },
+      { g: "Envoi et remise", t: "Envoi protégé", m: "Je l'envoie avec la livraison Le Bon Coin (paiement sécurisé), bien protégé : papier bulle et enveloppe rigide" + (steel ? ", le steelbook dans un film protecteur" : "") + ". Expédié sous 48 h après la commande." },
+      { g: "Envoi et remise", t: "Remise en main propre", m: "La remise en main propre est possible ! Dites-moi quel jour et quel secteur vous arrangent, et on se retrouve dans un lieu public." },
+      { g: "Envoi et remise", t: "Colis envoyé", m: "C'est parti ! Le film est bien protégé et déposé, vous recevrez le suivi par Le Bon Coin. Merci pour votre achat et bon film !" },
+      { g: "Négociation", t: "Lot de plusieurs films", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quels films vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
+    ];
+    var garde = l.filter(function (x) { return x.g !== "Le jeu" && x.g !== "Envoi et remise" && x.t !== "Lot de plusieurs jeux"; }).map(function (x) {
+      return { g: x.g, t: x.t, m: x.m.replace(/\bLe jeu\b/g, "Le film").replace(/\ble jeu\b/g, "le film").replace(/\bBon jeu\b/g, "Bon film").replace(/mes jeux/g, "mes films") };
+    });
+    var i = garde.findIndex(function (x) { return x.g === "Sécurité et suivi"; });
+    return garde.slice(0, i < 0 ? garde.length : i).concat(film, i < 0 ? [] : garde.slice(i));
   }
   /* Cartes Pokémon : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
      par les questions propres aux cartes (état des bords, authenticité, envoi sous toploader). */
@@ -1189,16 +1249,19 @@
   function texteConversation() {
     var t = colonneConversation().innerText || "", enc = texteEncadre().trim();
     var z = zoneMessage(); if (z && !(z instanceof HTMLTextAreaElement) && !(z instanceof HTMLInputElement) && z.innerText) t = t.split(z.innerText).join(" ");
+    // « Envoyez une réponse rapide » : suggestions de l'IA de Le Bon Coin, jamais des messages de la conversation.
+    blocsSuggestions(colonneConversation()).forEach(function (b) { var bt = (b.innerText || "").trim(); if (bt) t = t.split(bt).join(" "); });
     t = t.replace(/\n{3,}/g, "\n\n").trim().slice(-4200);
     return (enc ? "[Annonce concernée]\n" + enc.slice(0, 600) + "\n\n[Conversation]\n" : "") + t;
   }
   // Messages déjà envoyés par le vendeur : les bulles calées à droite de la conversation (pour que l'IA ne répète pas
   // ses arguments ni sa présentation).
   function mesMessages() {
-    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), vus = [];
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), vus = [], sugg = blocsSuggestions(col);
     if (cr.width < 200) return [];
     [].forEach.call(col.querySelectorAll("div, p, li, article, section"), function (x) {
       if ((hote && hote.contains(x)) || (z && (x.contains(z) || z.contains(x)))) return;
+      if (sugg.some(function (b) { return b.contains(x) || x.contains(b); })) return;   // réponses rapides de Le Bon Coin
       var t = (x.innerText || "").trim(); if (t.length < 20 || t.length > 1500) return;
       var r = x.getBoundingClientRect();
       if (r.width < 120 || r.width > cr.width * 0.85) return;
@@ -1229,6 +1292,15 @@
   }
   // Bloc de suggestions de Le Bon Coin (titre « Envoyez une réponse rapide », boutons de réponses toutes faites) :
   // jamais pris pour un message de la conversation. (Une offre reçue, elle, compte : c'est l'acheteur qui a agi.)
+  // Encadrés « Envoyez une réponse rapide » : le plus grand bloc qui commence par ce titre (titre + boutons).
+  function blocsSuggestions(racine) {
+    var l = [].filter.call((racine || document).querySelectorAll("div, section, aside, ul"), function (x) {
+      if (hote && hote.contains(x)) return false;
+      var t = norm((x.innerText || "").slice(0, 700));
+      return /^(envoyez une reponse rapide|reponses? rapides?)\b/.test(t) && (x.innerText || "").length < 700;
+    });
+    return l.filter(function (x) { return !l.some(function (y) { return y !== x && y.contains(x); }); });
+  }
   function suggestionsLbc(x) {
     for (var e = x, i = 0; e && i < 6; e = e.parentElement, i++) {
       var t = norm((e.innerText || "").slice(0, 200));
@@ -1259,7 +1331,7 @@
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages() });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi() });
       if (etat.ia.cle !== cle) return;
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
       if (consigne) etat.brouillonIA = "";
@@ -1301,7 +1373,7 @@
     }
     if (i.offre && i.offre.ecart > 0) {
       var of = i.offre;
-      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "📉 Offre trop basse : " : "🤝 Offre correcte : ") + of.offre + " €" }),
+      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
         " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
     }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
@@ -1518,28 +1590,65 @@
       (annoncesCache || []).forEach(function (a) { if (a.id === id) a.publiee = true; });
     }).catch(function () { delete liesSession[id]; });
   }
+  // Proximité entre un jeu et le texte d'une carte d'annonce : part des mots du titre retrouvés (0 à 1).
+  function scoreTitre(a, texte) {
+    var vus = {}; mots(texte).forEach(function (m) { vus[m] = 1; });
+    return Math.max.apply(null, [a.titre, a.nom].filter(Boolean).map(function (t) {
+      var m = mots(t); return m.length ? m.filter(function (x) { return vus[x]; }).length / m.length : 0;
+    }).concat([0]));
+  }
+  function prixCarte(t) { return (String(t).match(/(\d[\d\s\u202f]{0,6})\s?€/g) || []).map(function (x) { return entier(x.replace(/[^\d]/g, "")); }); }
+  // Texte de la carte qui entoure un lien d'annonce : on remonte tant que le bloc reste petit.
+  function texteCarte(x) {
+    var c = x, t = x.innerText + " " + (x.title || "") + " " + (x.getAttribute("aria-label") || "") + " " + ((x.querySelector("img[alt]") || {}).alt || "");
+    for (var i = 0; i < 4 && c.parentElement; i++) {
+      var p = c.parentElement, pt = p.innerText || "";
+      if (pt.length > 500 || p.querySelectorAll("a[href*='/ad/']").length > 3) break;
+      c = p; t += " " + pt;
+    }
+    return t;
+  }
+  // Associe chaque lien d'annonce visible au jeu qui lui ressemble le plus (un jeu ↔ une annonce), seulement si c'est net.
+  function associer(sans, seuil, prixExige) {
+    var paires = [];
+    [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
+      var url = urlAnnonce(x.href); if (!url || (hote && hote.contains(x))) return;
+      var t = texteCarte(x), px = prixCarte(t);
+      sans.forEach(function (a) {
+        var sc = scoreTitre(a, t); if (sc < seuil) return;
+        var memePrix = a.prix != null && px.indexOf(a.prix) >= 0;
+        if (prixExige && !memePrix) return;
+        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0) });
+      });
+    });
+    paires.sort(function (x, y) { return y.s - x.s; });
+    var urls = {}, jeux = {};
+    paires.forEach(function (p) {
+      if (urls[p.url] || jeux[p.a.id]) return;
+      // Deux jeux aussi proches pour la même annonce : on ne devine pas.
+      if (paires.some(function (q) { return q.url === p.url && q.a.id !== p.a.id && q.s === p.s; })) { urls[p.url] = 1; return; }
+      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre);
+    });
+  }
   async function liensAuto() {
     var p = location.pathname;
-    var mesAnnonces = /mes-annonces|\/compte\/|\/annonces\/(en-ligne|actives)/.test(p), pageAnnonce = AD.test(p), depot = DEPOT.test(p);
-    if (!mesAnnonces && !pageAnnonce && !depot) return;
+    var mesAnnonces = /mes-annonces|\/compte\/|\/annonces\/(en-ligne|actives)/.test(p), pageAnnonce = AD.test(p), depot = DEPOT.test(p), messages = MESSAGES.test(p);
+    if (!mesAnnonces && !pageAnnonce && !depot && !messages) return;
     var st = {}; try { st = (await RR.storage.local.get("depot")) || {}; } catch (e) {}
     var d = st.depot && Date.now() - st.depot.at < 3 * 3600e3 ? st.depot : null;
     if (d && (pageAnnonce || depot)) {
       var url = pageAnnonce ? urlAnnonce(location.href) : "";
-      if (pageAnnonce) { var t = norm(document.title + " " + ((document.querySelector("h1") || {}).textContent || "")); if (t.indexOf(norm(d.titre).slice(0, 40)) < 0) url = ""; }
+      if (pageAnnonce) { var t = norm(document.title + " " + ((document.querySelector("h1") || {}).textContent || "")); if (t.indexOf(norm(d.titre).slice(0, 40)) < 0 && scoreTitre(d, t) < 0.8) url = ""; }
       if (!url && depot) { var a = [].find.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }); if (a) url = urlAnnonce(a.href); }
       if (url) { lier(d.id, url, d.titre); try { RR.storage.local.remove("depot"); } catch (e) {} return; }
     }
-    if (!mesAnnonces) return;
+    if (!mesAnnonces && !messages) return;
     if (!annoncesCache) { try { annoncesCache = (await rrDemander({ type: "annonces" })).annonces || []; } catch (e) { return; } }
-    var sans = annoncesCache.filter(function (a) { return !a.publiee && a.titre; });
+    var sans = annoncesCache.filter(function (a) { return !a.publiee && (a.titre || a.nom); });
     if (!sans.length) return;
-    [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
-      var url = urlAnnonce(x.href); if (!url) return;
-      var carte = x.closest("li, article, [data-test-id], [data-qa-id]") || x, t = norm(x.innerText + " " + (x.title || "") + " " + (x.getAttribute("aria-label") || "") + " " + carte.innerText.slice(0, 400));
-      var a = sans.find(function (y) { return t.indexOf(norm(y.titre)) >= 0; });
-      if (a) lier(a.id, url, a.titre);
-    });
+    // « Mes annonces » / profil : ce sont tes annonces, le titre suffit. Messagerie : il faut aussi le même prix
+    // (une annonce d'un autre vendeur au titre proche ne doit pas être prise pour la tienne).
+    associer(sans, messages ? 0.8 : 0.75, messages);
   }
   new MutationObserver(function () { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(function () { liensAuto().catch(function () {}); }, 1200); })
     .observe(document.documentElement, { childList: true, subtree: true });
@@ -1547,7 +1656,9 @@
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
+    guetterConfirmation().catch(function () {});
     if (location.pathname === vu) return;
+    confirmationFetee = false;
     vu = location.pathname;
     liensAuto().catch(function () {});
     var m = mode();
