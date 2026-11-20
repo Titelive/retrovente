@@ -121,7 +121,6 @@ export function annonceLotSimple(articles, prixLot, theme = null) {
     theme && theme.complet ? `La série complète${r.plateforme ? " sur " + r.plateforme : ""}, réunie dans un seul lot.` : "",
     retro && l.every((o) => (o.origine || "origine") === "origine") ? "Tout est d'origine, testé et fonctionnel." : "",
     c.somme && prixLot && prixLot < c.somme ? `Vendus séparément, ils valent environ ${eur(Math.round(c.somme))} : le lot est à ${eur(prixLot)}.` : "",
-    "Pas de vente à l'unité pour le moment.",
     "Remise en main propre ou envoi soigné, en un seul colis.",
   ].filter((x, i, a) => x !== "" || (i > 0 && a[i - 1] !== ""));
   return { titre, description: desc.join("\n").replace(/\n{3,}/g, "\n\n").trim() };

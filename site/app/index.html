@@ -978,6 +978,14 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
 @media(max-width:420px){.cl-calc{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cl-calc .fin{grid-column:1/-1}}
 .dans-lot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.4}
 .dans-lot>span{flex:1 1 200px;min-width:0}
+.jeu .im .tag-lot.en-lot{display:inline-flex;align-items:center;gap:5px;background:var(--nuit);color:var(--anis);box-shadow:none}
+.jeu .im .tag-lot.en-lot svg{width:12px;height:12px}
+.jeu .im .tag-lot.alerte{left:auto;right:10px;background:#FFE3B3;color:#6B3D00;box-shadow:0 0 0 1.5px #6B3D00}
+.lot-alerte{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:16px;background:#FFF1D6;color:#4A2B00;box-shadow:inset 0 0 0 1px #F2C879;font-size:14px;line-height:1.45}
+.lot-alerte>span{flex:1 1 220px;min-width:0}
+.lot-alerte .rangee{display:flex;gap:8px;flex-wrap:wrap}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lot-alerte{background:#3A2A10;color:#FFE3B3;box-shadow:inset 0 0 0 1px #6B4A14}}
+:root[data-theme="dark"] .lot-alerte{background:#3A2A10;color:#FFE3B3;box-shadow:inset 0 0 0 1px #6B4A14}
 .lot-note{margin:0 0 12px}
 /* ===== Graphique des ventes (Mes articles) : encaissé, bénéfice ou nombre de ventes par mois ===== */
 :root{--vt-barre:#1A1A1A;--vt-cours:var(--anis);--vt-neg:#D9443A;--vt-hausse:#2F7A14;--vt-baisse:#C2362D}
@@ -1211,6 +1219,7 @@ html.sans-anim .vt-b.pousse{animation:none}
       <section class="carte bloc" data-onglet="article">
         <h3 id="fBlocTitre">Le jeu</h3>
         <div class="dans-lot" id="fDansLot" hidden></div>
+        <div class="lot-alerte" id="fLotAlerte" role="status" hidden></div>
         <div class="champs">
           <label class="f l2 lot-garde"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
           <label class="f noflm"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
@@ -1721,15 +1730,16 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     $("fUp").onclick=compte;
   }
   majIdees();
-  // les articles d'un lot se retrouvent dans la fiche du lot ; en composant un lot, on voit tous les articles libres
-  var l=trierArticles(OBJ.filter(function(o){return (FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye"))&&(CHOIX?!estLot(o)||CHOIX.lot===o:!lotDe(o))}));
+  // les articles d'un lot restent dans la liste : ils sont aussi à vendre à l'unité tant que le lot n'est pas vendu.
+  // Un lot vendu, lui, regroupe ses articles dans sa carte.
+  var l=trierArticles(OBJ.filter(function(o){var dl=lotDe(o);return (FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye"))&&(CHOIX?!estLot(o)||CHOIX.lot===o:!(dl&&vendu(dl)))}));
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">'+(CHOIX?'Aucun article libre dans ce filtre : choisis « Tous ».':'Aucun article dans cette catégorie.')+'</p>';return}
   var carte=function(o,i){
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+(!CHOIX&&petitPrix(o)&&!lotDe(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<div class="jeu'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+(!CHOIX&&lotDe(o)?'<span class="tag-lot en-lot" title="Aussi dans le lot « '+esc(lotDe(o).titre)+' »">'+BOX_SVG+'Aussi en lot</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
@@ -2254,11 +2264,11 @@ function statutRapide(o,s,carte){if(o.statut===s)return;
   var avant={statut:o.statut,prixVente:o.prixVente,dateVente:o.dateVente},nv={statut:s},vente=s==="vendu"||s==="envoye";
   if(vente&&o.prixVente==null&&o.prixDemande!=null)nv.prixVente=o.prixDemande;
   if(carte)carte.classList.add("en-cours");
-  var maj=function(corps){return api("PUT","/api/objets/"+o.id,{objet:corps}).then(function(j){if(estLot(j.objet))return rechargerObjets().then(function(){return j.objet});var i=OBJ.map(function(x){return x.id}).indexOf(o.id);if(i>=0)OBJ[i]=j.objet;dessiner();
+  var maj=function(corps){return api("PUT","/api/objets/"+o.id,{objet:corps}).then(function(j){j.objet._lot=j.lot||null;if(estLot(j.objet)||j.lot||lotDe(o))return rechargerObjets().then(function(){return j.objet});var i=OBJ.map(function(x){return x.id}).indexOf(o.id);if(i>=0)OBJ[i]=j.objet;dessiner();
     var c=document.querySelector('#liste .jeu[data-id="'+o.id+'"] .st-bt');if(c){c.classList.add("pop")}return j.objet})};
   maj(nv).then(function(n){var fete=vente&&(avant.statut==="en_vente"||avant.statut==="reserve");if(fete&&typeof confettis==="function")confettis();
     var cache=FILTRE!=="tout"&&!(n.statut===FILTRE||(FILTRE==="vendu"&&n.statut==="envoye"));
-    toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+".","ok",["Annuler",function(){maj(avant).then(function(){toast("Statut remis : "+STA[avant.statut].toLowerCase()+".","ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
+    toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+"."+noteLot(n._lot),"ok",["Annuler",function(){maj(avant).then(function(r){toast("Statut remis : "+STA[avant.statut].toLowerCase()+"."+noteLot(r&&r._lot),"ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
   .catch(function(e){if(carte)carte.classList.remove("en-cours");erreur(e,"Statut non enregistré.")})}
 function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value;majRemise()}
@@ -2790,7 +2800,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 /* --- carte d'un lot dans la liste --- */
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
-  return '<div class="jeu lot'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im"><span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+  return '<div class="jeu lot'+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im"><span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
     '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
@@ -2860,7 +2870,7 @@ function majChoix(){var n=CHOIX.ids.length,lot=CHOIX.lot;
   var pb=$("choixPetits");if(pb)pb.onclick=function(){petits.forEach(function(o){CHOIX.ids.push(o.id)});dessiner();majChoix()};
   if(n<2){$("blPx").textContent=n?"Ajoute au moins un autre article.":"Touche au moins 2 articles à vendre ensemble.";return}
   var som=CHOIX.ids.reduce(function(a,id){return a+(valeur(parId(id))||0)},0);$("blPx").innerHTML="À l'unité : "+eur(Math.round(som))+" · calcul du prix du lot…";
-  clearTimeout(COTE_T);var k=++COTE_N;COTE_T=setTimeout(function(){api("POST","/api/lots/cote",{articles:CHOIX.ids,theme:themeChoix()}).then(function(j){if(k!==COTE_N||!CHOIX)return;var c=j.cote;
+  clearTimeout(COTE_T);var k=++COTE_N;COTE_T=setTimeout(function(){if(!CHOIX)return;api("POST","/api/lots/cote",{articles:CHOIX.ids,theme:themeChoix()}).then(function(j){if(k!==COTE_N||!CHOIX)return;var c=j.cote;
     $("blPx").innerHTML=c.conseille!=null?'En lot : <b>'+eur(c.conseille)+'</b> <s>'+eur(Math.round(c.somme))+'</s> · '+(c.ajust>0?"+"+Math.round(c.ajust*100)+" %, série complète":"−"+Math.round(c.remise*100)+" %")+(c.sansPrix?' · '+pluriel(c.sansPrix,"article")+' sans prix':''):'Ces articles n\'ont pas encore de prix : tu fixeras celui du lot sur sa fiche.'}).catch(function(){})},180)}
 $("blAnnul").onclick=function(){var lot=CHOIX&&CHOIX.lot;finirChoix();if(lot)ouvrirFiche(parId(lot.id))};
 $("blOk").onclick=function(){if(!CHOIX||CHOIX.ids.length<2)return;var b=this;
@@ -2873,7 +2883,23 @@ $("blOk").onclick=function(){if(!CHOIX||CHOIX.ids.length<2)return;var b=this;
 function themeChoix(){var t=CHOIX.theme;if(!t)return null;var b=CHOIX.base||[];
   if(CHOIX.ids.some(function(id){return b.indexOf(id)<0}))return null;
   return {nom:t.nom,type:t.type,complet:!!t.complet&&b.every(function(id){return CHOIX.ids.indexOf(id)>=0})}}
-function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner()})}
+function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner();majMosaiques()})}
+/* Un article du lot vendu à l'unité : le serveur l'a retiré du lot et a baissé son prix ; la mosaïque, elle, se refait ici. */
+var MOSA_EN_COURS={};
+function majMosaiques(){OBJ.filter(function(o){return estLot(o)&&o.mosaiqueAFaire&&!vendu(o)&&!MOSA_EN_COURS[o.id]}).forEach(function(l){MOSA_EN_COURS[l.id]=1;
+  refaireMosaique(l).then(function(ok){if(ok)return api("GET","/api/objets").then(function(j){var nv=(j.objets||[]).filter(function(x){return x.id===l.id})[0],i=OBJ.indexOf(parId(l.id));if(nv&&i>=0){OBJ[i]=nv;if(ED&&ED.id===l.id&&!sale()){ED=nv;dessinerAlerteLot(nv)}dessiner()}})})
+    .catch(function(){}).then(function(){setTimeout(function(){delete MOSA_EN_COURS[l.id]},30000)})})}
+/* Réponse du serveur quand un article vendu à l'unité quitte son lot (ou y revient après « Annuler ») */
+function noteLot(r){if(!r)return "";
+  return r.action==="retire"?" Retiré du lot « "+r.titre+" »"+(r.prix!=null&&r.prix!==r.ancienPrix?", qui passe à "+eur(r.prix):"")+".":r.action==="remis"?" De retour dans le lot « "+r.titre+" »"+(r.prix!=null?" à "+eur(r.prix):"")+".":r.action==="defait"?" Le lot « "+r.titre+" » n'avait plus qu'un article : il est défait.":""}
+function dessinerAlerteLot(o){var z=$("fLotAlerte"),a=o&&o.alerte,v=a&&a.vendus||[];z.hidden=!v.length;if(!v.length){z.innerHTML="";return}
+  z.innerHTML='<span>⚠️ <b>'+esc(v.map(function(x){return x.titre}).join(", "))+'</b> '+(v.length>1?"ont été vendus":"a été vendu")+' à l\'unité et '+(v.length>1?"ont quitté":"a quitté")+' le lot. '+
+    (a.ancienPrix!=null&&o.prixDemande!=null&&a.ancienPrix!==o.prixDemande?'Prix du lot ajusté : '+eur(a.ancienPrix)+' → <b>'+eur(o.prixDemande)+'</b>. ':'')+
+    (a.annonce?'Ton annonce parle encore '+(v.length>1?"de ces articles":"de cet article")+' : réécris-la, et pense à la modifier sur Le Bon Coin.':'L\'annonce et la mosaïque sont à jour : pense à modifier l\'annonce sur Le Bon Coin.')+'</span>'+
+    '<div class="rangee">'+(a.annonce?'<button class="btn jaune petit" type="button" data-alerte="ia">Réécrire l\'annonce</button>':'')+'<button class="btn clair petit" type="button" data-alerte="ok">C\'est noté</button></div>'}
+$("fLotAlerte").addEventListener("click",function(e){var b=e.target.closest("[data-alerte]");if(!b||!ED||!estLot(ED))return;
+  if(b.dataset.alerte==="ia"){$("fLotIa").click();return}
+  var lot=ED;b.disabled=true;api("PUT","/api/objets/"+lot.id,{objet:{},fermerAlerte:true}).then(function(j){var i=OBJ.indexOf(parId(lot.id));if(i>=0)OBJ[i]=j.objet;if(ED&&ED.id===lot.id){ED.alerte=undefined;delete ED.alerte}dessinerAlerteLot(null);dessiner()}).catch(function(e){b.disabled=false;erreur(e,"Impossible d'enregistrer.")})});
 
 /* --- création : mosaïque des photos, puis le lot --- */
 /* Photo entièrement décodée, dans le bon sens : createImageBitmap décode tout d'un coup et applique l'orientation EXIF.
@@ -2918,12 +2944,13 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   // onglet « Le jeu » → « Le lot » (modeCarte remet le bon nom et la bonne icône à l'ouverture de chaque fiche)
   if(lot)[[$("oArticle"),"Le lot"],[document.querySelector('#mOnglets [data-m="article"]'),"Lot"]].forEach(function(x){var b=x[0];if(!b)return;var sp=b.querySelector("span"),sv=b.querySelector("svg");if(sp)sp.textContent=x[1];if(sv)sv.innerHTML='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>'});
   $("fSuppr").textContent=lot?"Défaire le lot":"Supprimer";
-  var dl=o&&!lot?lotDe(o):null;$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dl;
-  if(dl)$("fDansLot").innerHTML='<span>📦 Cet article est dans le lot <b>'+esc(dl.titre)+'</b> : il est vendu avec lui, son statut suit celui du lot.</span><button class="btn clair petit" type="button" data-voir-lot="'+dl.id+'">Voir le lot</button>';
+  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl);$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;
+  if(dl)$("fDansLot").innerHTML='<span>📦 '+(dv?'Cet article est parti avec le lot <b>'+esc(dl.titre)+'</b> : son statut suit celui du lot.':'Cet article est aussi dans le lot <b>'+esc(dl.titre)+'</b>. Il reste en vente à l\'unité : s\'il part seul, il quitte le lot et le prix du lot baisse.')+'</span><button class="btn clair petit" type="button" data-voir-lot="'+dl.id+'">Voir le lot</button>';
+  dessinerAlerteLot(lot&&!vendu(o)?o:null);
   if(!lot)return;
   $("fBlocTitre").textContent="Le lot";$("lTitre").textContent="Nom du lot";$("fCote").textContent="Recalculer le prix du lot";
   var m=membres(o),ok=!vendu(o);
-  $("fLotNote").textContent=vendu(o)?"Le lot est vendu : ses "+m.length+" articles sont passés en vendu, avec leur part du prix (selon leur valeur).":"Quand le lot passe en vendu, ses "+m.length+" articles passent en vendu aussi, et le prix de vente se partage entre eux selon leur valeur.";
+  $("fLotNote").textContent=vendu(o)?"Le lot est vendu : ses "+m.length+" articles sont passés en vendu, avec leur part du prix (selon leur valeur).":"Chaque article reste aussi en vente à l'unité : s'il part seul, il quitte le lot et le prix du lot baisse. Quand le lot passe en vendu, ses "+m.length+" articles passent en vendu aussi, et le prix de vente se partage entre eux selon leur valeur.";
   $("fLotBloc").innerHTML='<div class="lb-tete"><div><h4>'+pluriel(m.length,"article")+' dans ce lot</h4>'+(o.theme&&o.theme.nom?'<span class="lb-theme">'+esc((o.theme.complet?"Série complète · ":(TYPE_NOM[o.theme.type]||"Thème")+" · ")+o.theme.nom)+'</span>':'')+'</div></div>'+
     '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x);return '<li><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+
     (ok?'<div class="lb-pied"><button class="pl" type="button" id="lbAjout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter ou retirer des articles</button><button class="pl" type="button" id="lbMosa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Refaire la mosaïque</button></div>':'');
@@ -2941,9 +2968,13 @@ $("fLotIa").onclick=function(){if(!ED||!estLot(ED))return;var b=this;occupe(b,tr
   api("POST","/api/lots/"+ED.id+"/annonce",{prixDemande:$("f_prixDemande").value}).then(function(j){$("f_titreAnnonce").value=j.titre;$("f_texteAnnonce").value=j.description;IA_FAITE=true;["f_titreAnnonce","f_texteAnnonce"].forEach(function(k){$(k).dispatchEvent(new Event("input",{bubbles:true}))});ME.usage.dialogue=(ME.usage.dialogue||0)+1;majLbc();toast("Annonce du lot rédigée. Relis-la, puis enregistre.","ok")})
     .catch(function(e){erreur(e,"Rédaction impossible.")}).then(function(){iaEtat("lot");occupe(b,false)})};
 var _ouvrirFiche=ouvrirFiche;ouvrirFiche=function(o){if(CHOIX)finirChoix();_ouvrirFiche(o);ficheLot(o);majStatutFiche();if(o&&estLot(o))figer()};
-var _sauver=sauver;sauver=function(rester){var lot=ED&&(estLot(ED)||lotDe(ED));return _sauver(rester).then(function(o){if(!o||!lot)return o;
-  // le serveur a mis à jour les articles du lot (statut, prix de vente) : on recharge la liste
-  return rechargerObjets().then(function(){if(rester&&ED&&ED.id===o.id){ficheLot(ED);figer()}return o})})};
+var _sauver=sauver;sauver=function(rester){var lot=ED&&(estLot(ED)||lotDe(ED)),dl=ED&&!estLot(ED)?lotDe(ED):null,ex=ED&&ED.exLot;return _sauver(rester).then(function(o){if(!o||!(lot||ex))return o;
+  // le serveur a mis à jour le lot (article vendu à l'unité, retiré du lot) ou ses articles (lot vendu) : on recharge la liste
+  return rechargerObjets().then(function(){if(rester&&ED&&ED.id===o.id){ficheLot(ED);figer()}
+    var n=parId(o.id),l2=dl&&parId(dl.id);
+    if(dl&&n&&!n.lot)toast(l2?"Vendu à l'unité : retiré du lot « "+l2.titre+" »"+(l2.prixDemande!==dl.prixDemande&&l2.prixDemande!=null?", qui passe à "+eur(l2.prixDemande):"")+".":"Vendu à l'unité : le lot « "+dl.titre+" » n'avait plus qu'un article, il est défait.","ok");
+    else if(!dl&&ex&&n&&n.lot)toast("De retour dans le lot « "+(parId(n.lot)||{}).titre+" ».","ok");
+    return o})})};
 var _estimer=estimer;estimer=function(){if(ED&&estLot(ED))return calculerCoteLot(ED,true);return _estimer()};$("fCote").onclick=function(){estimer()};
 $("fSuppr").addEventListener("click",function(e){if(!ED||!estLot(ED))return;e.stopImmediatePropagation();var b=this;
   if(Date.now()-(b._conf||0)>4000){b._conf=Date.now();b.textContent="Sûr ? Re-clique";setTimeout(function(){if(ED&&estLot(ED))b.textContent="Défaire le lot"},4000);return}

@@ -12,7 +12,7 @@ import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
-import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, MIN_LOT, MAX_LOT } from "./lots.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
@@ -58,8 +58,9 @@ function nettoyer(v, avant) {
     photo: !!(avant && photosDe(avant).length),
     photos: ordrePhotos(v.photos, avant),
     // Lots : la composition ne change que par /api/lots (jamais par la fiche), on la reprend telle quelle.
-    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null } : {}),
+    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null, ...(avant.alerte ? { alerte: avant.alerte } : {}), ...(avant.mosaiqueAFaire ? { mosaiqueAFaire: true } : {}) } : {}),
     ...(avant && avant.lot ? { lot: avant.lot } : {}),
+    ...(avant && avant.exLot ? { exLot: avant.exLot } : {}),
   };
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
@@ -70,7 +71,7 @@ function ordrePhotos(liste, avant) {
   const ex = avant ? photosDe(avant) : [];
   if (!Array.isArray(liste)) return ex;
   const par = new Map(ex.map((x) => [x.id, x])), vus = new Set(), out = [];
-  for (const x of liste) { const id = x && String(x.id); if (par.has(id) && !vus.has(id)) { vus.add(id); out.push({ id, legende: txt(x.legende, 200) }); } }
+  for (const x of liste) { const id = x && String(x.id); if (par.has(id) && !vus.has(id)) { vus.add(id); out.push({ ...par.get(id), legende: txt(x.legende, 200) }); } }
   for (const x of ex) if (!vus.has(x.id)) out.push(x);
   return out;
 }
@@ -100,17 +101,76 @@ function articlesPourLot(uid, ids, lotId = "") {
     return it;
   });
 }
-/** Les articles suivent le lot : même statut ; vendu, le prix et les frais se partagent au prorata de leur valeur. */
+/** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
+    Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
+    son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu. */
 function suivreLot(uid, lot, avant) {
+  const vendu = VENDU(lot.statut), etaitVendu = !!(avant && VENDU(avant.statut));
+  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente))) return;
   const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
-  const vendu = VENDU(lot.statut), etaitVendu = avant && VENDU(avant.statut);
   const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
   membres.forEach((m, i) => {
-    m.statut = lot.statut;
-    if (vendu) { m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; }
-    else if (etaitVendu) { m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
+    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; }
+    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
     ecrire(uid, m);
   });
+}
+/* Un article du lot vendu à l'unité quitte le lot : prix du lot recalculé, sa photo retirée, mosaïque à refaire.
+   S'il revient en vente (« Annuler »), il y retourne. Le titre et l'annonce écrits par l'appli suivent ; ceux que
+   la personne a réécrits restent, et le lot le signale. */
+const champsLot = (l) => ({ titre: l.titre, titreAnnonce: l.titreAnnonce, texteAnnonce: l.texteAnnonce, prixDemande: l.prixDemande, theme: l.theme || null });
+function recomposer(uid, lot, ids, theme, ratio) {
+  const anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean), nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
+  const auto = annonceLotSimple(anciens, lot.prixDemande, lot.theme);
+  const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
+  const prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
+  const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
+  const titreAuto = lot.titre === auto.titre, annonceAuto = lot.texteAnnonce === auto.description || !lot.texteAnnonce;
+  return {
+    ...lot, articles: nouveaux.map((m) => m.id), theme, prixDemande, mosaiqueAFaire: true,
+    ...(titreAuto ? { titre: neuf.titre } : {}),
+    ...(annonceAuto ? { texteAnnonce: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce ? neuf.titre : lot.titreAnnonce } : {}),
+    _annonceAJour: annonceAuto, _ratio: ratio,
+  };
+}
+function photoMembre(uid, lot, m) {
+  const ph = photosDe(m)[0], f = ph && fichierPhoto(uid, m.id, ph.id);
+  if (!f || !fs.existsSync(f)) return null;
+  const pid = crypto.randomBytes(4).toString("hex");
+  fs.mkdirSync(path.dirname(fichierPhoto(uid, lot.id, pid)), { recursive: true });
+  fs.copyFileSync(f, fichierPhoto(uid, lot.id, pid));
+  return { id: pid, legende: txt(m.titre, 200), de: m.id };
+}
+function sortirDuLot(uid, lot, m) {
+  const reste = lot.articles.filter((id) => id !== m.id);
+  delete m.lot; m.exLot = lot.id; ecrire(uid, m);
+  if (reste.length < MIN_LOT) { defaireLot(uid, lot); return { id: lot.id, titre: lot.titre, action: "defait" }; }
+  const avant = champsLot(lot);
+  const theme = lot.theme ? { ...lot.theme, complet: false } : null;
+  const n = recomposer(uid, lot, reste, theme);
+  // sa photo s'en va aussi (les lots d'avant ne notaient pas d'où venait chaque photo : on la reconnaît à sa légende)
+  const ph = photosDe(lot), part = ph.filter((x) => x.de === m.id || (!x.de && x.id !== (ph[0] && ph[0].id) && x.legende === m.titre)).slice(0, 1);
+  for (const x of part) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+  const photos = ph.filter((x) => !part.includes(x));
+  const a = lot.alerte || {};
+  const vendus = [...(a.vendus || []).filter((x) => x.id !== m.id), { id: m.id, titre: m.titre, photo: part.length > 0 }];
+  const { _annonceAJour, _ratio, ...l } = n;
+  ecrire(uid, { ...l, photos, photo: photos.length > 0, alerte: { vendus, annonce: !!a.annonce || !_annonceAJour, avant: a.avant || avant, ancienPrix: a.ancienPrix ?? lot.prixDemande, apres: champsLot(l) } });
+  return { id: lot.id, titre: l.titre, action: "retire", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
+}
+function revenirDansLot(uid, lot, m) {
+  if (!estLot(lot) || VENDU(lot.statut) || lot.articles.includes(m.id) || lot.articles.length >= MAX_LOT) { delete m.exLot; ecrire(uid, m); return null; }
+  m.lot = lot.id; delete m.exLot; ecrire(uid, m);
+  const a = lot.alerte || {}, vendus = (a.vendus || []).filter((x) => x.id !== m.id), dernier = !vendus.length && a.avant;
+  const n = recomposer(uid, lot, [...lot.articles, m.id], lot.theme);
+  const { _annonceAJour, _ratio, ...l } = n;
+  // retour à l'identique (le « Annuler » juste après la vente) : chaque champ que la personne n'a pas touché entre-temps reprend sa valeur d'avant
+  if (dernier && a.apres) for (const k of Object.keys(a.avant)) if (JSON.stringify(lot[k] ?? null) === JSON.stringify(a.apres[k] ?? null)) l[k] = a.avant[k];
+  const ph = photosDe(lot), np = (a.vendus || []).some((x) => x.id === m.id && x.photo) && ph.length < MAX_PHOTOS ? photoMembre(uid, lot, m) : null;
+  const photos = np ? [...ph, np] : ph;
+  if (vendus.length) l.alerte = { ...a, vendus, apres: champsLot(l) }; else delete l.alerte;
+  ecrire(uid, { ...l, photos, photo: photos.length > 0 });
+  return { id: lot.id, titre: l.titre, action: "remis", prix: l.prixDemande };
 }
 /** Défaire un lot : ses articles redeviennent indépendants (un lot vendu laisse ses articles vendus, avec leur part du prix). */
 function defaireLot(uid, lot) {
@@ -481,8 +541,10 @@ function lienLbc(v) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
     if (method === "PUT") {
       const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
-      // Article d'un lot : son statut suit celui du lot (vendu avec lui, remis en vente avec lui).
-      if (lotDe(u.id, avant)) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+      const sonLot = estLot(avant) ? null : lotDe(u.id, avant);
+      // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
+      if (sonLot && VENDU(sonLot.statut)) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+      if (estLot(avant) && b.fermerAlerte) delete it.alerte;
       if (typeof b.photo === "string") {
         const prem = it.photos[0];
         if (b.photo === "") { if (prem) { savePhoto(u.id, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
@@ -491,8 +553,12 @@ function lienLbc(v) {
       }
       it.photo = it.photos.length > 0;
       db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
+      let lot = null;
       if (estLot(it)) suivreLot(u.id, { ...it, id: avant.id }, avant);
-      return ok({ ok: true, objet: getItem(u.id, avant.id) });
+      // Vendu à l'unité alors que son lot est encore en vente : il quitte le lot. Remis en vente : il y revient.
+      else if (sonLot && !VENDU(sonLot.statut) && VENDU(it.statut) && !VENDU(avant.statut)) lot = tx(() => sortirDuLot(u.id, sonLot, getItem(u.id, avant.id)));
+      else if (!sonLot && avant.exLot && VENDU(avant.statut) && !VENDU(it.statut)) lot = tx(() => revenirDansLot(u.id, getItem(u.id, avant.exLot), getItem(u.id, avant.id)));
+      return ok({ ok: true, objet: getItem(u.id, avant.id), ...(lot ? { lot } : {}) });
     }
     if (method === "DELETE") {
       if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
@@ -523,6 +589,8 @@ function lienLbc(v) {
       photos = liste.filter((x) => x.id !== mg[2]);
     } else fail(405, "Méthode non prise en charge.");
     const { id: _i, cree: _c, modifie: _m, ...data } = avant;
+    // la mosaïque d'un lot vient d'être refaite : elle est à jour
+    if (estLot(avant) && b.photo && /articles du lot/.test(String(b.legende || ""))) delete data.mosaiqueAFaire;
     db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify({ ...data, photos, photo: photos.length > 0 }), now(), avant.id, u.id);
     return ok({ ok: true, objet: getItem(u.id, avant.id) });
   }
@@ -549,8 +617,7 @@ function lienLbc(v) {
       const a = annonceLotSimple(membres, c.conseille, theme);
       const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), contenu: "", articles: membres.map((m) => m.id), theme };
       db.prepare("INSERT INTO items(id, user_id, data, created, updated) VALUES (?, ?, ?, ?, ?)").run(id, u.id, JSON.stringify(it), now(), now());
-      for (const m of membres) { m.lot = id; ecrire(u.id, m); }
-      suivreLot(u.id, { ...it, id }, null);
+      for (const m of membres) { m.lot = id; delete m.exLot; ecrire(u.id, m); }
       return it;
     });
     // Photos du lot : la mosaïque composée par l'appli en premier, puis la première photo de chaque article.
@@ -563,7 +630,7 @@ function lienLbc(v) {
       const pid = photos.length ? crypto.randomBytes(4).toString("hex") : "p0";
       fs.mkdirSync(path.dirname(fichierPhoto(u.id, id, pid)), { recursive: true });
       fs.copyFileSync(f, fichierPhoto(u.id, id, pid));
-      photos.push({ id: pid, legende: txt(m.titre, 200) });
+      photos.push({ id: pid, legende: txt(m.titre, 200), de: m.id });
     }
     if (photos.length) ecrire(u.id, { ...getItem(u.id, id), photos, photo: true });
     return ok({ ok: true, objet: getItem(u.id, id) });
@@ -585,9 +652,9 @@ function lienLbc(v) {
       const membres = tx(() => {
         const l = articlesPourLot(u.id, body().articles, lot.id), garde = new Set(l.map((m) => m.id));
         for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && m.lot === lot.id) { delete m.lot; ecrire(u.id, m); } }
-        for (const m of l) if (m.lot !== lot.id) { m.lot = lot.id; ecrire(u.id, m); }
-        const it = { ...lot, articles: l.map((m) => m.id) };
-        ecrire(u.id, it); suivreLot(u.id, it, null);
+        for (const m of l) if (m.lot !== lot.id) { m.lot = lot.id; delete m.exLot; ecrire(u.id, m); }
+        const it = { ...lot, articles: l.map((m) => m.id), mosaiqueAFaire: true };
+        ecrire(u.id, it);
         return l;
       });
       return ok({ ok: true, objet: getItem(u.id, lot.id), cote: coteLot(membres, lot.theme) });
