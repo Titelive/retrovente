@@ -42,7 +42,7 @@ function annonces(l) {
   $("pret").classList.remove("squelette");
   $("n").textContent = n;
   $("nTx").firstChild.textContent = n > 1 ? "annonces prêtes" : n ? "annonce prête" : "rien à déposer";
-  $("nSous").textContent = n ? "à déposer sur Le Bon Coin" : l.length ? "tout est déjà en ligne 🎉" : "ajoute un article dans l'appli";
+  $("nSous").textContent = n ? "à déposer sur Le Bon Coin" : l.length ? "tout est déjà en ligne" : "ajoute un article dans l'appli";
   var ul = $("liste"); ul.replaceChildren(); ul.hidden = !n;
   pretes.slice(0, 3).forEach(function (a, i) {
     var li = el("li"); li.appendChild(vignette(a, i)); li.appendChild(el("span", "t", a.titre || a.nom || "Article"));

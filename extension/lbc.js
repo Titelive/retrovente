@@ -343,7 +343,7 @@
     if (!f) return false;
     var nom = (f.textContent || f.value || "Publier").trim().replace(/\s+/g, " ");
     var payant = optionPayanteCochee();
-    statut("À toi : relis l'annonce, puis clique « " + nom + " » toi-même. " + (payant ? "⚠️ Une option payante est cochée : décoche-la si tu n'en veux pas." : "Aucune option payante n'est cochée."), payant ? "bad" : "toi");
+    statut("À toi : relis l'annonce, puis clique « " + nom + " » toi-même. " + (payant ? "Attention : une option payante est cochée : décoche-la si tu n'en veux pas." : "Aucune option payante n'est cochée."), payant ? "bad" : "toi");
     aToi("final:" + cleEcran(), "À toi de finaliser l'annonce", "Clique « " + nom + " » pour publier" + (etat.choisie ? " « " + etat.choisie.titre + " »" : "") + ".", f);
     return true;
   }
@@ -403,11 +403,11 @@
   async function publiee(p) {
     try { var st = (await RR.storage.local.get("publication")) || {}; if (!st.publication || st.publication.at !== p.at) return; await RR.storage.local.remove("publication"); } catch (x) {}
     var lien = [].map.call(document.querySelectorAll("a[href*='/ad/']"), function (x) { return urlAnnonce(x.href); }).filter(Boolean)[0] || "";
-    statut("🎉 Annonce publiée ! Je ferme Le Bon Coin et te ramène sur RetroRevente.", "ok");
+    statut("Annonce publiée ! Je ferme Le Bon Coin et te ramène sur RetroRevente.", "ok");
     if (lien) lier(p.id, lien, p.titre);
     // Son de confettis (sauf si le son est réglé sur « Muet ») et notification ; RetroRevente fait pleuvoir les confettis.
     if (etat.sonChoix !== "muet") sonner("confettis");
-    rrDemander({ type: "alerte", titre: "🎉 Annonce publiée !", texte: "« " + (p.titre || "Ton annonce") + " » est en ligne sur Le Bon Coin." }).catch(function () {});
+    rrDemander({ type: "alerte", titre: "Annonce publiée !", texte: "« " + (p.titre || "Ton annonce") + " » est en ligne sur Le Bon Coin." }).catch(function () {});
     // L'arrière-plan te remet sur RetroRevente puis ferme cet onglet, le temps que le son se termine.
     rrDemander({ type: "publiee", id: p.id, titre: p.titre, url: lien, fermer: true }).catch(function () {});
   }
@@ -972,7 +972,7 @@
       types.addEventListener("toggle", function () { etat.typesOuvert = types.open; });
       corps.appendChild(el("div", { class: "pile" }, [haut, ia, types]));
       dessinerIA(ia);
-      statut(a.lot ? "📦 Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
+      statut(a.lot ? "Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -1373,7 +1373,7 @@
     }
     if (i.offre && i.offre.ecart > 0) {
       var of = i.offre;
-      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "📉 Offre trop basse : " : "🤝 Offre correcte : ") + of.offre + " €" }),
+      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
         " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
     }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));

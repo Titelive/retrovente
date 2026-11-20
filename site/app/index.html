@@ -290,12 +290,12 @@ dialog form{display:flex;flex-direction:column;gap:14px}
 /* Annonce publiée sur Le Bon Coin : carte de fête + confettis */
 #fete{position:fixed;left:50%;top:24px;z-index:90;width:min(420px,calc(100% - 32px));transform:translate(-50%,-140%);transition:transform .55s var(--ease);background:var(--nuit);color:#F4F4EE;border-radius:22px;padding:18px 18px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 24px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px var(--anis)}
 #fete.on{transform:translate(-50%,0)}
-#fete .em{flex:none;width:52px;height:52px;border-radius:16px;background:var(--anis);display:grid;place-items:center;font-size:28px;animation:fete-saut 1.2s var(--ease) 2}
+#fete .em{flex:none;width:52px;height:52px;border-radius:16px;background:rgba(var(--anis-rgb),.14);color:var(--anis);display:grid;place-items:center;animation:fete-saut 1.2s var(--ease) 2}#fete .em svg{width:28px;height:28px}
 #fete b{display:block;font:800 19px/1.15 var(--titre);letter-spacing:-.3px}
 #fete p{margin:4px 0 0;color:#C9C9C0;font-size:14px;line-height:1.4}
 #fete .act{display:flex;gap:8px;margin-top:10px}
-#fete .act a,#fete .act button{border:0;border-radius:999px;padding:8px 14px;font:700 13px/1 var(--titre);cursor:pointer;text-decoration:none}
-#fete .act a{background:var(--anis);color:var(--nuit)}#fete .act button{background:#2E2E2B;color:#F4F4EE}
+#fete .act a,#fete .act button{border:0;border-radius:999px;padding:11px 16px;font:600 14px/1 var(--texte);cursor:pointer;text-decoration:none;transition:transform .2s var(--ease)}#fete .act a:hover,#fete .act button:hover{transform:translateY(-1px)}
+#fete .act a,#fete .act a[hidden]+button{background:var(--anis);color:var(--nuit)}#fete .act a:not([hidden])+button{background:transparent;color:#F4F4EE;box-shadow:inset 0 0 0 1.5px rgba(244,244,238,.28)}
 @keyframes fete-saut{0%,100%{transform:none}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
 #confettis{position:fixed;inset:0;z-index:89;pointer-events:none}
 #toast.on{transform:translate(-50%,0);visibility:visible}
@@ -1187,7 +1187,7 @@ dialog.vue-img img{display:block;max-width:100%;max-height:min(78vh,78dvh);margi
   <input type="file" id="camIn" accept="image/*" capture="environment" hidden><input type="file" id="camGalIn" accept="image/*" multiple hidden>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
-<div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true">🎉</span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
+<div id="fete" role="status" aria-live="polite" hidden><span class="em" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01M22 8h.01M15 2h.01M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98-.7.11-1.22.72-1.22 1.43V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg></span><div><b>Annonce envoyée !</b><p id="feteTx"></p><div class="act"><a id="feteLien" href="#" target="_blank" rel="noopener" hidden>Voir l'annonce</a><button type="button" id="feteOk">Super !</button></div></div></div>
 
 <div class="lbc-feuille" id="lbcFeuille" hidden><div class="lbc-fond" data-ferme></div>
 <section class="lbc" role="dialog" aria-labelledby="tLbc">
