@@ -27,12 +27,18 @@ const ajout = async (c, objet, photo) => (await call("POST", "/api/objets", { ob
 test("prix d'un lot : remise selon la taille, thème, série complète, petits prix", () => {
   const a = (p) => ({ prixDemande: p });
   assert.equal(L.coteLot([a(20), a(30)]).conseille, 45);                 // 2 articles : −10 %
-  assert.equal(L.coteLot([a(20), a(30), a(50)]).conseille, 85);          // 3 articles : −15 %
-  // plus le lot a d'articles, plus la remise monte, sans dépasser 25 % (thème : 5 points de moins)
+  assert.equal(L.coteLot([a(20), a(30), a(50)]).conseille, 90);          // 3 articles : −12 %
+  // plus le lot a d'articles, plus la remise monte, sans dépasser 15 % (thème : 5 points de moins)
   for (let n = 3; n <= 40; n++) { assert.ok(L.remiseLot(n) >= L.remiseLot(n - 1)); assert.ok(L.remiseLot(n) <= L.REMISE_MAX); }
-  assert.ok(L.remiseLot(4) > L.remiseLot(3) && L.remiseLot(10) > L.remiseLot(6));
-  assert.equal(L.remiseLot(30), 0.25);
-  assert.equal(L.coteLot(Array(4).fill(a(20)), { nom: "Rareware" }).remise, 0.12);
+  assert.ok(L.remiseLot(4) > L.remiseLot(3) && L.remiseLot(6) > L.remiseLot(5));
+  assert.equal(L.remiseLot(30), 0.15);
+  // des articles qui valent cher : la remise reste proche du port économisé (17 jeux pour 819 € : 14 %, pas 25 %)
+  const gros = L.coteLot(Array.from({ length: 17 }, (_, i) => a(i ? 48 : 51)));
+  assert.equal(gros.somme, 819); assert.equal(gros.remise, 0.14); assert.equal(gros.conseille, 700);
+  assert.ok(gros.raisons.some((r) => /port/.test(r)));
+  // des petits prix : toute la remise (15 % au plus)
+  assert.equal(L.coteLot(Array(12).fill(a(3))).remise, 0.15);
+  assert.equal(L.coteLot(Array(4).fill(a(20)), { nom: "Rareware" }).remise, 0.08);
   assert.equal(L.coteLot([a(20), a(30)], { nom: "Rareware" }).conseille, 45);              // thème : −5 %, et jamais le prix à l'unité (50 €)
   assert.equal(L.coteLot([a(25), a(35)], { nom: "Banjo", complet: true }).conseille, 55);  // série complète : −5 % seulement
   // un lot coûte toujours moins cher que ses articles à l'unité (arrondi compris), quel que soit le thème
@@ -42,7 +48,7 @@ test("prix d'un lot : remise selon la taille, thème, série complète, petits p
   }
   const petits = L.coteLot([a(2), a(3), a(2), a(4)]);
   assert.equal(petits.petits, 4); assert.ok(petits.raisons.some((r) => /moins de 5 €/.test(r)));
-  assert.equal(petits.conseille, 9);
+  assert.equal(petits.conseille, 10);
   // le prix affiché passe avant la cote (c'est ce que l'acheteur paierait à l'unité)
   assert.equal(L.valeurArticle({ prixDemande: 10, cote: { conseille: 14 } }), 10);
   assert.equal(L.valeurArticle({ cote: { conseille: 14 } }), 14);
@@ -293,11 +299,11 @@ test("idées de lots : les jeux déjà dans un lot comptent aussi, sans repropos
   const rare = s.find((x) => x.theme === "Rareware");
   assert.deepEqual(rare.articles.sort(), [ge.id, jf.id, dk.id, bk.id, bt.id].sort());   // les Banjo y sont, même déjà en lot
   assert.ok(!s.some((x) => x.articles.length === 2 && x.articles.includes(bk.id) && x.articles.includes(bt.id)));   // le lot Banjo existe déjà
-  assert.equal(rare.cote.remise, 0.14);   // 5 jeux : −19 %, studio : 5 points de moins
+  assert.equal(rare.cote.remise, 0.09);   // 5 jeux : −14 %, studio : 5 points de moins
 });
 
 test("lot « même console » : toute la remise, ce n'est pas un thème de collection", () => {
   const a = Array(10).fill({ prixDemande: 50 });
-  assert.equal(L.coteLot(a, { nom: "Jeux Nintendo 64", type: "support" }).remise, 0.24);
-  assert.equal(L.coteLot(a, { nom: "Rareware", type: "studio" }).remise, 0.19);
+  assert.equal(L.coteLot(a, { nom: "Jeux Nintendo 64", type: "support" }).remise, 0.13);   // 10 × 50 € : proche des 41 € de port
+  assert.equal(L.coteLot(a, { nom: "Rareware", type: "studio" }).remise, 0.08);
 });
