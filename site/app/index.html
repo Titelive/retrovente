@@ -2957,9 +2957,11 @@ function creerLot(ids,theme,b){if(ids.length<2){toast("Choisis au moins 2 articl
     .catch(function(e){erreur(e,"Création du lot impossible.")}).then(function(){if(b&&document.contains(b))occupe(b,false)})}
 
 /* --- fiche d'un lot, et d'un article qui est dans un lot --- */
+/* texte du serveur : échappé, puis **…** en gras */
+function gras(t){return esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}
 function coteLotHtml(c){if(!c||!c.n)return "";
   return '<div class="cote-lot"><div class="cl-calc"><div><small>À l\'unité</small><b>'+(c.somme?eur(Math.round(c.somme)):"—")+'</b></div><div><small>'+(c.ajust>0?"Prime":"Remise")+'</small><b>'+(c.ajust>0?"+":"−")+Math.round(Math.abs(c.ajust)*100)+' %</b></div><div class="fin"><small>Prix du lot</small><b>'+(c.conseille!=null?eur(c.conseille):"—")+'</b></div></div>'+
-    '<ul class="cl-raisons">'+c.raisons.map(function(r){return '<li>'+esc(r)+'</li>'}).join("")+(c.port?'<li>L\'acheteur économise environ '+eur(c.port)+' de port : c\'est l\'argument qui fait partir un lot.</li>':'')+(c.sansPrix?'<li>'+pluriel(c.sansPrix,"article")+' sans prix : ouvre '+(c.sansPrix>1?"leurs fiches":"sa fiche")+' et trouve le bon prix pour affiner celui du lot.</li>':'')+'</ul>'+
+    '<ul class="cl-raisons">'+c.raisons.map(function(r){return '<li>'+gras(r)+'</li>'}).join("")+(c.port?'<li>L\'acheteur économise environ <b>'+eur(c.port)+' de port</b> : c\'est l\'argument qui fait partir un lot.</li>':'')+(c.sansPrix?'<li><b>'+pluriel(c.sansPrix,"article")+' sans prix</b> : ouvre '+(c.sansPrix>1?"leurs fiches":"sa fiche")+' et trouve le bon prix pour affiner celui du lot.</li>':'')+'</ul>'+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':'')+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':'')+'</div></div>'}
 var COTE_LOT=null;
 function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot",lot);COTE_LOT=null;
