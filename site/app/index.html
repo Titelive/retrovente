@@ -1213,10 +1213,11 @@ var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vid
 var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
-   On compte ce qui a vraiment été fait sur chaque article, pas les appels à l'IA. */
+   On compte ce qui a vraiment été fait sur chaque article, une seule fois par article, pas les appels à l'IA
+   ni les essais répétés (remplir plusieurs fois la même annonce ne fait pas gagner plus de temps). */
 var TEMPS_DEF={photos:3,texte:4,prix:4,lbc:2,suivi:1},TEMPS=(function(){var t={};try{t=JSON.parse(localStorage.getItem("rr-temps")||"{}")||{}}catch(e){}var o={};for(var k in TEMPS_DEF)o[k]=isFinite(+t[k])&&t[k]!==""&&t[k]!=null?Math.max(0,Math.min(120,+t[k])):TEMPS_DEF[k];return o})(),
-  TEMPS_LIB={photos:["Photos","retouche et recadrage, par article photographié"],texte:["Texte de l'annonce","titre et description, par article"],prix:["Recherche du prix","par article dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, par annonce remplie"],suivi:["Suivi des ventes","par article vendu"]};
-function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:u.lbc||0,suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length}}
+  TEMPS_LIB={photos:["Photos","retouche et recadrage, par article photographié"],texte:["Texte de l'annonce","titre et description, par article"],prix:["Recherche du prix","par article dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, une fois par article mis en vente"],suivi:["Suivi des ventes","par article vendu"]};
+function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:Math.min(u.lbc||0,OBJ.filter(function(o){return o.statut&&o.statut!=="retire"||o.annonce}).length),suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length}}
 var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
