@@ -617,3 +617,11 @@ test("pas de « prix ferme » quand l'acheteur ne parle pas de prix", async () =
   assert.equal(parlePrix("[Conversation]\nBonjour, vous le feriez à 15 € ?"), true);
   assert.equal(parlePrix("[Conversation]\nC'est votre dernier prix ?"), true);
 });
+
+test("on ne reformule pas où habite l'acheteur", async () => {
+  const { sansOuIlHabite } = await import("../server/ia.mjs");
+  assert.equal(sansOuIlHabite("Bonjour, oui toujours disponible 🙂 Si vous venez de Nancy, on peut se retrouver dans le centre. Quel jour ?"), "Bonjour, oui toujours disponible 🙂 On peut se retrouver dans le centre. Quel jour ?");
+  assert.equal(sansOuIlHabite("Bonjour, toujours dispo ! Vous êtes du côté de Nancy ? On peut se voir dans le centre de Nancy 🙂"), "Bonjour, toujours dispo ! On peut se voir dans le centre de Nancy 🙂");
+  const ok = "Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy.";
+  assert.equal(sansOuIlHabite(ok), ok);
+});
