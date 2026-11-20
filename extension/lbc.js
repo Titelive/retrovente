@@ -710,7 +710,16 @@
     ".n{font-size:11.5px;color:var(--gris-c)}" +
     ".pile{display:flex;flex-direction:column;gap:12px}.c{display:flex;flex-direction:column;gap:5px;font-size:13px}.c .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris)}.c .l b{color:var(--encre);font-weight:600}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}" +
-    ".son-choix{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;flex-wrap:wrap}.son-choix select{font:600 12.5px/1 var(--texte);color:var(--encre);background:var(--papier);border:1px solid var(--trait);border-radius:999px;padding:5px 10px;cursor:pointer}.son-choix select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
+    ".encart{margin:0;background:var(--papier);border:1px solid var(--trait);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}" +
+    ".encart-t{margin:0;font:700 11px/1 var(--texte);letter-spacing:.07em;text-transform:uppercase;color:var(--gris)}" +
+    ".encart .c{gap:6px}.encart.son{flex-direction:row;flex-wrap:wrap;align-items:center}.encart.son .encart-t{flex-basis:100%}" +
+    ".pastilles{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%}" +
+    "@media (prefers-color-scheme:dark){.encart .auto input:checked+.rail{background:#3A3A36}}" +
+    ".pastille{border:1.5px solid var(--trait);background:var(--carte);color:var(--encre);border-radius:999px;padding:7px 12px;font:600 12.5px/1 var(--texte);cursor:pointer;transition:border-color .2s,background .2s,transform .2s}" +
+    ".pastille:hover{border-color:var(--nuit);transform:translateY(-1px)}.pastille[aria-checked=true]{background:var(--nuit);border-color:var(--nuit);color:var(--anis)}" +
+    ".pastille:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
+    "@media (prefers-color-scheme:dark){.pastille:hover{border-color:var(--anis)}.pastille[aria-checked=true]{background:var(--anis);border-color:var(--anis);color:#1A1A1A}}" +
+    ".outils{display:flex;flex-wrap:wrap;gap:8px}.encart .mini{background:var(--carte);padding:7px 12px}" +
     ".auto{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px;cursor:pointer;position:relative}.auto input{position:absolute;opacity:0;width:1px;height:1px}" +
     ".rail{width:40px;height:24px;border-radius:999px;background:var(--trait);position:relative;transition:background .2s;flex:none}.rail::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}" +
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
@@ -1001,17 +1010,36 @@
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
     // Son « à toi » : choix parmi les sons rétro, ou muet. Changer de son le fait entendre tout de suite.
-    var choixListe = el("select", { "aria-label": "Son quand c'est à toi", onchange: function (e) {
-      etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
+    var sons = Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).concat(["muet"]);
+    var choisirSon = function (k) {
+      etat.sonChoix = k; etat.son = k !== "muet";
       try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
-      if (etat.son) sonner(); ecouter.disabled = !etat.son;
-    } }, Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
-    var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
-    var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
-    etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
+      if (etat.son) sonner(); etat.panneauSon();
+    };
+    var pastilles = sons.map(function (k) {
+      return el("button", { class: "pastille", type: "button", role: "radio", "data-son": k, texte: k === "muet" ? "Muet" : RR_SONS[k].nom, onclick: function () { choisirSon(k); } });
+    });
+    var choixListe = el("div", { class: "pastilles", role: "radiogroup", "aria-label": "Son quand c'est à toi" }, pastilles);
+    choixListe.addEventListener("keydown", function (e) {
+      if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].indexOf(e.key) < 0) return;
+      e.preventDefault(); var i = sons.indexOf(etat.sonChoix), n = sons.length;
+      var k = sons[(i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : n - 1)) % n]; choisirSon(k);
+      var bt = choixListe.querySelector('[data-son="' + k + '"]'); if (bt) bt.focus();
+    });
+    var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
+    etat.panneauSon = function () {
+      pastilles.forEach(function (bt) { var on = bt.getAttribute("data-son") === etat.sonChoix; bt.setAttribute("aria-checked", on ? "true" : "false"); bt.tabIndex = on ? 0 : -1; });
+      ecouter.disabled = !etat.son;
+    };
     etat.panneauSon();
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
-    corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
+    var encart = function (titre, enfants, cls) { return el("section", { class: "encart" + (cls ? " " + cls : "") }, [el("h3", { class: "encart-t", texte: titre })].concat(enfants)); };
+    var outils = el("div", { class: "outils" }, [el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    corps.appendChild(el("div", { class: "pile" }, [haut,
+      encart("L'annonce", [grille]),
+      encart("Automatique", [bascule, suite, prevenir]),
+      encart("Son quand c'est à toi", [choixListe, ecouter], "son"),
+      encart("Outils", [outils]),
+    ]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
 
