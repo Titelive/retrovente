@@ -77,10 +77,20 @@ article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
 .pied-site{background:var(--nuit);color:#B8B8B0;padding:56px 0 44px;font-size:14px}
 .pied-site .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;align-items:start}
 .pied-site img{height:28px;width:auto;margin-bottom:14px}
-.pied-site nav{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:flex-end}
-.pied-site a{text-decoration:none;color:#E6E6DF}.pied-site a:hover{color:var(--anis)}
+.pied-site a{text-decoration:none;color:#E6E6DF}
 .pied-site p{max-width:52ch}
-@media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}.pied-site nav{justify-content:flex-start}}
+/* liens du pied de page : des pastilles avec icône, à la couleur de la formule */
+.liens-pied{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.liens-pied a{display:flex;align-items:center;gap:11px;min-height:54px;padding:9px 14px 9px 9px;border-radius:18px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#E6E6DF;font:600 14.5px/1.22 var(--texte);letter-spacing:-.005em;transition:transform .3s var(--ease),background-color .25s,box-shadow .25s,color .2s}
+.liens-pied .i{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:12px;background:rgba(var(--anis-rgb),.13);color:var(--anis);transition:background-color .25s,color .25s,transform .35s var(--ease)}
+.liens-pied svg{width:19px;height:19px}
+.liens-pied a:hover{color:#fff;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.55),0 14px 28px -18px rgba(var(--anis-rgb),.7);transform:translateY(-2px)}
+.liens-pied a:hover .i{background:var(--anis);color:var(--nuit);transform:rotate(-8deg) scale(1.06)}
+.liens-pied a:active{transform:scale(.98)}
+.liens-pied a[aria-current="page"]{color:#fff;background:rgba(var(--anis-rgb),.1);box-shadow:inset 0 0 0 1.5px rgba(var(--anis-rgb),.6)}
+.liens-pied a[aria-current="page"] .i{background:var(--anis);color:var(--nuit)}
+@media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}}
+@media(max-width:360px){.liens-pied{gap:8px}.liens-pied a{gap:9px;padding:8px 10px 8px 8px;font-size:13.5px}.liens-pied .i{width:32px;height:32px;border-radius:11px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 /* pages légales */
 .a-remplir{background:#FFE14D;color:#1A1A1A;padding:0 4px;border-radius:4px;font-weight:600}
