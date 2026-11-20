@@ -42,12 +42,21 @@ const CAS = [
     conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nMembre depuis mai 2017\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nVous avez 48 heures pour accepter.\nil y a 2 min - Message automatique leboncoin\nrebonjour\nil y a 1 min\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min\nVoir l'offre\nEnvoyer",
     contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57 }, mesMessages: [] },
     verifs: [sans(/Grand Theft|GTA/i, "pas de jeu inventé")] },
+  { nom: "Lot de 2 annonces = 3 jeux (dont un lot Star Wars)", annonce: {}, autres: AUTRES_LOT,
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 2 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
+    verifs: [sans(/\b(2|deux) jeux,? pas (3|trois)|pas (3|trois) jeux|seulement (2|deux) jeux/i, "ne corrige pas « trois jeux »"), sans(/Conker|Grand Theft/i, "pas d'autre jeu")] },
+  { nom: "Vente conclue (« Vendu ! ») : confirmer l'envoi", annonce: {}, autres: AUTRES_LOT,
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 20 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 15 min\nVendu !\nVous avez accepté l'offre de Volzenki. Expédiez le colis sous 5 jours.\nil y a 1 min - Message automatique leboncoin",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
+    verifs: [sans(/contre|plancher|je peux (vous )?(le |les )?faire à|dernier prix|négoci/i, "ne négocie plus"), avec(/envo|exp[ée]di|colis/i, "confirme l'envoi")] },
 ];
 
+const AUTRES_LOT = [{ id: "a1", nom: "Lot Star Wars : 2 jeux Nintendo 64", titre: "Lot Star Wars : 2 jeux Nintendo 64", prix: 30, etat: "tres_bon", contient: ["Star Wars Rogue Squadron Nintendo 64", "Star Wars Episode I Racer Nintendo 64"] }, { id: "a2", nom: "Rayman 2 The Great Escape", titre: "Rayman 2 The Great Escape Nintendo 64 PAL loose", prix: 25, etat: "tres_bon", contenu: "seul" }];
 let echecs = 0;
 for (const c of CAS) {
   let r;
-  try { r = await repondre(c.conversation, PD, [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
+  try { r = await repondre(c.conversation, c.annonce || PD, c.autres || [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
   console.log(`\n=== ${c.nom}\nRésumé : ${r.resume}`);
   r.reponses.forEach((x, i) => console.log(`  ${i + 1}. [${x.approche}] ${x.texte}`));
   for (const v of [...c.verifs, ...COMMUNS]) { const ok = v.ok(r, c); if (!ok) echecs++; console.log(`  ${ok ? "✓" : "✗"} ${v.nom}`); }

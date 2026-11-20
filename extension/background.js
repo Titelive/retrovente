@@ -98,6 +98,10 @@ var ACTIONS = {
     var r = await appel("/api/extension/lien", { method: "POST", headers: await entetes(), body: JSON.stringify({ annonce: m.annonce, url: m.url, prix: m.prix || null }) });
     return r.json();
   },
+  vendu: async function (m) {
+    var r = await appel("/api/extension/vendu", { method: "POST", headers: await entetes(), body: JSON.stringify({ ids: m.ids || [], prix: m.prix || null, remise: m.remise || "" }) });
+    return r.json();
+  },
   rempli: async function () { await appel("/api/extension/rempli", { method: "POST" }); return { ok: true }; },
 };
 
