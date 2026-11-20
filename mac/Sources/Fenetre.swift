@@ -26,7 +26,7 @@ enum Rubrique: Int, CaseIterable {
 }
 
 @MainActor
-final class Fenetre: NSObject, NSWindowDelegate, NSToolbarDelegate, WKNavigationDelegate, WKUIDelegate {
+final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     let fenetre: NSWindow
     let actions = Actions()
     private lazy var pont = Pont(actions: actions)
@@ -56,11 +56,11 @@ final class Fenetre: NSObject, NSWindowDelegate, NSToolbarDelegate, WKNavigation
         fenetre.isReleasedWhenClosed = false
         fenetre.tabbingMode = .disallowed
         if #available(macOS 11.0, *) { fenetre.toolbarStyle = .unified; fenetre.titlebarSeparatorStyle = .none }
-        let barre = NSToolbar(identifier: "RetroRevente")
-        barre.delegate = self
-        barre.displayMode = .iconOnly
-        barre.allowsUserCustomization = false
-        fenetre.toolbar = barre
+        // Barre d'outils vide : elle donne une barre de titre haute, feux centrés. Nos boutons sont posés dedans
+        // (pas d'éléments de barre d'outils, que macOS 26 enferme dans des pastilles de verre claires).
+        let barreOutils = NSToolbar(identifier: "RetroRevente")
+        barreOutils.allowsUserCustomization = false
+        fenetre.toolbar = barreOutils
 
         appli = creerNavigateur()
         lbc = creerNavigateur()
@@ -85,8 +85,22 @@ final class Fenetre: NSObject, NSWindowDelegate, NSToolbarDelegate, WKNavigation
             observations.append(v.observe(\.url, options: [.new]) { [weak self] _, _ in Task { @MainActor in self?.majBarre() } })
             observations.append(v.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in Task { @MainActor in self?.majBarre() } })
         }
+        installerBarre()
         appli.load(URLRequest(url: Rubrique.appli.adresse))
         montrer(.appli)
+        // Captures automatiques (GitHub) : RR_DEMO=deposer|messages|annonces|compte.
+        if let demo = ProcessInfo.processInfo.environment["RR_DEMO"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self = self else { return }
+                switch demo {
+                case "deposer": self.aller(.deposer)
+                case "messages": self.aller(.messages)
+                case "annonces": self.aller(.annonces)
+                case "compte": self.afficherCompte(nil)
+                default: break
+                }
+            }
+        }
     }
 
     private func creerNavigateur(_ conf: WKWebViewConfiguration? = nil) -> WKWebView {
@@ -227,47 +241,56 @@ final class Fenetre: NSObject, NSWindowDelegate, NSToolbarDelegate, WKNavigation
         fenetresSurgissantes.removeValue(forKey: w)
     }
 
-    // MARK: Barre (NSToolbar)
+    // MARK: Barre du haut (dans la barre de titre)
 
-    private static let idLogo = NSToolbarItem.Identifier("logo")
-    private static let idOnglets = NSToolbarItem.Identifier("onglets")
-    private static let idNavigation = NSToolbarItem.Identifier("navigation")
-    private static let idCompte = NSToolbarItem.Identifier("compte")
     private var boutonCompte: Bouton!
+    private var margeFeux: NSLayoutConstraint!
 
-    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Fenetre.idLogo, .flexibleSpace, Fenetre.idOnglets, .flexibleSpace, Fenetre.idNavigation, Fenetre.idCompte]
-    }
-    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) }
-
-    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        let item = NSToolbarItem(itemIdentifier: id)
-        switch id {
-        case Fenetre.idLogo:
-            item.view = Logo(); item.label = "RetroRevente"
-        case Fenetre.idOnglets:
-            let boutons = Rubrique.allCases.map { r -> Bouton in
-                let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
-                onglets[r] = b; return b
-            }
-            item.view = pile(boutons, espace: 4); item.label = "Rubriques"
-        case Fenetre.idNavigation:
-            precedent = Bouton(symbole: "chevron.left", titre: nil, aide: "Page précédente (⌘[)") { [weak self] in self?.precedente(nil) }
-            suivant = Bouton(symbole: "chevron.right", titre: nil, aide: "Page suivante (⌘])") { [weak self] in self?.suivante(nil) }
-            recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
-            item.view = pile([precedent, suivant, recharger], espace: 2); item.label = "Navigation"
-        case Fenetre.idCompte:
-            boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente") { [weak self] in self?.afficherCompte(nil) }
-            item.view = pile([boutonCompte], espace: 0); item.label = "Compte"
-        default: return nil
+    private func installerBarre() {
+        let barre = BarreHaut()
+        let logo = Logo()
+        let boutons = Rubrique.allCases.map { r -> Bouton in
+            let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
+            onglets[r] = b; return b
         }
-        return item
+        precedent = Bouton(symbole: "chevron.left", titre: nil, aide: "Page précédente (⌘[)") { [weak self] in self?.precedente(nil) }
+        suivant = Bouton(symbole: "chevron.right", titre: nil, aide: "Page suivante (⌘])") { [weak self] in self?.suivante(nil) }
+        recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
+        boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
+        let rubriques = pile(boutons, espace: 4)
+        let droite = pile([precedent, suivant, recharger, separateur(), boutonCompte], espace: 2)
+        for v in [logo, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
+        margeFeux = logo.leadingAnchor.constraint(equalTo: barre.leadingAnchor, constant: 84)
+        let centre = rubriques.centerXAnchor.constraint(equalTo: barre.centerXAnchor); centre.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            margeFeux, logo.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+            centre, rubriques.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+            rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: logo.trailingAnchor, constant: 12),
+            droite.leadingAnchor.constraint(greaterThanOrEqualTo: rubriques.trailingAnchor, constant: 12),
+            droite.trailingAnchor.constraint(equalTo: barre.trailingAnchor, constant: -12), droite.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+        ])
+        guard let titre = fenetre.standardWindowButton(.closeButton)?.superview else { return }
+        barre.translatesAutoresizingMaskIntoConstraints = false
+        titre.addSubview(barre, positioned: .below, relativeTo: nil)
+        NSLayoutConstraint.activate([
+            barre.leadingAnchor.constraint(equalTo: titre.leadingAnchor), barre.trailingAnchor.constraint(equalTo: titre.trailingAnchor),
+            barre.topAnchor.constraint(equalTo: titre.topAnchor), barre.bottomAnchor.constraint(equalTo: titre.bottomAnchor),
+        ])
     }
     private func pile(_ vues: [NSView], espace: CGFloat) -> NSStackView {
         let p = NSStackView(views: vues)
         p.orientation = .horizontal; p.spacing = espace
         return p
     }
+    private func separateur() -> NSView {
+        let v = NSBox(); v.boxType = .custom; v.borderWidth = 0; v.fillColor = NSColor.white.withAlphaComponent(0.14)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([v.widthAnchor.constraint(equalToConstant: 1), v.heightAnchor.constraint(equalToConstant: 18)])
+        return v
+    }
+    // Plein écran : plus de feux à gauche.
+    func windowWillEnterFullScreen(_ n: Notification) { margeFeux?.constant = 16 }
+    func windowDidExitFullScreen(_ n: Notification) { margeFeux?.constant = 84 }
 
     // MARK: Navigation
 

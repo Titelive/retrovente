@@ -89,6 +89,16 @@ final class Bouton: NSView {
     override func accessibilityPerformPress() -> Bool { if disponible { action() }; return true }
 }
 
+/// Fond de la barre du haut : nuit, avec un filet en bas. Les zones vides déplacent la fenêtre (comme une barre de titre).
+final class BarreHaut: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        Charte.nuit.setFill(); bounds.fill()
+        NSColor.white.withAlphaComponent(0.07).setFill()
+        NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+    }
+    override var mouseDownCanMoveWindow: Bool { true }
+}
+
 /// Logo à gauche de la barre : l'icône de l'app et le nom.
 final class Logo: NSView {
     init() {
