@@ -356,6 +356,12 @@ test("extension : lien de l'annonce publiée", async () => {
   const o2 = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64 bis" } }, c)).json.objet;
   assert.equal((await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 409);
   assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 200);
+  // prix modifié sur Le Bon Coin : repris dans RetroRevente
+  const p = await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h);
+  assert.equal(p.json.prixChange, true); assert.equal(p.json.prix, 35);
+  const a2 = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
+  assert.equal(a2.prix, 35); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h)).json.prixChange, false);
 });
 
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {

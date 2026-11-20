@@ -1610,13 +1610,31 @@
      - sur « Mes annonces » : chaque annonce dont le titre correspond à un jeu sans lien est associée. */
   var AD = /\/ad\/[a-z_]+\/\d{6,}/, liesSession = {}, annoncesCache = null, minuterieLiens = null;
   function urlAnnonce(href) { try { var u = new URL(href, location.href); var m = AD.exec(u.pathname); return u.hostname === "www.leboncoin.fr" && m ? "https://www.leboncoin.fr" + m[0] : ""; } catch (e) { return ""; } }
-  function lier(id, url, titre) {
-    if (!id || !url || liesSession[id] === url) return;
-    liesSession[id] = url;
-    rrDemander({ type: "lien", annonce: id, url: url }).then(function () {
-      if (hote && ouvert && ombre) statut("Lien de l'annonce « " + titre + " » enregistré dans RetroRevente.", "ok");
-      (annoncesCache || []).forEach(function (a) { if (a.id === id) a.publiee = true; });
+  function lier(id, url, titre, prix) {
+    var cle = url + "|" + (prix || "");
+    if (!id || !url || liesSession[id] === cle) return;
+    liesSession[id] = cle;
+    rrDemander({ type: "lien", annonce: id, url: url, prix: prix || null }).then(function (r) {
+      if (r && r.error) { delete liesSession[id]; return; }
+      var ancien = null;
+      (annoncesCache || []).forEach(function (a) { if (a.id === id) { a.publiee = true; a.url = url; if (r && r.prix != null) { ancien = a.prix; a.prix = r.prix; } } });
+      (etat.annonces || []).forEach(function (a) { if (a.id === id && r && r.prix != null) a.prix = r.prix; });
+      if (hote && ouvert && ombre) statut(r && r.prixChange ? "Prix de « " + titre + " » mis à jour dans RetroRevente : " + r.prix + " €" + (ancien != null ? " (avant " + ancien + " €)" : "") + "." : "Lien de l'annonce « " + titre + " » enregistré dans RetroRevente.", "ok");
     }).catch(function () { delete liesSession[id]; });
+  }
+  // Prix affiché sur la carte d'une annonce : un seul montant, sans compter un ancien prix barré.
+  function prixAffiche(x) {
+    var c = x;
+    var u0 = urlAnnonce(x.href), autre = function (p) { return [].some.call(p.querySelectorAll("a[href*='/ad/']"), function (y) { var u = urlAnnonce(y.href); return u && u !== u0; }); };
+    for (var i = 0; i < 5 && c.parentElement; i++) { var p = c.parentElement; if ((p.innerText || "").length > 500 || autre(p)) break; c = p; }
+    var vus = {}, w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      var n = w.currentNode, e = n.parentElement; if (!e || !/\d\s?€/.test(n.nodeValue)) continue;
+      if (e.closest("s,del,strike") || /line-through/.test(getComputedStyle(e).textDecorationLine || "")) continue;
+      prixCarte(n.nodeValue).forEach(function (v) { if (v > 0) vus[v] = 1; });
+    }
+    var l = Object.keys(vus).map(Number);
+    return l.length === 1 ? l[0] : null;
   }
   // Proximité entre un jeu et le texte d'une carte d'annonce : part des mots du titre retrouvés (0 à 1).
   function scoreTitre(a, texte) {
@@ -1646,7 +1664,7 @@
         var sc = scoreTitre(a, t); if (sc < seuil) return;
         var memePrix = a.prix != null && px.indexOf(a.prix) >= 0;
         if (prixExige && !memePrix) return;
-        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0) });
+        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0), lien: x });
       });
     });
     paires.sort(function (x, y) { return y.s - x.s; });
@@ -1655,7 +1673,7 @@
       if (urls[p.url] || jeux[p.a.id]) return;
       // Deux jeux aussi proches pour la même annonce : on ne devine pas.
       if (paires.some(function (q) { return q.url === p.url && q.a.id !== p.a.id && q.s === p.s; })) { urls[p.url] = 1; return; }
-      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre);
+      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre, prixExige ? null : prixAffiche(p.lien));
     });
   }
   async function liensAuto() {
@@ -1672,6 +1690,14 @@
     }
     if (!mesAnnonces && !messages) return;
     if (!annoncesCache) { try { annoncesCache = (await rrDemander({ type: "annonces" })).annonces || []; } catch (e) { return; } }
+    // « Mes annonces » : un prix changé sur Le Bon Coin est repris dans RetroRevente (annonces déjà liées).
+    if (mesAnnonces) {
+      var parUrl = {}; annoncesCache.forEach(function (a) { if (a.url) parUrl[a.url] = a; });
+      [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
+        var u = urlAnnonce(x.href), a = u && parUrl[u]; if (!a || (hote && hote.contains(x))) return;
+        var px = prixAffiche(x); if (px != null && px !== a.prix) lier(a.id, u, a.titre || a.nom, px);
+      });
+    }
     var sans = annoncesCache.filter(function (a) { return !a.publiee && (a.titre || a.nom); });
     if (!sans.length) return;
     // « Mes annonces » / profil : ce sont tes annonces, le titre suffit. Messagerie : il faut aussi le même prix
