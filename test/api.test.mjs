@@ -610,3 +610,10 @@ test("le lieu de l'acheteur (« Moselle ») n'est jamais pris pour son prénom",
   assert.equal(sansLieu("Bonjour Moselle, oui le jeu est encore là !", lieux), "Bonjour, oui le jeu est encore là !");
   assert.equal(sansLieu("Merci Moselle ! À bientôt", lieux), "Merci ! À bientôt");
 });
+
+test("pas de « prix ferme » quand l'acheteur ne parle pas de prix", async () => {
+  const { parlePrix } = await import("../server/ia.mjs");
+  assert.equal(parlePrix("[Annonce concernée]\nPerfect Dark\n20 €\n\n[Conversation]\nBonjour, est-elle toujours disponible ? Je suis d'à côté de Nancy\n22:01\nFaire une offre\nEnvoyer"), false);
+  assert.equal(parlePrix("[Conversation]\nBonjour, vous le feriez à 15 € ?"), true);
+  assert.equal(parlePrix("[Conversation]\nC'est votre dernier prix ?"), true);
+});
