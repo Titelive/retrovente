@@ -2795,7 +2795,7 @@ function petitPrix(o){var v=valeur(o);return !!(o.cote&&o.cote.lot)||v!=null&&v<
 function libre(o){return !estLot(o)&&!vendu(o)&&!lotDe(o)}
 function pluriel(n,s,p){return n+" "+(n>1?(p||s+"s"):s)}
 var TYPE_NOM={licence:"Licence","série":"Série",studio:"Studio","lignée":"Lignée",univers:"Univers",genre:"Genre","petits prix":"Petits prix",support:"Même console"};
-function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);return '<span class="aj'+(p>0?' plus':'')+'">'+(p>0?"+"+p+" % série complète":"−"+(-p)+" %")+'</span>'}
+function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);return '<span class="aj'+(p>0?' plus':'')+'">'+(p>0?"+"+p+" %":"−"+(-p)+" %")+'</span>'}
 
 /* --- carte d'un lot dans la liste --- */
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
@@ -2837,7 +2837,7 @@ function dessinerIdees(){var L=$("ideesListe"),b=$("ideesIa");b.disabled=IDEES.i
     return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span'+(o.photo?' style="background-image:url(/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+')"':'')+'></span>'}).join("")+'<b>'+m.length+'</b></div>'+
       '<div class="id-nom"><span class="id-type">'+esc(x.complet?"Série complète":TYPE_NOM[x.type]||"Thème")+'</span><b>'+esc(x.theme)+'</b></div></div>'+
       '<p class="id-titres">'+esc(m.map(function(o){return o.titre}).join(", "))+'</p>'+(x.raison?'<p>'+esc(x.raison)+'</p>':'')+
-      '<div class="id-px">'+(c.conseille!=null?'<b>'+eur(c.conseille)+'</b>'+(c.somme&&Math.round(c.somme)!==c.conseille?'<s>'+eur(Math.round(c.somme))+' à l\'unité</s>':'')+ajTxt(c):'<small style="color:var(--gris)">Ajoute un prix à ces articles pour estimer le lot.</small>')+'</div>'+
+      '<div class="id-px">'+(c.conseille!=null?'<b>'+eur(c.conseille)+'</b>'+(c.somme&&c.conseille<Math.round(c.somme)?'<s>'+eur(Math.round(c.somme))+' à l\'unité</s>':'')+ajTxt(c):'<small style="color:var(--gris)">Ajoute un prix à ces articles pour estimer le lot.</small>')+'</div>'+
       '<div class="id-bt"><button class="btn jaune petit" type="button" data-creer="'+i+'">Créer ce lot</button><button class="btn clair petit" type="button" data-ajuster="'+i+'">Ajuster</button></div></article>'}).join("");
   L._l=l}
 $("ideesListe").addEventListener("click",function(e){var c=e.target.closest("[data-creer]"),a=e.target.closest("[data-ajuster]"),l=this._l||[];
@@ -2871,7 +2871,7 @@ function majChoix(){var n=CHOIX.ids.length,lot=CHOIX.lot;
   if(n<2){$("blPx").textContent=n?"Ajoute au moins un autre article.":"Touche au moins 2 articles à vendre ensemble.";return}
   var som=CHOIX.ids.reduce(function(a,id){return a+(valeur(parId(id))||0)},0);$("blPx").innerHTML="À l'unité : "+eur(Math.round(som))+" · calcul du prix du lot…";
   clearTimeout(COTE_T);var k=++COTE_N;COTE_T=setTimeout(function(){if(!CHOIX)return;api("POST","/api/lots/cote",{articles:CHOIX.ids,theme:themeChoix()}).then(function(j){if(k!==COTE_N||!CHOIX)return;var c=j.cote;
-    $("blPx").innerHTML=c.conseille!=null?'En lot : <b>'+eur(c.conseille)+'</b> <s>'+eur(Math.round(c.somme))+'</s> · '+(c.ajust>0?"+"+Math.round(c.ajust*100)+" %, série complète":"−"+Math.round(c.remise*100)+" %")+(c.sansPrix?' · '+pluriel(c.sansPrix,"article")+' sans prix':''):'Ces articles n\'ont pas encore de prix : tu fixeras celui du lot sur sa fiche.'}).catch(function(){})},180)}
+    $("blPx").innerHTML=c.conseille!=null?'En lot : <b>'+eur(c.conseille)+'</b>'+(c.conseille<Math.round(c.somme)?' <s>'+eur(Math.round(c.somme))+'</s>':'')+' · '+(c.ajust>0?"+"+Math.round(c.ajust*100)+" %, série complète":"−"+Math.round(c.remise*100)+" %")+(c.sansPrix?' · '+pluriel(c.sansPrix,"article")+' sans prix':''):'Ces articles n\'ont pas encore de prix : tu fixeras celui du lot sur sa fiche.'}).catch(function(){})},180)}
 $("blAnnul").onclick=function(){var lot=CHOIX&&CHOIX.lot;finirChoix();if(lot)ouvrirFiche(parId(lot.id))};
 $("blOk").onclick=function(){if(!CHOIX||CHOIX.ids.length<2)return;var b=this;
   if(CHOIX.lot){var lot=CHOIX.lot,ids=CHOIX.ids.slice();occupe(b,true,"Enregistrement…");
