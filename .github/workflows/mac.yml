@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   construire:
     runs-on: macos-latest
@@ -33,3 +35,13 @@ jobs:
             mac/build/RetroRevente-mac.zip
             mac/build/capture.png
           if-no-files-found: warn
+      - name: Publier l'app (GitHub Releases) pour l'installation
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then TAG=mac; TITRE="RetroRevente pour Mac"; PRE=""; else TAG=mac-essai; TITRE="RetroRevente pour Mac (essai)"; PRE="--prerelease"; fi
+          NOTES="Installer ou mettre à jour : dans Terminal, curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/mac/installer.sh | sh"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TITRE" $PRE --target "$GITHUB_SHA" --notes "$NOTES"
+          gh release upload "$TAG" mac/build/RetroRevente-mac.zip --clobber
+          [ -f mac/build/capture.png ] && gh release upload "$TAG" mac/build/capture.png --clobber || true
