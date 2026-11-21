@@ -261,6 +261,7 @@
         " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " €." : ".")]));
     }
     if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.consigne ? "D'après ta consigne : « " + i.consigne + " »" : i.resume }));
+    if (i.version && i.version.texte) z.appendChild(el("p", { class: "ia-r", texte: (i.version.verifie ? "✓ " : "⚠ ") + i.version.texte }));
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
       z.appendChild(el("button", { class: "rep", type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } },
@@ -285,7 +286,7 @@
     dessiner();
     rrDemander({ type: "reponse", site: "ebay", annonce: a ? a.id : "", conversation: conv, offre: offre, consigne: consigne || "",
       precedentes: consigne && etat.precedentes ? etat.precedentes : [] }).then(function (r) {
-      etat.ia = { resume: r.resume, reponses: r.reponses || [], offre: r.offre, consigne: consigne || "" };
+      etat.ia = { resume: r.resume, reponses: r.reponses || [], offre: r.offre, consigne: consigne || "", version: r.version || null };
       etat.precedentes = (r.reponses || []).map(function (x) { return x.texte; });
       if (consigne) etat.brouillon = "";
     }, function (e) { etat.ia = { erreur: e.message, status: e.status }; }).then(dessiner);
