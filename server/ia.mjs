@@ -892,11 +892,14 @@ Réponds uniquement par un objet JSON : {"reponse": "…", "changements": {"cham
    Idées de lots par thème : licence ou série (Zelda, Banjo, Star Wars), studio (Rareware, Naughty Dog),
    lignée ou héritier spirituel (GoldenEye et Perfect Dark), univers (Marvel, Disney), genre, ou petits prix.
    « complet » : la série entière sur ce support (Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), qui vaut une prime. */
-export async function suggererLots(articles) {
+export async function suggererLots(articles, exclure = null) {
   const l = (Array.isArray(articles) ? articles : []).filter((o) => o && o.id && o.titre).slice(0, 150);
   if (l.length < MIN_LOT) return [];
+  // lots déjà créés : on ne les repropose pas (l'IA les voit pour chercher d'autres idées)
+  const deja = new Set(exclure || []), num = new Map(l.map((o, i) => [o.id, i + 1]));
+  const lotsFaits = [...deja].map((k) => k.split(",").map((id) => num.get(id))).filter((x) => x.length >= MIN_LOT && x.every(Boolean));
   if (FAKE()) {
-    const s = suggestionsLocales(l, 8);
+    const s = suggestionsLocales(l, 8, deja);
     // l'IA simulée sait que Banjo-Kazooie et Banjo-Tooie forment la série complète sur Nintendo 64
     for (const x of s) if (/banjo/i.test(x.theme)) { x.complet = true; x.raison = "Banjo-Kazooie et Banjo-Tooie : toute la série sur Nintendo 64."; }
     return s;
@@ -912,18 +915,18 @@ Propose-lui jusqu'à 8 lots à thème, les plus vendeurs d'abord, en regroupant 
 - même univers (Star Wars, Marvel, Disney, Dragon Ball) ou même genre bien identifié (RPG, versus fighting, rally) ;
 - petits prix d'une même catégorie (moins de 5 €), qui partent mal à l'unité.
 Regroupe selon la vraie franchise, le vrai studio ou le vrai univers, jamais sur un simple mot commun des titres : Lylat Wars (Star Fox 64) n'est pas un Star Wars, Dark Souls n'a rien à voir avec Perfect Dark. Nomme le thème comme la franchise (« Star Wars », pas « Wars »).
-Un article peut figurer dans plusieurs idées. Chaque lot a au moins 2 articles. N'invente rien : appuie-toi seulement sur la liste.
+${lotsFaits.length ? `Le vendeur a déjà créé ces lots (numéros de la liste) : ${lotsFaits.map((x) => "[" + x.join(", ") + "]").join(" ; ")}. Ne les repropose pas à l'identique : cherche d'autres regroupements (un article peut aussi aller dans un autre lot).\n` : ""}Un article peut figurer dans plusieurs idées. Chaque lot a au moins 2 articles. N'invente rien : appuie-toi seulement sur la liste.
 "complet" vaut true seulement si le lot réunit TOUS les jeux principaux de la série sur ce support (ex. Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), ce que les collectionneurs recherchent (la remise du lot est alors plus petite).
 Réponds uniquement par un objet JSON : {"lots": [{"theme": "nom court du thème (ex. « Rareware », « Zelda », « GoldenEye et Perfect Dark »)", "type": "licence" | "série" | "studio" | "lignée" | "univers" | "genre" | "petits prix", "articles": [numéros de la liste], "complet": true | false, "raison": "une phrase en français, tutoiement, qui dit pourquoi ce lot se vend bien"}]}`, { max: 3000, timeout: 60000 });
   const out = [], vus = new Set();
   for (const x of (o && Array.isArray(o.lots) ? o.lots : []).slice(0, 8)) {
     const ids = [...new Set((Array.isArray(x.articles) ? x.articles : []).map((n) => l[Number(n) - 1]).filter(Boolean).map((a) => a.id))].slice(0, MAX_LOT);
     const k = [...ids].sort().join(",");
-    if (ids.length < MIN_LOT || vus.has(k) || !txt(x.theme, 60) || themeDouteux(x.theme)) continue;
+    if (ids.length < MIN_LOT || vus.has(k) || deja.has(k) || !txt(x.theme, 60) || themeDouteux(x.theme)) continue;
     vus.add(k);
     out.push({ theme: txt(x.theme, 60), type: parmi(x.type, ["licence", "série", "studio", "lignée", "univers", "genre", "petits prix"], "série"), articles: ids, complet: x.complet === true, raison: affirme(txt(x.raison, 200)) });
   }
-  return out.length ? out : suggestionsLocales(l, 8);
+  return out.length ? out : suggestionsLocales(l, 8, deja);
 }
 
 /* Annonce d'un lot rédigée par l'IA à partir des fiches de ses articles. Sans réponse exploitable : l'annonce de base. */

@@ -679,8 +679,10 @@ function lienLbc(v) {
     const existants = new Set(tous.filter((l) => estLot(l) && !VENDU(l.statut)).map((l) => [...l.articles].sort().join(",")));
     const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire");
     let l, parIa = false;
-    if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres); bump(u.id, "dialogue"); parIa = true; }
-    else l = suggestionsLocales(libres, 8);
+    // Les lots déjà créés sont écartés AVANT de garder les 8 premières idées : sinon, une fois les premières idées
+    // devenues des lots, il ne restait plus rien à proposer (« Pas encore d'idée de lot » avec 20 jeux à vendre).
+    if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres, existants); bump(u.id, "dialogue"); parIa = true; }
+    else l = suggestionsLocales(libres, 8, existants);
     const par = new Map(libres.map((o) => [o.id, o]));
     l = l.filter((x) => !existants.has([...x.articles].sort().join(",")));
     return ok({ ok: true, ia: parIa, suggestions: l.map((x) => ({ ...x, cote: coteLot(x.articles.map((id) => par.get(id)).filter(Boolean), { nom: x.theme, type: x.type, complet: x.complet }) })) });

@@ -331,3 +331,26 @@ test("lot : l'annonce de l'appli suit la composition, même ancienne ; une annon
   l = (await call("PUT", "/api/lots/" + lot.id, { articles: [a.id, d.id] }, c)).json.objet;
   assert.equal(l.texteAnnonce, "Trois jeux N64, envoi rapide.");
 });
+
+test("idées de lots : une fois les premières idées devenues des lots, les suivantes sont proposées", async () => {
+  const c = await compte("idees-suite@exemple.fr");
+  const titres = ["Banjo-Kazooie", "Banjo-Tooie", "Donkey Kong 64", "Diddy Kong Racing", "Super Mario 64", "Mario Kart 64", "Mario Party",
+    "The Legend of Zelda: Ocarina of Time", "The Legend of Zelda: Majora's Mask", "Jet Force Gemini", "Lylat Wars", "Pokémon Stadium", "Pokémon Snap",
+    "F-Zero X", "Wave Race 64", "1080 Snowboarding", "Star Wars Rogue Squadron", "Star Wars Episode I Racer", "Conker's Bad Fur Day", "Kirby 64",
+    "Turok: Dinosaur Hunter", "Turok 2: Seeds of Evil", "Bomberman 64", "Bomberman Hero", "Castlevania 64", "Castlevania: Legacy of Darkness"];
+  for (const t of titres) await ajout(c, { titre: t, plateforme: "Nintendo 64", prixDemande: 30 });
+  // le vendeur crée un lot avec chacune des idées proposées, jusqu'à ce qu'il n'y en ait plus
+  const crees = new Set();
+  for (let tour = 0; tour < 30; tour++) {
+    const s = (await call("POST", "/api/lots/suggestions", {}, c)).json.suggestions;
+    if (!s.length) break;
+    for (const x of s) assert.ok(!crees.has([...x.articles].sort().join(",")), "un lot déjà créé est reproposé : " + x.theme);
+    const x = s[0];
+    assert.equal((await call("POST", "/api/lots", { articles: x.articles, theme: { nom: x.theme, type: x.type } }, c)).status, 200);
+    crees.add([...x.articles].sort().join(","));
+  }
+  assert.equal(crees.size, 11, `${crees.size} idées en tout`);   // 9 séries, Rareware, les jeux Nintendo 64
+  // l'IA (simulée) ne repropose pas non plus les lots existants
+  const ia = (await call("POST", "/api/lots/suggestions", { ia: true }, c)).json.suggestions;
+  for (const x of ia) assert.ok(!crees.has([...x.articles].sort().join(",")));
+});

@@ -1799,6 +1799,10 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   [].forEach.call($("liste").querySelectorAll("img[src]"),function(i){var v=imgs[i.getAttribute("src")];if(v&&v!==i){v.className=i.className;i.replaceWith(v);delete imgs[i.getAttribute("src")]}});
 }
 // tri et regroupement de la liste (choix gardé sur l'appareil)
+/* Une photo de la liste qui n'arrive pas (téléchargement coupé, réseau mobile) : on la redemande, deux fois au plus,
+   au lieu de laisser une vignette blanche jusqu'au prochain rechargement de la page. */
+$("liste").addEventListener("error",function(e){var i=e.target;if(!i||i.tagName!=="IMG")return;var u=i.getAttribute("src")||"";if(!/^\/api\/photo\//.test(u))return;
+  var n=+(i.dataset.essai||0);if(n>=2)return;i.dataset.essai=n+1;setTimeout(function(){if(document.contains(i))i.src=u.replace(/&r=\d+$/,"")+"&r="+(n+1)},800*(n+1))},true);
 var TRI="recent",GRP="";
 try{TRI=localStorage.getItem("rr-tri")||TRI;GRP=localStorage.getItem("rr-grp")||""}catch(e){}
 if(!$("tri").querySelector('option[value="'+TRI+'"]'))TRI="recent";
@@ -2866,7 +2870,7 @@ function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(val
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
 /* --- idées de lots à thème --- */
-var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0,IDEES_V=2;
+var IDEES={cle:"",l:[],ia:false,charge:false},IDEE_T=0,IDEES_V=3;
 function cleIdees(){return articles().filter(function(o){return libre(o)&&o.statut!=="retire"}).map(function(o){return o.id+":"+(valeur(o)||"")}).sort().join(",")}
 function majIdees(){var z=$("idees"),lib=articles().filter(function(o){return libre(o)&&o.statut!=="retire"});
   z.hidden=lib.length<2||!!CHOIX;if(z.hidden)return;
