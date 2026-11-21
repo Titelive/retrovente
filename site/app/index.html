@@ -158,6 +158,9 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .jeu:hover{transform:translateY(-4px);box-shadow:0 0 0 1px var(--trait),0 24px 40px -24px rgba(0,0,0,.35)}
 .jeu .im{aspect-ratio:1;background:var(--papier);display:grid;place-items:center;overflow:hidden;margin:8px;border-radius:18px}
 .jeu .im img{width:100%;height:100%;object-fit:cover}
+/* photos chargées par PH : rien tant qu'elle n'est pas entière ; si elle ne vient pas, un mot plutôt qu'un carré blanc */
+img[data-ph]:not([src]){visibility:hidden}
+.jeu .im:has(img[data-ph-ko])::after{content:"Photo indisponible";position:absolute;inset:0;display:grid;place-items:center;font:400 11px/1 var(--pixel);color:var(--gris-c);letter-spacing:.1em;text-transform:uppercase}
 .jeu .im span{font:400 11px/1 var(--pixel);color:var(--gris-c);letter-spacing:.1em;text-transform:uppercase}
 .jeu .tx{padding:6px 16px 16px;display:flex;flex-direction:column;gap:4px}
 .jeu b{font-weight:600;line-height:1.3;font-size:16px}
@@ -1896,7 +1899,7 @@ function dessinerVentes(){var sec=$("ventes");if(!sec)return;var ART=articles();
   if(D.sansDate)n.push(D.sansDate+(D.sansDate>1?" ventes sans date de vente ne sont pas dans le graphique.":" vente sans date de vente n'est pas dans le graphique."));
   $("vtNote").hidden=!n.length;$("vtNote").textContent=n.join(" ");VT.d=mois}
 /* les objets vendus du mois, en photo : en liste jusqu'à 3 (photo, titre, prix), en mosaïque au-delà (les plus chers d'abord) */
-function vtVignette(o){return '<span class="vt-ph">'+(o.photo?'<img alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie||"")+'">':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 11v3M6.5 12.5h3"/><circle cx="15.5" cy="12" r=".6" fill="currentColor"/><circle cx="17.5" cy="13.5" r=".6" fill="currentColor"/></svg>')+'</span>'}
+function vtVignette(o){return '<span class="vt-ph">'+(o.photo?PH.img(photosUrls(o)):'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 11v3M6.5 12.5h3"/><circle cx="15.5" cy="12" r=".6" fill="currentColor"/><circle cx="17.5" cy="13.5" r=".6" fill="currentColor"/></svg>')+'</span>'}
 function vtPhotos(objs){if(!objs.length)return "";var l=objs.slice().sort(function(a,b){return (+b.prixVente||0)-(+a.prixVente||0)});
   if(l.length<=3)return '<ul class="vt-objs">'+l.map(function(o){return '<li>'+vtVignette(o)+'<span class="t">'+esc(o.titre||"Sans titre")+'</span><span class="p">'+vtFmt("enc",+o.prixVente||0)+'</span></li>'}).join("")+'</ul>';
   var n=l.length>5?4:5;return '<div class="vt-mos">'+l.slice(0,n).map(vtVignette).join("")+(l.length>n?'<span class="vt-ph plus">+'+(l.length-n)+'</span>':"")+'</div>'}
@@ -1957,24 +1960,89 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
+    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
-  // Les photos en cours de chargement survivent au redessin de la liste : Safari, si on remplace une image à moitié
-  // téléchargée, peut garder la moitié reçue pour cette adresse (vignette vide sous une fine bande, surtout les grosses
-  // mosaïques de lot). On remet donc les mêmes balises <img> à la place des nouvelles.
-  var imgs={};[].forEach.call($("liste").querySelectorAll("img[src]"),function(i){imgs[i.getAttribute("src")]=i});
   $("liste").innerHTML=gs.map(function(g){
     var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
     return (g.nom?'<div class="groupe"><h3>'+esc(g.nom)+'</h3><small>'+g.l.length+' article'+(g.l.length>1?'s':'')+(tot?' · '+eur(tot):'')+'</small></div>':'')+g.l.map(function(o){return carte(o,n++)}).join("")}).join("");
-  [].forEach.call($("liste").querySelectorAll("img[src]"),function(i){var v=imgs[i.getAttribute("src")];if(v&&v!==i){v.className=i.className;i.replaceWith(v);delete imgs[i.getAttribute("src")]}});
 }
 // tri et regroupement de la liste (choix gardé sur l'appareil)
-/* Une photo de la liste qui n'arrive pas (téléchargement coupé, réseau mobile) : on la redemande, deux fois au plus,
-   au lieu de laisser une vignette blanche jusqu'au prochain rechargement de la page. */
-$("liste").addEventListener("error",function(e){var i=e.target;if(!i||i.tagName!=="IMG")return;var u=i.getAttribute("src")||"";if(!/^\/api\/photo\//.test(u))return;
-  var n=+(i.dataset.essai||0);if(n>=2)return;i.dataset.essai=n+1;setTimeout(function(){if(document.contains(i))i.src=u.replace(/&r=\d+$/,"")+"&r="+(n+1)},800*(n+1))},true);
+/* ===== Photos des cartes (Mes articles, Ventes) : téléchargées par l'appli, vérifiées, puis affichées =====
+   Cause des vignettes blanches ou coupées : quand la liste se redessine (filtre, tri, retour de fiche, mosaïque refaite),
+   Safari annule le téléchargement des photos retirées de la page et garde en mémoire la partie déjà reçue ; la nouvelle
+   carte réutilise ce morceau (une fine bande, puis du blanc) jusqu'au rechargement complet. Un téléchargement coupé par
+   le réseau donne le même résultat, sans erreur à rattraper.
+   Ici, l'image n'est plus confiée au chargement de l'<img> : la photo est téléchargée en entier (taille annoncée et fin
+   de JPEG vérifiées), décodée, puis donnée à l'<img> sous une adresse locale (blob:) qui ne dépend plus du réseau.
+   Un redessin réutilise cette adresse : rien n'est annulé, rien n'est retéléchargé.
+   Si une photo reste incomplète : nouvel essai sans cache, puis la photo suivante de l'article ; pour un lot, la mosaïque
+   est refaite. */
+var PH=(function(){
+  var M={},ordre=[],file=[],actifs=0,MAX=4,GARDE=200,io=null;
+  // un JPEG entier commence par FFD8 et se termine par FFD9 (parfois suivi de quelques octets de remplissage)
+  function jpegEntier(b){var n=b.length;if(n<4||b[0]!==0xFF||b[1]!==0xD8)return false;for(var i=n-1;i>0&&i>=n-256;i--)if(b[i]===0xD9&&b[i-1]===0xFF)return true;return false}
+  function verifier(buf,annonce){var b=new Uint8Array(buf);if(annonce&&b.length!==annonce)return "coupee";if(b.length>1&&b[0]===0xFF&&b[1]===0xD8&&!jpegEntier(b))return "coupee";return ""}
+  function telecharger(url,essai){
+    var ctl=window.AbortController?new AbortController():null,minuteur=ctl&&setTimeout(function(){ctl.abort()},30000);
+    return fetch(url,{credentials:"same-origin",cache:essai?"reload":"default",signal:ctl?ctl.signal:undefined}).then(function(r){
+      if(r.status===404)throw {perdue:1};if(!r.ok)throw {reseau:1};
+      var annonce=+(r.headers.get("content-length")||0),type=r.headers.get("content-type")||"image/jpeg";
+      return r.arrayBuffer().then(function(buf){var pb=verifier(buf,annonce);if(pb)throw {coupee:1};return new Blob([buf],{type:type})})
+    },function(){throw {reseau:1}}).then(function(b){if(minuteur)clearTimeout(minuteur);return b},function(e){if(minuteur)clearTimeout(minuteur);throw e&&(e.perdue||e.coupee)?e:{reseau:1}})}
+  // décodée avant d'être montrée (decode() n'est qu'une avance : s'il refuse, l'image chargée suffit)
+  function decoder(blob){var u=URL.createObjectURL(blob),i=new Image();
+    return new Promise(function(ok,ko){i.onload=ok;i.onerror=ko;i.src=u})
+      .then(function(){return i.decode?i.decode().catch(function(){}):0})
+      .then(function(){if(!i.naturalWidth)throw 0;return u})
+      .catch(function(){URL.revokeObjectURL(u);throw {illisible:1}})}
+  // 3 essais pour une coupure réseau, 1 nouvel essai sans cache pour une photo incomplète ou illisible
+  function obtenir1(url){var n=0;
+    function essai(){return telecharger(url,n).then(function(b){return decoder(b).then(function(u){return {u:u,b:b}})}).catch(function(e){n++;
+      if(e&&e.perdue)throw e;if(n<=((e&&e.reseau)?3:1))return new Promise(function(ok){setTimeout(ok,[0,700,2000,5000][n])}).then(essai);throw e})}
+    return essai()}
+  function tourSuivant(){while(actifs<MAX&&file.length){var t=file.shift();actifs++;
+    obtenir1(t.url).then(t.ok,t.ko).then(function(){actifs--;tourSuivant()})}}
+  function enFile(url,prio){return new Promise(function(ok,ko){var t={url:url,ok:ok,ko:ko};if(prio)file.unshift(t);else file.push(t);tourSuivant()})}
+  function nettoyer(){while(ordre.length>GARDE){var url=ordre.shift(),m=M[url];if(!m||!m.u)continue;
+    if(document.querySelector('img[src="'+m.u+'"]')){ordre.push(url);if(ordre.length<=GARDE+20)break;continue}
+    URL.revokeObjectURL(m.u);delete M[url]}}
+  /* La photo d'une adresse /api/photo/… : { u: adresse blob: prête à afficher, b: le fichier }. */
+  function obtenir(url,prio){var m=M[url];if(m&&m.u)return Promise.resolve(m);if(m&&m.p)return m.p;
+    var p=enFile(url,prio).then(function(r){M[url]={u:r.u,b:r.b};ordre.push(url);nettoyer();return M[url]},function(e){delete M[url];throw e||{}});
+    M[url]={p:p};return p}
+  function pret(url){var m=M[url];return m&&m.u||""}
+  function montrer(img,u){if(img.getAttribute("src")!==u)img.src=u;img.removeAttribute("data-ph-ko");img.classList.add("ph-ok")}
+  function brancher1(img){var urls=(img.getAttribute("data-ph")||"").split(" ").filter(Boolean),k=+(img.dataset.phI||0),url=urls[k];
+    if(!url||img.dataset.phEnCours===url)return;
+    var deja=pret(url);if(deja){montrer(img,deja);return}
+    img.dataset.phEnCours=url;
+    obtenir(url,img.dataset.phPrio==="1").then(function(m){delete img.dataset.phEnCours;montrer(img,m.u)},function(e){delete img.dataset.phEnCours;
+      if(!document.contains(img))return;
+      if(e&&(e.coupee||e.illisible)&&img.dataset.lot)PH.abimee(img.dataset.lot);
+      if(k+1<urls.length){img.dataset.phI=k+1;brancher1(img);return}
+      img.setAttribute("data-ph-ko",e&&e.reseau?"reseau":"abimee")})}
+  function voir(img){if(!io||img.dataset.phPrio==="1"){brancher1(img);return}io.observe(img)}
+  if(window.IntersectionObserver)io=new IntersectionObserver(function(l){l.forEach(function(x){if(x.isIntersecting){io.unobserve(x.target);brancher1(x.target)}})},{rootMargin:"900px 0px"});
+  /* Toute <img data-ph="adresse [adresse de secours…]"> ajoutée à la page est prise en charge, où qu'elle soit. */
+  function balayer(r){if(r.nodeType!==1)return;if(r.matches&&r.matches("img[data-ph]"))voir(r);if(r.querySelectorAll)[].forEach.call(r.querySelectorAll("img[data-ph]"),voir)}
+  if(window.MutationObserver)new MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,balayer)})}).observe(document.documentElement,{childList:true,subtree:true});
+  // retour sur l'onglet ou réseau revenu : on retente les photos restées en échec
+  function reprendre(){[].forEach.call(document.querySelectorAll('img[data-ph-ko="reseau"]'),function(i){i.removeAttribute("data-ph-ko");i.dataset.phI=0;brancher1(i)})}
+  window.addEventListener("online",reprendre);document.addEventListener("visibilitychange",function(){if(!document.hidden)reprendre()});
+  return {
+    obtenir:obtenir,pret:pret,brancher:function(r){balayer(r||document.documentElement)},jpegEntier:jpegEntier,
+    /* <img> d'une carte : la photo prête est mise tout de suite (pas de clignement au redessin), sinon chargée en arrivant à l'écran. */
+    img:function(urls,attrs){urls=urls.filter(Boolean);var u=pret(urls[0]);
+      return '<img alt=""'+(attrs||"")+' data-ph="'+urls.map(esc).join(" ")+'"'+(u?' src="'+u+'" class="ph-ok"':'')+'>'},
+    abimee:function(){}   // remplacée plus bas, pour les lots (mosaïque à refaire)
+  }})();
+/* Adresses des photos d'un article, la première en tête (les suivantes servent de secours si elle est abîmée). */
+function photosUrls(o){if(!o||!o.photo)return [];var l=Array.isArray(o.photos)&&o.photos.length?o.photos:[{id:""}];
+  return l.slice(0,4).map(function(x){return "/api/photo/"+o.id+(x.id?"/"+x.id:"")+"?v="+encodeURIComponent(o.modifie||"")})}
+function imgCarte(o){var u=photosUrls(o),m=estLot(o)&&o.photos&&o.photos[0]&&/articles du lot/.test(o.photos[0].legende||"");
+  return PH.img(u,m?' data-lot="'+o.id+'"':'')}
 var TRI="recent",GRP="";
 try{TRI=localStorage.getItem("rr-tri")||TRI;GRP=localStorage.getItem("rr-grp")||""}catch(e){}
 if(!$("tri").querySelector('option[value="'+TRI+'"]'))TRI="recent";
@@ -3144,7 +3212,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 /* --- carte d'un lot dans la liste --- */
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
-  return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
+  return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
     '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
@@ -3234,6 +3302,10 @@ function themeChoix(){var t=CHOIX.theme;if(!t)return null;var b=CHOIX.base||[];
 function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner();majMosaiques()})}
 /* Un article du lot vendu à l'unité : le serveur l'a retiré du lot et a baissé son prix ; la mosaïque, elle, se refait ici. */
 var MOSA_EN_COURS={};
+/* Mosaïque d'un lot reçue incomplète même après un nouvel essai : le fichier est abîmé, on la refait (une fois par visite). */
+var MOSA_REFAITE={};
+PH.abimee=function(id){var l=parId(id);if(!l||MOSA_REFAITE[id]||MOSA_EN_COURS[id])return;MOSA_REFAITE[id]=MOSA_EN_COURS[id]=1;
+  refaireMosaique(l).then(function(ok){if(ok)return rechargerObjets()}).catch(function(){}).then(function(){delete MOSA_EN_COURS[id]})};
 function majMosaiques(){OBJ.filter(function(o){return estLot(o)&&o.mosaiqueAFaire&&!vendu(o)&&!MOSA_EN_COURS[o.id]}).forEach(function(l){MOSA_EN_COURS[l.id]=1;
   refaireMosaique(l).then(function(ok){if(ok)return api("GET","/api/objets").then(function(j){var nv=(j.objets||[]).filter(function(x){return x.id===l.id})[0],i=OBJ.indexOf(parId(l.id));if(nv&&i>=0){OBJ[i]=nv;if(ED&&ED.id===l.id&&!sale()){ED=nv;dessinerAlerteLot(nv)}dessiner()}})})
     .catch(function(){}).then(function(){setTimeout(function(){delete MOSA_EN_COURS[l.id]},30000)})})}
@@ -3250,13 +3322,14 @@ $("fLotAlerte").addEventListener("click",function(e){var b=e.target.closest("[da
   var lot=ED;b.disabled=true;api("PUT","/api/objets/"+lot.id,{objet:{},fermerAlerte:true}).then(function(j){var i=OBJ.indexOf(parId(lot.id));if(i>=0)OBJ[i]=j.objet;if(ED&&ED.id===lot.id){ED.alerte=undefined;delete ED.alerte}dessinerAlerteLot(null);dessiner()}).catch(function(e){b.disabled=false;erreur(e,"Impossible d'enregistrer.")})});
 
 /* --- création : mosaïque des photos, puis le lot --- */
-/* Photo entièrement décodée, dans le bon sens : createImageBitmap décode tout d'un coup et applique l'orientation EXIF.
-   (Avec une simple Image, Safari peut dessiner une photo à moitié décodée, ou recadrer dans le sens brut d'une photo de téléphone :
+/* Photo entièrement reçue (vérifiée par PH) et décodée, dans le bon sens : createImageBitmap décode tout d'un coup et applique
+   l'orientation EXIF. Une photo d'article abîmée est laissée de côté plutôt que collée à moitié blanche. (Avec une simple Image, Safari peut dessiner une photo à moitié décodée, ou recadrer dans le sens brut d'une photo de téléphone :
    vignettes coupées à mi-hauteur ou vides.) */
-function chargerPhoto(o){if(!o||!o.photo)return Promise.resolve(null);var u="/api/photo/"+o.id+"?v="+encodeURIComponent(o.modifie);
-  var parImage=function(){return new Promise(function(ok){var i=new Image();i.onload=function(){(i.decode?i.decode():Promise.resolve()).then(function(){ok(i)},function(){ok(i)})};i.onerror=function(){ok(null)};i.src=u})};
-  if(!window.createImageBitmap)return parImage();
-  return fetch(u,{credentials:"same-origin"}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){return createImageBitmap(b,{imageOrientation:"from-image"})}).catch(parImage)}
+function chargerPhoto(o){var u=photosUrls(o)[0];if(!u)return Promise.resolve(null);
+  return PH.obtenir(u,true).then(function(m){
+    var parImage=function(){return new Promise(function(ok){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ok(null)};i.src=m.u})};
+    if(!window.createImageBitmap)return parImage();
+    return createImageBitmap(m.b,{imageOrientation:"from-image"}).catch(parImage)},function(){return null})}
 /* Première photo du lot : les articles côte à côte (2 : deux colonnes, 3 : une grande et deux petites, puis une grille). */
 function mosaique(l){return Promise.all(l.slice(0,16).map(chargerPhoto)).then(function(im){im=im.filter(function(i){return i&&(i.width||i.naturalWidth)});if(im.length<2)return null;
   var S=1600,G=10,cv=document.createElement("canvas");cv.width=cv.height=S;var g=cv.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,S,S);
