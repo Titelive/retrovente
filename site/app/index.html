@@ -57,14 +57,16 @@ h3{font-size:18px;font-weight:600;letter-spacing:-.02em}
 .outils-ph .oi{position:relative;width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);transition:transform .3s var(--ease)}
 .outils-ph .oi svg{width:19px;height:19px}
 .outils-ph .ot:hover .oi{transform:scale(1.08) rotate(-4deg)}
-.outils-ph .ot[data-f="ia"] .oi{background:var(--anis);color:var(--nuit);box-shadow:2px 2px 0 var(--nuit)}
-:root[data-theme="dark"] .outils-ph .ot[data-f="ia"] .oi{box-shadow:2px 2px 0 rgba(0,0,0,.55)}
-.outils-ph .ot[data-f="prendre"] .oi{background:var(--nuit);color:var(--anis)}
+.outils-ph .ot[data-f="ia"] .oi{background:color-mix(in srgb,var(--anis) 45%,transparent);color:var(--anis-t)}
+:root[data-theme="dark"] .outils-ph .ot[data-f="ia"] .oi{background:color-mix(in srgb,var(--anis) 20%,transparent);color:var(--anis)}
+.outils-ph .ot[data-f="prendre"] .oi{background:rgba(26,26,26,.1);color:var(--nuit)}
 .outils-ph .oi b{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:99px;display:grid;place-items:center;background:var(--c);color:var(--carte);font:800 10.5px/1 var(--texte,inherit);box-shadow:0 0 0 2px var(--carte)}
 .outils-ph .ol{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .outils-ph .ot[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--c)}
 .outils-ph .ot.busy{white-space:normal;text-align:center;font-size:12px}.outils-ph .ot.busy::before{width:18px;height:18px}
 .outils-ph .ot:disabled{opacity:.6}
+/* grille équilibrée (JS, comme les trophées) : 2 demi-colonnes par tuile, dernière ligne incomplète centrée */
+.rangee.outils-ph.equil{grid-template-columns:repeat(calc(var(--ot-c,4) * 2),minmax(0,1fr))}.outils-ph.equil>.ot{grid-column:span 2}
 /* petite pastille d'action (à la place des liens soulignés) */
 .pl{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:7px 13px;background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);font:600 13px/1.2 var(--texte,inherit);cursor:pointer;white-space:nowrap;transition:box-shadow .2s,background-color .2s,color .2s;-webkit-tap-highlight-color:transparent}
 .pl svg{width:15px;height:15px;flex:none}
@@ -1793,6 +1795,17 @@ function equilibrerTrophees(){var g=$("trGrille");if(!g||!g.offsetWidth)return;v
   c=Math.min(c,n);g.style.setProperty("--tr-c",c);g.classList.add("equil");
   var r=n%c;li.forEach(function(e,i){e.style.gridColumn=r&&i===n-r?(c-r+1)+" / span 2":""})}
 if(window.ResizeObserver)new ResizeObserver(function(){equilibrerTrophees()}).observe($("trGrille"));
+/* Outils photos : nombre de colonnes choisi pour éviter une ligne orpheline (même logique que les trophées) */
+function equilibrerOutils(){var g=document.querySelector(".outils-ph");if(!g||!g.offsetWidth)return;
+  var li=[].filter.call(g.children,function(e){return e.classList.contains("ot")&&getComputedStyle(e).display!=="none"}),n=li.length;if(!n)return;
+  var gap=parseFloat(getComputedStyle(g).columnGap)||8,max=Math.max(1,Math.min(5,Math.floor((g.clientWidth+gap)/(76+gap)))),c=Math.min(max,n),best=2;
+  for(var k=Math.min(max,n);k>=Math.min(3,max);k--){var vide=(k-n%k)%k/k;if(vide<best-1e-9){best=vide;c=k}}
+  g.style.setProperty("--ot-c",c);g.classList.add("equil");
+  var r=n%c;[].forEach.call(g.children,function(e){e.style.gridColumn=""});if(r)li[n-r].style.gridColumn=(c-r+1)+" / span 2"}
+(function(){var g=document.querySelector(".outils-ph");if(!g)return;
+  if(window.ResizeObserver)new ResizeObserver(function(){equilibrerOutils()}).observe(g);
+  if(window.MutationObserver)new MutationObserver(function(){equilibrerOutils()}).observe(g,{attributes:true,attributeFilter:["hidden"],subtree:true});
+  addEventListener("resize",equilibrerOutils)})();
 function trophees(){montrer("trophees");dessinerTrophees()}
 function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
     plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
