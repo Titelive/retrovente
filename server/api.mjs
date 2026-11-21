@@ -415,10 +415,33 @@ export function annonceLbc(v) {
     photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", urlEbay: v.annonceEbay || "", modifie: v.modifie,
   };
 }
+const annoncePourExtension = (v) => { const a = annonceLbc(v); return { ...a, ebay: annonceEbay(v, a) }; };
+/* Annonce au format eBay (lue par l'extension sur la page de mise en vente eBay) : titre de 80 caractères coupé entre
+   deux mots, état eBay, caractéristiques, description (envoi suivi plutôt que main propre), prix. Même règles que le
+   panneau « Publier sur eBay » de l'appli. */
+const ETAT_EBAY = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État acceptable", pieces: "Pour pièces détachées ou ne fonctionne pas" };
+const CONTENU_EBAY = { seul: "Jeu seul (loose)", boite: "Jeu et boîte, sans notice", complet: "Jeu, boîte et notice (complet)", boite_vide: "Boîte seule" };
+export function titreEbay(t) {
+  t = String(t || "").replace(/\s+/g, " ").trim();
+  if (t.length <= 80) return t;
+  const c = t.slice(0, 81), i = c.lastIndexOf(" ");
+  return (i > 40 ? c.slice(0, i) : c.slice(0, 80)).replace(/[\s,;:–-]+$/, "");
+}
+export function annonceEbay(v, base) {
+  const carte = v.categorie === "cartes", film = v.categorie === "films";
+  const car = (carte ? [["Personnage", v.titre], ["Extension", v.plateforme], ["Numéro", v.numero], ["Rareté", v.rarete], ["Langue", v.region], ["Gradation", v.gradation]]
+    : film ? [["Titre du film", v.titre], ["Format", v.plateforme], ["Édition", v.edition], ["Année", v.annee], ["Réalisateur", v.realisateur], ["Langues et zone", v.region]]
+    : [[v.categorie === "consoles" ? "Modèle" : "Nom du jeu", v.titre], ["Plateforme", v.plateforme], ["Région", v.region], ["Contenu", CONTENU_EBAY[v.contenu]]]).filter((x) => x[1]);
+  return {
+    titre: titreEbay(base.titre), etat: ETAT_EBAY[v.etat] || "", caracteristiques: car.map(([nom, valeur]) => ({ nom, valeur: String(valeur).slice(0, 65) })),
+    description: String(base.description || "").replace(/Remise en main propre ou envoi\.?/, "Envoi soigné et rapide, avec suivi."),
+    prix: base.prix, plancher: base.prix != null ? Math.min(base.prix, ia.rond(base.prix * 0.85, true)) : null,
+  };
+}
 // Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
 function avecContenu(uid, l) {
   const noms = new Map(listItems(uid).map((v) => [v.id, [v.titre, v.plateforme].filter(Boolean).join(" ")]));
-  return l.map((v) => (estLot(v) ? { ...annonceLbc(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annonceLbc(v)));
+  return l.map((v) => (estLot(v) ? { ...annoncePourExtension(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annoncePourExtension(v)));
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 

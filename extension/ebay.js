@@ -2,6 +2,9 @@
 // - Messagerie eBay : le panneau lit la conversation, retrouve l'article (lien /itm/ déjà enregistré, sinon titre et
 //   prix) et l'offre de l'acheteur, puis l'IA propose trois réponses. Un clic place la réponse dans la zone de
 //   message : la personne relit et envoie elle-même.
+// - Mise en vente : sur « Commencer votre annonce », le titre de l'article choisi dans l'appli (bouton « Créer l'annonce
+//   sur eBay ») est tapé et la recherche lancée ; dans le formulaire, l'état, le prix, les caractéristiques, la description
+//   et les photos sont remplis une fois. L'extension ne clique jamais « Mettre en vente » : la personne relit et publie.
 // - « Mes ventes », Seller Hub et confirmation de mise en vente : chaque annonce dont le titre (et, dans la messagerie,
 //   le prix) correspond nettement à un article RetroRevente sans lien eBay voit son adresse /itm/ enregistrée dans la
 //   fiche. En cas de doute entre deux articles, rien n'est lié.
@@ -19,7 +22,10 @@
   function mode() {
     var h = location.hostname, p = location.pathname;
     if (/^mesg\./.test(h) || /^\/(mesg|mesh|cnt|msg)(\/|$)/i.test(p) || /\/messages?(\/|$)/i.test(p)) return "messages";
-    if (/^\/(sh|mys|sl|lstng)(\/|$)/i.test(p) || /^\/myb\/(Selling|ActiveListings|Summary)/i.test(p)) return "vendeur";
+    // Mise en vente : « Commencer votre annonce » (/sl/prelist…), puis le formulaire (/lstng, /sl/list…).
+    if (/^\/sl\/prelist(\/|$)/i.test(p)) return "prelist";
+    if (/^\/(lstng|sl\/(list|sell))(\/|$)/i.test(p)) return "formulaire";
+    if (/^\/(sh|mys|sl)(\/|$)/i.test(p) || /^\/myb\/(Selling|ActiveListings|Summary)/i.test(p)) return "vendeur";
     return "";
   }
 
@@ -155,6 +161,8 @@
     ".parler textarea::placeholder{color:#9A9A92}.parler textarea:focus{border-color:var(--anis)}.parler .mini{background:var(--anis);border-color:var(--anis);color:var(--nuit);font-weight:800;padding:9px 14px}" +
     ".vente{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--gris)}" +
     ".bulle{position:fixed;right:18px;bottom:90px;max-width:320px;background:var(--nuit);color:#fff;border-radius:14px;padding:10px 14px;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.3);animation:monte .3s var(--ease)}" +
+    ".etapes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}.etapes li{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--gris)}.etapes li.ok{color:var(--encre);font-weight:600}" +
+    ".puce{flex:none;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:var(--papier);font:700 12px/1 var(--texte)}.etapes li.ok .puce{background:var(--anis);color:var(--nuit)}" +
     "button:focus-visible,select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}";
   function el(tag, attrs, enfants) {
     var e = document.createElement(tag);
@@ -191,6 +199,7 @@
   function statut(t, k) { var s = ombre && ombre.querySelector(".s"); if (s) { s.textContent = t; s.className = "s " + (k || ""); } }
 
   function dessiner() {
+    if (ombre && depotMode()) return dessinerDepot();
     if (!ombre || mode() !== "messages") return;
     var b = ombre.querySelector(".b"), garde = ombre.querySelector(".bulle");
     b.textContent = ""; if (garde) b.appendChild(garde);
@@ -295,6 +304,166 @@
     statut("Réponse placée dans la zone de message : relis, puis envoie.", "ok");
   }
 
+  /* ===== Mise en vente eBay : « Commencer votre annonce », puis le formulaire ===== */
+  function depotMode() { var m = mode(); return m === "prelist" || m === "formulaire"; }
+  var depot = { a: null, choisi: false, faits: {}, lignes: {} }, dejaRempli = new WeakMap();
+  function visibleEl(x) { if (!x || (hote && hote.contains(x))) return false; var r = x.getBoundingClientRect(); return r.width > 4 && r.height > 4 && getComputedStyle(x).visibility !== "hidden"; }
+  // Texte qui décrit un champ : son libellé, aria-label, placeholder, name, id, et le texte du bloc juste au-dessus.
+  function decrire(x, court) {
+    var t = [x.getAttribute("aria-label"), x.getAttribute("placeholder"), x.getAttribute("name"), x.id, x.getAttribute("data-testid")];
+    if (x.id) { var l = document.querySelector("label[for='" + window.CSS.escape(x.id) + "']"); if (l) t.push(l.textContent); }
+    var lb = x.getAttribute("aria-labelledby"); if (lb) lb.split(/\s+/).forEach(function (i) { var e = document.getElementById(i); if (e) t.push(e.textContent); });
+    var c = x.closest("label"); if (c) t.push(c.textContent);
+    var p = court ? null : x.parentElement; for (var i = 0; i < 3 && p; i++, p = p.parentElement) { if ((p.innerText || "").length < 120) t.push(p.innerText); else break; }
+    return norm(t.filter(Boolean).join(" | "));
+  }
+  // court : seulement le libellé du champ lui-même (pas le texte du bloc autour, qui peut parler d'autre chose).
+  function champs(sel, re, exclure, court) {
+    return [].filter.call(document.querySelectorAll(sel), function (x) { if (!visibleEl(x) || x.disabled || x.readOnly) return false; var d = decrire(x, court); return re.test(d) && !(exclure && exclure.test(d)); });
+  }
+  function ecrireValeur(el, v) {
+    var proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    el.focus(); Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v);
+    el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  // Un champ n'est rempli qu'une fois par article : une correction de la personne est gardée.
+  function poser(el, v, nature) {
+    var d = dejaRempli.get(el); if (d && d.id === depot.a.id) return false;
+    dejaRempli.set(el, { id: depot.a.id });
+    if (String(el.value || "").trim() === String(v)) return true;
+    ecrireValeur(el, String(v)); el.blur(); return true;
+  }
+  function fait(cle, ok) { if (ok) depot.lignes[cle] = true; }
+
+  // Page « Commencer votre annonce » : le titre dans « Dites-nous ce que vous vendez », puis la loupe.
+  function remplirPrelist(a) {
+    if (depot.faits.prelist === a.id) return;
+    var l = champs("input[type=text], input[type=search], input:not([type])", /vendez|vendre|sell|cherch|search|recherch|mots?-cles|keyword/);
+    var c = l[0]; if (!c) return;
+    depot.faits.prelist = a.id;
+    ecrireValeur(c, a.ebay.titre); fait("titre", true);
+    setTimeout(function () {
+      var f = c.form, b = f && f.querySelector("button[type=submit], button:not([type])");
+      if (!b) { var z = c.parentElement; for (var i = 0; i < 4 && z && !b; i++, z = z.parentElement) b = [].filter.call(z.querySelectorAll("button"), visibleEl)[0]; }
+      if (b && !/mettre en vente|publier|list it/i.test(b.textContent || "")) b.click();
+      else if (f && f.requestSubmit) f.requestSubmit();
+      else c.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+      bulle("RetroRevente a cherché « " + a.ebay.titre + " » sur eBay : choisis l'objet correspondant ou continue sans.");
+    }, 400);
+  }
+  // État : bouton radio, option de liste ou bouton dont le texte est l'état eBay voulu (une valeur déjà choisie est gardée).
+  function choisirEtat(a) {
+    if (!a.ebay.etat || depot.faits.etat === a.id) return depot.lignes.etat;
+    var cible = norm(a.ebay.etat);
+    var radios = [].filter.call(document.querySelectorAll("input[type=radio]"), function (r) { return !(hote && hote.contains(r)); });
+    var r = radios.filter(function (x) { var l = x.closest("label") || (x.id && document.querySelector("label[for='" + window.CSS.escape(x.id) + "']")) || x.parentElement; return l && norm(l.textContent).indexOf(cible) === 0; })[0];
+    if (r) { if (!r.checked) r.click(); depot.faits.etat = a.id; return true; }
+    var sel = champs("select", /etat|condition/)[0];
+    if (sel) { var o = [].filter.call(sel.options, function (x) { return norm(x.textContent).indexOf(cible) === 0; })[0]; if (o) { sel.value = o.value; sel.dispatchEvent(new Event("change", { bubbles: true })); depot.faits.etat = a.id; return true; } }
+    return false;
+  }
+  var SYNONYMES = { "nom du jeu": ["nom du jeu", "titre du jeu", "game name"], plateforme: ["plateforme", "plate-forme", "platform"], region: ["code region", "region"],
+    contenu: ["contenu", "inclus", "included"], modele: ["modele", "model"], personnage: ["personnage", "character"], extension: ["extension", "set"], numero: ["numero de carte", "numero", "card number"],
+    rarete: ["rarete", "rarity"], langue: ["langue", "language"], gradation: ["note", "grade", "gradation"], "titre du film": ["titre du film", "film title", "titre du film/serie"], format: ["format"],
+    edition: ["edition"], annee: ["annee de sortie", "annee", "year"], realisateur: ["realisateur", "director"], "langues et zone": ["langue", "code region", "region"] };
+  function remplirCarac(a) {
+    var n = 0;
+    (a.ebay.caracteristiques || []).forEach(function (c) {
+      var noms = SYNONYMES[norm(c.nom)] || [norm(c.nom)];
+      var el = [].filter.call(document.querySelectorAll("input[type=text], input:not([type])"), function (x) {
+        if (!visibleEl(x) || x.disabled || x.readOnly) return false;
+        var d = norm([x.getAttribute("aria-label"), x.getAttribute("name"), x.id && (document.querySelector("label[for='" + window.CSS.escape(x.id) + "']") || {}).textContent].filter(Boolean).join(" "));
+        return noms.some(function (m) { return d === m || d.indexOf(m) === 0; }) && !/titre de l.annonce|item title|prix|price/.test(d);
+      })[0];
+      if (el && poser(el, c.valeur)) n++;
+    });
+    return n > 0;
+  }
+  function remplirDescription(a) {
+    if (!a.ebay.description || depot.faits.desc === a.id) return depot.lignes.desc;
+    var t = champs("textarea", /description/)[0];
+    if (t) { poser(t, a.ebay.description); depot.faits.desc = a.id; return true; }
+    var zones = [].slice.call(document.querySelectorAll("[contenteditable=''], [contenteditable=true]"));
+    [].forEach.call(document.querySelectorAll("iframe"), function (f) { try { var d = f.contentDocument; if (d && (d.body.isContentEditable || d.designMode === "on")) zones.push(d.body); } catch (e) {} });
+    var z = zones.filter(function (x) { return x.ownerDocument !== document || (visibleEl(x) && /description/.test(decrire(x) + " " + norm((x.closest("section, fieldset, [role=group]") || {}).innerText || "").slice(0, 200))); })[0];
+    if (!z) return false;
+    depot.faits.desc = a.id;
+    if ((z.innerText || "").trim().length > 10) return true;   // texte déjà écrit : on n'y touche pas
+    z.innerHTML = a.ebay.description.split("\n").map(function (l) { var p = document.createElement("p"); p.textContent = l; return p.outerHTML; }).join("");
+    z.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  async function remplirPhotos(a) {
+    if (!a.photo || depot.faits.photos === a.id) return depot.lignes.photos;
+    var f = [].filter.call(document.querySelectorAll("input[type=file]"), function (x) { return !(hote && hote.contains(x)) && /image|jpe?g|png|\*/.test(x.accept || "*"); })[0];
+    if (!f) return false;
+    depot.faits.photos = a.id;
+    var ids = Array.isArray(a.photos) && a.photos.length ? a.photos : [""], dt = new DataTransfer();
+    var nom = (a.nom || "photo").normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 50) || "photo";
+    for (var j = 0; j < ids.length && j < (f.multiple ? 24 : 1); j++) {
+      var r = await rrDemander({ type: "photo", id: a.id, photo: ids[j] }), bin = atob(r.base64), b = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+      dt.items.add(new File([b], nom + "-" + (j + 1) + ".jpg", { type: r.type || "image/jpeg" }));
+    }
+    f.files = dt.files; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+  var enCours = false;
+  async function remplirFormulaire(a) {
+    if (enCours) return; enCours = true;
+    try {
+      var titre = champs("input[type=text], input:not([type])", /titre|title/, /recherch|search|jeu|film|game|sous-titre|subtitle/, true)[0];
+      if (titre) fait("titre", poser(titre, a.ebay.titre));
+      if (a.ebay.prix != null) { var px = champs("input:not([type=checkbox]):not([type=radio]):not([type=hidden])", /prix|price|achat immediat|buy it now/, /livraison|shipping|envoi|minimum|refus|accept|offre|offer|reserve|depart|start/, true)[0]; if (px) fait("prix", poser(px, String(a.ebay.prix))); }
+      if (a.ebay.plancher != null) { var pl = champs("input:not([type=checkbox]):not([type=radio]):not([type=hidden])", /refus|decline|minimum/, /livraison|shipping/, true)[0]; if (pl) fait("offres", poser(pl, String(a.ebay.plancher))); }
+      fait("etat", choisirEtat(a));
+      fait("carac", remplirCarac(a));
+      fait("desc", remplirDescription(a));
+      fait("photos", await remplirPhotos(a).catch(function () { return false; }));
+    } finally { enCours = false; dessinerDepot(); }
+  }
+  async function articleDepot() {
+    if (depot.choisi) return depot.a;
+    var st = {}; try { st = (await RR.storage.local.get("aDeposerEbay")) || {}; } catch (e) {}
+    var d = st.aDeposerEbay && Date.now() - st.aDeposerEbay.at < 3 * 3600e3 ? st.aDeposerEbay : null;
+    var a = d && annonces.filter(function (x) { return x.id === d.id; })[0];
+    if (a && (!depot.a || depot.a.id !== a.id)) { depot.a = a; depot.faits = {}; depot.lignes = {}; }
+    return depot.a;
+  }
+  async function remplirDepot() {
+    var a = await articleDepot();
+    if (!hote) construire();
+    if (a && a.ebay) { if (mode() === "prelist") remplirPrelist(a); else await remplirFormulaire(a); }
+    dessinerDepot();
+  }
+  var LIGNES = [["titre", "Titre"], ["etat", "État"], ["carac", "Caractéristiques"], ["prix", "Prix"], ["offres", "Refus des offres trop basses"], ["desc", "Description"], ["photos", "Photos"]];
+  function dessinerDepot() {
+    if (!ombre) return;
+    var b = ombre.querySelector(".b"), garde = ombre.querySelector(".bulle");
+    b.textContent = ""; if (garde) b.appendChild(garde);
+    if (!ouvert) { b.appendChild(el("button", { class: "rond", type: "button", "aria-label": "Ouvrir RetroRevente", onclick: function () { ouvert = true; dessinerDepot(); } }, [el("img", { src: RR.runtime.getURL("icones/icone-128.png"), alt: "" }), el("i", { texte: "eBay" })])); return; }
+    var p = el("div", { class: "p", role: "dialog", "aria-label": "RetroRevente : mise en vente eBay" });
+    p.appendChild(el("div", { class: "t" }, [el("b", {}, [el("span", { class: "logo", texte: "RR" }), "Mise en vente", el("span", { class: "site", texte: "eBay" })]),
+      el("button", { class: "x", type: "button", "aria-label": "Réduire", texte: "×", onclick: function () { ouvert = false; dessinerDepot(); } })]));
+    if (!annonces) { p.appendChild(el("p", { class: "s", texte: "Chargement de tes articles…" })); b.appendChild(p); return; }
+    var sel = el("select", { "aria-label": "Article à mettre en vente", onchange: function () {
+      depot.a = annonces.filter(function (x) { return x.id === sel.value; })[0] || null; depot.choisi = true; depot.faits = {}; depot.lignes = {}; dejaRempli = new WeakMap(); remplirDepot();
+    } });
+    sel.appendChild(el("option", { value: "", texte: "Choisis l'article à mettre en vente" }));
+    annonces.forEach(function (a) { var o = el("option", { value: a.id, texte: (a.titre || a.nom) + (a.prix != null ? " · " + a.prix + " €" : "") + (a.urlEbay ? " · déjà sur eBay" : "") }); if (depot.a && depot.a.id === a.id) o.selected = true; sel.appendChild(o); });
+    p.appendChild(el("div", { class: "art" }, [el("label", { texte: "Article" }), sel]));
+    if (depot.a) {
+      var l = el("ul", { class: "etapes" });
+      (mode() === "prelist" ? [["titre", "Titre tapé et recherche lancée"]] : LIGNES).forEach(function (x) {
+        l.appendChild(el("li", { class: depot.lignes[x[0]] ? "ok" : "" }, [el("span", { class: "puce", texte: depot.lignes[x[0]] ? "✓" : "·" }), x[1]]));
+      });
+      p.appendChild(l);
+      p.appendChild(el("p", { class: "s ok", texte: mode() === "prelist" ? "Choisis l'objet qui correspond (ou continue sans), puis l'état : RetroRevente remplira le formulaire." : "Relis chaque champ, ajoute ce qui manque, puis clique toi-même « Mettre en vente »." }));
+      p.appendChild(el("button", { class: "mini", type: "button", texte: "Remplir à nouveau", onclick: function () { depot.faits = {}; depot.lignes = {}; dejaRempli = new WeakMap(); remplirDepot(); } }));
+    } else p.appendChild(el("p", { class: "s", texte: "Choisis l'article : RetroRevente tape son titre, puis remplit le formulaire d'eBay." }));
+    b.appendChild(p);
+  }
+
   /* ===== Suivi des pages (eBay change de page sans recharger) ===== */
   var vu = "", minuterie = null;
   function suivre() {
@@ -305,9 +474,11 @@
     if (ici !== vu) {
       vu = ici; etat.manuel = false; etat.cle = ""; etat.ia = null;
       if (m === "messages") { if (!hote) construire(); dessiner(); }
+      if (depotMode()) { if (!hote) construire(); ouvert = true; dessinerDepot(); }
     }
     charger().then(function () {
       associer(m === "messages");
+      if (depotMode()) return remplirDepot();
       if (m !== "messages") return;
       if (!etat.manuel) { var d = deviner(); if (d !== etat.choisie) { etat.choisie = d; etat.cle = ""; } }
       if (ouvert && !(ombre.activeElement && ombre.activeElement.tagName === "TEXTAREA")) proposer(false);

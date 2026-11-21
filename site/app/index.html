@@ -2567,10 +2567,14 @@ function majBoutonEbay(){var u=lienEbayFiche(),b=$("fEbay");b.href=u||EBAY_VENDR
   $("fEbayTx").innerHTML=u?'<span class="pc-seul">Voir l\'annonce sur eBay</span><span class="mob-seul">Voir l\'annonce</span>':'<span class="pc-seul">Créer l\'annonce sur eBay</span><span class="mob-seul">Créer sur eBay</span>'}
 $("f_annonceEbay").addEventListener("input",majBoutonEbay);
 $("fEbay").onclick=function(e){majBoutonEbay();if(lienEbayFiche())return;
-  EBAY_FAIT={};var t=titreEbay();if(t)copier(t).then(function(){EBAY_FAIT.titre=true;majEbay();toast("Titre copié : colle-le dans « Que vendez-vous ? » sur eBay.","ok")},function(){});else majEbay();
+  // Avec l'extension, elle remplit elle-même la page eBay ; sinon le titre est copié, à coller.
+  EBAY_FAIT={};var t=titreEbay();if(t)copier(t).then(function(){EBAY_FAIT.titre=true;majEbay();toast(EXT?"L'extension remplit eBay pour toi : tu relis et tu mets en vente.":"Titre copié : colle-le dans « Que vendez-vous ? » sur eBay.","ok")},function(){});else majEbay();
   api("POST","/api/compter",{quoi:"ebay"}).catch(function(){});
-  if(!sale())return;e.preventDefault();var w=window.open("","_blank"),u=this.href;
-  sauver(true).then(function(o){if(!o){if(w)w.close();return}if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
+  if(ED&&ED.id&&!sale()){versEbay(ED.id);return}
+  e.preventDefault();var w=window.open("","_blank"),u=this.href;
+  sauver(true).then(function(o){if(!o){if(w)w.close();return}versEbay(o.id);if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
+/* Dit à l'extension quel article mettre en vente sur eBay (elle remplit la page « Commencer votre annonce » puis le formulaire). */
+function versEbay(id){window.postMessage({source:"retrorevente-app",type:"deposer-ebay",id:id},location.origin)}
 $("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Toute l'annonce est copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
 /* Départ vers Le Bon Coin : on enregistre d'abord la fiche si besoin, puis on dit à l'extension quel article déposer
    (message à l'extension + #rr=<id> dans l'adresse), pour qu'elle ne reprenne jamais un ancien article. */
