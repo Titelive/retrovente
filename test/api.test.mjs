@@ -399,6 +399,18 @@ test("eBay : lien de l'annonce, depuis la fiche et depuis l'extension", async ()
   assert.equal(a2.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567891");
 });
 
+test("eBay : l'extension reçoit l'annonce au format eBay", async () => {
+  const { titreEbay } = await import("../server/api.mjs");
+  assert.equal(titreEbay("Kirby 64 The Crystal Shards Nintendo 64 PAL complet en boîte avec notice CIB très bon état"), "Kirby 64 The Crystal Shards Nintendo 64 PAL complet en boîte avec notice CIB");
+  const c = await compte("ebay-format@exemple.fr");
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64", plateforme: "Nintendo 64", region: "PAL", etat: "tres_bon", contenu: "complet", prixDemande: 85 } }, c)).json.objet;
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const e = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id).ebay;
+  assert.equal(e.titre, "Kirby 64 Nintendo 64"); assert.equal(e.etat, "Très bon état"); assert.equal(e.prix, 85); assert.equal(e.plancher, 75);
+  assert.deepEqual(e.caracteristiques.map((x) => x.nom), ["Nom du jeu", "Plateforme", "Région", "Contenu"]);
+  assert.match(e.description, /Envoi soigné et rapide, avec suivi\./); assert.doesNotMatch(e.description, /main propre/);
+});
+
 test("eBay : réponse IA dans la messagerie eBay", async () => {
   const c = await compte("ebay-rep@exemple.fr", true);
   const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
