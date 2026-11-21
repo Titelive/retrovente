@@ -12,6 +12,7 @@ import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
+import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
@@ -33,6 +34,11 @@ function nettoyer(v, avant) {
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
+  const remise = parmi(v.remise, REMISES, "");
+  // Le colis (vendu ou envoyé, pas en main propre) : transporteur, numéro de suivi, date de livraison, dernier état lu.
+  const colis = ["vendu", "envoye"].includes(statut) && remise !== "main_propre";
+  const suivi = colis ? numeroSuivi(v.suivi) : "", transporteur = colis ? parmi(v.transporteur, IDS_TRANSPORTEURS, "") || devinerTransporteur(suivi) : "";
+  const memeColis = avant && suivi && avant.suivi === suivi && avant.transporteur === transporteur;
   return {
     titre,
     categorie,
@@ -46,7 +52,8 @@ function nettoyer(v, avant) {
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
     dateVente: ["vendu", "envoye"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
-    remise: parmi(v.remise, REMISES, ""),
+    remise, transporteur, suivi, livreLe: colis ? jour(v.livreLe) : "",
+    ...(memeColis && avant.suiviEtat ? { suiviEtat: avant.suiviEtat } : {}),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
     annonce: lien(v.annonce), annonceEbay: ebayOuErreur(v.annonceEbay), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
@@ -134,7 +141,7 @@ function modifierObjet(uid, avant, b) {
   const it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
   const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
   // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
-  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
   if (estLot(avant) && b.fermerAlerte) delete it.alerte;
   if (typeof b.photo === "string") {
     const prem = it.photos[0];
@@ -154,18 +161,21 @@ function modifierObjet(uid, avant, b) {
   // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
   return ({ ok: true, objet: getItem(uid, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
 }
+/** Le colis d'un lot vendu part avec tous ses articles : ils en portent le suivi. */
+const colisDe = (o) => ({ transporteur: o.transporteur || "", suivi: o.suivi || "", livreLe: o.livreLe || "", ...(o.suiviEtat ? { suiviEtat: o.suiviEtat } : {}) });
+const poserColis = (m, lot) => { delete m.suiviEtat; Object.assign(m, colisDe(lot)); };
 /** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
     Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
     son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu.
     Les articles du lot vendu quittent les autres lots où ils étaient ; ils y reviennent si la vente du lot est annulée. */
 function suivreLot(uid, lot, avant) {
   const vendu = VENDU(lot.statut), etaitVendu = !!(avant && VENDU(avant.statut));
-  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente))) return [];
+  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente || avant.statut !== lot.statut || avant.remise !== lot.remise || JSON.stringify(colisDe(avant)) !== JSON.stringify(colisDe(lot))))) return [];
   const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
   const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
   membres.forEach((m, i) => {
-    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; }
-    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
+    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; poserColis(m, lot); }
+    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; poserColis(m, {}); }
     ecrire(uid, m);
   });
   const autres = [];
@@ -358,6 +368,7 @@ function bilan(uid) {
 function me(u) {
   const r = rights(u);
   return {
+    suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
     email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
@@ -367,7 +378,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "lot", "annonce", "annonceEbay", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "transporteur", "suivi", "livreLe", "lot", "annonce", "annonceEbay", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -686,6 +697,23 @@ function lienLbc(v) {
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
     }
+  }
+  // Suivi des colis : relit l'état chez La Poste des colis envoyés pas encore livrés (au plus une fois par heure chacun,
+  // sauf « force » sur un seul colis), et le fait suivre aux articles d'un lot.
+  if (p === "/api/suivis" && method === "POST") {
+    const b = body(), force = !!b.force, seuls = Array.isArray(b.ids) ? new Set(b.ids.map(String)) : null;
+    const l = listItems(u.id).filter((o) => o.statut === "envoye" && o.suivi && !o.livreLe && suiviAuto(o.transporteur) && !(o.suiviEtat && o.suiviEtat.fini) && (!seuls || seuls.has(o.id)) && (!lotsDe(u.id, o).some((x) => VENDU(x.statut))))
+      .filter((o) => (force && seuls) || !o.suiviEtat || Date.now() - Date.parse(o.suiviEtat.maj || 0) > 3600e3).slice(0, 15);
+    if (l.length && !allow("suivi:" + u.id, 40, 3600)) fail(429, "Suivi déjà relu plusieurs fois, réessaie dans un moment.");
+    const objets = [];
+    for (const o of l) {
+      let e; try { e = await etatLaPoste(o.suivi); } catch (err) { console.error("suivi", err.message); continue; }
+      const suiviEtat = { ...(e || { libelle: "", date: "", livre: false, fini: false }), maj: new Date().toISOString() };
+      const n = { ...o, suiviEtat, ...(suiviEtat.livre && !o.livreLe ? { livreLe: suiviEtat.date || new Date().toISOString().slice(0, 10) } : {}) };
+      tx(() => { ecrire(u.id, n); if (estLot(n)) for (const id of n.articles) { const m = getItem(u.id, id); if (m && VENDU(m.statut)) { poserColis(m, n); ecrire(u.id, m); } } });
+      objets.push(getItem(u.id, o.id));
+    }
+    return ok({ objets, auto: !!process.env.LAPOSTE_API_KEY });
   }
   // Galerie : ajouter, remplacer (retouche) ou retirer une photo
   const mg = /^\/api\/objets\/([a-f0-9]{16})\/photos(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);

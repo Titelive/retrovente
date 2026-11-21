@@ -740,6 +740,26 @@ a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid v
 .vente-net{margin:0;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;color:var(--gris)}
 .vente-net:empty{display:none}
 .vente-net b{color:var(--encre);font-weight:700}
+/* Suivi : le colis (transporteur, numéro, état, lien, message à l'acheteur) */
+.colis{display:grid;gap:12px;padding-top:14px;border-top:1px dashed color-mix(in srgb,var(--anis-f) 40%,var(--trait))}
+.colis[hidden]{display:none}
+.colis h5{display:flex;align-items:center;gap:8px;margin:0;font:700 14.5px/1.2 var(--texte);color:var(--encre)}
+.colis h5 .st-ico{width:26px;height:26px;border-radius:9px}.colis h5 .st-ico svg{width:14px;height:14px}
+.colis-etat{display:flex;align-items:flex-start;gap:8px;margin:0;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.4;background:var(--st-e-bg);color:var(--st-e-tx)}
+.colis-etat:empty{display:none}
+.colis-etat svg{width:16px;height:16px;flex:none;margin-top:1px}
+.colis-etat.livre{background:color-mix(in srgb,var(--anis) 22%,var(--carte));color:var(--encre);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--anis-f) 40%,transparent)}
+.colis-etat.attente{background:var(--papier);color:var(--gris)}
+.colis-etat small{display:block;opacity:.8}
+.colis-actions{display:flex;flex-wrap:wrap;gap:8px}
+.colis-actions .btn{gap:7px}.colis-actions .btn .i{width:16px;height:16px}
+.colis-actions .btn[hidden]{display:none}
+.colis-livre[aria-pressed="true"]{--bg:color-mix(in srgb,var(--anis) 22%,var(--carte));--fg:var(--encre);box-shadow:0 0 0 1px color-mix(in srgb,var(--anis-f) 55%,var(--trait))}
+.colis-livre[aria-pressed="false"] .i{opacity:.35}
+@media (max-width:640px){.colis-actions .btn{flex:1 1 auto}.colis .vente-grille{grid-template-columns:minmax(0,1fr)}}
+.jeu .tx .colis-ln{font-size:12.5px;color:var(--st-e-tx);gap:5px;justify-content:flex-start}
+.jeu .tx .colis-ln.livre{color:var(--anis-f)}
+.jeu .tx .colis-ln svg{width:13px;height:13px;flex:none}
 .vente-net .plus{color:var(--st-v-tx)}.vente-net .moins{color:#C92A2A}
 /* dates : même hauteur et même alignement que les autres champs (Safari sur iPhone centre et élargit les dates) */
 input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:50px;text-align:left;line-height:1.4}
@@ -1384,6 +1404,20 @@ html.sans-anim .vt-b.pousse{animation:none}
               <label class="f l2" id="fFraisZone">Frais d'envoi et commission<span class="champ-eur"><input type="number" id="f_frais" min="0" step="0.01" inputmode="decimal" placeholder="0"><b aria-hidden="true">€</b></span></label>
             </div>
             <p class="vente-net" id="fVenteNet" aria-live="polite"></p>
+            <div class="colis" id="fColis" hidden>
+              <h5><i class="st-ico envoye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/></svg></i>Le colis</h5>
+              <div class="vente-grille">
+                <label class="f">Transporteur<select id="f_transporteur"></select></label>
+                <label class="f">Numéro de suivi<input type="text" id="f_suivi" maxlength="48" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ex. 6A12345678901"></label>
+              </div>
+              <input type="hidden" id="f_livreLe">
+              <p class="colis-etat" id="fColisEtat" aria-live="polite"></p>
+              <div class="colis-actions">
+                <a class="btn clair petit" id="fColisLien" target="_blank" rel="noopener" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Suivre le colis</a>
+                <button class="btn clair petit" type="button" id="fColisMsg" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Message pour l'acheteur</button>
+                <button class="btn clair petit colis-livre" type="button" id="fColisLivre" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Colis livré</span></button>
+              </div>
+            </div>
           </section>
           <label class="f l2">Mis en vente le<input type="date" id="f_dateMiseEnVente"></label>
           <label class="f l2">Notes perso<textarea id="f_notes" maxlength="1000" style="min-height:70px"></textarea></label>
@@ -1635,7 +1669,7 @@ function boutonSta(o){return CHOIX?'<span class="st '+o.statut+'">'+STA[o.statut
 function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","notes","origine","modif","particularites","note","jeuRef"];
+var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","transporteur","suivi","livreLe","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque article, une seule fois par article, pas les appels à l'IA
@@ -1678,7 +1712,7 @@ function montrer(v,titre){if(typeof fermerStatut==="function")fermerStatut();if(
   window.scrollTo(0,0)}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 /* depuisAdresse : au démarrage (et après connexion), on rouvre l'écran décrit par l'adresse (article, onglet, photo…) */
-function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();try{majTrophNav()}catch(e){}
+function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();relireSuivis();try{majTrophNav()}catch(e){}
   var q=new URLSearchParams(location.search);
   if(depuisAdresse)return allerA(location.search,true).then(function(){if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}});
   if(q.has("compte")){compte()}else if(q.has("trophees")){trophees()}else montrer("accueil")})
@@ -1869,7 +1903,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var ch=CHOIX?choixEtat(o):null;
     return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
-      '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
+      ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
   // Les photos en cours de chargement survivent au redessin de la liste : Safari, si on remplace une image à moitié
   // téléchargée, peut garder la moitié reçue pour cette adresse (vignette vide sous une fine bande, surtout les grosses
@@ -2404,13 +2438,53 @@ $("fLbc").onclick=function(e){LBC_FAIT={};majLbc();api("POST","/api/compter",{qu
 /* Suivi : remise en pastilles, frais masqués en main propre, net de la vente */
 var REM=[["main_propre","En main propre",'<path d="M8 12.5V6.8a1.4 1.4 0 0 1 2.8 0V11m0-.5V5.4a1.4 1.4 0 0 1 2.8 0v5.1m0-.3V6.8a1.4 1.4 0 0 1 2.8 0v6.4c0 4-2.4 6.8-6.2 6.8-2.6 0-4.2-1.5-5.2-3.6l-1.5-3a1.4 1.4 0 0 1 2.4-1.4L8 13.6"/>'],["envoi","Envoi",STA_SVG.envoye]];
 $("fRemChoix").innerHTML=REM.map(function(r){return '<button type="button" role="radio" aria-checked="false" data-r="'+r[0]+'"><i class="st-ico rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+r[2]+'</svg></i><span>'+r[1]+'</span></button>'}).join("");
-function majRemise(){var r=$("f_remise").value;[].forEach.call($("fRemChoix").children,function(b,i){var on=b.dataset.r===r;b.setAttribute("aria-checked",on);b.tabIndex=on||(!r&&i===0)?0:-1});$("fFraisZone").hidden=r==="main_propre";majNet()}
+function majRemise(){var r=$("f_remise").value;[].forEach.call($("fRemChoix").children,function(b,i){var on=b.dataset.r===r;b.setAttribute("aria-checked",on);b.tabIndex=on||(!r&&i===0)?0:-1});$("fFraisZone").hidden=r==="main_propre";majNet();majColis()}
 $("fRemChoix").addEventListener("click",function(e){var b=e.target.closest("button[data-r]");if(!b)return;var r=$("f_remise").value===b.dataset.r?"":b.dataset.r;$("f_remise").value=r;if(r==="main_propre")$("f_frais").value="";majRemise()});
 $("fRemChoix").addEventListener("keydown",function(e){var d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!d)return;e.preventDefault();var i=REM.map(function(r){return r[0]}).indexOf($("f_remise").value),k=REM[(i+d+REM.length*2)%REM.length][0];$("f_remise").value=k;if(k==="main_propre")$("f_frais").value="";majRemise();$("fRemChoix").querySelector('[data-r="'+k+'"]').focus()});
 function majNet(){var e=$("fVenteNet"),pv=parseFloat($("f_prixVente").value),fr=$("fFraisZone").hidden?0:parseFloat($("f_frais").value)||0,pa=parseFloat($("f_prixAchat").value);
   if(isNaN(pv)||["vendu","envoye"].indexOf($("f_statut").value)<0){e.innerHTML="";return}var net=Math.round((pv-fr)*100)/100;
   e.innerHTML='<span>Il te reste <b>'+eur(net)+'</b></span>'+(isNaN(pa)?"":'<span>Bénéfice <b class="'+(net-pa>=0?"plus":"moins")+'">'+(net-pa>=0?"+":"−")+eur(Math.abs(Math.round((net-pa)*100)/100))+'</b></span>')}
 ["f_prixVente","f_frais","f_prixAchat"].forEach(function(k){$(k).addEventListener("input",majNet)});
+/* Suivi : le colis envoyé. Transporteurs courants sur Le Bon Coin, lien vers leur page de suivi (le même liste que server/colis.mjs). */
+var TRP=[["colissimo","Colissimo",function(n){return "https://www.laposte.fr/outils/suivre-vos-envois?code="+n}],["mondial_relay","Mondial Relay",function(n){return "https://www.mondialrelay.fr/suivi-de-colis/?NumeroExpedition="+n}],["relais_colis","Relais Colis",function(n){return "https://www.relaiscolis.com/suivi-de-colis/?valeur="+n}],["chronopost","Chronopost / Shop2Shop",function(n){return "https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT="+n}],["lettre_suivie","Lettre suivie",function(n){return "https://www.laposte.fr/outils/suivre-vos-envois?code="+n}],["dpd","DPD",function(n){return "https://trace.dpd.fr/fr/trace/"+n}],["ups","UPS",function(n){return "https://www.ups.com/track?loc=fr_FR&tracknum="+n}],["gls","GLS",function(n){return "https://gls-group.com/FR/fr/suivi-colis?match="+n}],["autre","Autre",null]],
+  TRP_NOM={},COLIS_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/></svg>',
+  LIVRE_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+TRP.forEach(function(t){TRP_NOM[t[0]]=t[1]});
+$("f_transporteur").innerHTML='<option value="">—</option>'+TRP.map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>'}).join("");
+function numSuivi(v){return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,40)}
+function devinerTrp(n){n=numSuivi(n);return /^\d[A-Z]\d{11}$/.test(n)||/^[A-Z]{2}\d{9}FR$/.test(n)?"colissimo":/^1Z[A-Z0-9]{16}$/.test(n)?"ups":/^\d{8}$/.test(n)?"mondial_relay":""}
+function lienColis(t,n){var x=TRP.filter(function(y){return y[0]===t})[0];n=numSuivi(n);return x&&x[2]&&n?x[2](encodeURIComponent(n)):""}
+function dateCourte(d){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");return m?(+m[3])+" "+["janv.","févr.","mars","avril","mai","juin","juil.","août","sept.","oct.","nov.","déc."][m[2]-1]:""}
+/* Mes articles : une ligne « Colissimo · Livré le 22 nov. » sous le titre d'une vente envoyée */
+function ligneColis(o){if(!(o.statut==="vendu"||o.statut==="envoye")||o.remise==="main_propre"||!(o.suivi||o.livreLe))return "";
+  var e=o.suiviEtat,t=o.livreLe?"Livré le "+dateCourte(o.livreLe):e&&e.libelle?"En route":o.statut==="envoye"?"Suivi en cours":"Numéro noté";
+  return '<div class="ln colis-ln'+(o.livreLe?' livre':'')+'" title="'+esc((TRP_NOM[o.transporteur]||"Colis")+(o.suivi?" "+o.suivi:"")+(e&&e.libelle&&!o.livreLe?" : "+e.libelle:""))+'">'+(o.livreLe?LIVRE_SVG:COLIS_SVG)+'<span>'+esc([TRP_NOM[o.transporteur]&&o.transporteur!=="autre"?TRP_NOM[o.transporteur]:"",t].filter(Boolean).join(" · "))+'</span></div>'}
+function majColis(){var s=$("f_statut").value,r=$("f_remise").value,z=$("fColis"),vis=(s==="vendu"||s==="envoye")&&r!=="main_propre"&&(r==="envoi"||s==="envoye");z.hidden=!vis;if(!vis)return;
+  var t=$("f_transporteur").value,n=numSuivi($("f_suivi").value),l=lienColis(t,n),liv=$("f_livreLe").value,fige=$("f_statut").disabled,
+    e=ED&&ED.suivi===n&&ED.transporteur===t?ED.suiviEtat:null,et=$("fColisEtat");
+  $("fColisLien").hidden=!l;if(l)$("fColisLien").href=l;
+  $("fColisMsg").hidden=!n;
+  var b=$("fColisLivre");b.setAttribute("aria-pressed",!!liv);b.querySelector("span").textContent=liv?"Livré le "+dateCourte(liv):"Colis livré";
+  ["f_transporteur","f_suivi"].forEach(function(k){$(k).disabled=fige});b.disabled=fige;
+  et.className="colis-etat"+(liv?" livre":e&&e.libelle?"":" attente");
+  et.innerHTML=liv?LIVRE_SVG+'<span><b>Livré le '+dateCourte(liv)+'</b>'+(e&&e.livre&&e.libelle?'<small>'+esc(e.libelle)+'</small>':'<small>Pense à rappeler à l\'acheteur de confirmer la réception sur Le Bon Coin.</small>')+'</span>'
+    :e&&e.libelle?COLIS_SVG+'<span><b>'+esc(e.libelle)+'</b><small>'+(e.date?dateCourte(e.date)+" · ":"")+'lu chez La Poste</small></span>'
+    :n?COLIS_SVG+'<span>'+(t==="autre"||!t?'Choisis le transporteur pour ouvrir son suivi.':((["colissimo","lettre_suivie","chronopost"].indexOf(t)>=0&&ME&&ME.suiviAuto)?'L\'état du colis s\'affichera ici dès que La Poste l\'aura scanné.':'Ouvre le suivi pour voir où en est le colis, puis coche « Colis livré » à l\'arrivée.'))+'</span>'
+    :COLIS_SVG+'<span>Note le numéro de suivi (sur le bordereau ou le reçu de dépôt) : tu pourras suivre le colis et l\'envoyer à l\'acheteur.</span>'}
+$("f_suivi").addEventListener("input",function(){var n=numSuivi(this.value);if(!$("f_transporteur").value){var g=devinerTrp(n);if(g)$("f_transporteur").value=g}
+  // un numéro de suivi : le colis est parti
+  if(n.length>=8&&$("f_statut").value==="vendu"&&!$("f_statut").disabled){if(!$("f_remise").value)$("f_remise").value="envoi";choisirStatutFiche("envoye")}majColis()});
+$("f_suivi").addEventListener("blur",function(){var n=numSuivi(this.value);if(n!==this.value)this.value=n});
+$("f_transporteur").addEventListener("change",majColis);
+$("fColisLivre").onclick=function(){$("f_livreLe").value=$("f_livreLe").value?"":today();majColis()};
+$("fColisMsg").onclick=function(){var t=$("f_transporteur").value,n=numSuivi($("f_suivi").value),l=lienColis(t,n),nom=t&&t!=="autre"?TRP_NOM[t]:"";
+  var m="Bonjour,\n\nVotre colis est parti"+(nom?" avec "+nom:"")+" : voici le numéro de suivi, "+n+"."+(l?"\nVous pouvez le suivre ici : "+l:"")+"\n\nMerci encore pour votre achat, et bonne journée !";
+  copier(m).then(function(){toast("Message copié : colle-le dans la conversation Le Bon Coin.","ok")}).catch(function(){toast("Copie impossible : sélectionne le numéro à la main.","bad")})};
+/* L'état des colis envoyés, relu chez La Poste (Colissimo, Lettre suivie, Chronopost) : au chargement, et à l'ouverture d'une fiche */
+function relireSuivis(ids){if(!ME||!ME.suiviAuto)return;api("POST","/api/suivis",ids?{ids:ids,force:true}:{}).then(function(j){if(!j.objets||!j.objets.length)return;
+  j.objets.forEach(function(n){var i=OBJ.map(function(x){return x.id}).indexOf(n.id);if(i>=0)OBJ[i]=n;
+    if(ED&&ED.id===n.id){var etait=ED;ED=n;if(n.livreLe&&!$("f_livreLe").value&&!etait.livreLe){$("f_livreLe").value=n.livreLe;if(SNAP){try{var a=JSON.parse(SNAP);a[0][F.indexOf("livreLe")]=n.livreLe;SNAP=JSON.stringify(a)}catch(e){}}}majColis()}});
+  if(j.objets.some(function(n){return estLot(n)}))rechargerObjets();else dessiner()}).catch(function(){})}
 function majStatutFiche(){var s=$("f_statut").value||"en_vente";
   var fige=$("f_statut").disabled;[].forEach.call($("fStChoix").children,function(b){var on=b.dataset.s===s;b.setAttribute("aria-checked",on);b.tabIndex=on?0:-1;b.disabled=fige&&!on});$("fSt").disabled=fige;
   $("fStAide").textContent=STA_AIDE[s]||"";var h=$("fSt");h.className="st st-bt "+s;h.innerHTML=pastilleSta(s);h.setAttribute("aria-label","Statut : "+STA[s]+". Changer le statut")}
@@ -2463,7 +2537,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOri
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -3151,7 +3225,7 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   // onglet « Le jeu » → « Le lot » (modeCarte remet le bon nom et la bonne icône à l'ouverture de chaque fiche)
   if(lot)[[$("oArticle"),"Le lot"],[document.querySelector('#mOnglets [data-m="article"]'),"Lot"]].forEach(function(x){var b=x[0];if(!b)return;var sp=b.querySelector("span"),sv=b.querySelector("svg");if(sp)sp.textContent=x[1];if(sv)sv.innerHTML='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>'});
   $("fSuppr").textContent=lot?"Défaire le lot":"Supprimer";
-  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl),dls=dl&&!dv?lotsDe(o):dl?[dl]:[];$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;
+  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl),dls=dl&&!dv?lotsDe(o):dl?[dl]:[];$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;majColis();
   if(dl)$("fDansLot").innerHTML='<span>📦 '+(dv?'Cet article est parti avec le lot <b>'+esc(dl.titre)+'</b> : son statut suit celui du lot.':dls.length>1?'Cet article est aussi dans '+dls.length+' lots : '+dls.map(function(x){return '<b>'+esc(x.titre)+'</b>'}).join(", ")+'. Il reste en vente à l\'unité : s\'il part seul ou avec un de ces lots, il quitte les autres, et leur prix baisse.':'Cet article est aussi dans le lot <b>'+esc(dl.titre)+'</b>. Il reste en vente à l\'unité : s\'il part seul, il quitte le lot et le prix du lot baisse.')+'</span>'+dls.map(function(x){return '<button class="btn clair petit" type="button" data-voir-lot="'+x.id+'">'+(dls.length>1?'Voir « '+esc(x.titre.length>28?x.titre.slice(0,27)+"…":x.titre)+' »':'Voir le lot')+'</button>'}).join("");
   dessinerAlerteLot(lot&&!vendu(o)?o:null);
   if(!lot)return;
