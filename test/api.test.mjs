@@ -373,6 +373,40 @@ test("extension : lien de l'annonce publiée", async () => {
   assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h)).json.prixChange, false);
 });
 
+test("eBay : lien de l'annonce, depuis la fiche et depuis l'extension", async () => {
+  const { lienEbay } = await import("../server/api.mjs");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/Kirby-64-N64-PAL/204512345678?hash=item2f9&var=1"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("ebay.fr/itm/204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://m.ebay.com/itm/204512345678"), "https://www.ebay.com/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/?item=204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr.pirate.example/itm/204512345678"), "");
+  assert.equal(lienEbay("https://www.ebay.fr/usr/vendeur"), "");
+  const c = await compte("ebay@exemple.fr");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "Kirby 64", annonceEbay: "https://www.ebay.fr/sch/kirby" } }, c)).status, 400);
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64", prixDemande: 40, annonceEbay: "https://www.ebay.fr/itm/Kirby/204512345678?x=1" } }, c)).json.objet;
+  assert.equal(o.annonceEbay, "https://www.ebay.fr/itm/204512345678");
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Conker", prixDemande: 150 } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 400);
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/204512345678" }, "", h)).status, 409);
+  const r = await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/Conker/205599887766", prix: 145 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.ebay.fr/itm/205599887766"); assert.equal(r.json.prix, 145);
+  const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a.url, ""); assert.equal(a.publiee, false);
+  // les deux liens cohabitent : Le Bon Coin ne remplace pas eBay
+  await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567891" }, "", h);
+  const a2 = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a2.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567891");
+});
+
+test("eBay : réponse IA dans la messagerie eBay", async () => {
+  const c = await compte("ebay-rep@exemple.fr", true);
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 200 } }, c)).json.objet;
+  const r = await call("POST", "/api/extension/reponse", { site: "ebay", conversation: "kevin_64 : Offre de 120,00 EUR. Bonjour, possible à ce prix ?", annonce: o.id, offre: 120 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.reponses.length, 3); assert.equal(r.json.offre.offre, 120);
+});
+
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
   const { contenuLot } = await import("../server/ia.mjs");
   const autres = [

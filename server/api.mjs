@@ -48,7 +48,7 @@ function nettoyer(v, avant) {
     dateVente: ["vendu", "envoye"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
     remise: parmi(v.remise, REMISES, ""),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
-    annonce: lien(v.annonce), notes: txt(v.notes, 1000),
+    annonce: lien(v.annonce), annonceEbay: ebayOuErreur(v.annonceEbay), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
     cote: ia.coteDe(v.cote),
     // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
@@ -63,6 +63,24 @@ function nettoyer(v, avant) {
     ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
   };
+}
+/* Lien d'une annonce eBay : https://www.ebay.fr/itm/<numéro> (ou ebay.com, .be, .ch…), ramené à sa forme courte.
+   Tout autre lien est refusé (chaîne vide). */
+export function lienEbay(v) {
+  const t = txt(v, 500);
+  if (!t) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : "https://" + t);
+    if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.port) return "";
+    if (!/^(www\.|m\.)?ebay\.(fr|com|be|ch|ca|de|it|es|co\.uk)$/i.test(u.hostname)) return "";
+    const m = /^\/itm\/(?:[^/]+\/)?(\d{9,15})\/?$/.exec(u.pathname) || (/^\/itm\/?$/.test(u.pathname) && /^\d{9,15}$/.test(u.searchParams.get("item") || "") ? [0, u.searchParams.get("item")] : null);
+    return m ? `https://www.${u.hostname.replace(/^(www|m)\./i, "").toLowerCase()}/itm/${m[1]}` : "";
+  } catch (e) { return ""; }
+}
+function ebayOuErreur(v) {
+  const l = lienEbay(v);
+  if (!l && txt(v, 500)) fail(400, "Lien eBay invalide : colle l'adresse de l'annonce, par exemple https://www.ebay.fr/itm/123456789012");
+  return l;
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
 export const MAX_PHOTOS = 12;
@@ -349,7 +367,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "lot", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "lot", "annonce", "annonceEbay", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -373,7 +391,7 @@ export function annonceLbc(v) {
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
     ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
-    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", modifie: v.modifie,
+    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", urlEbay: v.annonceEbay || "", modifie: v.modifie,
   };
 }
 // Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
@@ -445,16 +463,20 @@ export async function handleApi(req) {
     if (p === "/api/extension/lien" && method === "POST") {
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       if (!it) return { status: 404, json: { error: "Jeu introuvable." }, headers: CORS };
-      let url = ""; try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
-      if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
+      // site : « lbc » (par défaut) ou « ebay » ; chaque article a un lien par site.
+      const ebay = b.site === "ebay", champ = ebay ? "annonceEbay" : "annonce";
+      let url = "";
+      if (ebay) url = lienEbay(b.url);
+      else try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
+      if (!url) return { status: 400, json: { error: ebay ? "Lien d'annonce eBay invalide." : "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
       // Une annonce = un seul jeu : on ne rattache pas un lien déjà pris par un autre jeu.
-      if (listItems(eu.id).some((v) => v.id !== it.id && v.annonce === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
-      // Prix lu sur « Mes annonces » de Le Bon Coin : le prix demandé suit celui de l'annonce en ligne.
+      if (listItems(eu.id).some((v) => v.id !== it.id && v[champ] === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
+      // Prix lu sur « Mes annonces » de Le Bon Coin (ou eBay) : le prix demandé suit celui de l'annonce en ligne.
       const px = Number(b.prix), nouveauPrix = Number.isFinite(px) && px >= 1 && px <= 100000 ? Math.round(px) : null;
       const prixChange = nouveauPrix != null && (it.prixDemande == null || Math.round(it.prixDemande) !== nouveauPrix);
-      if (it.annonce !== url || prixChange) {
+      if (it[champ] !== url || prixChange) {
         const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
-        d.annonce = url;
+        d[champ] = url;
         if (prixChange) d.prixDemande = nouveauPrix;
         db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), now(), it.id, eu.id);
       }
@@ -471,13 +493,13 @@ export async function handleApi(req) {
       const faits = l.map((x, i) => modifierObjet(eu.id, getItem(eu.id, x.id), { objet: { statut: "vendu", prixVente: parts[i] ?? x.prixDemande, ...(remise ? { remise } : {}) } }).objet);
       return { status: 200, json: { ok: true, vendus: faits.map((o) => ({ id: o.id, titre: o.titre, prixVente: o.prixVente })) }, headers: CORS };
     }
-    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
+    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin ou eBay).
     if (p === "/api/extension/reponse" && method === "POST") {
       if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
       try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       const tous = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve"));
-      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite });
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, site: b.site === "ebay" ? "ebay" : "lbc" });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
     }
@@ -819,7 +841,7 @@ function lienLbc(v) {
   }
   if (p === "/api/ia/endroit" && method === "POST") { iaAllowed(u, "cadrer", req); const tr = []; const s = await ia.endroit(body().photo, tr); bump(u.id, "cadrer"); return ok({ ok: true, ...s, ...(isAdmin(u) ? { trace: tr } : {}) }); }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u, "cadrer", req); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
-  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
+  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc" || q === "ebay") bump(u.id, q); return ok({ ok: true }); }
 
   /* --- export --- */
   if (p === "/api/export.csv" && method === "GET") {
