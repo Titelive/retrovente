@@ -64,9 +64,18 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal((await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, d)).status, 404);
   const v = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, c);
   assert.equal(v.json.objet.statut, "vendu"); assert.ok(v.json.objet.dateVente);
-  assert.equal(v.json.objet.titre, "Zelda");
+  assert.equal(v.json.objet.titre, "Zelda"); assert.equal(v.json.objet.photo, true);   // changer seulement le statut garde le reste
+  const r2 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "en_vente" } }, c);
+  assert.equal(r2.json.objet.statut, "en_vente"); assert.equal(r2.json.objet.dateVente, "");
+  const r3 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40, dateVente: v.json.objet.dateVente } }, c);
+  assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
+  assert.equal(moi.json.bilan.annee.ventes, 1); assert.equal(moi.json.bilan.annee.montant, 40);
+  // remis en main propre : toujours vendu, mais hors des seuils de déclaration des plateformes
+  await call("PUT", "/api/objets/" + o.id, { objet: { remise: "main_propre" } }, c);
+  const moi2 = await call("GET", "/api/moi", null, c);
+  assert.equal(moi2.json.bilan.vendus, 1); assert.equal(moi2.json.bilan.annee.ventes, 0); assert.equal(moi2.json.bilan.annee.montant, 0);
   assert.equal((await call("DELETE", "/api/objets/" + o.id, null, c)).status, 200);
   assert.equal((await call("GET", "/api/objets", null, c)).json.objets.length, 0);
 });
@@ -352,6 +361,50 @@ test("extension : lien de l'annonce publiée", async () => {
   assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
   const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
   assert.equal(a.publiee, true);
+  // une annonce ne se rattache qu'à un seul jeu
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64 bis" } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 409);
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 200);
+  // prix modifié sur Le Bon Coin : repris dans RetroRevente
+  const p = await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h);
+  assert.equal(p.json.prixChange, true); assert.equal(p.json.prix, 35);
+  const a2 = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id);
+  assert.equal(a2.prix, 35); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567890");
+  assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h)).json.prixChange, false);
+});
+
+test("eBay : lien de l'annonce, depuis la fiche et depuis l'extension", async () => {
+  const { lienEbay } = await import("../server/api.mjs");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/Kirby-64-N64-PAL/204512345678?hash=item2f9&var=1"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("ebay.fr/itm/204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://m.ebay.com/itm/204512345678"), "https://www.ebay.com/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/?item=204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr.pirate.example/itm/204512345678"), "");
+  assert.equal(lienEbay("https://www.ebay.fr/usr/vendeur"), "");
+  const c = await compte("ebay@exemple.fr");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "Kirby 64", annonceEbay: "https://www.ebay.fr/sch/kirby" } }, c)).status, 400);
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64", prixDemande: 40, annonceEbay: "https://www.ebay.fr/itm/Kirby/204512345678?x=1" } }, c)).json.objet;
+  assert.equal(o.annonceEbay, "https://www.ebay.fr/itm/204512345678");
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Conker", prixDemande: 150 } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 400);
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/204512345678" }, "", h)).status, 409);
+  const r = await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/Conker/205599887766", prix: 145 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.ebay.fr/itm/205599887766"); assert.equal(r.json.prix, 145);
+  const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a.url, ""); assert.equal(a.publiee, false);
+  // les deux liens cohabitent : Le Bon Coin ne remplace pas eBay
+  await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567891" }, "", h);
+  const a2 = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a2.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567891");
+});
+
+test("eBay : réponse IA dans la messagerie eBay", async () => {
+  const c = await compte("ebay-rep@exemple.fr", true);
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 200 } }, c)).json.objet;
+  const r = await call("POST", "/api/extension/reponse", { site: "ebay", conversation: "kevin_64 : Offre de 120,00 EUR. Bonjour, possible à ce prix ?", annonce: o.id, offre: 120 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.reponses.length, 3); assert.equal(r.json.offre.offre, 120);
 });
 
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
@@ -434,6 +487,49 @@ test("cartes Pokémon : reconnaissance, fiche, cote, annonce pour l'extension", 
     const j = await call("POST", "/api/objets", { objet: { titre: "Kirby 64", categorie: "jeux", numero: "4/102" } }, c);
     assert.equal(j.json.objet.numero, undefined);
   } finally { delete process.env.IA_FAKE_OBJET; }
+});
+
+test("films : reconnaissance, fiche, cote, infos, annonce et réponses pour l'extension", async () => {
+  const c = await compte("film" + Date.now() + "@t.fr", true);
+  process.env.IA_FAKE_OBJET = "film";
+  try {
+    const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const o = r.json.objet;
+    assert.equal(o.categorie, "films"); assert.equal(o.plateforme, "Blu-Ray 4K UHD + Blu-Ray"); assert.equal(o.edition, "Steelbook");
+    assert.equal(o.annee, "2024"); assert.equal(o.realisateur, "Denis Villeneuve"); assert.equal(o.contenu, ""); assert.equal(o.jauni, undefined);
+    // cote : un 4K steelbook vaut plus qu'un DVD, et un DVD courant est signalé « à mettre en lot »
+    const cote = await call("POST", "/api/ia/cote", { objet: { ...o } }, c);
+    assert.equal(cote.status, 200, JSON.stringify(cote.json));
+    const dvd = await call("POST", "/api/ia/cote", { objet: { titre: "Gladiator", categorie: "films", plateforme: "DVD" } }, c);
+    assert.ok(cote.json.cote.conseille > dvd.json.cote.conseille);
+    assert.equal(cote.json.cote.lot, false); assert.equal(dvd.json.cote.lot, true);
+    // fiche : format normalisé, champs de film gardés, contenu ignoré
+    const f = await call("POST", "/api/objets", { objet: { titre: "Dune : Deuxième partie", categorie: "films", plateforme: "4k ultra hd", region: "VF incluse", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook, Édition limitée", contenu: "complet", etat: "tres_bon", prixDemande: 35 } }, c);
+    assert.equal(f.status, 200, JSON.stringify(f.json));
+    const it = f.json.objet;
+    assert.equal(it.plateforme, "Blu-Ray 4K UHD"); assert.equal(it.annee, "2024"); assert.equal(it.edition, "Steelbook, Édition limitée"); assert.equal(it.contenu, "");
+    const mauvais = await call("POST", "/api/objets", { objet: { titre: "Film", categorie: "films", annee: "deux mille" } }, c);
+    assert.equal(mauvais.json.objet.annee, "");
+    const { annonceLbc } = await import("../server/api.mjs");
+    const a = annonceLbc(it);
+    assert.equal(a.categorie, "films"); assert.equal(a.titre, "Dune : Deuxième partie 4K UHD Steelbook"); assert.equal(a.edition, "Steelbook, Édition limitée");
+    assert.match(a.description, /^Film Dune : Deuxième partie \(2024\) de Denis Villeneuve, en Blu-Ray 4K UHD, Steelbook, édition limitée\.\nVF incluse\.\nTrès bon état\./);
+    // fiche du film (exemple hors ligne) et export CSV avec les colonnes de film
+    const inf = await call("POST", "/api/film-infos", { titre: "Dune : Deuxième partie", annee: "2024" }, c);
+    assert.equal(inf.status, 200); assert.equal(inf.json.infos.realisateur, "Denis Villeneuve"); assert.ok(inf.json.infos.jaquette);
+    const csv = await call("GET", "/api/export.csv", null, c);
+    assert.match(String(csv.body || ""), /;annee;realisateur;/);
+    // légendes : pas de jaunissement pour un film
+    process.env.IA_FAKE_JAUNI = "net";
+    const lg = await call("POST", "/api/ia/legender", { photos: [PHOTO], objet: { titre: "Dune", categorie: "films" } }, c);
+    assert.deepEqual(lg.json.jaunis, ["non"]);
+    delete process.env.IA_FAKE_JAUNI;
+    // discussion : l'année et le réalisateur passent, une année fantaisiste non
+    const { changementsSurs } = await import("../server/ia.mjs");
+    assert.deepEqual(changementsSurs({ annee: "1999", realisateur: "Lana Wachowski", edition: "Steelbook" }), { edition: "Steelbook", annee: "1999", realisateur: "Lana Wachowski" });
+    assert.deepEqual(changementsSurs({ annee: "vers 1999" }), {});
+  } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
 });
 
 test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", async () => {
@@ -527,6 +623,14 @@ test("un au revoir ne reparle pas du budget", async () => {
   assert.equal(sansSujet("Merci à vous, bonne soirée 🙂"), "Merci à vous, bonne soirée 🙂");
 });
 
+test("suite de son propre message : ni merci ni bonjour en ouverture", async () => {
+  const { sansPolitesse } = await import("../server/ia.mjs");
+  assert.equal(sansPolitesse("Merci Sofian ! Petite précision : il y a aussi le poster 🙂"), "Petite précision : il y a aussi le poster 🙂");
+  assert.equal(sansPolitesse("Bonjour Sofian, merci pour votre message ! Je précise que le jeu est complet."), "Je précise que le jeu est complet.");
+  assert.equal(sansPolitesse("Bonjour il y a aussi le poster dans la boîte."), "Il y a aussi le poster dans la boîte.");
+  assert.equal(sansPolitesse("Petite précision : poster recto verso."), "Petite précision : poster recto verso.");
+});
+
 test("analyse d'une offre officielle : trop basse face au prix affiché", async () => {
   const { analyseOffre } = await import("../server/ia.mjs");
   const a = analyseOffre(190, 140);
@@ -534,6 +638,15 @@ test("analyse d'une offre officielle : trop basse face au prix affiché", async 
   const b = analyseOffre(190, 175);
   assert.equal(b.basse, false); assert.equal(b.acceptable, true);
   assert.equal(analyseOffre(null, 140), null);
+  // Offre presque insultante (−39 %) : un tout petit geste seulement, jamais vers le plancher.
+  const c = analyseOffre(330, 200);
+  assert.equal(c.insultante, true); assert.equal(c.contre, 320); assert.equal(c.plancher, 320);
+});
+
+test("pseudo avec des chiffres : gardé tel quel, jamais coupé", async () => {
+  const { sansPrenomInvente } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Bonjour Jram76100, merci pour l'offre !", "Jram76100"), "Bonjour Jram76100, merci pour l'offre !");
+  assert.equal(sansPrenomInvente("Bonjour Kevin54, merci !", ""), "Bonjour, merci !");
 });
 
 test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
@@ -546,4 +659,40 @@ test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
   assert.equal(o.note, 4); assert.equal(o.jeuRef, "1074");
   const o2 = (await call("PUT", "/api/objets/" + o.id, { objet: { ...o, note: 9, jeuRef: "pas un nombre" } }, c)).json.objet;
   assert.equal(o2.note, 5); assert.equal(o2.jeuRef, "");
+});
+
+test("le lieu de l'acheteur (« Moselle ») n'est jamais pris pour son prénom", async () => {
+  const { lieuxAcheteur, sansLieu } = await import("../server/ia.mjs");
+  const lieux = lieuxAcheteur("À propos de cet acheteur\nMoselle\nMembre depuis novembre 2015\nhier\nBonjour, je suis d'à côté de Nancy");
+  assert.deepEqual(lieux, ["Moselle"]);
+  assert.equal(sansLieu("Bonjour Moselle, oui le jeu est encore là !", lieux), "Bonjour, oui le jeu est encore là !");
+  assert.equal(sansLieu("Merci Moselle ! À bientôt", lieux), "Merci ! À bientôt");
+});
+
+test("pas de « prix ferme » quand l'acheteur ne parle pas de prix", async () => {
+  const { parlePrix } = await import("../server/ia.mjs");
+  assert.equal(parlePrix("[Annonce concernée]\nPerfect Dark\n20 €\n\n[Conversation]\nBonjour, est-elle toujours disponible ? Je suis d'à côté de Nancy\n22:01\nFaire une offre\nEnvoyer"), false);
+  assert.equal(parlePrix("[Conversation]\nBonjour, vous le feriez à 15 € ?"), true);
+  assert.equal(parlePrix("[Conversation]\nC'est votre dernier prix ?"), true);
+});
+
+test("on ne reformule pas où habite l'acheteur", async () => {
+  const { sansOuIlHabite } = await import("../server/ia.mjs");
+  assert.equal(sansOuIlHabite("Bonjour, oui toujours disponible 🙂 Si vous venez de Nancy, on peut se retrouver dans le centre. Quel jour ?"), "Bonjour, oui toujours disponible 🙂 On peut se retrouver dans le centre. Quel jour ?");
+  assert.equal(sansOuIlHabite("Bonjour, toujours dispo ! Vous êtes du côté de Nancy ? On peut se voir dans le centre de Nancy 🙂"), "Bonjour, toujours dispo ! On peut se voir dans le centre de Nancy 🙂");
+  const ok = "Bonjour, oui toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy.";
+  assert.equal(sansOuIlHabite(ok), ok);
+});
+
+test("disponibilité dite clairement : « le jeu est toujours disponible »", async () => {
+  const { dispoClaire } = await import("../server/ia.mjs");
+  assert.equal(dispoClaire("Bonjour, oui il est bien là 🙂"), "Bonjour, oui le jeu est toujours disponible 🙂");
+  assert.equal(dispoClaire("Bonjour, elle est encore là !", "la console"), "Bonjour, la console est toujours disponible !");
+});
+
+test("pas de prénom inventé, pas de disponibilité répétée", async () => {
+  const { sansPrenomInvente, sansDispoRepetee } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Merci Garnier ! Le jeu part ce soir 🙂", "carter054"), "Merci ! Le jeu part ce soir 🙂");
+  assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
+  assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
 });

@@ -180,6 +180,7 @@ html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::a
   .nav-liens .nav-cta{margin:10px 0 0;justify-content:center}
 }
 @media(max-width:420px){.logo-svg{height:22px}.nav .wrap{gap:8px}.nav-cta-court{padding:10px 12px}}
+@media(max-width:360px){.nav-cta-court{padding:10px 11px;font-size:13.5px;white-space:nowrap}.nav-cta-court .i{display:none}}
 html.menu-ouvert{overflow:hidden}
 
 /* logo : l'éclair */
