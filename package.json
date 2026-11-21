@@ -12,6 +12,8 @@
     "test": "node --no-warnings --test test/*.test.mjs",
     "extension:zip": "sh extension/outils/zip.sh",
     "extension:safari": "sh extension/outils/safari.sh",
-    "extension:paquets": "node extension/outils/paquets.mjs"
+    "extension:paquets": "node extension/outils/paquets.mjs",
+    "test:photos": "node --no-warnings test/photos.navigateur.mjs",
+    "test:photos:webkit": "node --no-warnings test/photos.navigateur.mjs webkit"
   }
 }

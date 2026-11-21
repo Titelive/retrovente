@@ -696,3 +696,23 @@ test("pas de prénom inventé, pas de disponibilité répétée", async () => {
   assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
   assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
 });
+
+test("photos : JPEG incomplet refusé, écriture sans fichier temporaire laissé", async () => {
+  const { jpegCoupe } = await import("../server/api.mjs");
+  const entier = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+  assert.equal(jpegCoupe(entier), false);
+  assert.equal(jpegCoupe(Buffer.concat([entier, Buffer.alloc(12)])), false);   // remplissage après la fin : accepté
+  assert.equal(jpegCoupe(entier.subarray(0, 6)), true);
+  assert.equal(jpegCoupe(Buffer.from("fausse image")), false);   // pas un JPEG : pas notre affaire
+  const c = await compte("photos-jpeg@test.fr");
+  const b64 = (b) => "data:image/jpeg;base64," + b.toString("base64");
+  const r = await call("POST", "/api/objets", { objet: { titre: "Donkey Kong 64" }, photo: b64(entier) }, c);
+  assert.equal(r.status, 200);
+  const id = r.json.objet.id;
+  assert.equal((await call("POST", `/api/objets/${id}/photos`, { photo: b64(entier.subarray(0, 6)) }, c)).status, 400);
+  const lu = await call("GET", `/api/photo/${id}`, null, c);
+  assert.deepEqual(Buffer.from(lu.body), entier);
+  const dossier = path.join(process.env.DATA_DIR, "photos");
+  const tous = fs.readdirSync(dossier, { recursive: true }).map(String);
+  assert.deepEqual(tous.filter((f) => f.endsWith(".tmp")), []);
+});

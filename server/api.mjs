@@ -301,8 +301,18 @@ function savePhoto(uid, id, data, pid = "p0") {
   if (data === "") { fs.rmSync(f, { force: true }); return false; }
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(data));
   if (!m || data.length > ia.MAX_PHOTO) fail(400, "Photo trop lourde ou illisible.");
+  const buf = Buffer.from(m[1], "base64");
+  if (jpegCoupe(buf)) fail(400, "La photo est arrivée incomplète. Réessaie.");
+  // écriture atomique : un fichier temporaire, puis renommé ; jamais de photo à moitié écrite (coupure, disque plein)
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, Buffer.from(m[1], "base64"));
+  const tmp = `${f}.${process.pid}.${Date.now().toString(36)}.tmp`;
+  try { fs.writeFileSync(tmp, buf); fs.renameSync(tmp, f); } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+  return true;
+}
+/** Un JPEG commence par FFD8 et se termine par FFD9 (parfois suivi de quelques octets de remplissage). */
+export function jpegCoupe(buf) {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return false;   // pas un JPEG : rien à vérifier ici
+  for (let i = buf.length - 1; i > 0 && i >= buf.length - 256; i--) if (buf[i] === 0xd9 && buf[i - 1] === 0xff) return false;
   return true;
 }
 
