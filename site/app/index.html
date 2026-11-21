@@ -612,6 +612,15 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 /* ===== Couleurs Le Bon Coin ===== */
 #fLbcBt,#fLbc,#bLbc{--bg:#EC5A13;--fg:#fff;background:#EC5A13;color:#fff;box-shadow:0 14px 30px -14px rgba(236,90,19,.8)}
 #fLbcBt:hover,#fLbc:hover,#bLbc:hover{background:#D24C0C}
+/* ===== Où l'annonce est en ligne : pastilles Le Bon Coin / eBay (carte, fiche) ===== */
+.sites{display:inline-flex;gap:4px;align-items:center}
+.sites:empty{display:none}
+.site{display:inline-flex;align-items:center;justify-content:center;height:22px;min-width:22px;padding:0 7px;border-radius:7px;font:800 11px/1 var(--titre);letter-spacing:-.1px;text-transform:none;text-decoration:none;color:#fff;box-shadow:0 0 0 1.5px var(--carte),0 4px 10px -4px rgba(0,0,0,.45);transition:transform .2s var(--ease)}
+.site.lbc-s{background:#EC5A13}.site.ebay-s{background:#0064D2}
+a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid var(--anis);outline-offset:2px}
+.jeu .im .sites{position:absolute;left:10px;bottom:10px;z-index:2}
+#fiche .haut h2{margin-right:0}#fSites{margin-right:auto;display:inline-flex}#fSitesM{display:none;margin-right:auto}#fSitesM .site{height:26px;padding:0 9px;font-size:12px}
+@media(max-width:700px){#fSites .sites{display:none}#fSitesM{display:inline-flex}}#fiche .haut .site{height:26px;padding:0 9px;font-size:12px}
 /* ===== Couleurs eBay ===== */
 #fEbayBt,#fEbay{--bg:#0064D2;--fg:#fff;background:#0064D2;color:#fff;box-shadow:0 14px 30px -14px rgba(0,100,210,.8)}
 #fEbayBt:hover,#fEbay:hover{background:#0052AD}
@@ -1224,7 +1233,7 @@ html.sans-anim .vt-b.pousse{animation:none}
 
 <!-- ========== Fiche d'un jeu ========== -->
 <section id="fiche" class="vue" hidden aria-labelledby="fTitre">
-  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><button type="button" class="st st-bt en_vente" id="fSt" aria-haspopup="menu" aria-expanded="false"></button><button class="btn clair petit" type="button" id="fFermer" aria-label="Mes articles"><span aria-hidden="true">←</span><span class="pc-seul"> Mes articles</span></button></div></div>
+  <div class="haut"><div class="wrap"><h2 id="fTitre">Nouvel article</h2><span id="fSites"></span><button type="button" class="st st-bt en_vente" id="fSt" aria-haspopup="menu" aria-expanded="false"></button><button class="btn clair petit" type="button" id="fFermer" aria-label="Mes articles"><span aria-hidden="true">←</span><span class="pc-seul"> Mes articles</span></button></div></div>
   <div class="wrap grille">
     <div class="col g-photo">
      <section class="carte bloc photos-carte" data-mo="photos" aria-labelledby="tPhotos">
@@ -1313,7 +1322,7 @@ html.sans-anim .vt-b.pousse{animation:none}
         <label class="f">Prix affiché sur l'annonce (€)<input type="number" id="f_prixDemande" min="0" step="1" inputmode="decimal"></label>
       </section>
       <section class="carte bloc" data-onglet="annonce">
-        <header><h3>L'annonce</h3><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
+        <header><h3>L'annonce</h3><span id="fSitesM"></span><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
         <div class="lot-alerte" id="fLotAnnonce" role="status" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
@@ -1597,6 +1606,9 @@ function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){r
 var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+/* Sites où l'annonce est en ligne, d'après ses liens : une pastille par site, cliquable vers l'annonce. */
+function sitesHtml(lbc,ebay,lien){var p=function(u,c,t,n){return u?(lien?'<a class="site '+c+'" href="'+esc(u)+'" target="_blank" rel="noopener" title="Voir l\'annonce sur '+n+'" aria-label="Voir l\'annonce sur '+n+'">'+t+'</a>':'<span class="site '+c+'" title="En ligne sur '+n+'">'+t+'</span>'):""};
+  var h=p(lbc,"lbc-s","LBC","Le Bon Coin")+p(ebay,"ebay-s","eBay","eBay");return h?'<span class="sites">'+h+'</span>':""}
 function eur(n){n=n||0;return n.toLocaleString("fr-FR",{maximumFractionDigits:Math.round(n)===n?0:2})+" €"}
 function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+String(r).padStart(2,"0"):"")}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -1816,7 +1828,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
@@ -2402,6 +2414,9 @@ function statutRapide(o,s,carte){if(o.statut===s)return;
 function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value;majRemise()}
 $("f_statut").onchange=majVente;
+function majSites(){var a=$("f_annonce").value.trim(),e=$("f_annonceEbay").value.trim(),ok=function(u,re){return re.test(u)?u:""};
+  $("fSites").innerHTML=$("fSitesM").innerHTML=sitesHtml(ok(a,/^https:\/\/(www\.)?leboncoin\.fr\//i),ok(e,/^https?:\/\/(www\.|m\.)?ebay\.[a-z.]+\/itm\//i),true)}
+["f_annonce","f_annonceEbay"].forEach(function(id){$(id).addEventListener("input",majSites)});
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
   F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();PARTIC=[];puces();
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
@@ -2409,7 +2424,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOri
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -2448,7 +2463,7 @@ function reprendre(d){var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:
     ouvrirFiche(o||null);CLE=d.cle;
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
     DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
-    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");if(window.majAdresse)majAdresse();refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)});return true}
+    $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");majSites();if(window.majAdresse)majAdresse();refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)});return true}
 $("fFermer").onclick=fermerFiche;$("fListe").onclick=function(){$("fFermer").click()};
 
 /* ===== Fiche « tout sous les yeux » : onglets et hauteur disponible ===== */
@@ -2939,7 +2954,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 /* --- carte d'un lot dans la liste --- */
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
-  return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+'</div>'+
+  return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?'<img loading="lazy" alt="" src="/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+'">':'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
     '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
