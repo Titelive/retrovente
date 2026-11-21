@@ -48,6 +48,7 @@ Une ligne par variable :
 | `CLAUDE_MODEL` | Facultatif, par défaut `claude-haiku-5-5` |
 | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | Jaquette, captures d'écran et notes des jeux (base IGDB, gratuite, voir « Fiche du jeu » plus bas) |
 | `TMDB_API_KEY` | Affiche, images, synopsis, casting et note des spectateurs des films (base TMDB, clé gratuite, voir « Films » plus bas) |
+| `LAPOSTE_API_KEY` | Facultatif : état des colis Colissimo, Lettre suivie et Chronopost lu tout seul (API « Suivi v2 » de La Poste, gratuite, voir « Suivi des colis » plus bas) |
 
 Sans clé Stripe, l'appli marche en gratuit et affiche « Le paiement arrive très bientôt ».
 
@@ -72,6 +73,12 @@ Ce que fait le code pour le droit de la consommation :
 - bouton « Renoncer au contrat ici » pendant le délai de rétractation, puis « Confirmer la rétractation » (art. L221-21 et D221-5, depuis le 19 juin 2026). Le remboursement se fait à la main dans Stripe : un e-mail te donne le montant ;
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
+
+## Suivi des colis
+
+Sur la fiche d'une vente envoyée (onglet Suivi), on note le transporteur (Colissimo, Mondial Relay, Relais Colis, Chronopost / Shop2Shop, Lettre suivie, DPD, UPS, GLS) et le numéro de suivi : le transporteur est deviné d'après le numéro, l'article passe en « Envoyé », un bouton ouvre la page de suivi du transporteur et un autre copie un message prêt à coller dans la conversation Le Bon Coin. « Colis livré » se coche à la main ; la date s'affiche aussi sur la carte dans Mes articles. Le colis d'un lot vaut pour tous ses articles.
+
+Pour La Poste (Colissimo, Lettre suivie, Chronopost), l'état se lit tout seul avec une clé : crée un compte sur [developer.laposte.fr](https://developer.laposte.fr), abonne-toi à l'API **Suivi v2** (gratuite) et copie la clé dans `LAPOSTE_API_KEY`. L'état est relu au plus une fois par heure par colis, et « Colis livré » se coche dès que La Poste l'annonce. Sans clé, tout le reste marche.
 
 ## Cartes Pokémon
 
