@@ -30,7 +30,7 @@
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
   etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix"]).then(function (r) { if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego"]).then(function (r) { if (r && r.sansNego) etat.sansNego = true; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -669,6 +669,21 @@
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var RACCOURCI = MAC ? "⌘K" : "Ctrl K";
   // Logo du site (police Plus Jakarta Sans, en tracés SVG) : la couleur suit le thème via currentColor.
+  // Icônes pixel (9 × 9) des sons « à toi » : pièce, étoile, note, haut-parleur coupé.
+  var ICONES_SON = (function () {
+    var G = {
+      piece:   ["...XXX...", "..XXXXX..", ".XXX.XXX.", ".XXX.XXX.", ".XXX.XXX.", ".XXX.XXX.", ".XXX.XXX.", "..XXXXX..", "...XXX..."],
+      powerup: ["....X....", "...XXX...", "...XXX...", "XXXXXXXXX", ".XXXXXXX.", "..XXXXX..", "..XXXXX..", ".XXX.XXX.", ".X.....X."],
+      jingle:  ["...XXXXXX", "...XXXXXX", "...X....X", "...X....X", "...X....X", ".XXX..XXX", "XXXX.XXXX", "XXXX.XXXX", ".XX...XX."],
+      muet:    ["...X.....", "..XX.....", "XXXX.X..X", "XXXX..XX.", "XXXX..XX.", "XXXX.X..X", "..XX.....", "...X.....", "........."],
+    }, r = {};
+    Object.keys(G).forEach(function (k) {
+      var d = "";
+      G[k].forEach(function (l, y) { l.replace(/X+/g, function (m, x) { d += "M" + x + " " + y + "h" + m.length + "v1h-" + m.length + "z"; return m; }); });
+      r[k] = '<svg viewBox="0 0 9 9" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges"><path fill="currentColor" d="' + d + '"/></svg>';
+    });
+    return r;
+  })();
   var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" height="22" aria-hidden="true" focusable="false" viewBox="6 16 388 50"> <path fill="currentColor" fill-rule="evenodd" d="M 26 20 L 54 20 C 61 20 65 24 67 33 L 71 51 C 73 60 64 65 57 58 L 50 51 L 30 51 L 23 58 C 16 65 7 60 9 51 L 13 33 C 15 24 19 20 26 20 Z M 24 30 L 30 30 L 30 35 L 35 35 L 35 41 L 30 41 L 30 46 L 24 46 L 24 41 L 19 41 L 19 35 L 24 35 Z M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path style="fill:var(--anis)" d="M 51 27 L 59 27 L 55 34 L 62 34 L 48 49 L 51 39 L 44 39 Z"/> <path fill="currentColor" d="M86.97 56.75V23.25H99.78Q103.25 23.25 105.92 24.46Q108.6 25.68 110.13 28.06Q111.65 30.44 111.65 33.95Q111.65 37.37 110.08 39.78Q108.51 42.18 105.85 43.39L113.5 56.75H105.67L97.4 41.96L101.9 44.61H93.94V56.75ZM93.94 38.54H99.83Q101.31 38.54 102.39 37.95Q103.47 37.37 104.08 36.34Q104.68 35.3 104.68 33.95Q104.68 32.56 104.08 31.52Q103.47 30.49 102.39 29.91Q101.31 29.32 99.83 29.32H93.94ZM128.29 57.29Q124.38 57.29 121.5 55.56Q118.62 53.83 117.05 50.9Q115.48 47.98 115.48 44.43Q115.48 40.74 117.12 37.86Q118.76 34.99 121.55 33.32Q124.33 31.66 127.84 31.66Q130.77 31.66 133.01 32.58Q135.26 33.5 136.81 35.17Q138.36 36.83 139.17 39.01Q139.98 41.19 139.98 43.75Q139.98 44.47 139.92 45.17Q139.85 45.87 139.67 46.36H121.28V41.42H135.85L132.65 43.75Q133.1 41.82 132.61 40.31Q132.11 38.81 130.88 37.93Q129.64 37.05 127.84 37.05Q126.09 37.05 124.83 37.91Q123.57 38.76 122.94 40.43Q122.31 42.09 122.45 44.47Q122.27 46.54 122.94 48.12Q123.62 49.69 125.01 50.57Q126.4 51.44 128.38 51.44Q130.18 51.44 131.46 50.72Q132.74 50.01 133.46 48.75L138.86 51.31Q138.14 53.11 136.59 54.46Q135.04 55.81 132.92 56.55Q130.81 57.29 128.29 57.29ZM155.77 57.02Q151.31 57.02 148.86 54.61Q146.41 52.21 146.41 47.89V38.04H142.28V32.2H142.5Q144.39 32.2 145.4 31.25Q146.41 30.31 146.41 28.42V26.62H153.16V32.2H158.91V38.04H153.16V47.44Q153.16 48.7 153.61 49.53Q154.06 50.36 155 50.77Q155.95 51.17 157.34 51.17Q157.66 51.17 158.06 51.13Q158.46 51.08 158.91 51.04V56.75Q158.24 56.84 157.39 56.93Q156.53 57.02 155.77 57.02ZM162.87 56.75V32.2H169.17V38.09L168.72 37.23Q169.53 34.13 171.39 33.03Q173.26 31.93 175.82 31.93H177.26V37.77H175.15Q172.67 37.77 171.14 39.28Q169.62 40.79 169.62 43.53V56.75ZM192.41 57.29Q188.77 57.29 185.78 55.63Q182.79 53.96 181.02 51.06Q179.24 48.16 179.24 44.47Q179.24 40.74 181.02 37.86Q182.79 34.99 185.78 33.32Q188.77 31.66 192.41 31.66Q196.06 31.66 199.02 33.32Q201.99 34.99 203.77 37.86Q205.54 40.74 205.54 44.47Q205.54 48.16 203.77 51.06Q201.99 53.96 199.02 55.63Q196.06 57.29 192.41 57.29ZM192.41 51.22Q194.26 51.22 195.63 50.36Q197 49.51 197.79 47.98Q198.57 46.45 198.57 44.47Q198.57 42.5 197.79 40.99Q197 39.48 195.63 38.61Q194.26 37.73 192.41 37.73Q190.57 37.73 189.18 38.61Q187.78 39.48 187 40.99Q186.21 42.5 186.21 44.47Q186.21 46.45 187 47.98Q187.78 49.51 189.18 50.36Q190.57 51.22 192.41 51.22ZM210 56.75V23.25H222.81Q226.27 23.25 228.95 24.46Q231.62 25.68 233.15 28.06Q234.68 30.44 234.68 33.95Q234.68 37.37 233.11 39.78Q231.53 42.18 228.88 43.39L236.53 56.75H228.7L220.43 41.96L224.92 44.61H216.97V56.75ZM216.97 38.54H222.86Q224.34 38.54 225.42 37.95Q226.5 37.37 227.11 36.34Q227.71 35.3 227.71 33.95Q227.71 32.56 227.11 31.52Q226.5 30.49 225.42 29.91Q224.34 29.32 222.86 29.32H216.97ZM251.32 57.29Q247.41 57.29 244.53 55.56Q241.65 53.83 240.08 50.9Q238.5 47.98 238.5 44.43Q238.5 40.74 240.15 37.86Q241.79 34.99 244.58 33.32Q247.36 31.66 250.87 31.66Q253.79 31.66 256.04 32.58Q258.29 33.5 259.84 35.17Q261.39 36.83 262.2 39.01Q263.01 41.19 263.01 43.75Q263.01 44.47 262.94 45.17Q262.88 45.87 262.7 46.36H244.31V41.42H258.87L255.68 43.75Q256.13 41.82 255.64 40.31Q255.14 38.81 253.91 37.93Q252.67 37.05 250.87 37.05Q249.12 37.05 247.86 37.91Q246.6 38.76 245.97 40.43Q245.34 42.09 245.47 44.47Q245.29 46.54 245.97 48.12Q246.64 49.69 248.04 50.57Q249.43 51.44 251.41 51.44Q253.21 51.44 254.49 50.72Q255.77 50.01 256.49 48.75L261.89 51.31Q261.17 53.11 259.62 54.46Q258.07 55.81 255.95 56.55Q253.84 57.29 251.32 57.29ZM274.66 56.75 264.99 32.2H272.27L278.97 50.77H276.19L282.89 32.2H290.17L280.5 56.75ZM304.97 57.29Q301.05 57.29 298.18 55.56Q295.3 53.83 293.72 50.9Q292.15 47.98 292.15 44.43Q292.15 40.74 293.79 37.86Q295.43 34.99 298.22 33.32Q301.01 31.66 304.52 31.66Q307.44 31.66 309.69 32.58Q311.93 33.5 313.49 35.17Q315.04 36.83 315.85 39.01Q316.66 41.19 316.66 43.75Q316.66 44.47 316.59 45.17Q316.52 45.87 316.34 46.36H297.95V41.42H312.52L309.33 43.75Q309.78 41.82 309.28 40.31Q308.79 38.81 307.55 37.93Q306.31 37.05 304.52 37.05Q302.76 37.05 301.5 37.91Q300.24 38.76 299.61 40.43Q298.98 42.09 299.12 44.47Q298.94 46.54 299.61 48.12Q300.29 49.69 301.68 50.57Q303.08 51.44 305.06 51.44Q306.85 51.44 308.14 50.72Q309.42 50.01 310.14 48.75L315.53 51.31Q314.81 53.11 313.26 54.46Q311.71 55.81 309.6 56.55Q307.48 57.29 304.97 57.29ZM320.61 56.75V32.2H326.91V37.05L326.55 35.98Q327.4 33.77 329.31 32.72Q331.23 31.66 333.79 31.66Q336.58 31.66 338.67 32.83Q340.76 34 341.93 36.09Q343.1 38.18 343.1 40.97V56.75H336.35V42.41Q336.35 40.97 335.79 39.93Q335.23 38.9 334.22 38.31Q333.2 37.73 331.86 37.73Q330.55 37.73 329.52 38.31Q328.48 38.9 327.92 39.93Q327.36 40.97 327.36 42.41V56.75ZM359.37 57.02Q354.92 57.02 352.47 54.61Q350.02 52.21 350.02 47.89V38.04H345.88V32.2H346.11Q348 32.2 349.01 31.25Q350.02 30.31 350.02 28.42V26.62H356.77V32.2H362.52V38.04H356.77V47.44Q356.77 48.7 357.22 49.53Q357.67 50.36 358.61 50.77Q359.55 51.17 360.95 51.17Q361.26 51.17 361.67 51.13Q362.07 51.08 362.52 51.04V56.75Q361.85 56.84 360.99 56.93Q360.14 57.02 359.37 57.02ZM378.31 57.29Q374.39 57.29 371.52 55.56Q368.64 53.83 367.06 50.9Q365.49 47.98 365.49 44.43Q365.49 40.74 367.13 37.86Q368.77 34.99 371.56 33.32Q374.35 31.66 377.86 31.66Q380.78 31.66 383.03 32.58Q385.28 33.5 386.83 35.17Q388.38 36.83 389.19 39.01Q390 41.19 390 43.75Q390 44.47 389.93 45.17Q389.86 45.87 389.68 46.36H371.29V41.42H385.86L382.67 43.75Q383.12 41.82 382.62 40.31Q382.13 38.81 380.89 37.93Q379.65 37.05 377.86 37.05Q376.1 37.05 374.84 37.91Q373.58 38.76 372.95 40.43Q372.32 42.09 372.46 44.47Q372.28 46.54 372.95 48.12Q373.63 49.69 375.02 50.57Q376.42 51.44 378.4 51.44Q380.19 51.44 381.48 50.72Q382.76 50.01 383.48 48.75L388.87 51.31Q388.15 53.11 386.6 54.46Q385.05 55.81 382.94 56.55Q380.82 57.29 378.31 57.29Z"/> </svg>';
   function marque() { var b = el("b", { class: "marque", role: "img", "aria-label": "RetroRevente" }); b.innerHTML = LOGO; return b; }
   var CSS = ":host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}" +
@@ -710,7 +725,25 @@
     ".n{font-size:11.5px;color:var(--gris-c)}" +
     ".pile{display:flex;flex-direction:column;gap:12px}.c{display:flex;flex-direction:column;gap:5px;font-size:13px}.c .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gris)}.c .l b{color:var(--encre);font-weight:600}" +
     ".actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}" +
-    ".son-choix{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;flex-wrap:wrap}.son-choix select{font:600 12.5px/1 var(--texte);color:var(--encre);background:var(--papier);border:1px solid var(--trait);border-radius:999px;padding:5px 10px;cursor:pointer}.son-choix select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
+    ".encart{margin:0;background:var(--papier);border:1px solid var(--trait);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}" +
+    ".encart-t{margin:0;font:700 11px/1 var(--texte);letter-spacing:.07em;text-transform:uppercase;color:var(--gris)}" +
+    ".encart .c{gap:6px}" +
+    ".tuiles-son{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}" +
+    ".tuile-son{display:flex;align-items:center;gap:10px;min-width:0;border:1.5px solid var(--trait);background:var(--carte);color:var(--encre);border-radius:14px;padding:9px 11px;cursor:pointer;text-align:left;transition:border-color .2s,background .2s,transform .2s var(--ease)}" +
+    ".tuile-son .ic{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--papier);color:var(--encre)}.tuile-son .tx{display:flex;flex-direction:column;gap:2px;min-width:0}.tuile-son .nm{font:700 13px/1.1 var(--titre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tuile-son .ds{font:500 11px/1.2 var(--texte);color:var(--gris)}" +
+    ".tuile-son:hover{border-color:var(--nuit);transform:translateY(-1px)}.tuile-son:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
+    ".tuile-son[aria-checked=true]{background:var(--nuit);border-color:var(--nuit);color:#fff}.tuile-son[aria-checked=true] .ic{color:var(--anis);background:rgba(255,255,255,.08)}.tuile-son[aria-checked=true] .ds{color:#B8B8B0}" +
+    ".tuile-son.joue .ic{animation:rr-saut .32s var(--ease) 2}@keyframes rr-saut{40%{transform:translateY(-4px) scale(1.12)}}" +
+    "@media (prefers-reduced-motion:reduce){.tuile-son.joue .ic{animation:none}.tuile-son:hover{transform:none}}" +
+    "@media (prefers-color-scheme:dark){.tuile-son:hover{border-color:var(--anis)}.tuile-son[aria-checked=true]{background:#0F0F0F;border-color:var(--anis)}}" +
+    "@media (prefers-color-scheme:dark){.encart .auto input:checked+.rail{background:#3A3A36}}" +
+    ".pastille{border:1.5px solid var(--trait);background:var(--carte);color:var(--encre);border-radius:999px;padding:7px 12px;font:600 12.5px/1 var(--texte);cursor:pointer;transition:border-color .2s,background .2s,transform .2s}" +
+    ".pastille:hover{border-color:var(--nuit);transform:translateY(-1px)}.pastille[aria-checked=true]{background:var(--nuit);border-color:var(--nuit);color:var(--anis)}" +
+    ".ia-nego{display:flex}.ia .pastille.nego{background:transparent;border-color:rgba(255,255,255,.22);color:#fff}.ia .pastille.nego[aria-checked=true]{background:var(--anis);border-color:var(--anis);color:var(--nuit)}" +
+    ".pastille:focus-visible{outline:2px solid var(--anis);outline-offset:2px}" +
+    "@media (prefers-color-scheme:dark){.pastille:hover{border-color:var(--anis)}.pastille[aria-checked=true]{background:var(--anis);border-color:var(--anis);color:#1A1A1A}}" +
+    ".vente-t{margin:0;font-size:13px;line-height:1.4}.encart.vente .mini{align-self:flex-start;background:var(--anis);border-color:var(--anis);color:var(--nuit);padding:7px 12px}" +
+    ".outils{display:flex;flex-wrap:wrap;gap:8px}.encart .mini{background:var(--carte);padding:7px 12px}" +
     ".auto{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px;cursor:pointer;position:relative}.auto input{position:absolute;opacity:0;width:1px;height:1px}" +
     ".rail{width:40px;height:24px;border-radius:999px;background:var(--trait);position:relative;transition:background .2s;flex:none}.rail::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s var(--ease)}" +
     ".auto input:checked+.rail{background:var(--nuit)}.auto input:checked+.rail::after{transform:translateX(16px);background:var(--anis)}.auto input:focus-visible+.rail{outline:2px solid var(--anis);outline-offset:2px}" +
@@ -970,9 +1003,10 @@
       var types = el("details", { class: "types" }, [el("summary", { texte: "Réponses types" }), reponsesUI(a)]);
       if (etat.typesOuvert != null ? etat.typesOuvert : etat.iaBloquee) types.open = true;
       types.addEventListener("toggle", function () { etat.typesOuvert = types.open; });
-      corps.appendChild(el("div", { class: "pile" }, [haut, ia, types]));
+      corps.appendChild(el("div", { class: "pile" }, [haut, venteUI(a), ia, types].filter(Boolean)));
       dessinerIA(ia);
-      statut(a.lot ? "Lot de " + a.n + " articles à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
+      var nbj = a.lot ? jeuxDuLot(a) : 0;
+      statut(a.lot ? "Lot de " + a.n + " articles" + (nbj > a.n ? " (" + nbj + " jeux)" : "") + " à " + a.prix + " € repéré" + (a.articles ? " : " + a.plateforme + "." : ". Ouvre « Lot de " + a.n + " articles » pour que je voie les articles inclus.") : "", "");
       if (!etat.ia || etat.ia.cle !== cleConversation()) proposerIA(false);
       return;
     }
@@ -1001,17 +1035,44 @@
     ]);
     prevenir.querySelector("input").checked = etat.prevenir;
     // Son « à toi » : choix parmi les sons rétro, ou muet. Changer de son le fait entendre tout de suite.
-    var choixListe = el("select", { "aria-label": "Son quand c'est à toi", onchange: function (e) {
-      etat.sonChoix = e.target.value; etat.son = etat.sonChoix !== "muet";
+    var sons = Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).concat(["muet"]);
+    var choisirSon = function (k) {
+      etat.sonChoix = k; etat.son = k !== "muet";
       try { RR.storage.local.set({ sonChoix: etat.sonChoix, son: etat.son }); } catch (x) {}
-      if (etat.son) sonner(); ecouter.disabled = !etat.son;
-    } }, Object.keys(RR_SONS).filter(function (k) { return !RR_SONS[k].cache; }).map(function (k) { return el("option", { value: k, texte: RR_SONS[k].nom }); }).concat([el("option", { value: "muet", texte: "Muet" })]));
-    var ecouter = el("button", { class: "mini", type: "button", title: "Joue le son choisi maintenant", texte: "▶ Écouter", onclick: function () { sonner(); setTimeout(function () { statut("Son : " + (etat.dernierSon || "aucun") + (etat.sonNatif && etat.sonNatif !== "ok" ? " · app Mac : " + etat.sonNatif : "") + ".", ""); }, 1800); } });
-    var son = el("div", { class: "son-choix", title: "Un petit son quand c'est à toi de cliquer" }, [el("span", { texte: "Son quand c'est à toi" }), choixListe, ecouter]);
-    etat.panneauSon = function () { choixListe.value = etat.sonChoix; ecouter.disabled = !etat.son; };
+      if (etat.son) sonner(); etat.panneauSon();
+    };
+    // Une tuile par son : icône pixel, nom, et une ligne qui dit le caractère du son. Cliquer choisit et fait
+    // entendre ; recliquer la tuile choisie la rejoue. Plus de bouton « Écouter » à part.
+    var DESC_SON = { piece: "Tintant", powerup: "Montée", jingle: "Fanfare", muet: "Silence" };
+    var tuiles = sons.map(function (k) {
+      var t = el("button", { class: "tuile-son", type: "button", role: "radio", "data-son": k, title: k === "muet" ? "Pas de son quand c'est à toi" : "Choisir et écouter « " + RR_SONS[k].nom + " »", onclick: function () {
+        choisirSon(k);
+        if (k === "muet") return;
+        t.classList.remove("joue"); void t.offsetWidth; t.classList.add("joue");
+        clearTimeout(t.__fin); t.__fin = setTimeout(function () { t.classList.remove("joue"); }, Math.round(rrRendreSon(k).length / RR_TAUX * 1000));
+      } }, [el("span", { class: "ic" }), el("span", { class: "tx" }, [el("span", { class: "nm", texte: k === "muet" ? "Muet" : RR_SONS[k].nom }), el("span", { class: "ds", texte: DESC_SON[k] || "" })])]);
+      t.querySelector(".ic").innerHTML = ICONES_SON[k] || ICONES_SON.jingle;
+      return t;
+    });
+    var choixListe = el("div", { class: "tuiles-son", role: "radiogroup", "aria-label": "Son quand c'est à toi" }, tuiles);
+    choixListe.addEventListener("keydown", function (e) {
+      if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].indexOf(e.key) < 0) return;
+      e.preventDefault(); var i = sons.indexOf(etat.sonChoix), n = sons.length;
+      var k = sons[(i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : n - 1)) % n]; choisirSon(k);
+      var bt = choixListe.querySelector('[data-son="' + k + '"]'); if (bt) bt.focus();
+    });
+    etat.panneauSon = function () {
+      tuiles.forEach(function (bt) { var on = bt.getAttribute("data-son") === etat.sonChoix; bt.setAttribute("aria-checked", on ? "true" : "false"); bt.tabIndex = on ? 0 : -1; });
+    };
     etat.panneauSon();
-    var actions = el("div", { class: "actions" }, [bascule, suite, prevenir, son, el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
-    corps.appendChild(el("div", { class: "pile" }, [haut, grille, actions]));
+    var encart = function (titre, enfants, cls) { return el("section", { class: "encart" + (cls ? " " + cls : "") }, [el("h3", { class: "encart-t", texte: titre })].concat(enfants)); };
+    var outils = el("div", { class: "outils" }, [el("button", { class: "mini", type: "button", title: "Copie la structure de l'écran (sans ce que tu as tapé) pour que je corrige l'extension", texte: "Copier un diagnostic", onclick: function () { copierDiagnostic(); } }), el("button", { class: "mini", type: "button", title: "Réécrire tous les champs de l'écran avec cet article", texte: "Remplir à nouveau", onclick: function () { remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); }); } })]);
+    corps.appendChild(el("div", { class: "pile" }, [haut,
+      encart("L'annonce", [grille]),
+      encart("Automatique", [bascule, suite, prevenir]),
+      encart("Son quand c'est à toi", [choixListe], "son"),
+      encart("Outils", [outils]),
+    ]));
     if (!etat.journal || !etat.journal.length) statut(etat.auto ? "Remplissage automatique activé : chaque écran du dépôt se remplit tout seul." : "Remplissage automatique en pause.", "");
   }
 
@@ -1038,10 +1099,14 @@
   // Contenu d'un lot : quand la fenêtre « Lot de 2 articles » est ouverte, on lit ses lignes (une image et un titre
   // par jeu). On s'en souvient pour la suite de la conversation (même lot = même nombre d'articles et même prix).
   var lotsVus = {};
-  try { RR.storage.local.get("lots").then(function (r) { if (r && r.lots) lotsVus = Object.assign(r.lots, lotsVus); }); } catch (e) {}
+  try { RR.storage.local.get("lots2").then(function (r) { if (r && r.lots2) lotsVus = Object.assign(r.lots2, lotsVus); }); RR.storage.local.remove("lots"); } catch (e) {}
+  var DATE_LISTE = /il y a|\bhier\b|aujourd'hui|\s-\s(?:lun|mar|mer|jeu|ven|sam|dim)|\b\d{1,2} (?:janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc)\w*\.? \d{4}\b/i;
   function articlesLotAffiches(n) {
     var titres = [].filter.call(document.querySelectorAll("h1, h2, h3, h4, p, span, div"), function (x) {
-      return x.childElementCount === 0 && visible(x) && new RegExp("^\\s*lot de " + n + " articles?\\s*$", "i").test(x.textContent || "") && !(hote && hote.contains(x));
+      if (!(x.childElementCount === 0 && visible(x) && new RegExp("^\\s*lot de " + n + " articles?\\s*$", "i").test(x.textContent || "") && !(hote && hote.contains(x)))) return false;
+      // Pas l'entrée « Lot de 2 articles » de la liste des conversations (à gauche) : elle porte une date.
+      var entree = x.closest("a, li, button, [role=button], [role=link]");
+      return !(entree && DATE_LISTE.test(entree.innerText || ""));
     });
     for (var i = 0; i < titres.length; i++) {
       var c = titres[i];
@@ -1050,7 +1115,9 @@
         var lignes = [].filter.call(c.querySelectorAll("a, button, li, [role=button], [role=link]"), function (x) {
           return x.querySelector("img") && !x.parentElement.closest("a, button, li, [role=button], [role=link]") && !x.contains(titres[i]);
         }).map(function (x) { return (x.innerText || "").replace(/\s+/g, " ").trim(); })
-          .filter(function (t) { return t.length >= 6 && t.length <= 200 && !/€|il y a|\d{1,2}:\d{2}/i.test(t); });
+          .filter(function (t) { return t.length >= 6 && t.length <= 200 && !/€|\d{1,2}:\d{2}/i.test(t) && !DATE_LISTE.test(t); });
+        // Des entrées de la liste des conversations : ce n'est pas le contenu du lot.
+        if (c.querySelectorAll("a, li, [role=link]").length > 3 * n + 6) break;
         if (lignes.length >= n) return lignes.length === n ? lignes : null;
       }
     }
@@ -1069,7 +1136,7 @@
     if (vus && (lotsVus[cle] || []).join("|") !== vus.join("|")) {
       lotsVus[cle] = vus;
       var garde = {}; Object.keys(lotsVus).slice(-30).forEach(function (k) { garde[k] = lotsVus[k]; });
-      try { RR.storage.local.set({ lots: garde }); } catch (e) {}
+      try { RR.storage.local.set({ lots2: garde }); } catch (e) {}
     }
     if (lotsVus[cle]) lot.articles = lotsVus[cle];
     return lot;
@@ -1103,6 +1170,37 @@
     if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t)) return t;
     return t.replace(/^Bonjour\s*([,!]?)\s*/u, function (x, p, i, tout) { var suite = tout.slice(x.length); return "Bonjour " + nom + (p === "!" ? " ! " : /^\p{L}/u.test(suite) ? ", " : " "); });
   }
+  /* Vente conclue sur Le Bon Coin (« Vendu ! », offre acceptée, paiement fait) : les annonces de RetroRevente qu'elle concerne.
+     Un « Lot de 2 articles » Le Bon Coin = 2 annonces, dont chacune peut être un lot RetroRevente de plusieurs jeux. */
+  var CONCLUE = /\bvendu\s?!|offre (?:a été )?accept[ée]e|vous avez accept[ée] (?:l'|son |cette )?offre|paiement (?:a été )?(?:effectué|reçu|validé)/i;
+  function annoncesVendues(a) {
+    if (!a) return [];
+    if (a.lot) return (a.articles || []).map(function (t) { return meilleurJeu(t); }).filter(Boolean);
+    return a.id && !a.externe && a.id !== "lbc" ? [a] : [];
+  }
+  function jeuxDuLot(a) {
+    return (a.articles || []).reduce(function (n, t) { var x = meilleurJeu(t); return n + Math.max(1, (x && x.contient && x.contient.length) || 1); }, 0);
+  }
+  var vendusFaits = {};
+  function venteUI(a) {
+    var conv = colonneConversation().innerText;
+    if (!CONCLUE.test(conv)) return null;
+    var l = annoncesVendues(a), cle = idConversation(), fait = vendusFaits[cle];
+    if (!l.length && !fait) return null;
+    var px = offreOfficielle() || a.prix, noms = l.map(function (x) { return x.contient && x.contient.length ? titreCourt(x.nom || x.titre) + " (" + x.contient.length + " jeux)" : titreCourt(x.nom || x.titre); });
+    var info = el("p", { class: "vente-t", texte: fait ? "Passé en Vendu dans RetroRevente : " + fait + "." : "Vente conclue" + (px ? " à " + px + " €" : "") + " : " + noms.join(" + ") + "." });
+    var b = fait ? null : el("button", { class: "mini", type: "button", texte: "Passer en Vendu dans RetroRevente", onclick: function () {
+      b.disabled = true; b.textContent = "Un instant…";
+      rrDemander({ type: "vendu", ids: l.map(function (x) { return x.id; }), prix: px || null, remise: /main propre|en mains? propres?/i.test(conv) ? "main_propre" : "envoi" }).then(function (r) {
+        if (!r || !r.ok) throw new Error((r && r.error) || "Impossible pour le moment.");
+        vendusFaits[cle] = r.vendus.map(function (v) { return titreCourt(v.titre) + (v.prixVente != null ? " " + String(v.prixVente).replace(".", ",") + " €" : ""); }).join(", ");
+        etat.annonces = etat.annonces.filter(function (x) { return !l.some(function (y) { return y.id === x.id; }); });
+        statut("C'est noté dans RetroRevente : vendu" + (px ? " " + px + " €" : "") + ".", "ok");
+        dessiner();
+      }).catch(function (e) { b.disabled = false; b.textContent = "Passer en Vendu dans RetroRevente"; statut(e.message, "bad"); });
+    } });
+    return el("section", { class: "encart vente" }, [el("h3", { class: "encart-t", texte: "Vente conclue" }), info, b].filter(Boolean));
+  }
   // sur : ne renvoie qu'un jeu vraiment repéré (pas le jeu par défaut pendant qu'une conversation se charge).
   function deviner(sur) {
     var lot = lotLu();
@@ -1112,7 +1210,9 @@
     }
     // Le jeu de l'encadré de l'annonce (à côté de la conversation), sinon celui dont parle la conversation : on compare
     // les mots du titre (apostrophes, accents et « PAL EU… » tronqués ne gênent pas).
-    var enc = texteEncadre(), a = meilleurJeu(enc) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
+    // D'abord le titre de l'annonce (la description d'un lot cite d'autres jeux), à prix égal de préférence.
+    var enc = texteEncadre(), e = jeuDeLEncadre(enc), px = e && e.prix;
+    var a = (e && meilleurJeu(e.titre, px)) || meilleurJeu(enc, px) || meilleurJeu(colonneConversation().innerText.slice(0, 20000));
     return a || jeuDeLEncadre(enc) || (sur ? null : etat.annonces[0]);
   }
   var VIDES = ("the and les des une pour avec sans pal eur ntsc jeu jeux video version edition complet loose boite cartouche notice " +
@@ -1120,12 +1220,12 @@
   function mots(t) {
     return norm(t).replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter(function (m) { return m.length >= 3 && VIDES.indexOf(m) < 0; });
   }
-  function meilleurJeu(texte) {
+  function meilleurJeu(texte, prix) {
     var vus = {}; mots(texte).forEach(function (m) { vus[m] = 1; });
     var meilleur = null, score = 0;
     (etat.annonces || []).forEach(function (a) {
       var m = mots(a.nom || a.titre); if (!m.length) return;
-      var s = m.filter(function (x) { return vus[x]; }).length / m.length + m.length / 1000;   // à égalité, le titre le plus précis
+      var s = m.filter(function (x) { return vus[x]; }).length / m.length + m.length / 1000 + (prix != null && a.prix === prix ? 0.01 : 0);   // à égalité, le prix affiché puis le titre le plus précis
       if (s > score) { score = s; meilleur = a; }
     });
     return score >= 0.6 ? meilleur : null;
@@ -1328,15 +1428,16 @@
     // Tu as répondu en dernier : rien à proposer tant que l'acheteur n'a pas écrit (« Autres idées » force quand même).
     if (!force && !consigne && dernierEstMoi()) { etat.ia = { cle: cle, attente: ATTENTES[cle.length % ATTENTES.length] }; rafraichirIA(); return; }
     var precedentes = ((etat.ia && etat.ia.reponses) || []).map(function (r) { return r.texte; });
+    var idDepart = idConversation();
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
       var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi() });
-      if (etat.ia.cle !== cle) return;
+      if (!etat.ia || etat.ia.cle !== cle || idConversation() !== idDepart) { rafraichirIA(); return; }   // autre conversation entre-temps : réponse jetée
       etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
       if (consigne) etat.brouillonIA = "";
     } catch (e) {
-      if (etat.ia.cle === cle) etat.ia = { cle: cle, erreur: e.message, status: e.status };
+      if (etat.ia && etat.ia.cle === cle && idConversation() === idDepart) etat.ia = { cle: cle, erreur: e.message, status: e.status };
       if (e.status === 402 || e.status === 403) {
         etat.iaBloquee = true;
         var d = ombre && ombre.querySelector("details.types"); if (d && etat.typesOuvert == null) d.open = true;
@@ -1373,21 +1474,43 @@
     }
     if (i.offre && i.offre.ecart > 0) {
       var of = i.offre;
-      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
-        " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
+      z.appendChild(el("p", { class: "ia-offre " + (of.basse ? "basse" : "ok") }, [el("b", { texte: (of.insultante ? "Offre très basse : " : of.basse ? "Offre trop basse : " : "Offre correcte : ") + of.offre + " €" }),
+        " soit " + of.ecart + " % sous ton prix (" + of.prix + " €)" + (of.insultante ? ". Au plus, un petit geste à " + of.contre + " €." : of.basse ? ". Contre-offre conseillée : " + of.contre + " € (plancher " + of.plancher + " €)." : ".")]));
     }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
     else if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
-    var qui = acheteurLu();
+    var qui = acheteurLu(), choisie = etat.choisie || {};
+    // Réponses qui tiennent le prix : on peut y ajouter « Pas de négociation possible… » d'un clic.
+    var tient = (i.reponses || []).some(function (r) { return TIENT_PRIX[r.approche]; });
+    if (tient) {
+      var nego = el("button", { class: "pastille nego", type: "button", role: "switch", "aria-checked": String(!!etat.sansNego), onclick: function () {
+        etat.sansNego = !etat.sansNego; try { RR.storage.local.set({ sansNego: etat.sansNego }); } catch (e) {} dessinerIA(z);
+      } }, [etat.sansNego ? "✓ " : "+ ", "Pas de négociation possible"]);
+      z.appendChild(el("div", { class: "ia-nego" }, [nego]));
+    }
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
-      r = { approche: r.approche, titre: r.titre, texte: smiley(personnaliser(r.texte || "", qui)), gras: r.gras };
+      var tx = smiley(personnaliser(r.texte || "", qui));
+      if (etat.sansNego && TIENT_PRIX[r.approche]) tx = avecSansNego(tx, choisie);
+      r = { approche: r.approche, titre: r.titre, texte: tx, gras: (r.gras || []).concat(etat.sansNego && TIENT_PRIX[r.approche] ? ["Pas de négociation possible"] : []) };
       z.appendChild(el("button", { class: "rep fort" + (sensIA(r) ? " s-" + sensIA(r) : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
         el("span", { class: "ico" }, [icone(ICONE_APPROCHE[r.approche] || "question")]),
         el("span", { class: "q" }, [el("b", {}, [ap ? el("i", { class: "ap ap-" + r.approche, texte: ap }) : null, r.titre || "Réponse"]), el("span", { class: "plein" }, [apercu(r.texte, r.gras)])]),
       ]));
     });
     z.appendChild(parlerIA());
+  }
+  var TIENT_PRIX = { ferme: 1, couper_court: 1 };
+  // « … je préfère le garder à 330 € 🙂 » → « … je préfère le garder à 330 €. Pas de négociation possible, les jeux sont dans la fourchette basse du marché 🙂 »
+  function phraseSansNego(a) {
+    var plusieurs = a && (a.lot || /^lot\b/i.test(a.titre || a.nom || ""));
+    return "Pas de négociation possible, " + (plusieurs ? "les jeux sont" : "le jeu est") + " dans la fourchette basse du marché.";
+  }
+  function avecSansNego(t, a) {
+    if (/pas de n[ée]gociation/i.test(t)) return t;
+    var m = /(\s*(?:\p{Extended_Pictographic}\uFE0F?\s*)+)$/u.exec(t), fin = m ? m[1] : "", corps = (m ? t.slice(0, m.index) : t).replace(/\s+$/, "");
+    if (!/[.!?…]$/.test(corps)) corps += ".";
+    return corps + " " + phraseSansNego(a).replace(/\.$/, fin ? "" : ".") + (fin ? " " + fin.trim() : "");
   }
   // Aucune proposition ne convient : on dit à l'IA ce qu'on veut répondre, elle le rédige dans le même ton.
   function parlerIA(attente) {
@@ -1412,7 +1535,10 @@
       clearTimeout(minuterieMsg);
       minuterieMsg = setTimeout(function () {
         // Jamais pendant que la personne écrit à l'IA (ni pendant qu'une conversation se charge) : on n'interrompt pas.
-        if (occupe() || colonneConversation().innerText.trim().length < 40) return;
+        if (colonneConversation().innerText.trim().length < 40) return;
+        // Autre conversation ouverte : on oublie tout de la précédente, même si l'IA lisait encore.
+        if (etat.convPour !== idConversation() && !tape()) { recaler(); dessiner(); return; }
+        if (occupe()) return;
         // Autre conversation (ou encadré chargé après coup) : le panneau se cale tout seul sur le jeu dont on parle,
         // sauf si la personne a choisi elle-même un jeu pour cette conversation.
         if (recaler()) dessiner();
@@ -1423,12 +1549,13 @@
 
   /* Une conversation = un article. En changeant de conversation, on oublie l'article (ou le lot) de la précédente :
      on recale sur l'annonce affichée à côté de CETTE conversation, et l'IA attend que ce soit fait. */
-  function idConversation() { return location.pathname + location.search; }
+  // Le Bon Coin peut garder la même adresse d'une conversation à l'autre : l'annonce affichée à côté compte aussi.
+  function idConversation() { return location.pathname + location.search + "|" + norm(texteEncadre()).slice(0, 120); }
   function choixAJour() { return etat.choisiePour === idConversation(); }
   // Renvoie true si l'article choisi a changé (à redessiner).
   function recaler() {
     var id = idConversation(), c = etat.choisie;
-    if (etat.convPour !== id) { etat.convPour = id; etat.convDepuis = Date.now(); etat.choisiePour = null; etat.manuel = null; if (etat.ia && !etat.ia.charge) etat.ia = null; }
+    if (etat.convPour !== id) { etat.convPour = id; etat.convDepuis = Date.now(); etat.choisiePour = null; etat.manuel = null; etat.ia = null; etat.brouillonIA = ""; }
     if (etat.manuel && etat.manuel === conversationActuelle()) { etat.choisiePour = id; return false; }
     var d = deviner(true);
     if (!d && !choixAJour() && Date.now() - (etat.convDepuis || 0) > 5000) d = deviner(false);   // rien de repéré : l'article par défaut
@@ -1437,10 +1564,9 @@
     if (!c || d.id !== c.id || d.titre !== c.titre || (d.articles || []).join("|") !== (c.articles || []).join("|")) { etat.choisie = d; return true; }
     return false;
   }
-  function occupe() {
-    var f = ombre && ombre.activeElement;
-    return !!(etat.ia && etat.ia.charge) || !!(f && f.matches && f.matches(".parler textarea")) || !!(etat.brouillonIA || "").trim();
-  }
+  function occupe() { return !!(etat.ia && etat.ia.charge) || tape(); }
+  // La personne écrit une consigne à l'IA : on ne touche à rien.
+  function tape() { var f = ombre && ombre.activeElement; return !!(f && f.matches && f.matches(".parler textarea")) || !!(etat.brouillonIA || "").trim(); }
   function zoneMessage() {
     var l = [].filter.call(document.querySelectorAll("textarea, input:not([type]), input[type=text], [contenteditable=''], [contenteditable=true], [role=textbox]"), function (x) { return visible(x) && !x.disabled; });
     var bons = l.filter(function (x) { return /message|repon|ecri|reply|write/.test(description(x) + " " + norm(x.getAttribute("placeholder") || x.getAttribute("data-placeholder") || "")); });
@@ -1582,13 +1708,31 @@
      - sur « Mes annonces » : chaque annonce dont le titre correspond à un jeu sans lien est associée. */
   var AD = /\/ad\/[a-z_]+\/\d{6,}/, liesSession = {}, annoncesCache = null, minuterieLiens = null;
   function urlAnnonce(href) { try { var u = new URL(href, location.href); var m = AD.exec(u.pathname); return u.hostname === "www.leboncoin.fr" && m ? "https://www.leboncoin.fr" + m[0] : ""; } catch (e) { return ""; } }
-  function lier(id, url, titre) {
-    if (!id || !url || liesSession[id] === url) return;
-    liesSession[id] = url;
-    rrDemander({ type: "lien", annonce: id, url: url }).then(function () {
-      if (hote && ouvert && ombre) statut("Lien de l'annonce « " + titre + " » enregistré dans RetroRevente.", "ok");
-      (annoncesCache || []).forEach(function (a) { if (a.id === id) a.publiee = true; });
+  function lier(id, url, titre, prix) {
+    var cle = url + "|" + (prix || "");
+    if (!id || !url || liesSession[id] === cle) return;
+    liesSession[id] = cle;
+    rrDemander({ type: "lien", annonce: id, url: url, prix: prix || null }).then(function (r) {
+      if (r && r.error) { delete liesSession[id]; return; }
+      var ancien = null;
+      (annoncesCache || []).forEach(function (a) { if (a.id === id) { a.publiee = true; a.url = url; if (r && r.prix != null) { ancien = a.prix; a.prix = r.prix; } } });
+      (etat.annonces || []).forEach(function (a) { if (a.id === id && r && r.prix != null) a.prix = r.prix; });
+      if (hote && ouvert && ombre) statut(r && r.prixChange ? "Prix de « " + titre + " » mis à jour dans RetroRevente : " + r.prix + " €" + (ancien != null ? " (avant " + ancien + " €)" : "") + "." : "Lien de l'annonce « " + titre + " » enregistré dans RetroRevente.", "ok");
     }).catch(function () { delete liesSession[id]; });
+  }
+  // Prix affiché sur la carte d'une annonce : un seul montant, sans compter un ancien prix barré.
+  function prixAffiche(x) {
+    var c = x;
+    var u0 = urlAnnonce(x.href), autre = function (p) { return [].some.call(p.querySelectorAll("a[href*='/ad/']"), function (y) { var u = urlAnnonce(y.href); return u && u !== u0; }); };
+    for (var i = 0; i < 5 && c.parentElement; i++) { var p = c.parentElement; if ((p.innerText || "").length > 500 || autre(p)) break; c = p; }
+    var vus = {}, w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      var n = w.currentNode, e = n.parentElement; if (!e || !/\d\s?€/.test(n.nodeValue)) continue;
+      if (e.closest("s,del,strike") || /line-through/.test(getComputedStyle(e).textDecorationLine || "")) continue;
+      prixCarte(n.nodeValue).forEach(function (v) { if (v > 0) vus[v] = 1; });
+    }
+    var l = Object.keys(vus).map(Number);
+    return l.length === 1 ? l[0] : null;
   }
   // Proximité entre un jeu et le texte d'une carte d'annonce : part des mots du titre retrouvés (0 à 1).
   function scoreTitre(a, texte) {
@@ -1618,7 +1762,7 @@
         var sc = scoreTitre(a, t); if (sc < seuil) return;
         var memePrix = a.prix != null && px.indexOf(a.prix) >= 0;
         if (prixExige && !memePrix) return;
-        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0) });
+        paires.push({ url: url, a: a, s: sc + (memePrix ? 0.5 : 0), lien: x });
       });
     });
     paires.sort(function (x, y) { return y.s - x.s; });
@@ -1627,7 +1771,7 @@
       if (urls[p.url] || jeux[p.a.id]) return;
       // Deux jeux aussi proches pour la même annonce : on ne devine pas.
       if (paires.some(function (q) { return q.url === p.url && q.a.id !== p.a.id && q.s === p.s; })) { urls[p.url] = 1; return; }
-      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre);
+      urls[p.url] = jeux[p.a.id] = 1; lier(p.a.id, p.url, p.a.titre, prixExige ? null : prixAffiche(p.lien));
     });
   }
   async function liensAuto() {
@@ -1644,6 +1788,14 @@
     }
     if (!mesAnnonces && !messages) return;
     if (!annoncesCache) { try { annoncesCache = (await rrDemander({ type: "annonces" })).annonces || []; } catch (e) { return; } }
+    // « Mes annonces » : un prix changé sur Le Bon Coin est repris dans RetroRevente (annonces déjà liées).
+    if (mesAnnonces) {
+      var parUrl = {}; annoncesCache.forEach(function (a) { if (a.url) parUrl[a.url] = a; });
+      [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (x) {
+        var u = urlAnnonce(x.href), a = u && parUrl[u]; if (!a || (hote && hote.contains(x))) return;
+        var px = prixAffiche(x); if (px != null && px !== a.prix) lier(a.id, u, a.titre || a.nom, px);
+      });
+    }
     var sans = annoncesCache.filter(function (a) { return !a.publiee && (a.titre || a.nom); });
     if (!sans.length) return;
     // « Mes annonces » / profil : ce sont tes annonces, le titre suffit. Messagerie : il faut aussi le même prix
@@ -1670,7 +1822,7 @@
       if (m === "messages") { etat.choisie = null; veillerMessages(); replie(false); }   // messagerie : panneau ouvert, réponse IA proposée
       else if (!ouvert) replie(false);   // dépôt : le panneau s'ouvre et le remplissage démarre tout seul
       else { dessiner(); demarrerAuto(); }
-    } else if (m === "messages" && ouvert && etat.annonces) { if (!occupe()) { etat.choisie = deviner(true) || etat.choisie || deviner(); dessiner(); } }   // autre conversation
+    } else if (m === "messages" && ouvert && etat.annonces) { if (!tape()) { etat.choisie = deviner(true) || etat.choisie || deviner(); dessiner(); } }   // autre conversation
   }
   suivre();
   setInterval(suivre, 800);
