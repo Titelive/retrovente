@@ -175,7 +175,8 @@ function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id)
   const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
   let prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
   // le lot était moins cher que ses articles à l'unité : il le reste après l'arrondi
-  if (c1.somme && prixDemande >= c1.somme && lot.prixDemande != null && c0.somme && lot.prixDemande < c0.somme) prixDemande = c1.conseille;
+  // un lot ne coûte jamais plus que ses articles à l'unité
+  if (c1.somme && prixDemande >= c1.somme && c1.conseille) prixDemande = c1.conseille;
   const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
   // L'annonce est « de l'appli » si c'est la dernière qu'elle a écrite (annonceGeneree), celle qu'elle écrirait pour
   // l'ancienne composition, ou (lots d'avant annonceGeneree) une annonce au format de l'appli : « Lot … : » puis une
@@ -188,6 +189,28 @@ function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id)
     ...(annonceAuto ? { texteAnnonce: neuf.description, annonceGeneree: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce || formatAppli(lot.titreAnnonce, lot.texteAnnonce) ? neuf.titre : lot.titreAnnonce } : {}),
     _annonceAJour: annonceAuto, _ratio: ratio,
   };
+}
+/** Les lignes « - … » d'une annonce au format de l'appli (une par article), dans l'ordre alphabétique. */
+const lignesArticles = (t) => String(t || "").split("\n").filter((x) => /^- /.test(x)).sort();
+/* Remet d'aplomb un lot en vente dont la composition a été abîmée par une ancienne version (article supprimé resté
+   dans le lot, même article compté deux fois) ou dont l'annonce de l'appli ne correspond plus aux articles :
+   articles dédoublonnés, prix sous la somme des articles, annonce de l'appli réécrite, photo de l'article parti retirée. */
+function reparerLot(uid, lot) {
+  if (!estLot(lot) || VENDU(lot.statut)) return lot;
+  const ids = uniques(lot.articles).filter((id) => { const m = getItem(uid, id); return m && !estLot(m); });
+  if (ids.length < MIN_LOT) return lot;
+  const membres = ids.map((id) => getItem(uid, id)), c = coteLot(membres, lot.theme);
+  const changeIds = ids.length !== lot.articles.length;
+  const annonce = formatAppli(lot.titreAnnonce, lot.texteAnnonce) && lignesArticles(lot.texteAnnonce).join("\n") !== lignesArticles(annonceLotSimple(membres, lot.prixDemande, lot.theme).description).join("\n");
+  const trop = c.somme > 0 && lot.prixDemande != null && lot.prixDemande >= c.somme;
+  if (!changeIds && !annonce && !trop) return lot;
+  const { _annonceAJour, _ratio, ...n } = recomposer(uid, { ...lot, articles: ids }, ids, lot.theme);
+  const ph = photosDe(lot), part = ph.filter((x) => x.de && !ids.includes(x.de));
+  for (const x of part) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+  const photos = ph.filter((x) => !part.includes(x));
+  const l = { ...n, photos, photo: photos.length > 0, ...(changeIds ? { mosaiqueAFaire: true } : {}) };
+  ecrire(uid, l);
+  return getItem(uid, lot.id);
 }
 function photoMembre(uid, lot, m) {
   const ph = photosDe(m)[0], f = ph && fichierPhoto(uid, m.id, ph.id);
@@ -601,7 +624,7 @@ function lienLbc(v) {
   }
 
   /* --- fiches --- */
-  if (p === "/api/objets" && method === "GET") return ok({ objets: listItems(u.id) });
+  if (p === "/api/objets" && method === "GET") { const t = listItems(u.id); if (t.some((x) => estLot(x) && !VENDU(x.statut))) tx(() => t.forEach((x) => { if (estLot(x)) reparerLot(u.id, x); })); return ok({ objets: t.some((x) => estLot(x)) ? listItems(u.id) : t }); }
   if (p === "/api/objets" && method === "POST") {
     const b = body();
     const id = crypto.randomBytes(8).toString("hex");
