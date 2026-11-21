@@ -4,4 +4,5 @@ node_modules/
 apercu-accueil.html
 __pycache__/
 safari/
+safari-ancien/
 dist/
