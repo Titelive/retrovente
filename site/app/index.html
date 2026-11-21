@@ -1703,8 +1703,8 @@ html.sans-anim .vt-b.pousse{animation:none}
 <section class="lbc" role="dialog" aria-labelledby="tEbay">
         <button class="lbc-x" type="button" data-ferme aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         <h3 id="tEbay">Publier sur eBay</h3>
-        <p>L'annonce est déjà <strong>au format eBay</strong> : titre de 80 caractères, état et caractéristiques à la façon d'eBay, prix avec les offres. Ouvre eBay, puis copie chaque champ.</p>
-        <a class="btn" id="fEbay" href="https://www.ebay.fr/sl/sell" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span class="pc-seul">Ouvrir eBay (nouvel onglet)</span><span class="mob-seul">Ouvrir eBay</span></a>
+        <p>L'annonce est déjà <strong>au format eBay</strong> : titre de 80 caractères, état et caractéristiques à la façon d'eBay, prix avec les offres. Le titre est copié en ouvrant eBay : colle-le dans « Que vendez-vous ? », puis copie chaque champ.</p>
+        <a class="btn" id="fEbay" href="https://www.ebay.fr/sl/prelist/suggest" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span id="fEbayTx"><span class="pc-seul">Créer l'annonce sur eBay</span><span class="mob-seul">Créer sur eBay</span></span></a>
         <ol class="lbc-etapes" id="ebayEtapes"></ol>
         <div class="lbc-bas"><span id="ebayProg">0 / 7 faits</span><button class="pl" type="button" id="fCopieEbay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Tout copier d'un coup</button></div>
         <p class="lbc-astuce">Une fois l'annonce en ligne, colle son lien dans la fiche (onglet L'annonce). Avec l'extension, il est repris tout seul depuis « Mes ventes » d'eBay, et l'IA t'aide à répondre aux acheteurs dans la messagerie eBay.</p>
@@ -2541,12 +2541,21 @@ $("ebayEtapes").addEventListener("click",function(e){var b=e.target.closest("[da
 $("fCopieEbay").onclick=function(){var c=champsEbay(),t=c.filter(function(x){return x.v&&!x.photo}).map(function(x){return x.l+"\n"+x.v}).join("\n\n");
   copier(t).then(function(){toast("Toute l'annonce eBay est copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
 function panneauEbay(on){var f=$("ebayFeuille");f.hidden=!on;$("fEbayBt").setAttribute("aria-expanded",String(on));document.body.classList.toggle("panneau-ouvert",on);
-  if(on){if(!$("lbcFeuille").hidden)panneauLbc(false);document.body.classList.add("panneau-ouvert");majEbay();setTimeout(function(){var b=f.querySelector("#fEbay");if(b)b.focus()},60)}else $("fEbayBt").focus({preventScroll:true})}
+  if(on){if(!$("lbcFeuille").hidden)panneauLbc(false);document.body.classList.add("panneau-ouvert");majEbay();majBoutonEbay();setTimeout(function(){var b=f.querySelector("#fEbay");if(b)b.focus()},60)}else $("fEbayBt").focus({preventScroll:true})}
 $("fEbayBt").onclick=function(){panneauEbay($("ebayFeuille").hidden)};
 $("ebayFeuille").addEventListener("click",function(e){if(e.target.closest("[data-ferme]"))panneauEbay(false)});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("ebayFeuille").hidden)panneauEbay(false)});
 /* Départ vers eBay : la fiche est enregistrée d'abord, pour que l'extension la retrouve ensuite (lien, messagerie). */
-$("fEbay").onclick=function(e){EBAY_FAIT={};majEbay();api("POST","/api/compter",{quoi:"ebay"}).catch(function(){});
+/* Le bouton ouvre le formulaire de mise en vente eBay (« Que vendez-vous ? ») avec le titre déjà copié, à coller tel
+   quel ; si l'article a déjà son lien eBay, il ouvre l'annonce. (/sl/sell mène à une page de présentation d'eBay.) */
+var EBAY_VENDRE="https://www.ebay.fr/sl/prelist/suggest";
+function lienEbayFiche(){var u=$("f_annonceEbay").value.trim();return /^https?:\/\/(www\.|m\.)?ebay\.[a-z.]+\/itm\//i.test(u)?u:""}
+function majBoutonEbay(){var u=lienEbayFiche(),b=$("fEbay");b.href=u||EBAY_VENDRE;
+  $("fEbayTx").innerHTML=u?'<span class="pc-seul">Voir l\'annonce sur eBay</span><span class="mob-seul">Voir l\'annonce</span>':'<span class="pc-seul">Créer l\'annonce sur eBay</span><span class="mob-seul">Créer sur eBay</span>'}
+$("f_annonceEbay").addEventListener("input",majBoutonEbay);
+$("fEbay").onclick=function(e){majBoutonEbay();if(lienEbayFiche())return;
+  EBAY_FAIT={};var t=titreEbay();if(t)copier(t).then(function(){EBAY_FAIT.titre=true;majEbay();toast("Titre copié : colle-le dans « Que vendez-vous ? » sur eBay.","ok")},function(){});else majEbay();
+  api("POST","/api/compter",{quoi:"ebay"}).catch(function(){});
   if(!sale())return;e.preventDefault();var w=window.open("","_blank"),u=this.href;
   sauver(true).then(function(o){if(!o){if(w)w.close();return}if(w){try{w.opener=null}catch(x){}w.location.href=u}else window.open(u,"_blank","noopener")})};
 $("fCopie").onclick=function(){copier(texteLbc()).then(function(){toast("Toute l'annonce est copiée.","ok")},function(){toast("Copie impossible : sélectionne le texte à la main.","bad")})};
