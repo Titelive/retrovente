@@ -57,7 +57,7 @@ Le module temporaire disparaît au redémarrage de Firefox.
 
 Safari n'accepte une extension que dans une app. Il faut Xcode (gratuit, App Store), ouvert une fois pour finir son installation.
 
-1. Dans le Terminal, à la racine du dépôt : `npm run extension:safari` (ou `sh extension/outils/safari.sh`). Le script crée le projet Xcode dans `safari/` (non versionné) et l'ouvre. Le projet pointe vers `extension/` : une modification de l'extension est reprise au prochain lancement.
+1. Dans le Terminal, à la racine du dépôt : `npm run extension:safari` (ou `sh extension/outils/safari.sh`). Le script crée le projet Xcode dans `safari/` (non versionné) et l'ouvre. Le projet pointe vers `extension/` : une modification de l'extension est reprise au prochain ⌘R. Mais Xcode liste les fichiers un par un : **après un `git pull`, relance `npm run extension:safari`**. Si un fichier a été ajouté (par exemple `ebay.js`), le script recrée le projet ; sinon il l'ouvre simplement.
 2. Dans Xcode, choisis le schéma **RetroRevente (macOS)** et **My Mac**, puis **⌘R**. Une petite app RetroRevente se lance : tu peux la fermer.
 3. Safari → **Réglages → Avancées** → coche « Afficher les fonctionnalités pour les développeurs web ». Puis menu **Développement → Autoriser les extensions non signées** (à refaire à chaque redémarrage de Safari).
 4. Safari → **Réglages → Extensions** → coche **RetroRevente pour Le Bon Coin**, puis **Modifier les sites web…** → « Autoriser » pour leboncoin.fr, ebay.fr et retrorevente.fr. Après un `git pull`, relance **⌘R** dans Xcode : Safari garde sinon l'ancienne version. Le panneau eBay affiche sa version (par exemple « v1.11.1 ») à côté de son titre.
