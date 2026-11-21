@@ -173,9 +173,10 @@ const COMMUNS = new Set(("wars war star stars quest racing racer racers rally pa
 export const themeDouteux = (nom) => { const w = norm(nom).trim().split(/[^a-z0-9]+/).filter(Boolean); return w.length === 1 && COMMUNS.has(w[0]); };
 const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
-/** Lots proposés à partir des articles libres (pas vendus, pas déjà dans un lot). Renvoie au plus `max` idées. */
-export function suggestionsLocales(articles, max = 6) {
-  const l = articles.filter(Boolean), out = [], vus = new Set();
+/** Lots proposés à partir des articles à vendre. Renvoie au plus `max` idées, sans celles dont les articles
+    forment déjà un lot (`exclure` : ensemble des listes d'identifiants triées et jointes par des virgules). */
+export function suggestionsLocales(articles, max = 6, exclure = null) {
+  const l = articles.filter(Boolean), out = [], vus = new Set(exclure || []);
   const ajouter = (nom, type, ids, raison) => {
     const k = [...ids].sort().join(",");
     if (ids.length < MIN_LOT || vus.has(k)) return;
