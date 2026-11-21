@@ -37,6 +37,34 @@ h3{font-size:18px;font-weight:600;letter-spacing:-.02em}
 @keyframes t{to{transform:rotate(360deg)}}
 .lien{background:none;border:0;padding:0;color:var(--gris);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px}
 .lien:hover{color:var(--encre)}
+/* outils photos de la fiche : une tuile par action, une couleur par famille (ajout, IA, retouche, export, suppression) */
+.rangee.outils-ph{--ot-ajout:#1C7ED6;--ot-edit:#D6336C;--ot-export:#0C8599;--ot-suppr:#C92A2A;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+:root[data-theme="dark"] .outils-ph{--ot-ajout:#74C0FC;--ot-edit:#FF8FB8;--ot-export:#66D9E8;--ot-suppr:#FF8787}
+.outils-ph .ot{--c:var(--encre);flex-direction:column;justify-content:center;gap:7px;min-width:0;min-height:76px;padding:10px 6px 9px;border-radius:18px;
+  --bg:color-mix(in srgb,var(--c) 6%,var(--carte));--fg:var(--encre);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 22%,var(--trait));
+  font:600 13px/1.15 var(--texte,inherit);letter-spacing:-.01em;white-space:nowrap;
+  transition:transform .25s var(--ease),box-shadow .2s,background-color .2s}
+.outils-ph .ot[data-f="ajout"]{--c:var(--ot-ajout)}
+.outils-ph .ot[data-f="edit"]{--c:var(--ot-edit)}
+.outils-ph .ot[data-f="export"]{--c:var(--ot-export)}
+.outils-ph .ot[data-f="suppr"]{--c:var(--ot-suppr);--fg:var(--ot-suppr)}
+.outils-ph .ot[data-f="ia"]{--c:var(--anis-t);--bg:color-mix(in srgb,var(--anis) 16%,var(--carte));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--anis) 55%,var(--trait))}
+.outils-ph .ot[data-f="prendre"]{--bg:var(--anis);--fg:var(--nuit);box-shadow:0 10px 22px -14px rgba(var(--anis-rgb),.9),inset 0 0 0 1px rgba(0,0,0,.06)}
+.outils-ph .ot:hover:not(:disabled){transform:translateY(-2px);box-shadow:inset 0 0 0 1.5px var(--c),0 12px 22px -16px var(--c)}
+.outils-ph .ot[data-f="ia"]:hover:not(:disabled){box-shadow:inset 0 0 0 1.5px var(--anis-f),0 12px 22px -16px var(--anis-f)}
+.outils-ph .ot[data-f="prendre"]:hover{box-shadow:0 14px 26px -14px rgba(var(--anis-rgb),1)}
+.outils-ph .ot:active:not(:disabled){transform:scale(.96)}
+.outils-ph .oi{position:relative;width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);transition:transform .3s var(--ease)}
+.outils-ph .oi svg{width:19px;height:19px}
+.outils-ph .ot:hover .oi{transform:scale(1.08) rotate(-4deg)}
+.outils-ph .ot[data-f="ia"] .oi{background:var(--anis);color:var(--nuit);box-shadow:2px 2px 0 var(--nuit)}
+:root[data-theme="dark"] .outils-ph .ot[data-f="ia"] .oi{box-shadow:2px 2px 0 rgba(0,0,0,.55)}
+.outils-ph .ot[data-f="prendre"] .oi{background:var(--nuit);color:var(--anis)}
+.outils-ph .oi b{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 4px;border-radius:99px;display:grid;place-items:center;background:var(--c);color:var(--carte);font:800 10.5px/1 var(--texte,inherit);box-shadow:0 0 0 2px var(--carte)}
+.outils-ph .ol{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.outils-ph .ot[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--c)}
+.outils-ph .ot.busy{white-space:normal;text-align:center;font-size:12px}.outils-ph .ot.busy::before{width:18px;height:18px}
+.outils-ph .ot:disabled{opacity:.6}
 /* petite pastille d'action (à la place des liens soulignés) */
 .pl{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:7px 13px;background:var(--papier);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);font:600 13px/1.2 var(--texte,inherit);cursor:pointer;white-space:nowrap;transition:box-shadow .2s,background-color .2s,color .2s;-webkit-tap-highlight-color:transparent}
 .pl svg{width:15px;height:15px;flex:none}
@@ -361,7 +389,7 @@ body.fiche-ouverte .lueurs{display:none}
   html.etabli #fiche .galerie{margin:0 -6px;flex-wrap:nowrap;overflow-x:auto;padding:6px;flex:none;scrollbar-width:thin}
   html.etabli #fiche .galerie li{width:60px;height:60px;flex:none;border-radius:13px}
   html.etabli #fiche .photos-carte .note{display:none}
-  html.etabli #fiche .photos-carte .rangee{gap:6px}html.etabli #fiche .photos-carte .rangee .btn{padding:7px 12px;font-size:13px}
+  html.etabli #fiche .photos-carte .rangee{gap:6px;flex:none}html.etabli #fiche .outils-ph .ot{min-height:64px;padding:8px 4px 7px;gap:5px;border-radius:16px}html.etabli #fiche .outils-ph .oi{width:30px;height:30px;border-radius:10px}html.etabli #fiche .outils-ph .oi svg{width:17px;height:17px}
   html.etabli #fiche .photos-carte .f.leg{flex:none}
   html.etabli #fiche .g-champs{gap:12px}
   html.etabli #fiche .dial{padding:14px 18px;gap:8px;flex:none}
@@ -816,13 +844,11 @@ html:not(.co) .nav-co{display:none!important}
   #fiche .photos-carte .galerie li{width:56px;height:56px;flex:none;border-radius:12px}
   #fiche .photos-carte .ia-etat{margin:0;flex:none}
   #fiche .photos-carte .leg{flex:none}
-  #fiche .photos-carte .rangee{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0}
-  #fiche .photos-carte .rangee>.btn{min-width:0;min-height:42px;padding:8px 6px;font-size:14px;gap:6px;justify-content:center;white-space:nowrap}
-  #fiche .photos-carte .rangee>.btn .i{width:17px;height:17px}
-  #fiche .photos-carte .rangee>.pl{grid-column:1/-1;justify-self:center}
-  @media(max-width:360px){#fiche .photos-carte .rangee>.btn{font-size:13px;padding:8px 4px;gap:4px}#fiche .photos-carte .rangee>.btn .i{width:15px;height:15px}
-    .fab-save #fSave span{display:none}.fab-save #fSave{padding:0 12px!important}
-    #fiche .photos-carte .rangee>.btn:not(#fCam) .i{display:none}}
+  #fiche .photos-carte .rangee{flex:none;gap:7px;margin:0;padding:0}
+  #fiche .outils-ph .ot{min-height:68px;padding:9px 4px 8px;gap:6px;border-radius:16px;font-size:12.5px}
+  #fiche .outils-ph .oi{width:32px;height:32px;border-radius:10px}#fiche .outils-ph .oi svg{width:18px;height:18px}
+  @media(max-width:360px){#fiche .outils-ph{gap:6px}#fiche .outils-ph .ot{font-size:11.5px;min-height:62px}#fiche .outils-ph .oi{width:28px;height:28px}#fiche .outils-ph .oi svg{width:16px;height:16px}
+    .fab-save #fSave span{display:none}.fab-save #fSave{padding:0 12px!important}}
   .profil-g{flex-direction:column;align-items:stretch;gap:18px}.profil-g>*{width:100%;min-width:0}.profil-g>.avatar-zone{align-self:center;width:auto}
   .zone .rangee>.btn{max-width:100%;white-space:normal;text-align:center}
   @media(max-height:700px){#fiche .photos-carte .photo{min-height:90px}#fiche .photos-carte .leg>span{display:none}#fiche .photos-carte .galerie li{width:48px;height:48px}#fiche .photos-carte.mo-on{gap:8px;padding:12px}}
@@ -1257,16 +1283,16 @@ html.sans-anim .vt-b.pousse{animation:none}
       <ul class="ia-etat" id="fIaEtat" hidden aria-live="polite"></ul>
       <ol class="galerie" id="fGal" aria-label="Photos de l'article (glisse pour changer l'ordre)"></ol>
       <label class="f leg" id="fLegZone" hidden><span>Légende de la photo <b id="fLegN">1</b></span><input type="text" id="fLeg" maxlength="200" placeholder="ex. dos de la cartouche, petite rayure"></label>
-      <div class="rangee">
-        <button class="btn petit mob" type="button" id="fCam"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Prendre</button>
-        <label class="btn clair petit" for="fPhotoIn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="pc-seul">Ajouter des photos</span><span class="mob-seul">Galerie</span></label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
-        <button class="btn clair petit" type="button" id="fIa"><span class="pc-seul">Remplir depuis la photo</span><span class="mob-seul">Remplir</span></button>
-        <button class="btn clair petit" type="button" id="fNet"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Retoucher</button>
-        <button class="btn clair petit" type="button" id="fOrig" hidden><span class="pc-seul">Voir l'original</span><span class="mob-seul">Original</span></button>
-        <button class="btn clair petit" type="button" id="fPivot" title="Tourner d'un quart de tour">↻ Pivoter</button>
-        <button class="btn clair petit" type="button" id="fDecrire"><span class="pc-seul">Décrire les photos</span><span class="mob-seul">Décrire</span></button>
-        <button class="btn clair petit" type="button" id="fPhotoDl">Enregistrer les photos numérotées</button>
-        <button class="pl danger" type="button" id="fPhotoSuppr" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Retirer cette photo</button>
+      <div class="rangee outils-ph" role="group" aria-label="Actions sur les photos">
+        <button class="btn petit mob ot" data-f="prendre" type="button" id="fCam" title="Prendre une photo"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><span class="ol">Prendre</span></button>
+        <label class="btn clair petit ot" data-f="ajout" for="fPhotoIn" title="Ajouter des photos"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7"/><path d="m4 16 4.5-4.5L13 16l2-2 5 5"/><path d="M18 3v6M15 6h6"/></svg></span><span class="ol">Ajouter</span></label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
+        <button class="btn clair petit ot" data-f="ia" type="button" id="fIa" title="Remplir la fiche depuis la photo"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></span><span class="ol">Remplir</span></button>
+        <button class="btn clair petit ot" data-f="ia" type="button" id="fDecrire" title="Décrire chaque photo (légendes)"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15h4M14 15h3M7 11h2M12 11h5"/></svg></span><span class="ol">Décrire</span></button>
+        <button class="btn clair petit ot" data-f="ia" type="button" id="fNet" title="Retoucher la photo : fond, cadrage, reflets"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span><span class="ol">Retoucher</span></button>
+        <button class="btn clair petit ot" data-f="edit" type="button" id="fPivot" title="Tourner d'un quart de tour"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6L20 8.7"/><path d="M20 3.5v5.2h-5.2"/></svg></span><span class="ol">Pivoter</span></button>
+        <button class="btn clair petit ot" data-f="edit" type="button" id="fOrig" hidden title="Voir l'original"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M9 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/><path d="M15 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" stroke-dasharray="2.2 2.6"/></svg></span><span class="ol">Original</span></button>
+        <button class="btn clair petit ot" data-f="export" type="button" id="fPhotoDl" title="Enregistrer les photos numérotées"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 20h14"/></svg></span><span class="ol">Exporter</span></button>
+        <button class="btn clair petit ot" data-f="suppr" type="button" id="fPhotoSuppr" hidden title="Retirer cette photo"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></span><span class="ol">Retirer</span></button>
       </div>
       <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts de l'article restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
      </section>
@@ -1947,8 +1973,8 @@ function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
     (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
-  $("fOrig").hidden=!(c&&c.orig);if(c&&c.orig)$("fOrig").innerHTML=c.vueOrig?'<span class="pc-seul">Revenir à la photo retouchée</span><span class="mob-seul">Retouchée</span>':'<span class="pc-seul">Voir l\'original</span><span class="mob-seul">Original</span>';
-  $("fPhotoSuppr").hidden=!c;$("fDecrire").hidden=!GAL.length;$("fPhotoDl").innerHTML='<span class="pc-seul">'+(GAL.length>1?"Enregistrer les "+GAL.length+" photos numérotées":"Enregistrer la photo numérotée")+'</span><span class="mob-seul">Exporter</span>';
+  $("fOrig").hidden=!(c&&c.orig);if(c&&c.orig){var oo=$("fOrig");oo.querySelector(".ol").textContent=c.vueOrig?"Retouchée":"Original";oo.title=c.vueOrig?"Revenir à la photo retouchée":"Voir l'original";oo.setAttribute("aria-pressed",c.vueOrig?"true":"false")}
+  $("fPhotoSuppr").hidden=!c;$("fDecrire").hidden=!GAL.length;var dl=$("fPhotoDl"),dn=dl.querySelector(".oi");dl.title=GAL.length>1?"Enregistrer les "+GAL.length+" photos numérotées":"Enregistrer la photo numérotée";if(dn){var bd=dn.querySelector("b")||dn.appendChild(document.createElement("b"));bd.textContent=GAL.length>1?GAL.length:"";bd.hidden=GAL.length<2}
   if(typeof majLbc==="function")majLbc()}
 function deplacer(de,vers){if(vers<0||vers>=GAL.length||de===vers)return;var g=GAL.splice(de,1)[0];GAL.splice(vers,0,g);SEL=vers;afficher();majDescPhotos()}
 $("fGal").addEventListener("click",function(e){var d=e.target.closest("[data-dep]"),li=e.target.closest("li");if(!li)return;
