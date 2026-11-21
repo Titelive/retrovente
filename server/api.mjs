@@ -765,7 +765,7 @@ function lienLbc(v) {
   }
 
   /* --- IA --- */
-  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const b = body(); const o = await ia.identifier(b.photo, b.indice === "films" ? "films" : ""); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = [];
     // Avec « flux », l'avancement (photo N/M, jaunissement) est envoyé au fil de l'eau, puis le résultat.
     if (b.flux) return { status: 200, headers: {}, flux: async (envoi) => {

@@ -736,7 +736,7 @@ html.etabli #fiche [data-onglet] input[type=date]{min-height:42px}
   #toast{bottom:calc(86px + env(safe-area-inset-bottom))}
   body.fiche-ouverte #toast{bottom:calc(76px + env(safe-area-inset-bottom))}
   /* accueil */
-  .ajout{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
+  .ajout{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
   .ajout>.btn,.ajout>label.btn{justify-content:center;min-height:48px;padding:12px 10px;font-size:14.5px}
   .ajout #bCam{grid-column:1/-1;min-height:56px;font-size:16px}
   .ajout>.btn,.ajout>label.btn{min-width:0;gap:8px;white-space:nowrap}.ajout>.btn svg{flex:none;width:20px;height:20px}.ajout .mob-seul{overflow:hidden;text-overflow:ellipsis}
@@ -1108,6 +1108,7 @@ html.sans-anim .vt-b.pousse{animation:none}
     <div class="nouv-menu" id="ajoutMenu" role="menu" hidden>
       <label role="menuitem" for="photoIn"><i>📷</i><span>En photo<small>L'IA remplit la fiche</small></span></label>
       <label role="menuitem" for="cartesIn"><i>🃏</i><span>Plusieurs cartes Pokémon<small>Une photo de classeur ou de cartes étalées</small></span></label>
+      <label role="menuitem" for="filmIn"><i>🎬</i><span>Un film<small>Blu-Ray, 4K UHD ou DVD : photo de la jaquette</small></span></label>
       <button role="menuitem" type="button" id="ajoutManuel"><i>✍️</i><span>À la main<small>Sans photo pour l'instant</small></span></button>
     </div></div>
   <button class="btn clair petit" id="bTroph" type="button" hidden aria-label="Mes trophées" title="Mes trophées"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg> <span id="bTrophN"></span></button>
@@ -1144,8 +1145,10 @@ html.sans-anim .vt-b.pousse{animation:none}
     <div class="ajout">
       <button class="btn mob" type="button" id="bCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Prendre en photo</button>
       <label class="btn" for="photoIn" id="lPhotoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> <span class="pc-seul">Ajouter en photo</span><span class="mob-seul">Galerie</span></label>
-      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.7l4.6 9.9a2 2 0 0 0 2.6 1l1.2-.6"/></svg> <span class="pc-seul">Plusieurs cartes Pokémon</span><span class="mob-seul">Cartes Pokémon</span></label>
+      <label class="btn clair" for="cartesIn" title="Une photo d'une page de classeur ou de cartes étalées"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.7l4.6 9.9a2 2 0 0 0 2.6 1l1.2-.6"/></svg> <span class="pc-seul">Plusieurs cartes Pokémon</span><span class="mob-seul">Cartes</span></label>
       <input type="file" id="cartesIn" accept="image/*" hidden>
+      <label class="btn clair" for="filmIn" id="lFilmIn" title="Blu-Ray, Blu-Ray 4K UHD ou DVD : une photo de la jaquette"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg> <span class="pc-seul">Un film</span><span class="mob-seul">Film</span></label>
+      <input type="file" id="filmIn" accept="image/*" multiple hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <a class="btn clair" id="bLbc" target="_blank" rel="noopener" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg> Ma page Le Bon Coin</a>
       <input type="file" id="photoIn" accept="image/*" hidden>
@@ -2043,9 +2046,10 @@ function apiFlux(path,body,progres){var h={"content-type":"application/json"};if
       return lire()})}
     return lire().then(function(){if(fin.error){var e=new Error(fin.error);e.status=fin.statut||500;e.trace=fin.trace;throw e}return fin})})}
 
-function nouveauAvec(fs){if(ME.quota.reste===0){quotaPlein();return}
-  ouvrirFiche(null);ongletMobile("photos");var f=fs.shift();analyser(f).then(function(){return ajouterPhotos(fs.slice(0,11))})}
+function nouveauAvec(fs,indice){if(ME.quota.reste===0){quotaPlein();return}
+  ouvrirFiche(null);ongletMobile("photos");if(indice==="films"){$("f_categorie").value="films";$("f_categorie").dispatchEvent(new Event("change"))}var f=fs.shift();analyser(f,indice).then(function(){return ajouterPhotos(fs.slice(0,11))})}
 $("photoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs)};
+$("filmIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs,"films")};
 $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;ajoutAvec(fs)};
 function ajoutAvec(fs){ongletMobile("photos");
   var place=12-GAL.length;if(fs.length>place){toast("12 photos au plus : j'en garde "+place+".","bad");fs=fs.slice(0,place)}
@@ -2085,9 +2089,9 @@ function trouverSens0(img){
       if(!b.sur||!b.rotation)return 0;var r=(a.rotation+b.rotation)%360;if(!r)return 0;
       return sens(tourne(img,r)).then(function(c){return c.sens==="haut"?r:0})})})}
 var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la première analyse finie
-function analyser(f){
-  ANALYSE=true;attente("Je lis l'étiquette pour reconnaître le jeu…");
-  return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000)})})
+function analyser(f,indice){
+  ANALYSE=true;attente(indice==="films"?"Je lis la jaquette pour reconnaître le film…":"Je lis l'étiquette pour reconnaître l'article…");
+  return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000),indice:indice||""})})
     .then(function(j){var o=j.objet;IA_FAITE=true;journal("Reconnaissance",o.titre||"rien");
       ROT=0;   // le sens est vérifié à part (trouverSens), pas deviné avec le reste
       $("f_titre").value=o.titre;$("f_categorie").value=o.categorie;$("f_plateforme").value=o.plateforme;$("f_region").value=o.region;
