@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "RetroRevente pour Le Bon Coin",
+  "name": "RetroRevente pour Le Bon Coin et eBay",
   "short_name": "RetroRevente",
-  "version": "1.9.3",
-  "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs. Tu publies toi-même.",
+  "version": "1.10.0",
+  "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs sur Le Bon Coin et eBay. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
     "16": "icones/icone-16.png",
@@ -35,7 +35,9 @@
   ],
   "host_permissions": [
     "https://retrorevente.fr/*",
-    "https://www.leboncoin.fr/*"
+    "https://www.leboncoin.fr/*",
+    "https://www.ebay.fr/*",
+    "https://mesg.ebay.fr/*"
   ],
   "content_scripts": [
     {
@@ -45,6 +47,17 @@
       "js": [
         "commun.js",
         "lbc.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.ebay.fr/*",
+        "https://mesg.ebay.fr/*"
+      ],
+      "js": [
+        "commun.js",
+        "ebay.js"
       ],
       "run_at": "document_idle"
     },
@@ -88,7 +101,9 @@
         "icones/icone-128.png"
       ],
       "matches": [
-        "https://www.leboncoin.fr/*"
+        "https://www.leboncoin.fr/*",
+        "https://www.ebay.fr/*",
+        "https://mesg.ebay.fr/*"
       ]
     }
   ]

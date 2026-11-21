@@ -5,7 +5,7 @@ L'assistant du revendeur rétro, en complément de Le Bon Coin : une photo, et R
 - `site/` : pages publiques (accueil, guides, pages légales) et l'appli (`site/app/`).
 - `server/` : serveur Node 22 sans dépendance (pages + API `/api/…`), base SQLite intégrée à Node.
 - `deploy/` : mise en ligne sur le VPS IONOS (service `retrorevente`, port 8082).
-- `extension/` : extension navigateur (Safari, Chrome, Firefox) qui remplit le dépôt d'annonce Le Bon Coin, voir `extension/README.md`.
+- `extension/` : extension navigateur (Safari, Chrome, Firefox) qui remplit le dépôt d'annonce Le Bon Coin et aide à répondre aux acheteurs sur Le Bon Coin et eBay, voir `extension/README.md`.
 - `test/` : tests de l'API (`npm test`).
 
 En local : `npm run dev` puis http://127.0.0.1:8082 (IA simulée, pas besoin de clé).
@@ -72,6 +72,12 @@ Ce que fait le code pour le droit de la consommation :
 - bouton « Renoncer au contrat ici » pendant le délai de rétractation, puis « Confirmer la rétractation » (art. L221-21 et D221-5, depuis le 19 juin 2026). Le remboursement se fait à la main dans Stripe : un e-mail te donne le montant ;
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
+
+## Vendre aussi sur eBay
+
+Sur la fiche, le bouton **eBay** (à côté de « Le Bon Coin ») ouvre l'annonce **au format eBay**, un bouton « Copier » par champ dans l'ordre de la mise en vente eBay : titre coupé à **80 caractères** entre deux mots, catégorie eBay, état eBay (Neuf, Très bon état, Bon état, État acceptable, Pour pièces détachées), **caractéristiques** (nom du jeu, plateforme, région, contenu ; pour une carte : extension, numéro, langue, gradation ; pour un film : format, édition, année), description (l'envoi avec suivi remplace « main propre ou envoi »), prix en Achat immédiat avec les offres et un **refus automatique sous 85 %** du prix, et les photos. « Ouvrir eBay » enregistre la fiche puis ouvre `ebay.fr/sl/sell`.
+
+Chaque article a un **lien eBay** à part (`annonceEbay`, onglet L'annonce), à côté du lien Le Bon Coin : un article peut être en ligne sur les deux. Seule une adresse d'objet eBay est acceptée (`ebay.fr/itm/<numéro>`, ramenée à sa forme courte). L'extension (1.10.0) le remplit toute seule depuis « Mes ventes » / Seller Hub, et propose les réponses IA dans la **messagerie eBay** (voir `extension/README.md`).
 
 ## Cartes Pokémon
 
