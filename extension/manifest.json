@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin et eBay",
   "short_name": "RetroRevente",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs sur Le Bon Coin et eBay. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {

@@ -30,7 +30,7 @@
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
   etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego"]).then(function (r) { if (r && r.sansNego) etat.sansNego = true; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego", "refuserSansAvis"]).then(function (r) { if (r && r.sansNego) etat.sansNego = true; if (r && r.refuserSansAvis === false) etat.refuserSansAvis = false; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -752,6 +752,7 @@
     ".ia{display:flex;flex-direction:column;gap:7px;background:var(--nuit);color:#fff;border-radius:18px;padding:12px;--papier:rgba(255,255,255,.06);--trait:rgba(255,255,255,.14);--gris:#B8B8B0;--encre:#fff}" +
     ".ia-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.ia-t b{font:700 14px/1.2 var(--titre);display:flex;gap:6px;align-items:center}.etoile{color:var(--anis)}" +
     ".ia-attente{margin:8px 0 6px;padding:12px 14px;border-radius:14px;background:rgba(212,245,122,.16);color:inherit;font:600 14px/1.45 var(--texte)}" +
+    ".ia-verif{margin:0;font-size:12.5px;line-height:1.4;border-radius:10px;padding:7px 9px}.ia-verif.ok{background:rgba(212,245,122,.12);color:#D4F57A}.ia-verif.doute{background:rgba(255,196,0,.14);color:#FFD66B}" +
     ".ia-offre{margin:0;font-size:12.5px;line-height:1.4;border-radius:10px;padding:7px 9px;background:rgba(255,255,255,.07);color:#E8E8E2}.ia-offre.basse{background:rgba(246,196,185,.14);color:#F6D3CB}.ia-offre.ok{background:rgba(191,232,200,.12);color:#CBEBD3}.ia-offre b{font-weight:700}" +
     ".ia .mini{color:#fff}.ia .mini:hover:not(:disabled){background:var(--anis);border-color:var(--anis);color:var(--nuit)}.mini:disabled{opacity:.55;cursor:default}.ia-r{margin:0;font-size:12.5px;color:#B8B8B0}.ia-r.charge{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}" +
     ".rep.fort{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}.rep.fort:hover{background:rgba(212,245,122,.14);border-color:var(--anis)}.rep.fort b{color:var(--anis)}.rep .plein{display:block;-webkit-line-clamp:unset;color:#E8E8E2}" +
@@ -1432,9 +1433,9 @@
     etat.ia = { cle: cle, charge: true, consigne: consigne || "" }; rafraichirIA();
     try {
       var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
-      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi() });
+      var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: consigne ? precedentes : [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi(), dernierMoi: !consigne && dernierEstMoi(), refuserSansAvis: etat.refuserSansAvis !== false });
       if (!etat.ia || etat.ia.cle !== cle || idConversation() !== idDepart) { rafraichirIA(); return; }   // autre conversation entre-temps : réponse jetée
-      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null };
+      etat.ia = { cle: cle, resume: r.resume, reponses: r.reponses || [], consigne: consigne || "", offre: r.offre || null, version: r.version || null, sansAvis: !!(r.acheteur && r.acheteur.sansAvis) };
       if (consigne) etat.brouillonIA = "";
     } catch (e) {
       if (etat.ia && etat.ia.cle === cle && idConversation() === idDepart) etat.ia = { cle: cle, erreur: e.message, status: e.status };
@@ -1479,6 +1480,14 @@
     }
     if (i.consigne) z.appendChild(el("p", { class: "ia-r", texte: "D'après ta consigne : « " + i.consigne + " »" }));
     else if (i.resume) z.appendChild(el("p", { class: "ia-r", texte: i.resume }));
+    // Langue ou compatibilité : ce qui a été vérifié, ou un rappel de vérifier avant d'envoyer.
+    if (i.version && i.version.texte) z.appendChild(el("p", { class: "ia-verif " + (i.version.verifie ? "ok" : "doute"), texte: (i.version.verifie ? "✓ " : "⚠ ") + i.version.texte }));
+    // Acheteur sans avis : ta règle s'applique, désactivable d'un clic (l'IA repropose alors des réponses normales).
+    if (i.sansAvis) {
+      z.appendChild(el("div", { class: "ia-nego" }, [el("button", { class: "pastille nego", type: "button", role: "switch", "aria-checked": String(etat.refuserSansAvis !== false), onclick: function () {
+        etat.refuserSansAvis = etat.refuserSansAvis === false; try { RR.storage.local.set({ refuserSansAvis: etat.refuserSansAvis }); } catch (e) {} proposerIA(true);
+      } }, [etat.refuserSansAvis !== false ? "✓ " : "+ ", "Refuser les acheteurs sans avis"])]));
+    }
     var qui = acheteurLu(), choisie = etat.choisie || {};
     // Réponses qui tiennent le prix : on peut y ajouter « Pas de négociation possible… » d'un clic.
     var tient = (i.reponses || []).some(function (r) { return TIENT_PRIX[r.approche]; });
