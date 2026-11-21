@@ -105,3 +105,7 @@ Dans l'onglet « Le jeu » d'un jeu vidéo : la **jaquette**, des **captures d'�
 - Images et notes : [IGDB](https://www.igdb.com) (Twitch), gratuit. Crée une appli sur [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) (nom libre, URL de redirection `http://localhost`, catégorie « Website Integration »), puis copie son Client ID et un Client Secret dans `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`. Sans ces clés, seule « ma note » s'affiche.
 - Descriptif : l'introduction de l'article Wikipédia en français (licence CC BY-SA 4.0, source citée sous le bloc), sinon le résumé IGDB traduit par l'IA.
 - Chaque jeu n'est cherché qu'une fois : la réponse est gardée 30 jours en base (table `jeux_infos`). Code : `server/jeux.mjs`.
+
+## Profil de vendeur
+
+Juste après l'inscription (puis dans Mon compte), le vendeur dit comment il vend : patient ou pressé, main propre ou envoi, ouvert aux échanges ou non, souple ou attaché à ses prix, et le ton de ses messages (très diplomate, chaleureux, direct, avec humour), plus une note libre. Le profil est gardé dans `users.vendeur` (JSON, `server/profil.mjs`). L'IA des réponses aux acheteurs s'en sert : ton imposé, prix plancher des offres (85 % par défaut, 90 % pour un vendeur patient, 80 % pour un vendeur pressé, aucune contre-offre pour « Prix ferme »), remise et échanges proposés. L'extension coche d'office « Pas de négociation possible » pour un vendeur à prix ferme et adapte ses réponses types.
