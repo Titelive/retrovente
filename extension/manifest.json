@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RetroRevente pour Le Bon Coin et eBay",
   "short_name": "RetroRevente",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "Remplit le dépôt Le Bon Coin avec ta fiche RetroRevente et t'aide à répondre aux acheteurs sur Le Bon Coin et eBay. Tu publies toi-même.",
   "homepage_url": "https://retrorevente.fr/",
   "icons": {
@@ -36,8 +36,7 @@
   "host_permissions": [
     "https://retrorevente.fr/*",
     "https://www.leboncoin.fr/*",
-    "https://www.ebay.fr/*",
-    "https://mesg.ebay.fr/*"
+    "https://*.ebay.fr/*"
   ],
   "content_scripts": [
     {
@@ -52,8 +51,7 @@
     },
     {
       "matches": [
-        "https://www.ebay.fr/*",
-        "https://mesg.ebay.fr/*"
+        "https://*.ebay.fr/*"
       ],
       "js": [
         "commun.js",
@@ -102,8 +100,7 @@
       ],
       "matches": [
         "https://www.leboncoin.fr/*",
-        "https://www.ebay.fr/*",
-        "https://mesg.ebay.fr/*"
+        "https://*.ebay.fr/*"
       ]
     }
   ]

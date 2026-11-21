@@ -23,10 +23,18 @@
     var h = location.hostname, p = location.pathname;
     if (/^mesg\./.test(h) || /^\/(mesg|mesh|cnt|msg)(\/|$)/i.test(p) || /\/messages?(\/|$)/i.test(p)) return "messages";
     // Mise en vente : « Commencer votre annonce » (/sl/prelist…), puis le formulaire (/lstng, /sl/list…).
-    if (/^\/sl\/prelist(\/|$)/i.test(p)) return "prelist";
+    if (/^\/sl\/prelist(\/|$)/i.test(p) || champVente()) return "prelist";
     if (/^\/(lstng|sl\/(list|sell))(\/|$)/i.test(p)) return "formulaire";
     if (/^\/(sh|mys|sl)(\/|$)/i.test(p) || /^\/myb\/(Selling|ActiveListings|Summary)/i.test(p)) return "vendeur";
     return "";
+  }
+
+  // « Dites-nous ce que vous vendez » : reconnu par son texte, quelle que soit l'adresse de la page.
+  var VENTE = /dites-nous ce que vous vendez|que vendez-vous|tell us what you.?re selling|what are you selling/;
+  function champVente() {
+    return [].filter.call(document.querySelectorAll("input, textarea"), function (x) {
+      return VENTE.test(norm((x.getAttribute("placeholder") || "") + " " + (x.getAttribute("aria-label") || ""))) && visibleEl(x);
+    })[0] || null;
   }
 
   /* ===== Annonces de la personne (lues une fois, puis gardées) ===== */
@@ -163,6 +171,7 @@
     ".bulle{position:fixed;right:18px;bottom:90px;max-width:320px;background:var(--nuit);color:#fff;border-radius:14px;padding:10px 14px;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.3);animation:monte .3s var(--ease)}" +
     ".etapes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}.etapes li{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--gris)}.etapes li.ok{color:var(--encre);font-weight:600}" +
     ".puce{flex:none;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:var(--papier);font:700 12px/1 var(--texte)}.etapes li.ok .puce{background:var(--anis);color:var(--nuit)}" +
+    ".v{font:600 11px/1 var(--texte);color:var(--gris)}" +
     "button:focus-visible,select:focus-visible{outline:2px solid var(--anis);outline-offset:2px}";
   function el(tag, attrs, enfants) {
     var e = document.createElement(tag);
@@ -335,21 +344,91 @@
   }
   function fait(cle, ok) { if (ok) depot.lignes[cle] = true; }
 
+  // Saisie comme au clavier (insertText déclenche beforeinput/input, que React et Marko écoutent), sinon valeur posée.
+  function taper(c, v) {
+    c.focus(); try { c.select(); } catch (e) {}
+    var ok = false; try { ok = document.execCommand("insertText", false, v); } catch (e) {}
+    if (!ok || c.value !== v) ecrireValeur(c, v); else c.dispatchEvent(new Event("change", { bubbles: true }));
+    c.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true }));
+  }
+  function entree(c) {
+    ["keydown", "keypress", "keyup"].forEach(function (t) { c.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true })); });
+  }
+  // Champ de « Commencer votre annonce » : par son texte, sinon le seul champ texte visible de la page.
+  function champPrelist() {
+    var c = champVente(); if (c) return c;
+    var l = champs("input[type=text], input[type=search], input:not([type]), textarea", /vendez|vendre|sell|cherch|search|recherch|mots?-cles|keyword/);
+    if (l.length) return l[0];
+    var t = [].filter.call(document.querySelectorAll("input[type=text], input[type=search], input:not([type])"), function (x) { return visibleEl(x) && !x.disabled && !x.readOnly; });
+    return t.length === 1 ? t[0] : null;
+  }
+  // La loupe : bouton du formulaire, sinon bouton le plus proche du champ (jamais « Mettre en vente »).
+  function boutonRecherche(c) {
+    var ok = function (x) { return x !== c && visibleEl(x) && !/mettre en vente|publier|list it/i.test(x.textContent || ""); };
+    var b = c.form && [].filter.call(c.form.querySelectorAll("button[type=submit], button:not([type]), [role=button]"), ok)[0];
+    for (var z = c.parentElement, i = 0; !b && z && i < 5; i++, z = z.parentElement) b = [].filter.call(z.querySelectorAll("button, [role=button]"), ok)[0];
+    return b || null;
+  }
+  var attentePrelist = null;
   // Page « Commencer votre annonce » : le titre dans « Dites-nous ce que vous vendez », puis la loupe.
+  // Le champ peut arriver tard : on l'attend jusqu'à 20 s.
   function remplirPrelist(a) {
     if (depot.faits.prelist === a.id) return;
-    var l = champs("input[type=text], input[type=search], input:not([type])", /vendez|vendre|sell|cherch|search|recherch|mots?-cles|keyword/);
-    var c = l[0]; if (!c) return;
-    depot.faits.prelist = a.id;
-    ecrireValeur(c, a.ebay.titre); fait("titre", true);
+    var c = champPrelist();
+    if (!c) {
+      if (attentePrelist) return;
+      var debut = Date.now();
+      attentePrelist = setInterval(function () {
+        var x = champPrelist();
+        if (!x && Date.now() - debut < 20000) return;
+        clearInterval(attentePrelist); attentePrelist = null;
+        if (x) remplirPrelist(a); else { depot.manque = "Champ « Dites-nous ce que vous vendez » introuvable : tape le titre, RetroRevente remplira la suite."; dessinerDepot(); }
+      }, 300);
+      return;
+    }
+    depot.faits.prelist = a.id; depot.manque = "";
+    taper(c, a.ebay.titre); fait("titre", true); dessinerDepot();
+    lancerRecherche(c, a, 0);
+  }
+  // On attend que la loupe soit active (elle est grisée tant que le champ est vide), et on retape si la page a effacé le titre.
+  function lancerRecherche(c, a, n) {
     setTimeout(function () {
-      var f = c.form, b = f && f.querySelector("button[type=submit], button:not([type])");
-      if (!b) { var z = c.parentElement; for (var i = 0; i < 4 && z && !b; i++, z = z.parentElement) b = [].filter.call(z.querySelectorAll("button"), visibleEl)[0]; }
-      if (b && !/mettre en vente|publier|list it/i.test(b.textContent || "")) b.click();
-      else if (f && f.requestSubmit) f.requestSubmit();
-      else c.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+      if (!c.isConnected) { var x = champPrelist(); if (!x) return; c = x; }
+      if (norm(c.value) !== norm(a.ebay.titre) && n < 3) { taper(c, a.ebay.titre); return lancerRecherche(c, a, n + 1); }
+      var b = boutonRecherche(c);
+      if (b && (b.disabled || b.getAttribute("aria-disabled") === "true") && n < 10) return lancerRecherche(c, a, n + 1);
+      if (b && !b.disabled) b.click(); else if (c.form && c.form.requestSubmit) c.form.requestSubmit(); else entree(c);
       bulle("RetroRevente a cherché « " + a.ebay.titre + " » sur eBay : choisis l'objet correspondant ou continue sans.");
-    }, 400);
+    }, n ? 300 : 450);
+  }
+  // Bouton de secours sous le champ : « Remplir avec RetroRevente ».
+  var secours = null;
+  function placerSecours() {
+    var c = mode() === "prelist" ? champPrelist() : null;
+    if (!c) { if (secours) secours.style.display = "none"; return; }
+    if (!secours) {
+      secours = document.createElement("div"); secours.id = "retrorevente-ebay-remplir";
+      var o = secours.attachShadow({ mode: "open" }), st = document.createElement("style");
+      st.textContent = ".r{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:9px 16px 9px 9px;background:#D4F57A;color:#1A1A1A;" +
+        "font:700 14px/1 'RR Rubik',ui-rounded,system-ui,-apple-system,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .2s}" +
+        ".r:hover{transform:translateY(-1px)}.r:focus-visible{outline:2px solid #0064D2;outline-offset:2px}.r b{background:#1A1A1A;color:#D4F57A;border-radius:999px;padding:5px 7px;font:800 11px/1 inherit}";
+      o.appendChild(st);
+      o.appendChild(el("button", { class: "r", type: "button", onclick: clicSecours }, [el("b", { texte: "RR" }), "Remplir avec RetroRevente"]));
+      secours.style.cssText = "position:fixed;z-index:2147483645;display:none";
+      document.documentElement.appendChild(secours);
+      addEventListener("scroll", placerSecours, true); addEventListener("resize", placerSecours);
+    }
+    var r = c.getBoundingClientRect();
+    secours.style.top = Math.round(r.bottom + 10) + "px"; secours.style.left = Math.round(r.left) + "px"; secours.style.display = "";
+    var btn = secours.shadowRoot.querySelector("button"); btn.title = depot.a ? "Taper « " + depot.a.ebay.titre + " » et lancer la recherche" : "Choisir l'article à mettre en vente";
+  }
+  function clicSecours() {
+    ouvert = true; if (!hote) construire(); hote.style.display = "";
+    charger().then(articleDepot).then(function (a) {
+      if (a && a.ebay) { depot.faits.prelist = null; depot.lignes = {}; remplirPrelist(a); return; }
+      dessinerDepot();
+      var s = ombre.querySelector("select"); if (s) s.focus();
+    }, function (e) { depot.erreur = e.message || "RetroRevente ne répond pas."; dessinerDepot(); });
   }
   // État : bouton radio, option de liste ou bouton dont le texte est l'état eBay voulu (une valeur déjà choisie est gardée).
   function choisirEtat(a) {
@@ -428,6 +507,7 @@
     var d = st.aDeposerEbay && Date.now() - st.aDeposerEbay.at < 3 * 3600e3 ? st.aDeposerEbay : null;
     var a = d && annonces.filter(function (x) { return x.id === d.id; })[0];
     if (a && (!depot.a || depot.a.id !== a.id)) { depot.a = a; depot.faits = {}; depot.lignes = {}; }
+    depot.erreur = "";
     return depot.a;
   }
   async function remplirDepot() {
@@ -443,9 +523,9 @@
     b.textContent = ""; if (garde) b.appendChild(garde);
     if (!ouvert) { b.appendChild(el("button", { class: "rond", type: "button", "aria-label": "Ouvrir RetroRevente", onclick: function () { ouvert = true; dessinerDepot(); } }, [el("img", { src: RR.runtime.getURL("icones/icone-128.png"), alt: "" }), el("i", { texte: "eBay" })])); return; }
     var p = el("div", { class: "p", role: "dialog", "aria-label": "RetroRevente : mise en vente eBay" });
-    p.appendChild(el("div", { class: "t" }, [el("b", {}, [el("span", { class: "logo", texte: "RR" }), "Mise en vente", el("span", { class: "site", texte: "eBay" })]),
+    p.appendChild(el("div", { class: "t" }, [el("b", {}, [el("span", { class: "logo", texte: "RR" }), "Mise en vente", el("span", { class: "site", texte: "eBay" }), el("span", { class: "v", texte: "v" + RR.runtime.getManifest().version })]),
       el("button", { class: "x", type: "button", "aria-label": "Réduire", texte: "×", onclick: function () { ouvert = false; dessinerDepot(); } })]));
-    if (!annonces) { p.appendChild(el("p", { class: "s", texte: "Chargement de tes articles…" })); b.appendChild(p); return; }
+    if (!annonces) { p.appendChild(el("p", { class: depot.erreur ? "s bad" : "s", texte: depot.erreur || "Chargement de tes articles…" })); b.appendChild(p); return; }
     var sel = el("select", { "aria-label": "Article à mettre en vente", onchange: function () {
       depot.a = annonces.filter(function (x) { return x.id === sel.value; })[0] || null; depot.choisi = true; depot.faits = {}; depot.lignes = {}; dejaRempli = new WeakMap(); remplirDepot();
     } });
@@ -458,6 +538,7 @@
         l.appendChild(el("li", { class: depot.lignes[x[0]] ? "ok" : "" }, [el("span", { class: "puce", texte: depot.lignes[x[0]] ? "✓" : "·" }), x[1]]));
       });
       p.appendChild(l);
+      if (depot.manque) p.appendChild(el("p", { class: "s bad", texte: depot.manque }));
       p.appendChild(el("p", { class: "s ok", texte: mode() === "prelist" ? "Choisis l'objet qui correspond (ou continue sans), puis l'état : RetroRevente remplira le formulaire." : "Relis chaque champ, ajoute ce qui manque, puis clique toi-même « Mettre en vente »." }));
       p.appendChild(el("button", { class: "mini", type: "button", texte: "Remplir à nouveau", onclick: function () { depot.faits = {}; depot.lignes = {}; dejaRempli = new WeakMap(); remplirDepot(); } }));
     } else p.appendChild(el("p", { class: "s", texte: "Choisis l'article : RetroRevente tape son titre, puis remplit le formulaire d'eBay." }));
@@ -468,6 +549,7 @@
   var vu = "", minuterie = null;
   function suivre() {
     var m = mode();
+    placerSecours();
     if (hote) hote.style.display = m ? "" : "none";
     if (!m) { vu = ""; return; }
     var ici = location.pathname + location.search;
@@ -484,13 +566,14 @@
       if (ouvert && !(ombre.activeElement && ombre.activeElement.tagName === "TEXTAREA")) proposer(false);
       else dessiner();
     }, function (e) {
+      if (depotMode()) { depot.erreur = (e && e.message) || "RetroRevente ne répond pas."; if (!hote) construire(); dessinerDepot(); }
       if (m === "messages" && ombre) { annonces = annonces || []; etat.ia = { erreur: e.message, status: e.status }; dessiner(); }
     });
   }
   suivre();
   new MutationObserver(function (l) {
-    if (l.every(function (x) { return hote && (x.target === hote || hote.contains(x.target)); })) return;
+    if (l.every(function (x) { return (hote && (x.target === hote || hote.contains(x.target))) || (secours && x.target === secours); })) return;
     clearTimeout(minuterie); minuterie = setTimeout(suivre, 1500);
   }).observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(function () { if (location.pathname + location.search !== vu) suivre(); }, 1000);
+  setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else placerSecours(); }, 1000);
 })();
