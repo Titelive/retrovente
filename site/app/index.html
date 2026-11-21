@@ -3031,11 +3031,12 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
 /* L'annonce du lot liste-t-elle encore les bons articles ? (une ligne « - Titre, … » par article) */
 function annonceLotPerimee(o){if(!o||!estLot(o)||vendu(o))return null;var t=$("f_texteAnnonce").value||"",m=membres(o);
   var l=t.split("\n").filter(function(x){return /^- /.test(x)}).map(function(x){return x.slice(2)});if(!l.length)return null;
-  var de=function(x){return m.some(function(y){return x.indexOf(y.titre)===0})};
-  var trop=l.filter(function(x){return !de(x)}).map(function(x){return x.split(/, |\s\(/)[0]}),manque=m.filter(function(y){return t.indexOf(y.titre)<0});
-  return trop.length||manque.length?{trop:trop,manque:manque}:null}
+  // chaque ligne « - … » prend un article du lot : un article cité deux fois (un doublon supprimé) est en trop
+  var pris=[],trop=l.filter(function(x){var y=m.filter(function(y){return pris.indexOf(y)<0&&x.indexOf(y.titre)===0}).sort(function(a,b){return b.titre.length-a.titre.length})[0];if(y)pris.push(y);return !y}).map(function(x){return x.split(/, |\s\(/)[0]}),manque=m.filter(function(y){return t.indexOf(y.titre)<0});
+  var doubles=trop.filter(function(x){return m.some(function(y){return y.titre===x})});trop=trop.filter(function(x){return doubles.indexOf(x)<0});
+  return trop.length||manque.length||doubles.length?{trop:trop,manque:manque,doubles:doubles}:null}
 function majAnnonceLot(){var z=$("fLotAnnonce"),o=ED&&estLot(ED)?ED:null,p=annonceLotPerimee(o);z.hidden=!p;if(!p){z.innerHTML="";return}
-  z.innerHTML='<span>⚠️ <b>L\'annonce ne correspond plus au lot.</b> '+(p.trop.length?'Elle parle encore de <b>'+esc(p.trop.slice(0,4).join(", "))+(p.trop.length>4?"…":"")+'</b>'+(p.trop.length>1?", qui ne sont plus dans le lot":", qui n\'est plus dans le lot")+'. ':'')+(p.manque.length?'Il y manque <b>'+esc(p.manque.slice(0,4).map(function(x){return x.titre}).join(", "))+(p.manque.length>4?"…":"")+'</b>. ':'')+'</span>'+
+  z.innerHTML='<span>⚠️ <b>L\'annonce ne correspond plus au lot.</b> '+(p.trop.length?'Elle parle encore de <b>'+esc(p.trop.slice(0,4).join(", "))+(p.trop.length>4?"…":"")+'</b>'+(p.trop.length>1?", qui ne sont plus dans le lot":", qui n\'est plus dans le lot")+'. ':'')+(p.doubles.length?'Elle cite deux fois <b>'+esc(p.doubles.slice(0,4).join(", "))+'</b>. ':'')+(p.manque.length?'Il y manque <b>'+esc(p.manque.slice(0,4).map(function(x){return x.titre}).join(", "))+(p.manque.length>4?"…":"")+'</b>. ':'')+'</span>'+
     '<div class="rangee"><button class="btn jaune petit" type="button" data-annonce="simple">Mettre à jour l\'annonce</button><button class="btn clair petit" type="button" data-annonce="ia">Réécrire avec l\'IA</button></div>'}
 $("fLotAnnonce").addEventListener("click",function(e){var b=e.target.closest("[data-annonce]");if(!b||!ED||!estLot(ED))return;
   if(b.dataset.annonce==="ia"){$("fLotIa").click();return}
