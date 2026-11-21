@@ -39,7 +39,7 @@
     }
 
     /* connecté : le lien « Connexion » devient le pseudo (et l'avatar) */
-    var lienCx = d.querySelector('.nav-liens a[href="/app/"]');
+    var lienCx = d.querySelector('.nav-liens a[href="/app/"]:not(.nav-co)');
     if (lienCx) lienCx.classList.add("nav-compte");
     window.rrMoi = function (m) {
       if (!m) return;
