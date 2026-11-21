@@ -1789,9 +1789,14 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
+  // Les photos en cours de chargement survivent au redessin de la liste : Safari, si on remplace une image à moitié
+  // téléchargée, peut garder la moitié reçue pour cette adresse (vignette vide sous une fine bande, surtout les grosses
+  // mosaïques de lot). On remet donc les mêmes balises <img> à la place des nouvelles.
+  var imgs={};[].forEach.call($("liste").querySelectorAll("img[src]"),function(i){imgs[i.getAttribute("src")]=i});
   $("liste").innerHTML=gs.map(function(g){
     var tot=g.l.reduce(function(a,o){return a+(+prixArticle(o)||0)},0);
     return (g.nom?'<div class="groupe"><h3>'+esc(g.nom)+'</h3><small>'+g.l.length+' article'+(g.l.length>1?'s':'')+(tot?' · '+eur(tot):'')+'</small></div>':'')+g.l.map(function(o){return carte(o,n++)}).join("")}).join("");
+  [].forEach.call($("liste").querySelectorAll("img[src]"),function(i){var v=imgs[i.getAttribute("src")];if(v&&v!==i){v.className=i.className;i.replaceWith(v);delete imgs[i.getAttribute("src")]}});
 }
 // tri et regroupement de la liste (choix gardé sur l'appareil)
 var TRI="recent",GRP="";
