@@ -766,5 +766,6 @@ test("caractéristiques eBay : valeurs sûres tirées de la fiche (lot compris)"
   const lot = specifiquesSurs({ nom: "Lot de 2 jeux", plateforme: "Nintendo 64", contient: ["a", "b"], jeux: ["Zelda", "Conker"] }, champs);
   assert.deepEqual(lot, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux", "Quantité unitaire": "2" });   // jamais un jeu précis pour un lot
   const { specifiquesEbay } = await import("../server/ia.mjs");
-  assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux" });
+  assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 articles" });
+  assert.deepEqual(specifiquesSurs({ contient: ["a", "b", "c"], jeux: ["Zelda", "Conker"], nbArticles: 3 }, [{ nom: "Nom du jeu vidéo" }, { nom: "Quantité unitaire" }]), { "Nom du jeu vidéo": "Lot de 2 jeux", "Quantité unitaire": "3" });   // l'accessoire ne compte pas dans les jeux
 });
