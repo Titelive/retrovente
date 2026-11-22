@@ -1161,6 +1161,25 @@ body:has(#barreLot:not([hidden])) .vers-haut{display:none}
 .jeu .im .tag-lot.alerte{left:auto;right:10px;background:#FFE3B3;color:#6B3D00;box-shadow:0 0 0 1.5px #6B3D00}
 .lot-alerte{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:16px;background:#FFF1D6;color:#4A2B00;box-shadow:inset 0 0 0 1px #F2C879;font-size:14px;line-height:1.45}
 .lot-alerte>span{flex:1 1 220px;min-width:0}
+/* Article vendu qui était dans des lots : les annonces de ces lots sont à effacer sur les sites */
+:root{--ef-bg:#FFE7E2;--ef-tx:#5A1409;--ef-bord:#EE9A8C;--ef-fort:#C0331C;--ef-ligne:#FFF6F4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ef-bg:#3B1712;--ef-tx:#FFD9D1;--ef-bord:#8A3527;--ef-fort:#FF8A73;--ef-ligne:#2A110D}}
+:root[data-theme="dark"]{--ef-bg:#3B1712;--ef-tx:#FFD9D1;--ef-bord:#8A3527;--ef-fort:#FF8A73;--ef-ligne:#2A110D}
+.a-effacer{margin:0 0 16px;padding:14px 16px;border-radius:18px;background:var(--ef-bg);color:var(--ef-tx);box-shadow:inset 0 0 0 2px var(--ef-bord);font-size:14px;line-height:1.45}
+.a-effacer.dans-fiche{margin:0 0 14px}
+.a-effacer h2{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:17px;line-height:1.25;color:var(--ef-fort)}
+.a-effacer>p{margin:0 0 10px}
+.a-effacer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.a-effacer li{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:var(--ef-ligne);box-shadow:inset 0 0 0 1px var(--ef-bord)}
+.a-effacer li>div{flex:1 1 220px;min-width:0}
+.a-effacer li b{overflow-wrap:anywhere}
+.a-effacer li small{display:block;opacity:.85}
+.a-effacer .rangee{display:flex;gap:6px;flex-wrap:wrap}
+.a-effacer .rangee>*{min-width:0;white-space:normal;text-align:center}
+.a-effacer.flash{animation:efFlash 1.2s ease 2}
+@keyframes efFlash{50%{box-shadow:inset 0 0 0 2px var(--ef-fort),0 0 0 6px color-mix(in srgb,var(--ef-fort) 25%,transparent)}}
+@media (prefers-reduced-motion:reduce){.a-effacer.flash{animation:none}}
+@media (max-width:560px){.a-effacer .rangee{width:100%}.a-effacer .rangee>*{flex:1 1 calc(50% - 6px);justify-content:center;text-align:center}}
 .lot-alerte .rangee{display:flex;gap:8px;flex-wrap:wrap}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lot-alerte{background:#3A2A10;color:#FFE3B3;box-shadow:inset 0 0 0 1px #6B4A14}}
 :root[data-theme="dark"] .lot-alerte{background:#3A2A10;color:#FFE3B3;box-shadow:inset 0 0 0 1px #6B4A14}
@@ -1319,6 +1338,7 @@ html.sans-anim .vt-b.pousse{animation:none}
     <p class="ia-note" id="iaNote" hidden></p>
     <div class="installe" id="installe" hidden><img src="/img/icone-512.png" alt="" width="44" height="44"><div><b>Installe RetroRevente sur ton téléphone</b><small id="installeTx">Une icône sur l'écran d'accueil, en plein écran, comme une vraie appli.</small></div><button class="btn petit" type="button" id="installeGo">Installer</button><button class="installe-x" type="button" id="installeX" aria-label="Plus tard">✕</button></div>
   </div>
+  <section class="a-effacer" id="aEffacer" hidden aria-labelledby="tEffacer"></section>
   <div class="chiffres">
     <button type="button" class="tps" id="cTempsBt" aria-haspopup="dialog"><small>Temps gagné <span class="tps-i" aria-hidden="true">?</span></small><b id="cTemps">0 min</b><span class="tps-c">Voir le calcul</span></button>
     <div><small>En vente</small><b id="cVente">0</b></div>
@@ -1416,6 +1436,7 @@ html.sans-anim .vt-b.pousse{animation:none}
         <h3 id="fBlocTitre">Le jeu</h3>
         <div class="dans-lot" id="fDansLot" hidden></div>
         <div class="lot-alerte" id="fLotAlerte" role="status" hidden></div>
+        <section class="a-effacer dans-fiche" id="fAEffacer" hidden aria-label="Lots à effacer"></section>
         <div class="champs">
           <label class="f l2 lot-garde"><span id="lTitre">Nom du jeu</span><input type="text" id="f_titre" maxlength="160" placeholder="ex. Super Mario 64"></label>
           <label class="f noflm"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
@@ -1972,7 +1993,7 @@ document.addEventListener("click",function(e){if(!e.target.closest("#vtGraph"))v
 function vtGarder(){try{localStorage.setItem("rr-ventes",JSON.stringify({m:VT.m,p:VT.p}))}catch(e){}}
 $("vtMesure").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||b.dataset.m===VT.m)return;VT.m=b.dataset.m;vtGarder();delete $("ventes").dataset.vu;dessinerVentes()});
 $("vtPeriode").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||+b.dataset.p===VT.p)return;VT.p=+b.dataset.p;vtGarder();delete $("ventes").dataset.vu;dessinerVentes()});
-function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();
+function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();try{dessinerAEffacer()}catch(e){}
   // Les compteurs portent sur les articles : un lot vendu compte par ses articles (chacun a sa part du prix).
   var ART=articles(),vendus=ART.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
   compter($("cTemps"),tempsGagne(),hm);
@@ -2723,9 +2744,10 @@ function statutRapide(o,s,carte){if(o.statut===s)return;
   if(carte)carte.classList.add("en-cours");
   var maj=function(corps){return api("PUT","/api/objets/"+o.id,{objet:corps}).then(function(j){j.objet._lot=j.lot||null;if(estLot(j.objet)||j.lot||lotDe(o))return rechargerObjets().then(function(){return j.objet});var i=OBJ.map(function(x){return x.id}).indexOf(o.id);if(i>=0)OBJ[i]=j.objet;dessiner();
     var c=document.querySelector('#liste .jeu[data-id="'+o.id+'"] .st-bt');if(c){c.classList.add("pop")}return j.objet})};
-  maj(nv).then(function(n){var fete=vente&&(avant.statut==="en_vente"||avant.statut==="reserve");if(fete&&typeof confettis==="function")confettis();
+  var nEf=(o.lotsAEffacer||[]).length;
+  maj(nv).then(function(n){var fete=vente&&(avant.statut==="en_vente"||avant.statut==="reserve"),ef=(n.lotsAEffacer||[]).length>nEf;if(ef)setTimeout(montrerAEffacer,350);if(fete&&typeof confettis==="function")confettis();
     var cache=FILTRE!=="tout"&&!(n.statut===FILTRE||(FILTRE==="vendu"&&n.statut==="envoye"));
-    toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+"."+noteLot(n._lot),"ok",["Annuler",function(){maj(avant).then(function(r){toast("Statut remis : "+STA[avant.statut].toLowerCase()+"."+noteLot(r&&r._lot),"ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
+    toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+"."+noteLot(n._lot)+(ef?((n.lotsAEffacer||[]).length-nEf>1?" Efface les annonces des lots":" Efface l'annonce du lot")+" sur les sites (encadré rouge).":""),"ok",["Annuler",function(){maj(avant).then(function(r){toast("Statut remis : "+STA[avant.statut].toLowerCase()+"."+noteLot(r&&r._lot),"ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
   .catch(function(e){if(carte)carte.classList.remove("en-cours");erreur(e,"Statut non enregistré.")})}
 function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value;majRemise()}
@@ -2815,11 +2837,12 @@ $("bManuel").onclick=function(){if(ME.quota.reste===0){quotaPlein();return}ouvri
 /* Enregistre la fiche. rester : la fiche reste ouverte (départ vers Le Bon Coin) ; renvoie l'article enregistré, ou null. */
 function sauver(rester){var b=$("fSave"),o={};F.forEach(function(k){o[k]=$("f_"+k).value});o.cote=COTE;o.ia=IA_FAITE||(ED&&ED.ia);
   if(!o.titre.trim()){toast("Indique le nom de l'article.","bad");$("f_titre").focus();return Promise.resolve(null)}
-  var corps={objet:o},nouveau=!ED;
+  var corps={objet:o},nouveau=!ED,nEf=ED?((parId(ED.id)||ED).lotsAEffacer||[]).length:0;
   busy(b,true,"Enregistrement…");
   return (ED?api("PUT","/api/objets/"+ED.id,corps):api("POST","/api/objets",corps)).then(function(j){return syncGalerie(j.objet,o)}).then(function(j){
       var i=OBJ.map(function(x){return x.id}).indexOf(j.objet.id);if(i>=0)OBJ[i]=j.objet;else OBJ.unshift(j.objet);
       if(nouveau){ME.quota.utilise++;if(ME.quota.reste!=null)ME.quota.reste--;entete()}
+      var ef=(j.objet.lotsAEffacer||[]).length>nEf;if(ef)rechargerObjets().then(function(){setTimeout(montrerAEffacer,350)});
       BR.del(cle());if(rester){ED=j.objet;CLE=ED.id;$("fTitre").textContent=ED.titre;$("fSuppr").hidden=false;figer();dessiner();majAdresse();toast("C'est enregistré ✓","ok")}else{figer();fermerFiche();dessiner();toast("Enregistré.","ok")}return j.objet})
     .catch(function(e){erreur(e,"Enregistrement impossible.");return null}).then(function(r){busy(b,false,"Enregistrer");return r})}
 $("fSave").onclick=function(){sauver(true)};
@@ -3415,6 +3438,25 @@ function majMosaiques(){OBJ.filter(function(o){return estLot(o)&&o.mosaiqueAFair
 /* Réponse du serveur quand un article vendu à l'unité quitte son lot (ou y revient après « Annuler ») */
 function noteLot(r){if(!r)return "";
   return r.action==="retire"?" Retiré du lot « "+r.titre+" »"+(r.prix!=null&&r.prix!==r.ancienPrix?", qui passe à "+eur(r.prix):"")+".":r.action==="remis"?" De retour dans le lot « "+r.titre+" »"+(r.prix!=null?" à "+eur(r.prix):"")+".":r.action==="prix"?" Le lot « "+r.titre+" » suit"+(r.prix!=null&&r.prix!==r.ancienPrix?" : "+eur(r.ancienPrix)+" → "+eur(r.prix):"")+".":r.action==="defait"?" Le lot « "+r.titre+" » n'avait plus qu'un article : il est défait.":""}
+/* Lots quittés par un article vendu : leurs annonces sont encore en ligne et proposent un jeu parti. Un encart bien
+   visible (en haut de Mes articles et sur la fiche de l'article) les liste jusqu'à « C'est fait ». */
+var LBC_MES_ANNONCES="https://www.leboncoin.fr/compte/part/mes-annonces";
+function lotsAEffacer(o){return (o?[o]:OBJ).reduce(function(t,a){(Array.isArray(a.lotsAEffacer)?a.lotsAEffacer:[]).forEach(function(e){t.push({art:a,e:e})});return t},[])}
+function aEffacerHtml(l,fiche){if(!l.length)return "";var n=l.length;
+  return '<h2 id="'+(fiche?"tFEffacer":"tEffacer")+'">🗑️ '+(n>1?n+' annonces de lots à effacer':'Une annonce de lot à effacer')+'</h2>'+
+    '<p>'+(fiche?'Cet article est vendu, mais '+(n>1?'ces lots le proposent':'ce lot le propose')+' encore sur les sites. ':'Ces lots proposent encore un article vendu. ')+'<b>Supprime '+(n>1?'leurs annonces':'son annonce')+'</b> sur Le Bon Coin et eBay pour ne pas le vendre deux fois.</p><ul>'+
+    l.map(function(x){var e=x.e,lot=parId(e.id),lbc=e.annonce||(lot&&lot.annonce)||"",eb=e.annonceEbay||(lot&&lot.annonceEbay)||"";
+      return '<li><div><b>'+esc(e.titre||"Lot")+'</b><small>'+(fiche?'':'Contient <b>'+esc(x.art.titre)+'</b>, vendu. ')+(e.defait||!lot?'Le lot est défait : son annonce est à supprimer.':'Le lot garde '+(lot.articles||[]).length+' articles'+(lot.prixDemande!=null?' à '+eur(lot.prixDemande):'')+' : supprime l\'annonce, puis republie-le si tu veux.')+'</small></div>'+
+        '<div class="rangee"><a class="btn clair petit" href="'+esc(lbc||LBC_MES_ANNONCES)+'" target="_blank" rel="noopener" title="'+(lbc?'Ouvrir l\'annonce du lot sur Le Bon Coin':'Ouvrir mes annonces sur Le Bon Coin')+'">'+(lbc?'Le Bon Coin':'Mes annonces')+'</a>'+(eb?'<a class="btn clair petit" href="'+esc(eb)+'" target="_blank" rel="noopener" title="Ouvrir l\'annonce du lot sur eBay">eBay</a>':'')+
+        (lot&&!e.defait&&!fiche?'<button class="btn clair petit" type="button" data-ef-voir="'+esc(lot.id)+'">Voir le lot</button>':'')+
+        '<button class="btn jaune petit" type="button" data-ef-fait="'+esc(e.id)+'" data-ef-art="'+esc(x.art.id)+'">C\'est fait</button></div></li>'}).join("")+'</ul>'}
+function dessinerAEffacer(){var z=$("aEffacer"),l=lotsAEffacer();z.hidden=!l.length;z.innerHTML=aEffacerHtml(l,false);
+  var f=$("fAEffacer"),o=ED&&!estLot(ED)?parId(ED.id):null,lf=o?lotsAEffacer(o):[];f.hidden=!lf.length;f.innerHTML=aEffacerHtml(lf,true)}
+function montrerAEffacer(){var z=$("fiche")&&!$("fiche").hidden&&!$("fAEffacer").hidden?$("fAEffacer"):$("aEffacer");if(z.hidden)return;
+  z.classList.remove("flash");void z.offsetWidth;z.classList.add("flash");z.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"})}
+[$("aEffacer"),$("fAEffacer")].forEach(function(z){z.addEventListener("click",function(e){var v=e.target.closest("[data-ef-voir]"),b=e.target.closest("[data-ef-fait]");
+  if(v){var go=function(){ouvrirFiche(parId(v.dataset.efVoir))};if(sale())demanderSortie(go);else go();return}
+  if(!b)return;b.disabled=true;api("PUT","/api/objets/"+b.dataset.efArt,{objet:{},lotEfface:b.dataset.efFait}).then(function(j){var i=OBJ.indexOf(parId(b.dataset.efArt));if(i>=0)OBJ[i]=j.objet;if(ED&&ED.id===j.objet.id)ED.lotsAEffacer=j.objet.lotsAEffacer;dessinerAEffacer();toast("Noté : l\'annonce du lot est effacée.","ok")}).catch(function(e){b.disabled=false;erreur(e,"Impossible d'enregistrer.")})})});
 function dessinerAlerteLot(o){var z=$("fLotAlerte"),a=o&&o.alerte,v=a&&a.vendus||[];z.hidden=!v.length;if(!v.length){z.innerHTML="";return}
   z.innerHTML='<span>⚠️ <b>'+esc(v.map(function(x){return x.titre}).join(", "))+'</b> '+(v.length>1?"ont été vendus":"a été vendu")+' à l\'unité et '+(v.length>1?"ont quitté":"a quitté")+' le lot. '+
     (a.ancienPrix!=null&&o.prixDemande!=null&&a.ancienPrix!==o.prixDemande?'Prix du lot ajusté : '+eur(a.ancienPrix)+' → <b>'+eur(o.prixDemande)+'</b>. ':'')+
@@ -3470,7 +3512,7 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   // onglet « Le jeu » → « Le lot » (modeCarte remet le bon nom et la bonne icône à l'ouverture de chaque fiche)
   if(lot)[[$("oArticle"),"Le lot"],[document.querySelector('#mOnglets [data-m="article"]'),"Lot"]].forEach(function(x){var b=x[0];if(!b)return;var sp=b.querySelector("span"),sv=b.querySelector("svg");if(sp)sp.textContent=x[1];if(sv)sv.innerHTML='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>'});
   $("fSuppr").textContent=lot?"Défaire le lot":"Supprimer";
-  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl),dls=dl&&!dv?lotsDe(o):dl?[dl]:[];$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;majColis();
+  var dl=o&&!lot?lotDe(o):null,dv=dl&&vendu(dl),dls=dl&&!dv?lotsDe(o):dl?[dl]:[];$("fDansLot").hidden=!dl;$("f_statut").disabled=!!dv;majColis();try{dessinerAEffacer()}catch(e){}
   if(dl)$("fDansLot").innerHTML='<span>📦 '+(dv?'Cet article est parti avec le lot <b>'+esc(dl.titre)+'</b> : son statut suit celui du lot.':dls.length>1?'Cet article est aussi dans '+dls.length+' lots : '+dls.map(function(x){return '<b>'+esc(x.titre)+'</b>'}).join(", ")+'. Il reste en vente à l\'unité : s\'il part seul ou avec un de ces lots, il quitte les autres, et leur prix baisse.':'Cet article est aussi dans le lot <b>'+esc(dl.titre)+'</b>. Il reste en vente à l\'unité : s\'il part seul, il quitte le lot et le prix du lot baisse.')+'</span>'+dls.map(function(x){return '<button class="btn clair petit" type="button" data-voir-lot="'+x.id+'">'+(dls.length>1?'Voir « '+esc(x.titre.length>28?x.titre.slice(0,27)+"…":x.titre)+' »':'Voir le lot')+'</button>'}).join("");
   dessinerAlerteLot(lot&&!vendu(o)?o:null);
   if(!lot)return;

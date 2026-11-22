@@ -70,6 +70,8 @@ function nettoyer(v, avant) {
     // Un article peut être dans plusieurs lots tant qu'il n'est pas vendu (« lots ») ; « lot » est l'ancien champ, à un seul lot.
     ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
+    // Lots quittés à la vente de l'article : leurs annonces sont à effacer sur les sites (encart, jusqu'à « C'est fait »)
+    ...(avant && Array.isArray(avant.lotsAEffacer) && avant.lotsAEffacer.length ? { lotsAEffacer: avant.lotsAEffacer } : {}),
   };
 }
 /* Lien d'une annonce eBay : https://www.ebay.fr/itm/<numéro> (ou ebay.com, .be, .ch…), ramené à sa forme courte.
@@ -144,6 +146,7 @@ function modifierObjet(uid, avant, b) {
   // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
   if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
   if (estLot(avant) && b.fermerAlerte) delete it.alerte;
+  if (b.lotEfface && it.lotsAEffacer) { it.lotsAEffacer = it.lotsAEffacer.filter((x) => b.lotEfface !== "*" && x.id !== String(b.lotEfface)); if (!it.lotsAEffacer.length) delete it.lotsAEffacer; }
   if (typeof b.photo === "string") {
     const prem = it.photos[0];
     if (b.photo === "") { if (prem) { savePhoto(uid, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
@@ -159,6 +162,8 @@ function modifierObjet(uid, avant, b) {
   else if (sesLots.length && VENDU(it.statut) && !VENDU(avant.statut)) lots = tx(() => sesLots.map((l) => sortirDuLot(uid, getItem(uid, l.id), getItem(uid, avant.id))));
   else if (sesLots.length && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lots = tx(() => sesLots.map((l) => suivrePrix(uid, getItem(uid, l.id), avant)).filter(Boolean));
   else if (exLotsIds(avant).length && VENDU(avant.statut) && !VENDU(it.statut)) lots = tx(() => exLotsIds(avant).map((id) => revenirDansLot(uid, getItem(uid, id), getItem(uid, avant.id))).filter(Boolean));
+  // vente annulée : les lots où il est revenu n'ont plus d'annonce à effacer
+  if (VENDU(avant.statut) && !VENDU(it.statut)) effaces(uid, avant.id, lots.filter((r) => r.action === "remis").map((r) => r.id));
   // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
   return ({ ok: true, objet: getItem(uid, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
 }
@@ -185,7 +190,7 @@ function suivreLot(uid, lot, avant) {
       const l = id !== lot.id && getItem(uid, id);
       if (estLot(l) && !VENDU(l.statut) && l.articles.includes(m.id)) autres.push(sortirDuLot(uid, l, getItem(uid, m.id)));
     }
-    if (!vendu && etaitVendu) for (const id of exLotsIds(m)) { const r = revenirDansLot(uid, getItem(uid, id), getItem(uid, m.id)); if (r) autres.push(r); }
+    if (!vendu && etaitVendu) for (const id of exLotsIds(m)) { const r = revenirDansLot(uid, getItem(uid, id), getItem(uid, m.id)); if (r) { autres.push(r); effaces(uid, m.id, [r.id]); } }
   }
   return autres;
 }
@@ -249,9 +254,19 @@ function photoMembre(uid, lot, m) {
   fs.copyFileSync(f, fichierPhoto(uid, lot.id, pid));
   return { id: pid, legende: txt(m.titre, 200), de: m.id };
 }
+/** Lots dont l'annonce est à effacer sur les sites : notés sur l'article vendu qui les a quittés. */
+function aEffacer(m, lot, defait, reste) {
+  const e = { id: lot.id, titre: lot.titre, annonce: lot.annonce || "", annonceEbay: lot.annonceEbay || "", ...(defait ? { defait: true } : { reste }) };
+  m.lotsAEffacer = [...(Array.isArray(m.lotsAEffacer) ? m.lotsAEffacer : []).filter((x) => x.id !== lot.id), e];
+}
+function effaces(uid, mid, ids) {
+  const m = getItem(uid, mid); if (!m || !Array.isArray(m.lotsAEffacer) || !ids.length) return;
+  m.lotsAEffacer = m.lotsAEffacer.filter((x) => !ids.includes(x.id)); if (!m.lotsAEffacer.length) delete m.lotsAEffacer;
+  ecrire(uid, m);
+}
 function sortirDuLot(uid, lot, m) {
   const reste = lot.articles.filter((id) => id !== m.id);
-  oterDuLot(m, lot.id); mettreExLots(m, [...exLotsIds(m), lot.id]); ecrire(uid, m);
+  oterDuLot(m, lot.id); mettreExLots(m, [...exLotsIds(m), lot.id]); aEffacer(m, lot, reste.length < MIN_LOT, reste.length); ecrire(uid, m);
   if (reste.length < MIN_LOT) { defaireLot(uid, lot); return { id: lot.id, titre: lot.titre, action: "defait" }; }
   const avant = champsLot(lot);
   const theme = lot.theme ? { ...lot.theme, complet: false } : null;

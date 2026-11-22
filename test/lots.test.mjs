@@ -377,3 +377,26 @@ test("lot abîmé par une ancienne version (doublon supprimé resté dedans) : r
   const l2 = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
   assert.deepEqual({ ...l2, modifie: 0 }, { ...l, modifie: 0 });
 });
+
+test("article vendu : les lots qu'il quitte sont à effacer sur les sites, jusqu'à « C'est fait »", async () => {
+  const c = await compte("effacer@exemple.fr");
+  const o = (titre, prixDemande) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande }, PHOTO);
+  const ge = await o("GoldenEye 007", 20), pd = await o("Perfect Dark", 30), bk = await o("Banjo-Kazooie", 25);
+  const trio = (await call("POST", "/api/lots", { articles: [ge.id, pd.id, bk.id] }, c)).json.objet;
+  const duo = (await call("POST", "/api/lots", { articles: [ge.id, pd.id] }, c)).json.objet;
+  await call("PUT", "/api/objets/" + trio.id, { objet: { annonce: "https://www.leboncoin.fr/ad/jeux_video/123" } }, c);
+  const v = await call("PUT", "/api/objets/" + ge.id, { objet: { statut: "vendu", prixVente: 20 } }, c);
+  const e = v.json.objet.lotsAEffacer;
+  assert.deepEqual(e.map((x) => x.id), [trio.id, duo.id]);
+  assert.equal(e[0].annonce, "https://www.leboncoin.fr/ad/jeux_video/123"); assert.equal(e[0].reste, 2);
+  assert.equal(e[1].defait, true); assert.equal(e[1].titre, duo.titre);
+  // l'encart reste après une autre modification de la fiche
+  const m = await call("PUT", "/api/objets/" + ge.id, { objet: { notes: "parti vite" } }, c);
+  assert.equal(m.json.objet.lotsAEffacer.length, 2);
+  // « C'est fait » sur un lot
+  const f = await call("PUT", "/api/objets/" + ge.id, { objet: {}, lotEfface: duo.id }, c);
+  assert.deepEqual(f.json.objet.lotsAEffacer.map((x) => x.id), [trio.id]);
+  // vente annulée : il revient dans le trio, plus rien à effacer
+  const a = await call("PUT", "/api/objets/" + ge.id, { objet: { statut: "en_vente", prixVente: null } }, c);
+  assert.equal(a.json.objet.lotsAEffacer, undefined);
+});
