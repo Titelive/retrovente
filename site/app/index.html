@@ -3007,14 +3007,14 @@ function confettis(){if(calme())return;var c=document.createElement("canvas"),g=
   var t0=performance.now();(function f(t){var e=t-t0;g.clearRect(0,0,W,H);P.forEach(function(p){p.vy+=.28;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;g.save();g.globalAlpha=Math.max(0,1-e/3600);g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;if(p.rond){g.beginPath();g.arc(0,0,p.w/2,0,6.28);g.fill()}else g.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*1.7))+2);g.restore()});
     if(e<3600)requestAnimationFrame(f);else c.remove()})(t0)}
 var feteT;function fete(d){var o=(OBJ||[]).filter(function(x){return x.id===d.id})[0],t=d.titre||(o&&o.titre)||"Ton annonce";
-  $("feteTx").textContent="« "+t+" » est envoyée sur Le Bon Coin. Elle sera visible dès que Le Bon Coin l'aura validée.";
+  $("feteTx").textContent=d.site==="ebay"?"« "+t+" » est en vente sur eBay. Son lien est enregistré dans la fiche.":"« "+t+" » est envoyée sur Le Bon Coin. Elle sera visible dès que Le Bon Coin l'aura validée.";
   var l=$("feteLien");l.hidden=!d.url;if(d.url)l.href=d.url;
   var f=$("fete");f.hidden=false;requestAnimationFrame(function(){f.classList.add("on")});confettis();
   clearTimeout(feteT);feteT=setTimeout(fermerFete,9000);charger()}
 function fermerFete(){var f=$("fete");f.classList.remove("on");setTimeout(function(){f.hidden=true},600)}
 $("feteOk").onclick=fermerFete;
 window.addEventListener("message",function(e){var d=e.data;if(e.source!==window||e.origin!==location.origin||!d||d.source!=="retrorevente-extension")return;
-  if(d.type==="publiee"&&/^[a-f0-9]{16}$/.test(String(d.id||""))){fete({id:d.id,titre:String(d.titre||"").slice(0,120),url:/^https:\/\/www\.leboncoin\.fr\/ad\//.test(d.url||"")?d.url:""});return}
+  if(d.type==="publiee"&&/^[a-f0-9]{16}$/.test(String(d.id||""))){var eb=d.site==="ebay";fete({id:d.id,site:eb?"ebay":"lbc",titre:String(d.titre||"").slice(0,120),url:(eb?/^https:\/\/www\.ebay\.fr\/itm\/\d+$/:/^https:\/\/www\.leboncoin\.fr\/ad\//).test(d.url||"")?d.url:""});return}
   if(d.type==="present"){EXT=true;$("fLbcExt").hidden=false;extMaj()}
   if(d.type==="cle-erreur"){clearTimeout(extT);$("cExtCle").hidden=false;toast(d.message||"L'extension n'a pas pu se connecter : colle la clé à la main.","bad")}
   if(d.type==="cle-ok"){EXT=true;clearTimeout(extT);$("cExtCle").hidden=true;if(ME)ME.extension=(ME.extension||0)+1;extMaj();toast("Extension connectée. Ouvre Le Bon Coin pour déposer une annonce.","ok")}});
@@ -3067,7 +3067,7 @@ $("cSuppr").onclick=function(){$("sErr").textContent="";$("sMdp").value="";$("dS
 $("sGo").onclick=function(){api("POST","/api/compte/supprimer",{motdepasse:$("sMdp").value}).then(function(){location.href="/"}).catch(function(e){$("sErr").textContent=e.message})};
 
 charger(true);
-(function(){var id=new URLSearchParams(location.search).get("publiee");if(!/^[a-f0-9]{16}$/.test(id||""))return;history.replaceState(null,"","/app/");setTimeout(function(){fete({id:id})},900)})();
+(function(){var q=new URLSearchParams(location.search),id=q.get("publiee");if(!/^[a-f0-9]{16}$/.test(id||""))return;history.replaceState(null,"","/app/");setTimeout(function(){fete({id:id,site:q.get("site")==="ebay"?"ebay":"lbc"})},900)})();
 
 /* ===== Nettoyage de la photo =====
    Le serveur retouche en gardant le vrai fond (redressement, recadrage, objets à côté effacés, reflets atténués).

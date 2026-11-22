@@ -786,3 +786,10 @@ test("couleur du site : au choix pour un Collectionneur, imposée pour les autre
   db.prepare("UPDATE users SET plan_status = 'active' WHERE email = ?").run("teinte-collec@exemple.fr");
   assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "lilas");
 });
+
+test("description eBay : l'envoi d'un lot se lit bien", async () => {
+  const { annonceEbay } = await import("../server/api.mjs");
+  const e = annonceEbay({ titre: "Lot", etat: "bon" }, { titre: "Lot", description: "Lot :\n- A\nRemise en main propre ou envoi soigné, en un seul colis.", prix: 100 });
+  assert.match(e.description, /Envoi soigné et rapide, avec suivi, en un seul colis\.$/);
+  assert.doesNotMatch(e.description, /suivi\. soigné/);
+});

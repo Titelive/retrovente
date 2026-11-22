@@ -28,8 +28,8 @@ function base64(buf) {
 
 // Remet la personne sur son onglet RetroRevente (ou en ouvre un) et lui dit que l'annonce est publiée.
 async function allerSurAppli(m) {
-  var msg = { type: "publiee", id: String(m.id || ""), titre: String(m.titre || "").slice(0, 120), url: String(m.url || "") };
-  var o = ((await RR.storage.local.get("ongletAppli")) || {}).ongletAppli, base = ((await lire()).serveur || SERVEUR) + "/app/?publiee=" + encodeURIComponent(msg.id);
+  var msg = { type: "publiee", id: String(m.id || ""), titre: String(m.titre || "").slice(0, 120), url: String(m.url || ""), site: m.site === "ebay" ? "ebay" : "lbc" };
+  var o = ((await RR.storage.local.get("ongletAppli")) || {}).ongletAppli, base = ((await lire()).serveur || SERVEUR) + "/app/?publiee=" + encodeURIComponent(msg.id) + (msg.site === "ebay" ? "&site=ebay" : "");
   if (o) {
     try {
       await RR.tabs.update(o.tab, { active: true });
@@ -70,7 +70,7 @@ var ACTIONS = {
   // puis on ferme l'onglet Le Bon Coin (m.fermer) une fois le son de confettis joué.
   publiee: async function (m, exp) {
     var via = await allerSurAppli(m);
-    var lbc = exp && exp.tab && exp.tab.id != null && /^https:\/\/www\.leboncoin\.fr\//.test(exp.url || exp.tab.url || "") ? exp.tab.id : null;
+    var lbc = exp && exp.tab && exp.tab.id != null && /^https:\/\/(www\.leboncoin\.fr|([a-z]+\.)?ebay\.fr)\//.test(exp.url || exp.tab.url || "") ? exp.tab.id : null;
     if (m.fermer && lbc != null) setTimeout(function () { RR.tabs.remove(lbc).catch(function () {}); }, 2500);
     return { ok: true, via: via, fermeture: m.fermer && lbc != null };
   },

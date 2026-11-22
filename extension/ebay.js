@@ -949,6 +949,77 @@
       }
     }, 1200);
   }
+  /* ===== Après « Mettre en vente » : lien enregistré, son, notification et retour sur RetroRevente =====
+     Seul un vrai clic de la personne compte. eBay affiche ensuite une confirmation ou « Mon eBay : En cours » :
+     on y prend le lien /itm/ de l'annonce (celle dont le titre correspond), puis on fête et on revient sur l'appli. */
+  document.addEventListener("click", function (e) {
+    if (!e.isTrusted || mode() !== "formulaire" || !depot.a) return;
+    var b = e.target && e.target.closest && e.target.closest("button, [role=button], input[type=submit]");
+    if (!b || (hote && hote.contains(b)) || !/^mettre en vente/.test(texteDe(b) || norm(b.value))) return;
+    var p = { id: depot.a.id, titre: depot.a.nom || depot.a.titre, titreEbay: depot.a.ebay && depot.a.ebay.titre, at: Date.now() };
+    noter("clic « Mettre en vente » : j'attends la confirmation d'eBay");
+    try { RR.storage.local.set({ publicationEbay: p }); } catch (x) {}
+  }, true);
+  /* Prix changé à la main dans eBay : la phrase « … le lot est à N € » de la description suit. */
+  var PRIX_DESC = /(le lot est à |prix : |à seulement )(\d[\d\s\u00a0.,]*\s?€)/;
+  function eurTxt(n) { return (Math.round(n * 100) % 100 ? n.toFixed(2).replace(".", ",") : String(Math.round(n))) + " €"; }
+  document.addEventListener("change", function (e) {
+    var x = e.target;
+    if (!e.isTrusted || mode() !== "formulaire" || !x || x.tagName !== "INPUT" || x.name !== "price") return;
+    var n = parseFloat(String(x.value).replace(/[\s\u00a0]/g, "").replace(",", ".")); if (!(n > 0)) return;
+    var z = zoneDescription(); if (!z) return;
+    if (z.tagName === "TEXTAREA") { if (PRIX_DESC.test(z.value)) { ecrireValeur(z, z.value.replace(PRIX_DESC, function (m, d) { return d + eurTxt(n); })); noter("description : prix passé à " + eurTxt(n)); } return; }
+    var w = z.ownerDocument.createTreeWalker(z, NodeFilter.SHOW_TEXT), t;
+    while ((t = w.nextNode())) if (PRIX_DESC.test(t.nodeValue)) { t.nodeValue = t.nodeValue.replace(PRIX_DESC, function (m, d) { return d + eurTxt(n); }); z.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" })); noter("description : prix passé à " + eurTxt(n)); break; }
+  }, true);
+  var publieeFetee = false, debutConfirme = 0;
+  function lienPublie(p) {
+    var cible = { titre: p.titreEbay || p.titre, nom: p.titre }, meil = "", sc = 0;
+    [].forEach.call(document.querySelectorAll("a[href*='/itm/']"), function (x) {
+      if (hote && hote.contains(x)) return; var u = urlItm(x.href); if (!u) return;
+      var s = scoreTitre(cible, (x.innerText || x.title || "") + " " + texteCarte(x).slice(0, 300)); if (s > sc) { sc = s; meil = u; }
+    });
+    return sc >= 0.6 ? meil : "";
+  }
+  var enGuet = false;
+  async function guetterPubliee() {
+    if (publieeFetee || enGuet) return;
+    enGuet = true; try { await guetter1(); } finally { enGuet = false; }
+  }
+  async function guetter1() {
+    var st = {}; try { st = (await RR.storage.local.get("publicationEbay")) || {}; } catch (e) { return; }
+    var p = st.publicationEbay; if (!p) return;
+    if (Date.now() - p.at > 10 * 60000) { try { RR.storage.local.remove("publicationEbay"); } catch (e) {} return; }
+    // Toujours sur le formulaire avec « Mettre en vente » : pas encore publié (ou erreur à corriger).
+    if (mode() === "formulaire" && boutonPublier()) return;
+    var t = norm(((document.querySelector("main") || document.body).innerText || "").slice(0, 6000));
+    var confirme = /^\/mys\/(active|sold)|^\/sh\/lst/.test(location.pathname) || /(votre (objet|annonce) (est|a ete) (en vente|en ligne|mis en vente|publiee)|felicitations|vous avez mis en vente)/.test(t);
+    var url = lienPublie(p);
+    if (!url && !confirme) return;
+    // Confirmation sans lien visible : on laisse 8 s au lien pour apparaître.
+    if (!url) { if (!debutConfirme) debutConfirme = Date.now(); if (Date.now() - debutConfirme < 8000) return; }
+    publieeFetee = true;
+    try { await RR.storage.local.remove("publicationEbay"); } catch (e) {}
+    noter("annonce publiée" + (url ? " : " + url : " (lien pas encore visible)"));
+    var a = (annonces || []).filter(function (x) { return x.id === p.id; })[0] || { id: p.id, titre: p.titre };
+    if (url) lier(a, url);
+    var choix = "piece"; try { var r = (await RR.storage.local.get(["sonChoix", "son"])) || {}; choix = r.sonChoix || (r.son === false ? "muet" : "piece"); } catch (e) {}
+    if (choix !== "muet") sonFete();
+    var tNotif = "« " + (p.titre || "Ton annonce") + " » est en vente sur eBay.";
+    // Safari n'a pas les notifications d'extension : notification de la page, si eBay a été autorisé.
+    rrDemander({ type: "alerte", titre: "Annonce publiée !", texte: tNotif }).then(function (r) {
+      if (r && r.ok) return;
+      try { if (window.Notification && Notification.permission === "granted") new Notification("Annonce publiée !", { body: tNotif, icon: RR.runtime.getURL("icones/icone-128.png") }); } catch (e) {}
+    }).catch(function () {});
+    bulle("Annonce publiée ! Je te ramène sur RetroRevente.");
+    setTimeout(function () { rrDemander({ type: "publiee", site: "ebay", id: p.id, titre: p.titre, url: url, fermer: true }).catch(function () {}); }, 900);
+  }
+  // Son de confettis : par l'app Mac (Safari), sinon dans la page.
+  function sonFete() {
+    var fini = false, web = function () { if (fini) return; fini = true; try { var au = new Audio("data:audio/wav;base64," + rrSonWav64("confettis")); au.volume = 0.8; au.play().catch(function () {}); } catch (e) {} };
+    var t = setTimeout(web, 1500);
+    rrDemander({ type: "son", wav: rrSonWav64("confettis") }).then(function (r) { clearTimeout(t); if (r && r.ok) fini = true; else web(); }, function () { clearTimeout(t); web(); });
+  }
   var LIGNES = [["titre", "Titre"], ["etat", "État"], ["carac", "Caractéristiques"], ["prix", "Prix"], ["offres", "Refus des offres trop basses"], ["desc", "Description"], ["photos", "Photos"]];
   function dessinerDepot() {
     if (!ombre) return;
@@ -992,6 +1063,7 @@
       if (depotMode()) { if (!hote) construire(); ouvert = true; dessinerDepot(); }
     }
     charger().then(function () {
+      guetterPubliee();
       associer(m === "messages");
       if (depotMode()) return remplirDepot();
       if (m !== "messages") return;
@@ -1008,5 +1080,5 @@
     if (l.every(function (x) { return (hote && (x.target === hote || hote.contains(x.target))) || (secours && x.target === secours.hote()); })) return;
     clearTimeout(minuterie); minuterie = setTimeout(suivre, 1500);
   }).observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else placerSecours(); eviterFixes(); }, 1000);
+  setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else { placerSecours(); eviterFixes(); } if (!publieeFetee) guetterPubliee(); }, 1000);
 })();

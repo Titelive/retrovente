@@ -400,3 +400,11 @@ test("article vendu : les lots qu'il quitte sont à effacer sur les sites, jusqu
   const a = await call("PUT", "/api/objets/" + ge.id, { objet: { statut: "en_vente", prixVente: null } }, c);
   assert.equal(a.json.objet.lotsAEffacer, undefined);
 });
+
+test("la phrase du prix suit le prix du lot", async () => {
+  const { majPhrasePrix } = await import("../server/lots.mjs");
+  const t = "Lot :\n- A\n\nVendus séparément, ils valent environ 725 € : le lot est à 640 €.\nRemise en main propre ou envoi soigné, en un seul colis.";
+  assert.equal(majPhrasePrix(t, 725, 620), t.replace("640 €", "620 €"));
+  assert.equal(majPhrasePrix(t, 725, 800), "Lot :\n- A\n\nRemise en main propre ou envoi soigné, en un seul colis.");
+  assert.equal(majPhrasePrix("Sans phrase.", 725, 620), "Sans phrase.");
+});
