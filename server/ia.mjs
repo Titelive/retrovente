@@ -3,6 +3,7 @@
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
+import { normaliserProfil, partPlancher, consignesProfil } from "./profil.mjs";
 import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, themeDouteux, MIN_LOT, MAX_LOT } from "./lots.mjs";
 export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
@@ -553,10 +554,13 @@ export function contenuLot(articles, autres = []) {
 const phrase = (t, n) => { const s = txt(t, 2000); if (s.length <= n) return s; const c = s.slice(0, n - 1); return c.slice(0, Math.max(c.lastIndexOf(" "), n * 0.6)).replace(/[\s,;:.-]+$/, "") + "…"; };
 // Offre d'un acheteur face au prix affiché : écart en %, plancher (85 %), et contre-offre conseillée (≈ 95 % du prix,
 // jamais sous le plancher, toujours au-dessus de l'offre). « basse » : sous le plancher.
-export function analyseOffre(prixAffiche, offre) {
+// `part` : part du prix affiché sous laquelle le vendeur ne descend pas (profil de vendeur, 85 % par défaut).
+export function analyseOffre(prixAffiche, offre, part = 0.85, ferme = false) {
   const px = prix(prixAffiche), of = prix(offre);
   if (px == null || of == null || px <= 0) return null;
-  const ecart = Math.round(((px - of) / px) * 100), plancher = rond(px * 0.85, true);
+  const ecart = Math.round(((px - of) / px) * 100), plancher = Math.min(px, rond(px * part, true));
+  // Vendeur qui ne marchande pas : pas de contre-offre, le prix affiché tient.
+  if (ferme) return { prix: px, offre: of, ecart, plancher: px, contre: px, basse: of < px, acceptable: of >= px, insultante: ecart >= 30, ferme: true };
   let contre = Math.max(plancher, rond(px * 0.95));
   // Offre insultante (30 % sous le prix ou plus) : on ne fait qu'un petit geste, au plus près du prix affiché.
   const insultante = ecart >= 30;
@@ -736,11 +740,12 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   const mOffre = /offre de [^:\n]{1,60}:\s*(\d[\d\s\u00a0\u202f]{0,6})\s?€/gi; let vueOffre = null, mo;
   while ((mo = mOffre.exec(String(conversation || "")))) vueOffre = prix(mo[1].replace(/[\s\u00a0\u202f]/g, ""));
   const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
-  const ana = analyseOffre(contexte && contexte.lot ? contexte.lot.prix : a.prix, montantOffre);
-  const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${ana && ana.insultante ? ana.contre : rond(prix(contexte.lot.prix) * 0.85, true)} €). Un « lot de N articles » Le Bon Coin regroupe N ANNONCES, et une annonce peut contenir plusieurs jeux : ne corrige jamais l'acheteur sur le nombre de jeux.` : "";
+  const pv = normaliserProfil(contexte && contexte.profil), part = partPlancher(pv), ferme = pv.prix === "ferme";
+  const ana = analyseOffre(contexte && contexte.lot ? contexte.lot.prix : a.prix, montantOffre, part, ferme);
+  const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (${ferme ? "le vendeur ne marchande pas : le prix du lot tient" : `prix plancher du lot : ${ana && ana.insultante ? ana.contre : rond(prix(contexte.lot.prix) * part, true)} €`}). Un « lot de N articles » Le Bon Coin regroupe N ANNONCES, et une annonce peut contenir plusieurs jeux : ne corrige jamais l'acheteur sur le nombre de jeux.` : "";
   // Vente déjà conclue (« Vendu ! », offre acceptée, paiement fait) : plus de négociation, on confirme l'envoi ou la remise.
   const conclue = venteConclue(conversation);
-  const offre = conclue ? `LA VENTE EST CONCLUE${montantOffre != null ? ` à ${montantOffre} €` : ""} : l'offre a été acceptée. Ne négocie plus, ne parle plus du prix ni de la disponibilité ; les trois réponses remercient et confirment l'envoi soigné (ou la remise en main propre si c'est ce qui est prévu).` : montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.insultante ? `C'EST UNE OFFRE TRÈS BASSE, PRESQUE INSULTANTE : ne l'accepte pas et ne fais qu'un tout petit geste. Une réponse reste ferme au prix affiché, une autre propose ${ana.contre} € et PAS UN EURO DE MOINS (aucun autre chiffre plus bas, ni prix plancher, ni « pour faire un effort »), la dernière décline poliment. Reste courtois, sans te justifier longuement.` : ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
+  const offre = conclue ? `LA VENTE EST CONCLUE${montantOffre != null ? ` à ${montantOffre} €` : ""} : l'offre a été acceptée. Ne négocie plus, ne parle plus du prix ni de la disponibilité ; les trois réponses remercient et confirment l'envoi soigné (ou la remise en main propre si c'est ce qui est prévu).` : montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.ferme ? (ana.acceptable ? "Elle est au prix affiché : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)." : "LE VENDEUR NE MARCHANDE PAS : ne l'accepte pas et ne propose AUCUN autre prix. Une réponse reste ferme au prix affiché, une autre le redit en une phrase très courte, la dernière décline poliment.") : ana.insultante ? `C'EST UNE OFFRE TRÈS BASSE, PRESQUE INSULTANTE : ne l'accepte pas et ne fais qu'un tout petit geste. Une réponse reste ferme au prix affiché, une autre propose ${ana.contre} € et PAS UN EURO DE MOINS (aucun autre chiffre plus bas, ni prix plancher, ni « pour faire un effort »), la dernière décline poliment. Reste courtois, sans te justifier longuement.` : ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
   // La ville ou le département de l'acheteur (« À propos de cet acheteur : Moselle ») n'est jamais son nom.
   const lieux = lieuxAcheteur(conversation);
   let qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
@@ -767,7 +772,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
     a.categorie === "films" ? [a.edition && `Édition : ${txt(a.edition, 80)}`, a.annee && `Année : ${txt(a.annee, 4)}`, a.realisateur && `Réalisateur : ${txt(a.realisateur, 80)}`, a.region && `Langues et zone : ${txt(a.region, 30)}`].filter(Boolean).join("\n") : "",
     a.categorie === "cartes" ? [a.numero && `Numéro : ${txt(a.numero, 20)}`, a.region && `Langue : ${txt(a.region, 30)}`, a.gradation ? `Gradée : ${txt(a.gradation, 30)}` : LIB_ETAT_CARTE[a.etatCarte] && `État collectionneur : ${LIB_ETAT_CARTE[a.etatCarte]}`].filter(Boolean).join("\n") : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
-    px != null ? `Prix affiché : ${px} € (prix plancher conseillé : ${rond(px * 0.85, true)} €, ne jamais proposer moins)` : "",
+    px != null ? `Prix affiché : ${px} € (${ferme ? "le vendeur ne marchande pas : ne propose jamais d'autre prix" : `prix plancher conseillé : ${Math.min(px, rond(px * part, true))} €, ne jamais proposer moins`})` : "",
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
   ].filter(Boolean).join("\n");
   const catalogue = (Array.isArray(autres) ? autres : []).slice(0, 40).map((x) => `- ${txt(x.titre, 120)}${prix(x.prix) != null ? ` : ${prix(x.prix)} €` : ""}${LIB_ETAT[x.etat] ? `, ${LIB_ETAT[x.etat]}` : ""}`).join("\n");
@@ -775,6 +780,15 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
     reponses: [{ approche: "info", titre: "Ta réponse", texte: suite ? `Petite précision : ${consigne} 🙂` : `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
   if (FAKE() && /pas donner suite|ne donnerai pas suite|merci pour nos échanges/i.test(conv)) return { resume: "L'acheteur ne donne pas suite et clôt la discussion.", intention: "fin",
     reponses: [{ approche: "au_revoir", titre: "Au revoir", texte: "Merci à vous, bonne soirée 🙂" }, { approche: "au_revoir", titre: "Chaleureux", texte: "Merci pour l'échange Garnier, bonne soirée à vous 🙂" }, { approche: "au_revoir", titre: "Porte ouverte", texte: "Merci Garnier, bonne soirée ! N'hésitez pas si vous changez d'avis 🙂" }] };
+  // IA simulée : le profil de vendeur se voit quand même (ton diplomate, pas de marchandage).
+  if (FAKE() && (ferme || pv.ton === "diplomate")) { const sm = pv.ton === "diplomate";
+    return { ...(ana ? { offre: ana } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
+      reponses: [
+        ferme ? { approche: "ferme", titre: "Prix ferme", texte: sm ? "Bonjour, et merci beaucoup pour votre proposition ! J'ai fixé ce prix avec soin d'après la cote actuelle, je préfère donc le conserver tel quel. Je vous souhaite une excellente journée 🙂" : "Bonjour, merci pour votre proposition ! Le prix est déjà calé sur la cote actuelle, je le garde tel quel 🙂", gras: ["le conserver tel quel", "le garde tel quel"] }
+          : { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, et merci beaucoup pour votre proposition ! 20 €, c'est malheureusement un peu loin de la valeur du jeu. Je serais ravi de vous le céder à 42 €, si cela vous convient 🙂", gras: ["un peu loin de la valeur", "42 €"] },
+        { approche: "ferme", titre: ferme ? "Ferme et bref" : "Prix ferme", texte: sm ? "Merci beaucoup pour votre intérêt ! Je me permets de maintenir le prix affiché, il est déjà au plus juste 🙂" : "Merci ! Le prix affiché est ferme 🙂" },
+        { approche: "couper_court", titre: "Couper court", texte: sm ? "Merci infiniment pour votre proposition ! Je crains que nous ne puissions pas nous accorder sur ce prix, je vous souhaite de trouver votre bonheur très vite 🙂" : "Merci pour votre proposition ! On ne va pas réussir à s'entendre sur ce prix, bonne recherche à vous 🙂" },
+      ] }; }
   if (FAKE()) return { ...(ana ? { offre: ana } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
       { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂", gras: ["un peu loin de la valeur", "42 €"] },
@@ -797,6 +811,7 @@ Particularités des cartes Pokémon :
 - état : parle avec les mots des collectionneurs (Near Mint, bords, coins, surface, centrage) sans rien ajouter à la fiche ;
 - un acheteur qui demande une photo « avec son pseudo sur un papier » est une demande normale : accepte volontiers.
 ` : "";
+  const profilIA = consignesProfil(pv);
   // Messagerie eBay : mêmes règles, avec le vocabulaire et les usages d'eBay (offres, paiement, envoi).
   const ebay = contexte && contexte.site === "ebay", site = ebay ? "eBay" : "Le Bon Coin";
   const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : "un jeu vidéo"} d'occasion sur ${site} à répondre à un acheteur.${ebay ? `
@@ -809,7 +824,7 @@ Particularités d'eBay :
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
 
-${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre, consigneVersion(version)].filter(Boolean).join("\n")}${qui || lot || offre || version ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+${profilIA ? profilIA + "\n\n" : ""}${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre, consigneVersion(version)].filter(Boolean).join("\n")}${qui || lot || offre || version ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
 """
 ${conv}
 """
@@ -820,7 +835,7 @@ ${deja}
 ` : ""}Retrouve le DERNIER message de l'acheteur et ce qu'il veut (disponibilité, offre de prix, dernier prix, échange, lot, photos, état, envoi, main propre, paiement, relance…).
 SI L'ACHETEUR SE RETIRE (il dit qu'il ne donnera pas suite, que c'est trop cher pour lui, qu'il laisse tomber, qu'il a trouvé ailleurs, ou il remercie pour l'échange et salue pour clore) : la négociation est finie. Mets "intention": "fin" et propose uniquement trois au revoir, approche « au_revoir » : une ou deux phrases courtes et cordiales (merci pour l'échange, bonne soirée ou bonne journée, éventuellement « n'hésitez pas si vous changez d'avis »), sans prix, sans contre-offre, sans argument, sans relancer, et sans reprendre AUCUN sujet déjà abordé (ni budget, ni prix, ni état, ni rareté, ni « je comprends »…) : juste un merci et une salutation. Trois variantes : une très courte, une chaleureuse, une qui laisse la porte ouverte.
 ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui vont plus ou moins loin, pour qu'il choisisse sa stratégie. Quand c'est une négociation (offre, lot, « dernier prix ? », relance insistante), les trois doivent couvrir :
-  1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
+  1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher${ferme ? " (SAUF que ce vendeur ne marchande pas : remplace-la par une deuxième réponse « ferme », plus courte)" : ""} ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
   3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
 sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur le prix (ni « prix ferme », ni « je ne descends pas », ni contre-offre) tant que personne n'en parle : trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
@@ -839,7 +854,7 @@ sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur 
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
 - vente conclue (« Vendu ! », offre acceptée, « Le paiement a été effectué », achat confirmé) : on ne négocie plus et on ne reparle pas du prix ; on remercie, on confirme l'envoi (emballage soigné, colis envoyé rapidement) ou le rendez-vous de remise en main propre, et c'est tout ;
 - lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
-- offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
+- offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et ${ferme ? "rappelle que le vendeur ne marchande pas, sans proposer d'autre prix" : `propose un prix de lot qui ne descend pas sous ${Math.round(part * 100)} % de la somme`} ;
 - refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors ${site}, et propose le paiement sécurisé ${site}${ebay ? " (vendre hors d'eBay est interdit par eBay)" : ""} ;
 - si le message est une arnaque probable, une des réponses le décline poliment ;
 - n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
@@ -890,6 +905,8 @@ LE VENDEUR A ÉCRIT LE DERNIER MESSAGE : il a déjà répondu à la dernière qu
   if (apresMoi) l.forEach((r) => { r.texte = sansDispoRepetee(sansPolitesse(r.texte)); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
+  // Vendeur qui ne marchande pas (profil) : aucune contre-offre, sauf s'il l'a demandée lui-même dans sa consigne.
+  if (ferme && !consigne && l.some((r) => r.approche !== "contre_offre")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "contre_offre"));
   // Langue ou version : jamais une réponse qui affirme sans fait vérifié, ni qui contredit le fait.
   if (version) l.splice(0, l.length, ...reponsesVersion(l, version, objet));
   let resume = phrase(o.resume, 260);

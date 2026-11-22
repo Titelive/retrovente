@@ -30,7 +30,7 @@
   etat.prevenir = true;
   etat.son = true;   // son « à toi » : activé par défaut, réglable à part de la notification
   etat.sonChoix = RR_SON_DEFAUT;   // pièce, power-up, jingle ou muet (sons dans commun.js)
-  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego", "refuserSansAvis"]).then(function (r) { if (r && r.sansNego) etat.sansNego = true; if (r && r.refuserSansAvis === false) etat.refuserSansAvis = false; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
+  try { RR.storage.local.get(["auto", "continuer", "prevenir", "son", "sonChoix", "sansNego", "refuserSansAvis"]).then(function (r) { if (r && r.sansNego != null) { etat.sansNego = !!r.sansNego; etat.sansNegoChoisi = true; } if (r && r.refuserSansAvis === false) etat.refuserSansAvis = false; if (r && (RR_SONS[r.sonChoix] || r.sonChoix === "muet")) etat.sonChoix = r.sonChoix; else if (r && r.son === false) etat.sonChoix = "muet"; etat.son = etat.sonChoix !== "muet"; if (etat.panneauSon) etat.panneauSon(); if (r && r.auto === false) etat.auto = false; if (r && r.continuer === false) etat.continuer = false; if (r && r.prevenir === false) etat.prevenir = false; }); } catch (e) {}
 
   /* ===== Outils DOM ===== */
   var norm = function (s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); };
@@ -866,6 +866,9 @@
     try {
       var j = await rrDemander({ type: "annonces" });
       etat.annonces = j.annonces || [];
+      // Profil de vendeur (Mon compte) : « Prix ferme, pas de marchandage » coche d'office « Pas de négociation possible ».
+      etat.vendeur = (j.profil && j.profil.vendeur) || {};
+      if (!etat.sansNegoChoisi && etat.vendeur.prix === "ferme") etat.sansNego = true;
       var bx = ombre && ombre.querySelector(".b"); if (bx && j.profil && /^(vendeur|collectionneur|pass)$/.test(j.profil.formule || "")) bx.setAttribute("data-formule", j.profil.formule);
       if (mode() === "depot") await cibleDepot();
       if (mode() === "messages" && !etat.choisie) { etat.choisie = deviner(); if (deviner(true)) { etat.convPour = etat.choisiePour = idConversation(); etat.convDepuis = Date.now(); } }
@@ -1257,7 +1260,9 @@
   // de la dernière offre lue dans la conversation quand il y en a une.
   function reponses(a) {
     var nom = a.nom || a.titre, px = a.prix, offre = offreLue(px);
-    var plancher = px ? rond(px * 0.85, true) : null;
+    // Prix plancher selon le profil de vendeur (patient ou pressé, souple ou ferme), 85 % par défaut, comme le serveur.
+    var pv = etat.vendeur || {}, part = pv.prix === "ferme" ? 0.95 : Math.min(0.9, Math.max(0.75, 0.85 + (pv.rythme === "patient" ? 0.05 : pv.rythme === "rapide" ? -0.05 : 0) + (pv.prix === "souple" ? -0.05 : 0)));
+    var plancher = px ? Math.min(px, rond(px * part, true)) : null;
     var milieu = px ? Math.max(plancher, rond(offre ? (offre + px) / 2 : px * 0.9)) : null;
     var lePrix = px ? px + " €" : "le prix affiché";
     var detail = [a.contenu && CONTENU_TXT[a.contenu] ? "C'est " + CONTENU_TXT[a.contenu] : "", a.etat && ETAT_TXT[a.etat] ? (a.contenu ? ", " : "Il est en ") + ETAT_TXT[a.etat].toLowerCase() : ""].join("");
@@ -1282,7 +1287,8 @@
       { g: "Négociation", t: "Nouvelle contre-offre, la dernière", m: "Je comprends, merci d'avoir fait un pas ! " + (plancher ? "Je peux descendre une dernière fois à " + plancher + " €, " : "Je peux faire un dernier petit geste, ") + "mais ce sera vraiment mon minimum. Dites-moi si ça vous va." },
       { g: "Négociation", t: "Couper court poliment", m: "Merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur le prix, je préfère en rester là. Bonne recherche à vous, et peut-être à une prochaine fois." },
       { g: "Négociation", t: "Lot de plusieurs jeux", m: "Bonjour, avec plaisir pour un lot ! Dites-moi quels jeux vous intéressent et je vous fais un prix d'ensemble, avec un seul envoi pour réduire les frais." },
-      { g: "Négociation", t: "Proposition d'échange", m: "Bonjour, merci pour la proposition d'échange ! Pour l'instant je préfère vendre plutôt qu'échanger, mais si vous êtes intéressé à " + lePrix + ", je vous le réserve avec plaisir." },
+      pv.echanges === "oui" ? { g: "Négociation", t: "Proposition d'échange", m: "Bonjour, merci pour la proposition d'échange, pourquoi pas ! Qu'est-ce que vous auriez à proposer ? Envoyez-moi le titre, l'état et quelques photos 🙂" }
+        : { g: "Négociation", t: "Proposition d'échange", m: "Bonjour, merci pour la proposition d'échange ! Pour l'instant je préfère vendre plutôt qu'échanger, mais si vous êtes intéressé à " + lePrix + ", je vous le réserve avec plaisir." },
       // Le jeu
       { g: "Le jeu", t: "État et fonctionnement", m: "Bonjour ! " + nom + " est d'origine, testé et fonctionnel. " + det + "Je peux vous envoyer d'autres photos si vous voulez." },
       { g: "Le jeu", t: "Plus de photos", m: "Bien sûr ! Je vous envoie d'autres photos tout de suite : étiquette, dos de la boîte et cartouche (ou disque)." },
@@ -1301,6 +1307,8 @@
       { g: "Sécurité et suivi", t: "Rendez-vous manqué", m: "Bonjour, je ne vous ai pas vu au rendez-vous, j'espère que tout va bien ! On peut en refixer un si vous êtes toujours intéressé, sinon pas de souci." },
       { g: "Sécurité et suivi", t: "Merci après la vente", m: "Merci beaucoup pour votre achat ! Bon jeu avec " + nom + ", et n'hésitez pas à laisser un avis, ça m'aide beaucoup." },
     ];
+    // Profil « Prix ferme, pas de marchandage » : on retire les réponses qui font un geste sur le prix.
+    if (pv.prix === "ferme") l = l.filter(function (x) { return !/poire en deux|dernière$|dernier prix|trop basse$/.test(x.t); });
     return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : a.categorie === "films" ? reponsesFilm(l, a, nom) : l;
   }
   /* Films : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi

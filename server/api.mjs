@@ -14,6 +14,7 @@ import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
 import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { normaliserProfil, lireProfil } from "./profil.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
@@ -380,7 +381,7 @@ function me(u) {
   return {
     suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
-    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -493,7 +494,7 @@ export async function handleApi(req) {
     if (p === "/api/extension/annonces" && method === "GET") {
       const l = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente"));
       const r = rights(eu);
-      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom }, annonces: l }, headers: CORS };
+      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom, vendeur: lireProfil(eu.vendeur) }, annonces: l }, headers: CORS };
     }
     const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
     if (mx && method === "GET") {
@@ -554,7 +555,7 @@ export async function handleApi(req) {
       try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       const tous = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve"));
-      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, site: b.site === "ebay" ? "ebay" : "lbc" });
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, site: b.site === "ebay" ? "ebay" : "lbc", profil: lireProfil(eu.vendeur) });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
     }
@@ -590,6 +591,8 @@ function lienLbc(v) {
     const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
     const uid = Number(r.lastInsertRowid), t = createSession(uid);
     if (lbc) db.prepare("UPDATE users SET lbc = ? WHERE id = ?").run(lbc, uid);
+    const pv = normaliserProfil(b.vendeur);
+    if (Object.keys(pv).length) db.prepare("UPDATE users SET vendeur = ? WHERE id = ?").run(JSON.stringify(pv), uid);
     envoyerVerif(uid, email).catch(() => {});
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(t, secure()) });
   }
@@ -649,6 +652,7 @@ function lienLbc(v) {
       maj.pseudo = ps;
     }
     if (b.lbc !== undefined) maj.lbc = lienLbc(b.lbc);
+    if (b.vendeur !== undefined) { const pv = normaliserProfil(b.vendeur); maj.vendeur = Object.keys(pv).length ? JSON.stringify(pv) : ""; }
     if (b.avatar !== undefined) {
       const a = String(b.avatar || "");
       if (a && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a) || a.length > 120000)) fail(400, "Image de profil invalide ou trop lourde.");

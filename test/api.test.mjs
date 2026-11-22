@@ -709,6 +709,34 @@ test("pas de prénom inventé, pas de disponibilité répétée", async () => {
   assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
 });
 
+test("profil de vendeur : inscription, Mon compte, extension, prix plancher", async () => {
+  const r = await call("POST", "/api/inscription", { email: "profil@exemple.fr", motdepasse: "motdepasse123", cgv: true, vendeur: { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi\nle dimanche", pirate: "x" } });
+  assert.equal(r.status, 200);
+  const c = cookieOf(r);
+  db.prepare("UPDATE users SET email_ok = 1, plan = 'collectionneur', plan_status = 'active' WHERE email = ?").run("profil@exemple.fr");
+  const moi = (await call("GET", "/api/moi", null, c)).json;
+  assert.deepEqual(moi.vendeur, { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi le dimanche" });
+  // Valeur inconnue ignorée, profil modifiable ensuite.
+  const m = (await call("POST", "/api/compte/profil", { vendeur: { rythme: "rapide", prix: "n'importe quoi", ton: "humour" } }, c)).json;
+  assert.deepEqual(m.vendeur, { rythme: "rapide", ton: "humour" });
+  assert.deepEqual((await call("POST", "/api/compte/profil", { vendeur: {} }, c)).json.vendeur, {});
+  await call("POST", "/api/compte/profil", { vendeur: { prix: "ferme", ton: "diplomate" } }, c);
+  // L'extension reçoit le profil et l'IA ne propose plus de contre-offre.
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  assert.deepEqual((await call("GET", "/api/extension/annonces", null, "", h)).json.profil.vendeur, { prix: "ferme", ton: "diplomate" });
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", statut: "en_vente", prixDemande: 190 } }, c)).json.objet;
+  const rep = (await call("POST", "/api/extension/reponse", { conversation: "Voici l'offre de mm : 140 €.", annonce: o.id, offre: 140 }, "", h)).json;
+  assert.equal(rep.offre.ferme, true); assert.equal(rep.offre.contre, 190);
+  assert.ok(rep.reponses.length && rep.reponses.every((x) => x.approche !== "contre_offre"));
+
+  const { partPlancher, consignesProfil } = await import("../server/profil.mjs");
+  assert.equal(partPlancher({}), 0.85); assert.equal(partPlancher({ rythme: "patient" }), 0.9); assert.equal(partPlancher({ rythme: "rapide", prix: "souple" }), 0.75);
+  assert.equal(consignesProfil({}), "");
+  assert.match(consignesProfil({ ton: "diplomate", echanges: "oui" }), /très diplomate et affable[\s\S]*ouvert aux échanges/);
+  const { analyseOffre } = await import("../server/ia.mjs");
+  assert.equal(analyseOffre(190, 170, 0.9).basse, true); assert.equal(analyseOffre(190, 170).basse, false);
+});
+
 test("photos : JPEG incomplet refusé, écriture sans fichier temporaire laissé", async () => {
   const { jpegCoupe } = await import("../server/api.mjs");
   const entier = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);

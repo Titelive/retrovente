@@ -114,6 +114,25 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .puces-partic button{font:600 13px/1 var(--texte);padding:9px 12px;border-radius:999px;border:0;cursor:pointer;background:var(--carte,#fff);color:var(--encre);box-shadow:0 0 0 1px var(--trait)}
 .puces-partic button[aria-pressed="true"]{background:var(--anis);color:var(--nuit);box-shadow:none}
 .puces-partic button[aria-pressed="true"]::before{content:"✓ "}
+/* Profil de vendeur (inscription et Mon compte) */
+.pv{display:flex;flex-direction:column;gap:18px}
+.pv-q{border:0;margin:0;padding:0;min-width:0}
+.pv-q legend{padding:0;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.pv-q legend .pv-e{font-size:18px;line-height:1}
+.pv-c{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.pv-c button{font:600 14px/1.2 var(--texte);min-height:44px;padding:10px 14px;border-radius:999px;border:0;cursor:pointer;background:var(--carte);color:var(--encre);box-shadow:inset 0 0 0 1px var(--trait);transition:background-color .2s,box-shadow .2s,transform .15s var(--ease);text-align:left}
+.pv-c button:hover{box-shadow:inset 0 0 0 1.5px var(--encre)}
+.pv-c button:active{transform:scale(.97)}
+.pv-c button[aria-checked="true"]{background:var(--anis);color:var(--nuit);box-shadow:none}
+.pv-c button[aria-checked="true"]::before{content:"✓ ";font-weight:800}
+.pv-note textarea{min-height:76px;margin-top:8px}
+.pv-ia{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:var(--anis-p);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.8);font-size:14px;line-height:1.45;color:var(--encre)}
+.pv-ia b{white-space:nowrap}
+#dVendeur{max-width:min(720px,calc(100% - 24px));padding-bottom:0}
+#dVendeur .pv{gap:16px}
+.pv-bas{position:sticky;bottom:0;margin:0 -28px;padding:14px 28px max(18px,env(safe-area-inset-bottom));background:var(--carte);box-shadow:0 -14px 20px -14px rgba(0,0,0,.18);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+#dVendeur h2{margin:0}
+@media(max-width:700px){#dVendeur{padding:22px 18px 0}.pv-bas{margin:0 -18px;padding-left:18px;padding-right:18px}.pv-bas .btn{flex:1}.pv-c button{font-size:13.5px;padding:10px 12px}}
 /* Brouillons */
 .brouillons{margin:6px 0 22px}.brouillons h2{font-size:20px;margin:0 0 12px;display:flex;align-items:baseline;gap:10px}.brouillons h2 small{font:400 10px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;color:var(--gris)}
 .br-liste{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory}
@@ -1553,6 +1572,12 @@ html.sans-anim .vt-b.pousse{animation:none}
       </div>
     </div>
   </section>
+  <section class="carte zone" id="cVendeur" aria-labelledby="tVendeur">
+    <h2 id="tVendeur">Mon profil de vendeur</h2>
+    <p class="pv-ia"><span aria-hidden="true">✦</span><span>L'IA s'en sert pour te proposer des réponses aux acheteurs qui te ressemblent : ton ton, ta façon de négocier, la main propre ou l'envoi.</span></p>
+    <div class="pv" id="pvCompte"></div>
+    <div class="rangee"><button class="btn petit" type="button" id="pvGo">Enregistrer mon profil</button></div>
+  </section>
   <section class="carte zone" aria-labelledby="tPrefs">
     <h2 id="tPrefs">Paramètres</h2>
     <label class="interrupteur"><input type="checkbox" id="pAnim" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Animations</b><small>Apparitions, transitions et effets. Désactive-les si elles te gênent (réglage gardé sur cet appareil).</small></span></label>
@@ -1593,6 +1618,13 @@ html.sans-anim .vt-b.pousse{animation:none}
   <button class="btn" type="button" id="dIaFormules">Voir les formules</button>
   <button class="btn" type="button" id="dIaRenv" hidden>Renvoyer le lien de confirmation</button>
   <button class="lien" value="x">Plus tard</button>
+</form></dialog>
+<dialog id="dVendeur" aria-labelledby="tDVendeur"><form method="dialog">
+  <p class="pixel" style="margin:0">Étape 2 sur 2</p>
+  <h2 id="tDVendeur">Et toi, tu vends comment ?</h2>
+  <p style="margin:0;color:var(--gris);font-size:14.5px">Quelques clics pour que l'IA réponde aux acheteurs comme toi. Tu pourras tout changer dans Mon compte.</p>
+  <div class="pv" id="pvIns"></div>
+  <div class="pv-bas"><button class="btn" type="button" id="pvInsGo">C'est parti</button><button class="lien" value="x">Je ferai ça plus tard</button></div>
 </form></dialog>
 <dialog id="dQuota"><form method="dialog">
   <h2>Tu as bien vendu ce mois-ci !</h2>
@@ -2124,7 +2156,8 @@ $("fAuth").onsubmit=function(e){e.preventDefault();var b=$("aGo"),t=b.textConten
   else if(MODE==="oubli")p=api("POST","/api/oubli",{email:email}).then(function(){toast("Si un compte existe avec cette adresse, le lien vient de partir.","ok");modeAuth("cx");return "stop"});
   else p=api("POST","/api/reinitialiser",{jeton:new URLSearchParams(location.search).get("reinitialiser"),motdepasse:mdp}).then(function(){history.replaceState(null,"",adresseSans(["inscription","offre","reinitialiser"]))});
   busy(b,true);
-  p.then(function(r){if(r!=="stop"){$("aMdp").value="";var o=new URLSearchParams(location.search).get("offre");history.replaceState(null,"",o?"/app/?compte":adresseSans(["inscription","offre","reinitialiser"]));return charger(true)}})
+  var nouveau=MODE==="ins";
+  p.then(function(r){if(r!=="stop"){$("aMdp").value="";var o=new URLSearchParams(location.search).get("offre");history.replaceState(null,"",o?"/app/?compte":adresseSans(["inscription","offre","reinitialiser"]));return charger(true).then(function(){if(nouveau&&ME)bienvenueVendeur()})}})
    .catch(function(e){$("aErr").textContent=e.message||"Erreur."}).then(function(){busy(b,false,t)})};
 
 /* ===== Photos ===== */
@@ -2939,11 +2972,27 @@ $("fRot")&&($("fRot").onclick=function(){});
 /* ===== Profil ===== */
 function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
 function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
-function profil(){$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
+function profil(){pvForm($("pvCompte"),ME.vendeur);$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
   $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
   $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
 function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
 $("pLbcGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{lbc:$("pLbc").value}).then(function(m){majMoi(m);toast(m.lbc?"Lien Le Bon Coin enregistré.":"Lien Le Bon Coin retiré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le lien")})};
+/* ===== Profil de vendeur ===== */
+var PV_Q=[
+  {k:"rythme",e:"⏳",q:"Ton rythme",o:[["patient","Patient, j'attends le bon prix"],["equilibre","Entre les deux"],["rapide","Besoin de vendre vite"]]},
+  {k:"remise",e:"🤝",q:"Pour la remise",o:[["main_propre","Main propre de préférence"],["les_deux","Les deux me vont"],["envoi","Envoi de préférence"]]},
+  {k:"echanges",e:"🔁",q:"Les échanges",o:[["oui","Ouvert aux échanges"],["non","Pas d'échange, vente seulement"]]},
+  {k:"prix",e:"🏷️",q:"Tes prix",o:[["souple","Je négocie volontiers"],["raisonnable","Un petit geste, pas plus"],["ferme","Prix ferme, pas de marchandage"]]},
+  {k:"ton",e:"💬",q:"Le ton de tes messages",o:[["diplomate","Très diplomate et affable"],["chaleureux","Chaleureux et passionné"],["direct","Direct et efficace"],["humour","Avec une touche d'humour"]]}];
+function pvForm(z,v){v=v||{};z.innerHTML=PV_Q.map(function(g){return '<fieldset class="pv-q"><legend><span class="pv-e" aria-hidden="true">'+g.e+'</span>'+g.q+'</legend><div class="pv-c" role="radiogroup" aria-label="'+g.q+'" data-k="'+g.k+'">'+g.o.map(function(o){return '<button type="button" role="radio" data-v="'+o[0]+'" aria-checked="'+(v[g.k]===o[0])+'">'+o[1]+'</button>'}).join("")+'</div></fieldset>'}).join("")+
+  '<label class="pv-q pv-note"><b style="font-size:15px">Autre chose que l\'IA doit savoir ? <small style="font-weight:500;color:var(--gris)">(facultatif)</small></b><textarea maxlength="300" rows="2" placeholder="ex. Pas d\'envoi le dimanche, rendez-vous possible à la gare de Metz"></textarea></label>';
+  z.querySelector("textarea").value=v.note||""}
+document.addEventListener("click",function(e){var b=e.target.closest(".pv-c button");if(!b)return;var on=b.getAttribute("aria-checked")!=="true";b.parentNode.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-checked","false")});b.setAttribute("aria-checked",String(on))});
+function pvLire(z){var o={};z.querySelectorAll(".pv-c").forEach(function(c){var b=c.querySelector('[aria-checked="true"]');if(b)o[c.dataset.k]=b.dataset.v});var n=z.querySelector("textarea").value.trim();if(n)o.note=n;return o}
+function pvEnregistrer(z,b,t){busy(b,true);return api("POST","/api/compte/profil",{vendeur:pvLire(z)}).then(function(m){majMoi(m);toast("Profil de vendeur enregistré : l'IA s'y adapte.","ok");return true}).catch(function(e){erreur(e,"Enregistrement impossible.");return false}).then(function(r){busy(b,false,t);return r})}
+$("pvGo").onclick=function(){pvEnregistrer($("pvCompte"),this,"Enregistrer mon profil")};
+$("pvInsGo").onclick=function(){pvEnregistrer($("pvIns"),this,"C'est parti").then(function(ok){if(ok)$("dVendeur").close()})};
+function bienvenueVendeur(){pvForm($("pvIns"),ME.vendeur);try{$("dVendeur").showModal()}catch(e){}}
 $("pPseudoGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{pseudo:$("pPseudo").value}).then(function(m){majMoi(m);toast("Pseudo enregistré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le pseudo")})};
 $("pAvatarIn").onchange=function(){var f=this.files[0];this.value="";if(!f)return;ouvrirImage(f).then(function(img){var S=256,c=document.createElement("canvas");c.width=c.height=S;var g=c.getContext("2d"),w=img.naturalWidth,h=img.naturalHeight,m=Math.min(w,h);
     g.imageSmoothingQuality="high";g.drawImage(img,(w-m)/2,(h-m)/2,m,m,0,0,S,S);return api("POST","/api/compte/profil",{avatar:c.toDataURL("image/jpeg",.85)})})
