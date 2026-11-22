@@ -52,6 +52,10 @@ export function score(jeu, titre, plateforme) {
   if (surPlateforme(jeu, plateforme)) s += 4;
   if (jeu.cover) s += 0.5;
   if (jeu.version_parent) s -= 1;   // édition spéciale : on préfère le jeu de base
+  // mod, fan game, compilation, pack : jamais devant le vrai jeu
+  if ([3, 5, 12, 13, 14].includes(Number(jeu.game_type ?? jeu.category))) s -= 3;
+  // à score égal, le jeu connu (beaucoup de notes) passe devant l'obscur
+  s += Math.min(1.5, Math.log10(1 + (Number(jeu.total_rating_count) || 0)) / 2);
   return s;
 }
 
@@ -66,7 +70,7 @@ async function jetonTwitch() {
   jeton = { cle: j.access_token, fin: Date.now() + (j.expires_in || 3600) * 1000 };
   return jeton.cle;
 }
-const CHAMPS = "name,slug,url,summary,first_release_date,cover.image_id,screenshots.image_id,artworks.image_id,genres.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name,aggregated_rating,aggregated_rating_count,rating,rating_count,alternative_names.name,version_parent";
+const CHAMPS = "name,slug,url,summary,first_release_date,cover.image_id,screenshots.image_id,artworks.image_id,genres.name,platforms.name,platforms.abbreviation,involved_companies.developer,involved_companies.company.name,aggregated_rating,aggregated_rating_count,rating,rating_count,alternative_names.name,version_parent,game_type,category,total_rating_count";
 async function igdb(requete) {
   const h = { "Client-ID": process.env.TWITCH_CLIENT_ID || "", accept: "application/json", "content-type": "text/plain" };
   if (!process.env.IGDB_URL) h.Authorization = "Bearer " + (await jetonTwitch());
@@ -79,7 +83,12 @@ const echappe = (s) => String(s).replace(/["\\]/g, " ").slice(0, 120);
 async function chercherIgdb(titre, plateforme, ref) {
   if (ref) return { choisi: (await igdb(`fields ${CHAMPS}; where id = ${Number(ref)};`))[0] || null, autres: [] };
   const nom = String(titre).replace(/\s[-–—|]\s.*$/, "").replace(/[([].*$/, "").trim() || titre;
-  const liste = await igdb(`search "${echappe(nom)}"; fields ${CHAMPS}; limit 15;`);
+  // La recherche IGDB ignore souvent les noms européens (« Lylat Wars » = Star Fox 64) : on cherche aussi dans les autres noms.
+  const [trouves, alias] = await Promise.all([
+    igdb(`search "${echappe(nom)}"; fields ${CHAMPS}; limit 15;`),
+    igdb(`fields ${CHAMPS}; where alternative_names.name ~ *"${echappe(nom)}"* | name ~ *"${echappe(nom)}"*; sort total_rating_count desc; limit 10;`).catch(() => []),
+  ]);
+  const vus = new Set(), liste = [...(Array.isArray(trouves) ? trouves : []), ...(Array.isArray(alias) ? alias : [])].filter((j) => j && !vus.has(j.id) && vus.add(j.id));
   if (!Array.isArray(liste) || !liste.length) return { choisi: null, autres: [] };
   const notes = liste.map((j) => ({ j, s: score(j, titre, plateforme) })).sort((a, b) => b.s - a.s);
   const choisi = notes[0].s >= 5 ? notes[0].j : null;   // sinon on ne devine pas : la personne choisit dans la liste
@@ -136,15 +145,27 @@ export function infosDe(j, desc, autres = []) {
   };
 }
 
+// Genres IGDB (en anglais) → français ; nom japonais entre parenthèses retiré du descriptif (« Mario Party (マリオパーティ, Mario Pāti) est… »).
+const GENRES = { "point-and-click": "Point & click", fighting: "Combat", shooter: "Tir", music: "Musique", platform: "Plateforme", puzzle: "Réflexion", racing: "Course",
+  "real time strategy (rts)": "Stratégie en temps réel", "role-playing (rpg)": "Jeu de rôle", simulator: "Simulation", sport: "Sport", strategy: "Stratégie",
+  "turn-based strategy (tbs)": "Stratégie au tour par tour", tactical: "Tactique", "hack and slash/beat 'em up": "Beat'em all", "quiz/trivia": "Quiz", pinball: "Flipper",
+  adventure: "Aventure", indie: "Indépendant", arcade: "Arcade", "visual novel": "Visual novel", "card & board game": "Jeu de société", moba: "MOBA" };
+export function enFrancais(v) {
+  if (!v || v.introuvable) return v;
+  const genres = [...new Set((v.genres || []).map((g) => GENRES[String(g).toLowerCase()] || g))];
+  const description = String(v.description || "").replace(/\s*\([^()]*[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af][^()]*\)/g, "").replace(/ +([,.])/g, "$1");
+  return { ...v, genres, description };
+}
+
 /* Exemple hors ligne (IA_FAKE=1) : images dessinées, pour les tests et le développement. */
 const svg = (w, h, fond, texte) => "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${fond[0]}"/><stop offset="1" stop-color="${fond[1]}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="52%" font-family="sans-serif" font-size="${Math.round(h / 9)}" font-weight="700" fill="#fff" text-anchor="middle">${texte}</text></svg>`);
 function exemple(titre) {
   const caps = [["#2a7de1", "#7fd4ff"], ["#3fa34d", "#c8f08f"], ["#8e44ad", "#f39cc6"], ["#e67e22", "#f9d56e"], ["#16a085", "#a3e4d7"]];
   return {
-    ref: 1074, nom: titre || "Super Mario 64", annee: 1996, plateformes: ["Nintendo 64", "Wii", "Wii U"], genres: ["Plateforme", "Aventure"], studio: "Nintendo EAD",
+    ref: 1074, nom: titre || "Super Mario 64", annee: 1996, plateformes: ["Nintendo 64", "Wii", "Wii U"], genres: ["Platform", "Adventure"], studio: "Nintendo EAD",
     jaquette: { petite: svg(264, 352, ["#c0392b", "#f1c40f"], "Jaquette"), grande: svg(600, 800, ["#c0392b", "#f1c40f"], "Jaquette") },
     captures: caps.map((c, i) => ({ petite: svg(569, 320, c, "Capture " + (i + 1)), grande: svg(1280, 720, c, "Capture " + (i + 1)) })),
-    description: "Super Mario 64 est un jeu vidéo de plates-formes développé par Nintendo EAD et édité par Nintendo, sorti en 1996 au Japon et en Amérique du Nord, puis en 1997 en Europe, pour accompagner le lancement de la Nintendo 64. Premier épisode de la série Super Mario en trois dimensions, il met en scène Mario qui explore le château de la princesse Peach à la recherche des étoiles de puissance volées par Bowser.\nSalué par la critique pour sa caméra libre et sa liberté de mouvement, il est souvent cité parmi les jeux les plus influents de l'histoire.",
+    description: "Super Mario 64 (スーパーマリオ64, Sūpā Mario Rokujūyon) est un jeu vidéo de plates-formes développé par Nintendo EAD et édité par Nintendo, sorti en 1996 au Japon et en Amérique du Nord, puis en 1997 en Europe, pour accompagner le lancement de la Nintendo 64. Premier épisode de la série Super Mario en trois dimensions, il met en scène Mario qui explore le château de la princesse Peach à la recherche des étoiles de puissance volées par Bowser.\nSalué par la critique pour sa caméra libre et sa liberté de mouvement, il est souvent cité parmi les jeux les plus influents de l'histoire.",
     descriptionSource: { nom: "Wikipédia", url: "https://fr.wikipedia.org/wiki/Super_Mario_64", licence: "CC BY-SA 4.0" },
     notes: { presse: { valeur: 94, nb: 18 }, joueurs: { valeur: 89, nb: 1460 } },
     lien: "https://www.igdb.com/games/super-mario-64",
@@ -161,11 +182,11 @@ export async function infosJeu({ titre, plateforme = "", ref = null }, traduire 
   titre = String(titre || "").trim().slice(0, 160); plateforme = String(plateforme || "").trim().slice(0, 60);
   ref = ref && /^\d{1,9}$/.test(String(ref)) ? Number(ref) : null;
   if (!titre && !ref) return null;
-  if (FAKE()) return /introuvable/i.test(titre) ? null : exemple(titre);
+  if (FAKE()) return /introuvable/i.test(titre) ? null : enFrancais(exemple(titre));
   if (!configure()) return null;
-  const cle = ref ? "ref:" + ref : "q:" + nomSeul(titre) + "|" + abrevs(plateforme).join(",");
+  const cle = ref ? "ref:" + ref : "q2:" + nomSeul(titre) + "|" + abrevs(plateforme).join(",");
   const deja = lireCache(cle, 30);
-  if (deja !== undefined && (deja && !deja.introuvable || lireCache(cle, 7) !== undefined)) return deja;
+  if (deja !== undefined && (deja && !deja.introuvable || lireCache(cle, 7) !== undefined)) return enFrancais(deja);
 
   const { choisi, autres } = await chercherIgdb(titre, plateforme, ref);
   if (!choisi) { const v = autres.length ? { introuvable: true, autres } : null; ecrireCache(cle, v); return v; }
@@ -178,5 +199,5 @@ export async function infosJeu({ titre, plateforme = "", ref = null }, traduire 
   const v = infosDe(choisi, desc, autres);
   ecrireCache(cle, v);
   if (!ref) ecrireCache("ref:" + choisi.id, { ...v, autres: [] });
-  return v;
+  return enFrancais(v);
 }

@@ -28,7 +28,18 @@ equipe() {
   else echo "Projet Xcode introuvable : choisis l'équipe dans Xcode (Signing & Capabilities > Team)."; return 0; fi
   echo "App signée avec ton équipe Apple ($t)."
 }
-if [ -d safari/RetroRevente ]; then natif; equipe; echo "Le projet existe déjà : open safari/RetroRevente/RetroRevente.xcodeproj"; open safari/RetroRevente/RetroRevente.xcodeproj; exit 0; fi
+# Le projet liste les fichiers de l'extension un par un : un fichier ajouté depuis (ebay.js en 1.10, par exemple)
+# n'y est pas, et Safari charge une extension incomplète. Dans ce cas, on recrée le projet.
+if [ -d safari/RetroRevente ]; then
+  projet=$(ls safari/RetroRevente/RetroRevente.xcodeproj/project.pbxproj safari/RetroRevente/RetroRevente.xcodeproj/project.xcproj 2>/dev/null | head -1)
+  manque=""
+  for f in extension/*.js extension/*.html extension/manifest.json; do
+    n=$(basename "$f"); [ -n "$projet" ] && grep -q "$n" "$projet" || manque="$manque $n"
+  done
+  if [ -z "$manque" ]; then natif; equipe; echo "Le projet est à jour : ⌘R dans Xcode."; open safari/RetroRevente/RetroRevente.xcodeproj; exit 0; fi
+  echo "Fichiers absents du projet Xcode :$manque. Je le recrée (l'ancien est gardé dans safari-ancien/)."
+  rm -rf safari-ancien; mv safari safari-ancien
+fi
 xcrun safari-web-extension-converter extension \
   --project-location safari \
   --app-name "RetroRevente" \
@@ -44,7 +55,7 @@ Projet créé dans safari/RetroRevente. Dans Xcode :
   3. Seulement si l'app n'est pas signée (pas de compte Apple dans Xcode) : menu Développement >
      « Autoriser les extensions non signées » (à refaire après chaque redémarrage de Safari).
   4. Safari > Réglages > Extensions : coche RetroRevente, puis « Modifier les sites web » > Autoriser
-     pour leboncoin.fr et retrorevente.fr.
+     pour leboncoin.fr, ebay.fr et retrorevente.fr.
 Pour l'iPhone : schéma « RetroRevente (iOS) », ton iPhone branché, ⌘R, puis Réglages > Apps > Safari > Extensions.
 TXT
 open safari/RetroRevente/RetroRevente.xcodeproj

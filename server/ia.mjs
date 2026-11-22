@@ -3,6 +3,7 @@
 // IA_FAKE=1 : réponses fictives, pour les tests et le développement sans clé.
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
+import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, themeDouteux, MIN_LOT, MAX_LOT } from "./lots.mjs";
 export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
@@ -39,7 +40,7 @@ async function claude(content, opts = {}) {
   const e = await claude1(content, { ...opts, max: Math.max(opts.max || 1500, PLANCHER) * 2, timeout: Math.max(opts.timeout || 30000, 45000) });
   return e && e._vide ? (opts.brut ? { _texte: "" } : null) : e;
 }
-async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null, effort = "" } = {}) {
+async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = "", brut = false, outil = null, trace = null, effort = "", libre = false } = {}) {
   max = Math.max(max, PLANCHER);
   const t0 = Date.now(), modele = model || process.env.CLAUDE_MODEL || "claude-haiku-5-5";
   const note = (x) => { if (trace) trace.push({ modele, ms: Date.now() - t0, ...x }); };
@@ -55,11 +56,13 @@ async function claude1(content, { web = 0, max = 1500, timeout = 30000, model = 
       ...(effort && /claude-(haiku|sonnet|opus|fable)-5/.test(modele) ? { output_config: { effort } } : {}),
       ...(web ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: web }] } : {}),
       // Sortie structurée : le modèle remplit un outil au schéma imposé (pas de JSON à relire dans du texte).
-      ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: { type: "tool", name: outil.name } } : {}),
+      ...(outil ? { tools: [{ name: outil.name, description: outil.description, input_schema: outil.schema }], tool_choice: libre ? { type: "auto" } : { type: "tool", name: outil.name } } : {}),
       messages: [{ role: "user", content }],
     }),
   }); } catch (e) { note({ erreur: e.name === "TimeoutError" ? "délai dépassé (" + timeout / 1000 + " s)" : String(e.message || e).slice(0, 120) }); throw e; }
-  if (!r.ok) { const corps = (await r.text().catch(() => "")).slice(0, 300); console.error("IA", r.status, corps); note({ statut: r.status, erreur: corps.slice(0, 200) }); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
+  if (!r.ok) { const corps = (await r.text().catch(() => "")).slice(0, 300);
+    // Certains modèles refusent l'outil imposé : on le laisse libre (la consigne demande déjà de s'en servir).
+    if (r.status === 400 && outil && !libre && /tool_choice/.test(corps)) return claude1(content, { web, max, timeout, model, brut, outil, trace, effort, libre: true }); console.error("IA", r.status, corps); note({ statut: r.status, erreur: corps.slice(0, 200) }); const e = new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant."); e.statut = r.status; throw e; }
   const d = await r.json();
   const t = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const vus = new Set();
@@ -117,7 +120,7 @@ const FAKE = () => process.env.IA_FAKE === "1";
 
 const CARTE_FAKE = { trouve: true, titre: "Dracaufeu", categorie: "cartes", plateforme: "Set de base", region: "Français", numero: "4/102", rarete: "Holo rare", edition: "", gradation: "", etatCarte: "near_mint", remarques: "", particularites: ["Carte mise en sleeve dès l'ouverture du booster"], annonce: "Dracaufeu 4/102 Set de base Holo FR", description: "Carte Pokémon Dracaufeu 4/102, extension Set de base, holo rare, en français.\nCarte authentique en état Near Mint : bords nets, surface holo sans rayure.\nEnvoi soigné sous sleeve et toploader, dans une enveloppe rigide.\nRemise en main propre ou envoi.", cadre: { x: 0.25, y: 0.1, w: 0.5, h: 0.8 } };
 const FILM_FAKE = { trouve: true, titre: "Dune : Deuxième partie", categorie: "films", plateforme: "Blu-Ray 4K UHD + Blu-Ray", region: "VF incluse, toutes zones", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook", etat: "tres_bon", remarques: "", particularites: ["Fourreau inclus", "Disques sans rayure"], annonce: "Dune Deuxième partie 4K UHD + Blu-Ray Steelbook VF", description: "Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD + Blu-Ray, Steelbook.\nVersion française incluse.\nSteelbook en très bon état, disques sans rayure, lus et vérifiés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.08, w: 0.6, h: 0.84 } };
-export async function identifier(photo) {
+export async function identifier(photo, indice) {
   if (FAKE() && process.env.IA_FAKE_OBJET === "film") { checkPhoto(photo); const o = FILM_FAKE; return { ...champsFilm(o), titre: o.titre, categorie: o.categorie, region: o.region, etat: o.etat, contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE() && process.env.IA_FAKE_OBJET === "carte") { checkPhoto(photo); const o = CARTE_FAKE; return { ...champsCarte(o), titre: o.titre, categorie: o.categorie, plateforme: o.plateforme, region: o.region, etat: ETAT_LBC_DE_CARTE[o.etatCarte], contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
@@ -143,7 +146,8 @@ Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte
 Remise en main propre ou envoi. »
 Ligne 1 : nom, console, version et référence si elle est lisible sur la photo. Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas). Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
 ${consigneCarte()}
-${consigneFilm()}`;
+${consigneFilm()}${indice === "films" ? `
+Le vendeur a précisé que c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD ou VHS) : la catégorie est « films », sauf si la photo montre clairement autre chose.` : ""}`;
   let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1800 });
   // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
   if (!o || !o.trouve) {
@@ -522,7 +526,7 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
   return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur) };
 }
 
-/* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin) =====
+/* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin ou eBay) =====
    La conversation est le texte visible de la page de messagerie, copié par l'extension : on demande au modèle
    de retrouver le dernier message de l'acheteur et de proposer trois réponses du vendeur, sympas et diplomates. */
 // Prix ronds : multiples de 5, de 10 à partir de 100 € (vers le haut pour un plancher, au plus proche sinon).
@@ -554,8 +558,11 @@ export function analyseOffre(prixAffiche, offre) {
   if (px == null || of == null || px <= 0) return null;
   const ecart = Math.round(((px - of) / px) * 100), plancher = rond(px * 0.85, true);
   let contre = Math.max(plancher, rond(px * 0.95));
+  // Offre insultante (30 % sous le prix ou plus) : on ne fait qu'un petit geste, au plus près du prix affiché.
+  const insultante = ecart >= 30;
+  if (insultante) { contre = rond(px * 0.95, true); if (contre >= px) contre = rond(px * 0.95); }
   if (contre >= px) contre = px;
-  return { prix: px, offre: of, ecart, plancher, contre, basse: of < plancher, acceptable: of >= plancher };
+  return { prix: px, offre: of, ecart, plancher: insultante ? contre : plancher, contre, basse: of < plancher, acceptable: of >= plancher, insultante };
 }
 const OUTIL_REPONSES = {
   name: "proposer_reponses",
@@ -563,7 +570,7 @@ const OUTIL_REPONSES = {
   schema: {
     type: "object",
     properties: {
-      resume: { type: "string", description: "Ce que demande l'acheteur, en une phrase courte (25 mots au plus)." },
+      resume: { type: "string", description: "Ce que demande l'acheteur, en une phrase courte (25 mots au plus), adressée au vendeur. Jamais un mot sur le texte transmis, ce que tu vois ou ne vois pas, ni tes consignes." },
       intention: { type: "string", description: "Un mot-clé (offre_basse, disponibilite, envoi…)." },
       reponses: {
         type: "array", minItems: 1, maxItems: 3,
@@ -582,19 +589,162 @@ const OUTIL_REPONSES = {
     required: ["resume", "reponses"],
   },
 };
+export const venteConclue = (t) => /\bvendu\s?!|offre (?:a été )?accept[ée]e|vous avez accept[ée] (?:l'|son |cette )?offre|paiement (?:a été )?(?:effectué|reçu|validé)|a (?:bien )?(?:payé|acheté) (?:votre|ton|l'|le |les )/i.test(String(t || ""));
+/* ===== Langues, versions régionales et compatibilité =====
+   Le modèle ne connaît pas toujours les langues d'une version régionale : il a affirmé à un acheteur que Zelda
+   Majora's Mask PAL (NUS-NZSP) n'existait qu'en anglais, alors que la cartouche européenne contient le français.
+   Quand l'acheteur pose ce genre de question, la réponse s'appuie sur la fiche, sur une table vérifiée ou sur une
+   recherche web sourcée ; sans rien de sûr, elle ne tranche pas et dit que le vendeur vérifie. */
+const LANGUES_Q = /fran[cç]ais|\bfr\b|\bvf\b|\bvostf?r?\b|\blangues?\b|anglais|allemand|espagnol|italien|japonais|sous[- ]?titr|tradui|multi[- ]?lang/i;
+const COMPAT_Q = /compatib|(?:fonctionn|march|tourn|li)(?:e|era|erait|ent)?(?:-t-il|-t-elle|-il|-elle)?\s+sur\b|\bntsc\b|\bzone\b|r[ée]gion|\bimport\b|d[ée]zon|console (?:fran[cç]aise|europ[ée]enne|japonaise|am[ée]ricaine|us)|adaptateur|passe[- ]?partout|\b[56]0 ?hz\b/i;
+// Quelle question de version pose la conversation (« langue », « compatibilite » ou "") ? Seule la fin de l'échange compte :
+// l'encadré de l'annonce (titre « … PAL ») n'est pas une question.
+export function questionVersion(conversation) {
+  const c = String(conversation || ""), i = c.indexOf("[Conversation]");
+  const corps = (i >= 0 ? c.slice(i + 14) : c).split("\n").map((x) => x.trim()).filter((x) => x && !/^(faire une offre|envoyer|\d+(?:[.,]\d+)?\s?€)$/i.test(x)).join("\n").slice(-700);
+  // « une console japonaise » parle de compatibilité, pas de langue.
+  return LANGUES_Q.test(corps.replace(/console\s+\S+/gi, " ")) ? "langue" : COMPAT_Q.test(corps) ? "compatibilite" : "";
+}
+const sansAcc = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Versions dont les langues sont sûres (notices et écrans de choix de langue des cartouches européennes).
+const PAL_EN_FR_DE = ["anglais", "français", "allemand"];
+export const VERSIONS_CONNUES = [
+  { jeu: /majora/, plateforme: /64/, code: "NUS-NZSP", langues: PAL_EN_FR_DE, nom: "The Legend of Zelda: Majora's Mask" },
+  { jeu: /ocarina/, plateforme: /64/, code: "NUS-NZLP", langues: PAL_EN_FR_DE, nom: "The Legend of Zelda: Ocarina of Time" },
+  { jeu: /super mario 64/, plateforme: /64/, code: "NUS-NSMP", langues: PAL_EN_FR_DE, nom: "Super Mario 64" },
+];
+const PAL_RE = /\bpal\b|\beur\b|europ[ée]en|\bfra\b|\bfah\b|\bnoe\b|-[a-z0-9]{3}p\b/i, PAS_PAL_RE = /\bntsc\b|\bjap(on|onais)?\b|\bjpn\b|\busa\b|\bus version\b|am[ée]ricain/i;
+export function versionConnue(a = {}) {
+  const t = sansAcc([a.titre, a.nom, a.description].filter(Boolean).join(" ")), p = sansAcc([a.plateforme, a.titre].join(" "));
+  const pal = PAL_RE.test(t) || /nus-n..p/i.test(t);
+  if (!pal || PAS_PAL_RE.test(t)) return null;
+  const v = VERSIONS_CONNUES.find((x) => x.jeu.test(t) && x.plateforme.test(p) || t.includes(x.code.toLowerCase()));
+  return v ? { region: "PAL (Europe)", langues: v.langues, code: v.code, nom: v.nom, certitude: "forte", sources: [], origine: "table" } : null;
+}
+// Ce que la fiche dit déjà des langues (films, cartes, ou « français » écrit dans la description).
+function languesFiche(a = {}) {
+  if (a.region && /films|cartes/.test(a.categorie || "")) return txt(a.region, 60);
+  const m = /(?:langues?|textes?|version)\s*:?\s*((?:fran[cç]ais|anglais|allemand|espagnol|italien|japonais|néerlandais)(?:\s*(?:,|et|\/)\s*(?:fran[cç]ais|anglais|allemand|espagnol|italien|japonais|néerlandais))*)/i.exec(String(a.description || ""));
+  return m ? m[1] : "";
+}
+const CACHE_VERSIONS = new Map();   // clé → { at, fait } ; 30 jours, 500 entrées au plus
+async function chercherVersion(a, sujet, trace) {
+  const quoi = [a.titre || a.nom, a.plateforme && `sur ${a.plateforme}`].filter(Boolean).join(" ");
+  if (!quoi) return null;
+  const cle = sansAcc(`${sujet}|${quoi}|${(/nus-[a-z0-9]{4}(?:-[a-z]{3})?|\b(pal|ntsc[- ]?[uj]?|eur|usa|jpn)\b/i.exec(`${a.titre} ${a.description}`) || [""])[0]}`);
+  const c = CACHE_VERSIONS.get(cle);
+  if (c && Date.now() - c.at < 30 * 864e5) return c.fait;
+  const o = await claude(`Un acheteur demande ${sujet === "langue" ? "dans quelles langues est" : "sur quelles consoles fonctionne"} cet article d'occasion :
+${quoi}
+${a.description ? `Description du vendeur : ${txt(a.description, 600)}` : ""}
+Retrouve la version régionale exacte (PAL Europe, NTSC-U, NTSC-J… d'après le titre, la description et la référence de la cartouche ou de la boîte), puis cherche sur le web, dans des sources fiables (bases de données de jeux, wikis spécialisés, notices), ${sujet === "langue" ? "les langues de texte et de voix de CETTE version" : "les consoles et régions sur lesquelles CETTE version fonctionne"}.
+Réponds uniquement par un objet JSON avec les clés :
+"region" (la version, ex. « PAL (Europe) »), "langues" (tableau des langues de texte de cette version, en français, ex. ["anglais", "français", "allemand"] ; [] si inconnu), "compatibilite" (une phrase courte, "" si la question ne porte pas dessus), "certitude" ("forte" seulement si une source consultée le dit explicitement pour cette version précise, sinon "moyenne" ou "faible"), "sources" (1 à 3 adresses web consultées qui le disent).`, { web: 3, max: 2500, timeout: 30000, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+  if (!o) return null;
+  const sources = (Array.isArray(o.sources) ? o.sources : []).map((u) => lien(u)).filter((u) => u && (!o._vus || !o._vus.size || o._vus.has(norme(u)))).slice(0, 3);
+  const fait = { region: txt(o.region, 40), langues: (Array.isArray(o.langues) ? o.langues : []).map((x) => txt(x, 20).toLowerCase()).filter(Boolean).slice(0, 8), compatibilite: txt(o.compatibilite, 200), certitude: sources.length && o.certitude === "forte" ? "forte" : "faible", sources, origine: "web" };
+  if (CACHE_VERSIONS.size > 500) CACHE_VERSIONS.delete(CACHE_VERSIONS.keys().next().value);
+  CACHE_VERSIONS.set(cle, { at: Date.now(), fait });
+  return fait;
+}
+// Titre de l'annonce lu dans l'encadré « [Annonce concernée] » (la ligne juste avant le prix), quand la fiche manque.
+export function titreConversation(conversation) {
+  const m = /\[Annonce concernée\]([\s\S]*?)(?:\[Conversation\]|$)/.exec(String(conversation || ""));
+  const l = m ? m[1].split("\n").map((x) => x.trim()).filter(Boolean) : [];
+  const i = l.findIndex((x) => /^\d[\d\s\u00a0\u202f]*(?:[.,]\d+)?\s?€$/.test(x));
+  return i > 0 ? txt(l[i - 1], 160) : "";
+}
+// Le fait à donner au modèle pour une question de version : { sujet, fait (null si rien de sûr) }.
+export async function faitVersion(a = {}, conversation = "", trace = null) {
+  const sujet = questionVersion(conversation);
+  if (!sujet) return null;
+  if (!a.titre && !a.description) a = { ...a, titre: titreConversation(conversation) };
+  const fiche = sujet === "langue" ? languesFiche(a) : "";
+  if (fiche) return { sujet, fait: { region: "", langues: fiche.toLowerCase().split(/\s*(?:,|et|\/)\s*/).filter(Boolean), certitude: "forte", sources: [], origine: "fiche" } };
+  const connu = versionConnue(a);
+  if (connu) return { sujet, fait: connu };
+  let fait = null;
+  if (!FAKE()) try { fait = await chercherVersion(a, sujet, trace); } catch (e) { console.error("IA version :", e.message); }
+  return { sujet, fait: fait && fait.certitude === "forte" && (sujet !== "langue" || fait.langues.length) && (sujet !== "compatibilite" || fait.compatibilite) ? fait : null };
+}
+export function consigneVersion(v) {
+  if (!v) return "";
+  const f = v.fait;
+  if (f && v.sujet === "langue") return `FAIT VÉRIFIÉ sur la question de langue (${f.origine === "fiche" ? "écrit dans la fiche" : f.origine === "table" ? "notice de la version européenne" : "sources : " + f.sources.join(", ")}) : ${f.region ? `la version ${f.region}${f.code ? ` (${f.code})` : ""}` : "cette version"} est en ${f.langues.join(", ")}. Réponds à l'acheteur avec ce fait, clairement, sans le contredire ni le nuancer.`;
+  if (f) return `FAIT VÉRIFIÉ sur la compatibilité (sources : ${f.sources.join(", ")}) : ${f.compatibilite}${f.region ? ` (version ${f.region})` : ""}. Réponds avec ce fait, sans rien y ajouter.`;
+  return `L'acheteur pose une question de ${v.sujet === "langue" ? "langue" : "compatibilité ou de version régionale"} que ni la fiche ni une source sûre ne règlent : N'AFFIRME RIEN sur ce point, ni oui ni non (jamais « il est en anglais », « il n'est jamais sorti en français », « il fonctionne sur… »). Dis simplement que tu vérifies ${v.sujet === "langue" ? "(en lançant le jeu, sur l'écran de choix de langue ou au dos de la boîte)" : "avant de lui confirmer"} et que tu lui redis vite, ou propose une photo qui le montre.`;
+}
+// Pour le panneau de l'extension : ce qui a été vérifié, ou un rappel de vérifier soi-même.
+export function resumeVersion(v) {
+  const f = v && v.fait;
+  return { sujet: v.sujet, verifie: !!f, texte: f ? (v.sujet === "langue" ? `Langues vérifiées${f.region ? ` (version ${f.region})` : ""} : ${f.langues.join(", ")}` : `Compatibilité vérifiée : ${f.compatibilite}`) + (f.origine === "fiche" ? " (d'après ta fiche)" : "")
+    : `Je n'ai pas de source sûre sur ${v.sujet === "langue" ? "la langue" : "la compatibilité"} : vérifie avant d'envoyer.`, sources: f ? f.sources : [] };
+}
+// Affirmations de langue ou de version qu'une réponse ne doit pas faire sans fait vérifié (ou qui contredisent le fait).
+const AFFIRME_LANGUE = /jamais (?:été )?(?:sorti|tradui|existé|paru)|n'(?:est|existe|a) (?:jamais |pas )?(?:sorti |disponible |été traduit )?en fran[cç]ais|pas (?:de|en) (?:texte|version|traduction|vf)\b|pas (?:de texte |de version )?en fran[cç]ais|(?:uniquement|seulement|qu'|que) en anglais|en anglais (?:uniquement|seulement)|(?:le )?texte (?:est )?en anglais|il est en anglais|elle est en anglais|non,? il est en|pas traduit/i;
+const AFFIRME_COMPAT = /fonctionne(?:ra)? (?:parfaitement |bien |sans souci |sans problème )?sur|compatible avec|ne (?:fonctionne|marche|passe) pas sur|zon[ée]/i;
+export function reponsesVersion(l, v, objet = "le jeu") {
+  if (!v) return l;
+  const f = v.fait, fr = f && f.langues && f.langues.some((x) => /fran[cç]ais/.test(x));
+  const interdit = v.sujet === "langue" ? (f && !fr ? null : AFFIRME_LANGUE) : f ? null : AFFIRME_COMPAT;
+  const bonnes = interdit ? l.filter((r) => !interdit.test(r.texte)) : l;
+  if (bonnes.length) return bonnes;
+  const liste = f && f.langues ? f.langues.join(", ").replace(/, ([^,]*)$/, " et $1") : "";
+  const texte = v.sujet === "langue" && fr
+    ? `Oui, ${objet} est bien en français 🙂${f.langues.length > 1 ? ` ${f.region ? `La version ${f.region}` : "Cette version"} contient ${liste}.` : ""}`
+    : v.sujet === "langue" ? `Bonne question ! Je vérifie la langue en lançant ${objet} et je vous redis ça très vite 🙂`
+    : `Bonne question ! Je vérifie la compatibilité avant de vous confirmer, je vous redis ça très vite 🙂`;
+  return [{ approche: "info", titre: f ? "Réponse vérifiée" : "Je vérifie", texte }];
+}
+/* ===== Qui a écrit en dernier, et l'acheteur a-t-il des avis ? ===== */
+// Lignes d'interface sous les bulles (heure, « Vu », boutons) : pas des messages.
+const BRUIT = /^(faire une offre|envoyer|vu|lu|envoy[ée]|d[ée]livr[ée]|aujourd'hui|hier|il y a .{1,20}|\d{1,2}[:h]\d{2}|[✓✔]+|\d+(?:[.,]\d+)?\s?€)$/i;
+const plat = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// Le vendeur a-t-il écrit le dernier message ? Le dernier texte de la conversation est la fin d'une de ses bulles.
+export function vendeurEnDernier(conversation, mesMessages = []) {
+  const l = String(conversation || "").split("\n").map((x) => x.trim()).filter((x) => x && !BRUIT.test(x));
+  const der = plat(l[l.length - 1]);
+  if (der.length < 3) return false;
+  return (Array.isArray(mesMessages) ? mesMessages : []).some((m) => { const p = plat(m); return p.length >= 3 && (p.endsWith(der) || der.endsWith(p)); });
+}
+// Acheteur sans aucun avis sur Le Bon Coin : sa note (« 5 (4) ») ou son nombre d'avis n'apparaît nulle part dans
+// l'encadré de l'acheteur. Sans cet encadré, on ne sait pas : pas d'alerte.
+export function acheteurSansAvis(conversation) {
+  const c = String(conversation || ""), i = c.indexOf("[Conversation]");
+  const enc = i >= 0 ? c.slice(0, i) : "", apropos = (/[àa] propos de cet acheteur([\s\S]{0,300})/i.exec(c) || [])[1] || "";
+  if (/pas encore d'avis|aucun avis|\b0 avis\b/i.test(enc + "\n" + apropos)) return true;
+  if (enc.replace(/\[Annonce concernée\]/, "").trim().length < 10 || !apropos) return false;
+  return !/^\s*\d(?:[.,]\d)?\s*\(\d+\)\s*$|\b[1-9]\d* avis\b|\b\d(?:[.,]\d)?\s*\/\s*5\b|★/im.test(enc + "\n" + apropos);
+}
+export function refusSansAvis(objet = "le jeu") {
+  const ce = { "le jeu": "ce jeu", "la console": "cette console", "la carte": "cette carte", "le film": "ce film", "l'accessoire": "cet accessoire" }[objet] || "cet article";
+  return [
+    { approche: "couper_court", titre: "Refus poli", texte: `Après réflexion, je préfère réserver ${ce} à un acheteur ayant déjà des avis sur Le Bon Coin. Rien de personnel, c'est une règle que je m'impose pour mes ventes. Je vous souhaite de trouver votre bonheur, bonne soirée ! 🙂`, gras: ["un acheteur ayant déjà des avis"] },
+    { approche: "couper_court", titre: "Court", texte: `Désolé, je vends uniquement à des acheteurs qui ont déjà des avis sur Le Bon Coin, rien de personnel. Bonne recherche à vous 🙂`, gras: ["déjà des avis"] },
+    { approche: "couper_court", titre: "Chaleureux", texte: `Merci pour votre intérêt ! Pour mes ventes, je me suis fixé une règle : seulement des acheteurs avec des avis sur Le Bon Coin. Rien contre vous, je vous souhaite de trouver votre bonheur 🙂`, gras: ["des acheteurs avec des avis"] },
+  ];
+}
+
 export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
   const conv = txt(conversation, 5000);
-  const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${rond(prix(contexte.lot.prix) * 0.85, true)} €).` : "";
   const articles = contexte && contexte.lot ? contenuLot(contexte.lot.articles, autres) : [];
   const somme = articles.length && articles.every((x) => x.annonce && prix(x.annonce.prix) != null) ? articles.reduce((n, x) => n + prix(x.annonce.prix), 0) : null;
-  const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}` : "";
+  // Une annonce peut être un lot RetroRevente (« Lot Star Wars : 2 jeux ») : le nombre de jeux n'est pas le nombre d'annonces.
+  const nbJeux = articles.reduce((n, x) => n + Math.max(1, (x.annonce && x.annonce.contient && x.annonce.contient.length) || 1), 0);
+  const detailLot = articles.length ? `Contenu exact du lot (appuie-toi sur CES jeux, cite-les par leur nom, et sur leur état et ce qui est inclus : loose, boîte, notice) :\n${articles.map((x) => `- ${x.titre}${x.annonce ? ` → dans ses annonces : ${prix(x.annonce.prix) != null ? `${prix(x.annonce.prix)} €` : "prix non renseigné"}${LIB_ETAT[x.annonce.etat] ? `, ${LIB_ETAT[x.annonce.etat]}` : ""}${LIB_CONTENU[x.annonce.contenu] ? `, ${LIB_CONTENU[x.annonce.contenu]}` : ""}${x.annonce.contient && x.annonce.contient.length ? ` ; CETTE ANNONCE EST ELLE-MÊME UN LOT DE ${x.annonce.contient.length} JEUX : ${x.annonce.contient.map((n) => txt(n, 80)).join(", ")}` : ""}` : ""}`).join("\n")}${somme != null ? `\nSomme des prix séparés : ${somme} €.` : ""}${nbJeux > articles.length ? `\nLe « lot de ${articles.length} articles » de Le Bon Coin regroupe ${articles.length} ANNONCES, soit ${nbJeux} jeux en tout : l'acheteur a raison s'il parle de ${nbJeux} jeux, ne le corrige jamais sur ce nombre.` : ""}` : "";
   // L'offre officielle (« Voici l'offre de mm : 140 €. »), envoyée par l'extension ou relue dans la conversation.
   const mOffre = /offre de [^:\n]{1,60}:\s*(\d[\d\s\u00a0\u202f]{0,6})\s?€/gi; let vueOffre = null, mo;
   while ((mo = mOffre.exec(String(conversation || "")))) vueOffre = prix(mo[1].replace(/[\s\u00a0\u202f]/g, ""));
   const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
-  const ana = !(contexte && contexte.lot) ? analyseOffre(a.prix, montantOffre) : null;
-  const offre = montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
-  const qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
+  const ana = analyseOffre(contexte && contexte.lot ? contexte.lot.prix : a.prix, montantOffre);
+  const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (prix plancher du lot : ${ana && ana.insultante ? ana.contre : rond(prix(contexte.lot.prix) * 0.85, true)} €). Un « lot de N articles » Le Bon Coin regroupe N ANNONCES, et une annonce peut contenir plusieurs jeux : ne corrige jamais l'acheteur sur le nombre de jeux.` : "";
+  // Vente déjà conclue (« Vendu ! », offre acceptée, paiement fait) : plus de négociation, on confirme l'envoi ou la remise.
+  const conclue = venteConclue(conversation);
+  const offre = conclue ? `LA VENTE EST CONCLUE${montantOffre != null ? ` à ${montantOffre} €` : ""} : l'offre a été acceptée. Ne négocie plus, ne parle plus du prix ni de la disponibilité ; les trois réponses remercient et confirment l'envoi soigné (ou la remise en main propre si c'est ce qui est prévu).` : montantOffre != null ? `Offre officielle reçue par Le Bon Coin : ${montantOffre} €.${ana ? ` Elle est ${ana.ecart > 0 ? `${ana.ecart} % sous` : "au niveau du"} prix affiché (${ana.prix} €) ; plancher : ${ana.plancher} €. ${ana.insultante ? `C'EST UNE OFFRE TRÈS BASSE, PRESQUE INSULTANTE : ne l'accepte pas et ne fais qu'un tout petit geste. Une réponse reste ferme au prix affiché, une autre propose ${ana.contre} € et PAS UN EURO DE MOINS (aucun autre chiffre plus bas, ni prix plancher, ni « pour faire un effort »), la dernière décline poliment. Reste courtois, sans te justifier longuement.` : ana.basse ? `C'EST UNE OFFRE TROP BASSE : ne l'accepte pas (pas de réponse « accepter »). Remercie, rappelle gentiment la valeur, et propose ${ana.contre} € dans la contre-offre (jamais moins de ${ana.plancher} €).` : "Elle est acceptable : une des réponses peut l'accepter (bouton « Accepter » de Le Bon Coin)."}` : ""}` : "";
+  // La ville ou le département de l'acheteur (« À propos de cet acheteur : Moselle ») n'est jamais son nom.
+  const lieux = lieuxAcheteur(conversation);
+  let qui = txt(contexte && contexte.acheteur, 40).replace(/[^\p{L}\p{N}' .-]/gu, "");
+  if (lieux.some((x) => x.toLowerCase() === qui.toLowerCase())) qui = "";
   // Ce que le vendeur veut répondre, en quelques mots (« dis-lui que je peux venir samedi pour 10 € de plus »).
   const consigne = txt(contexte && contexte.consigne, 400).replace(/"""/g, "");
   // Le vendeur a écrit le dernier message et l'acheteur n'a pas répondu : on complète, sans remercier ni resaluer.
@@ -603,7 +753,15 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   // Ce que le vendeur a déjà écrit dans cette conversation (bulles de droite) : à ne pas répéter.
   const deja = Array.isArray(contexte && contexte.mesMessages) ? contexte.mesMessages.slice(-4).map((x) => "- " + txt(x, 600).replace(/"""/g, "").replace(/\s*\n\s*/g, " ")).filter((x) => x.length > 5).join("\n") : "";
+  const objetDe = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  // Règle du vendeur : jamais de vente à un acheteur sans avis sur Le Bon Coin (désactivable dans le panneau).
+  const sansAvis = !(contexte && contexte.site === "ebay") && acheteurSansAvis(conversation);
+  if (sansAvis && !(contexte && contexte.refuserSansAvis === false) && !consigne && !conclue) return { resume: "Acheteur sans aucun avis sur Le Bon Coin : d'après ta règle, je te propose de décliner poliment.", intention: "sans_avis", reponses: refusSansAvis(objetDe), acheteur: { sansAvis: true } };
+  // Le vendeur a déjà répondu au dernier message (sans consigne) : de quoi compléter, sans rien répéter.
+  const apresMoi = !consigne && !conclue && !!((contexte && contexte.dernierMoi) || vendeurEnDernier(conv, contexte && contexte.mesMessages));
   const px = prix(a.prix);
+  // Question de langue, de version régionale ou de compatibilité : fait vérifié, ou consigne de ne rien affirmer.
+  const version = consigne || conclue ? null : await faitVersion(a, conversation);
   const fiche = [
     a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : a.categorie === "films" ? "Format" : "Console"} : ${txt(a.plateforme, 60)}` : "",
     a.categorie === "films" ? [a.edition && `Édition : ${txt(a.edition, 80)}`, a.annee && `Année : ${txt(a.annee, 4)}`, a.realisateur && `Réalisateur : ${txt(a.realisateur, 80)}`, a.region && `Langues et zone : ${txt(a.region, 30)}`].filter(Boolean).join("\n") : "",
@@ -617,7 +775,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
     reponses: [{ approche: "info", titre: "Ta réponse", texte: suite ? `Petite précision : ${consigne} 🙂` : `Bonjour, merci pour votre message ! ${consigne} 🙂` }] };
   if (FAKE() && /pas donner suite|ne donnerai pas suite|merci pour nos échanges/i.test(conv)) return { resume: "L'acheteur ne donne pas suite et clôt la discussion.", intention: "fin",
     reponses: [{ approche: "au_revoir", titre: "Au revoir", texte: "Merci à vous, bonne soirée 🙂" }, { approche: "au_revoir", titre: "Chaleureux", texte: "Merci pour l'échange Garnier, bonne soirée à vous 🙂" }, { approche: "au_revoir", titre: "Porte ouverte", texte: "Merci Garnier, bonne soirée ! N'hésitez pas si vous changez d'avis 🙂" }] };
-  if (FAKE()) return { ...(ana ? { offre: ana } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
+  if (FAKE()) return { ...(ana ? { offre: ana } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}), resume: "L'acheteur propose 20 €, bien en dessous du prix.", intention: "offre_basse",
     reponses: [
       { approche: "contre_offre", titre: "Contre-proposition", texte: "Bonjour, merci pour votre proposition ! 20 €, c'est un peu loin de la valeur du jeu. Je peux vous le faire à 42 € si ça vous va 🙂", gras: ["un peu loin de la valeur", "42 €"] },
       { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
@@ -639,12 +797,19 @@ Particularités des cartes Pokémon :
 - état : parle avec les mots des collectionneurs (Near Mint, bords, coins, surface, centrage) sans rien ajouter à la fiche ;
 - un acheteur qui demande une photo « avec son pseudo sur un papier » est une demande normale : accepte volontiers.
 ` : "";
-  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : "un jeu vidéo"} d'occasion sur Le Bon Coin à répondre à un acheteur.${conseilsCarte}${conseilsFilm}
+  // Messagerie eBay : mêmes règles, avec le vocabulaire et les usages d'eBay (offres, paiement, envoi).
+  const ebay = contexte && contexte.site === "ebay", site = ebay ? "eBay" : "Le Bon Coin";
+  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : "un jeu vidéo"} d'occasion sur ${site} à répondre à un acheteur.${ebay ? `
+Particularités d'eBay :
+- l'acheteur paie toujours sur eBay (« Achat immédiat » ou offre acceptée) ; une offre officielle s'accepte, se refuse ou se contre-propose avec les boutons d'eBay (« Accepter », « Faire une contre-offre ») : dans ta réponse, dis ce que tu vas faire ou le prix que tu proposes en contre-offre ;
+- l'envoi est la règle (suivi, emballage soigné) ; la remise en main propre n'existe que si l'annonce la propose : n'en parle que si l'acheteur la demande ;
+- une question « combiner l'envoi » ou « plusieurs objets » : l'acheteur peut ajouter les objets à son panier, tu feras un seul colis et un prix d'ensemble par contre-offre ou par une offre groupée.
+` : ""}${conseilsCarte}${conseilsFilm}
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
 
-${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", lot, detailLot, offre].filter(Boolean).join("\n")}${qui || lot || offre ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre, consigneVersion(version)].filter(Boolean).join("\n")}${qui || lot || offre || version ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
 """
 ${conv}
 """
@@ -658,34 +823,47 @@ ${consigne ? "" : `Propose trois réponses du vendeur, prêtes à envoyer, qui v
   1. « contre_offre » : on reste ouvert et on propose un autre prix (ou un prix de lot), jamais sous le plancher ;
   2. « ferme » : on maintient le prix, gentiment, en expliquant la valeur ;
   3. « couper_court » : on clôt la discussion poliment et sans vexer (« on ne va pas réussir à s'entendre, bonne recherche ») ;
-sinon (question, disponibilité, envoi…), trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
+sinon (question, disponibilité, envoi, main propre…), JAMAIS de réponse sur le prix (ni « prix ferme », ni « je ne descends pas », ni contre-offre) tant que personne n'en parle : trois formulations utiles et différentes, avec l'approche « info ». Si l'offre est raisonnable (au-dessus du plancher), l'une peut être « accepter ».
 `}Pour chaque réponse :
 - en français, vouvoiement, ton sympa, chaleureux et diplomate, jamais sec ni moralisateur ;
-- écris comme un vrai passionné de retro qui parle à un autre, spontané et naturel, pas comme un service client : phrases simples, un peu d'enthousiasme, une touche d'humour léger si ça colle ; bannis les formules toutes faites (« c'est une belle attention », « je comprends tout à fait », « correspond au marché actuel », « n'hésitez pas à revenir vers moi », « je reste à votre disposition », « nous ne parvenons pas à nous entendre ») ; exemple du ton voulu face à « c'est pour mon fils » avec une offre trop basse : « Ah c'est chouette que votre fils s'intéresse à Conker, c'est un vrai culte de la N64 ! Par contre 140 €, je ne peux pas, je peux descendre à 180 € 🙂 » (adapte au jeu de la fiche, ne recopie pas cet exemple) ;
+- écris comme un vrai passionné de retro qui parle à un autre, spontané et naturel, pas comme un service client : phrases simples, un peu d'enthousiasme, une touche d'humour léger si ça colle ; bannis les formules toutes faites (« c'est une belle attention », « je comprends tout à fait », « correspond au marché actuel », « n'hésitez pas à revenir vers moi », « je reste à votre disposition », « nous ne parvenons pas à nous entendre », « merci pour votre message », « merci pour votre retour ») ; exemple du ton voulu face à « c'est pour mon fils » avec une offre trop basse : « Ah c'est chouette que votre fils s'intéresse à Conker, c'est un vrai culte de la N64 ! Par contre 140 €, je ne peux pas, je peux descendre à 180 € 🙂 » (adapte au jeu de la fiche, ne recopie pas cet exemple) ;
 - toujours au moins un smiley sympa, du genre 🙂 (ou 😊, 👍 selon le cas), deux au plus, jamais moqueur ;
-- tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
-- 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo (« Bonjour Garnier, … » ou « Merci Garnier ! ») ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon commence directement (« Merci Garnier, … ») ;
+- tiens compte de TOUT l'historique : c'est la suite d'une discussion, pas un premier message. Une question à laquelle le vendeur a déjà répondu (sa bulle vient après) est réglée : n'y réponds plus. Ne répète jamais un argument que le vendeur a déjà donné (origine, testé, recherché, étiquette propre, boîte complète, prix calés sur le marché…), ne présente pas à nouveau l'objet, ne redis pas qu'il est rare ; réponds seulement au dernier message, avec du neuf qui fait avancer (une décision, un prix, une condition) ; reste cohérent avec les prix que le vendeur a déjà proposés ;
+- 1 à 3 phrases courtes (plus court encore quand la discussion est déjà engagée) ; appelle l'acheteur par son prénom ou pseudo seulement s'il est donné plus haut (« Prénom ou pseudo de l'acheteur »), sinon pas de nom du tout : n'invente JAMAIS de prénom ; « Bonjour » ou « Bonsoir » seulement si le vendeur n'a pas encore salué dans la conversation ; sinon entre directement dans le sujet ;
+- disponibilité : seulement si l'acheteur le demande et que le vendeur ne l'a pas déjà dit (sinon n'en parle plus) ; dis-le clairement, « le jeu est toujours disponible » (« la console », « la manette », « la carte », « le film »… selon l'objet), jamais « il est bien là », « il est encore là » ni « toujours dispo » ;
+- ne redécris JAMAIS l'annonce (version PAL, cartouche seule, testé, état, prix) : l'acheteur l'a déjà lue. Réponds seulement à sa question ; ne cite un détail de la fiche que s'il le demande ;
 - n'invente rien sur l'objet au-delà de la fiche ; ne promets pas de date ou de frais précis ;
+- langues, version régionale (PAL, NTSC, japonaise) et compatibilité : n'affirme que ce que dit la fiche ou un « FAIT VÉRIFIÉ » ci-dessus ; sinon, dis que tu vérifies. N'écris jamais qu'un jeu « n'est jamais sorti » en français ou dans une langue : tu n'en sais rien ;
 - prix ronds uniquement (multiples de 5 €, de 10 € à partir de 100 €), jamais de prix comme 172 € ;
-- un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ; si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), réagis-y avec un vrai mot personnel et sincère (pas une formule), puis dis clairement que ce prix-là n'est pas possible, sans brader ;
+- ${ebay ? "une « Offre » ou « Meilleure offre » de l'acheteur (montant en EUR) est son offre officielle eBay : réponds à cette offre (l'accepter ou faire une contre-offre se fait avec les boutons d'eBay, explique-lui ton choix par message) ;" : "un « Offre reçue … Message automatique leboncoin » est l'offre officielle de l'acheteur : réponds à cette offre (l'accepter se fait avec le bouton « Accepter » de Le Bon Coin, la refuser ou contre-proposer par message) ;"} si l'acheteur ajoute une raison touchante (« c'est pour mon fils »), réagis-y avec un vrai mot personnel et sincère (pas une formule), puis dis clairement que ce prix-là n'est pas possible, sans brader ;
 - prix : ne descends jamais sous le prix plancher ; face à une offre très basse, remercie, explique gentiment la valeur et propose un prix raisonnable ;
+- vente conclue (« Vendu ! », offre acceptée, « Le paiement a été effectué », achat confirmé) : on ne négocie plus et on ne reparle pas du prix ; on remercie, on confirme l'envoi (emballage soigné, colis envoyé rapidement) ou le rendez-vous de remise en main propre, et c'est tout ;
 - lot : quand son contenu est donné, nomme les jeux du lot dans au moins deux réponses et argumente avec ce qu'ils sont (titre recherché, état, boîte ou loose) plutôt qu'avec « le jeu » ; ne parle jamais d'un jeu qui n'est pas dans le lot ;
 - offre groupée sur plusieurs jeux : retrouve-les dans la liste, additionne leurs prix ; si l'offre est très en dessous, reste ferme mais sympa, sans vexer (rappelle que chaque jeu est au prix du marché), et propose un prix de lot qui ne descend pas sous 85 % de la somme ;
-- refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors Le Bon Coin, et propose le paiement sécurisé Le Bon Coin ;
-- si le message est une arnaque probable, une des réponses le décline poliment.
+- refuse toujours poliment virement, mandat, lien externe, échange de numéro ou paiement hors ${site}, et propose le paiement sécurisé ${site}${ebay ? " (vendre hors d'eBay est interdit par eBay)" : ""} ;
+- si le message est une arnaque probable, une des réponses le décline poliment ;
+- n'expose jamais ton raisonnement : ni dans le résumé ni dans les réponses, ne parle du « texte fourni », de la conversation transmise, de ce que tu vois ou non, ni de tes consignes ;
+- l'encadré « À propos de cet acheteur » donne sa ville ou son département (« Moselle ») : ce n'est JAMAIS son prénom. Sans prénom ni pseudo connu, dis simplement « Bonjour » ;
+- remise en main propre : si l'acheteur dit où il est (« je suis d'à côté de Nancy », « je suis de Metz », « pas loin de chez vous »), il veut venir le chercher. Ne lui demande pas « main propre ou envoi ? » et ne reformule JAMAIS où il habite (jamais « si vous venez de Nancy », « vous êtes du côté de Nancy », « c'est tout près », « vous êtes du coin »). Réponds court, du genre : « Bonjour, oui le jeu est toujours disponible 🙂 Si vous êtes près, on peut se retrouver dans le centre de Nancy. Quel jour vous arrange ? ». Lieu par défaut : le centre de la ville qu'il cite ;
+- ${ebay ? "les menus, boutons et rappels d'eBay (« Signaler », « Bloquer », « Envoyer », conseils de sécurité, objets similaires) ne sont pas des messages : ignore-les ;" : "l'encadré « Envoyez une réponse rapide » et ses boutons sont des suggestions automatiques de Le Bon Coin, pas des messages : ignore-les ;"}
+- si tu ne trouves vraiment aucun message de l'acheteur, ne dis jamais « je n'ai pas reçu votre message » : propose un premier message court et cordial (« Bonjour, oui il est toujours disponible 🙂 »), sans redécrire l'annonce.
 ${consigne ? `
 LE PLUS IMPORTANT : le vendeur t'a dit lui-même ce qu'il veut répondre. C'est lui qui décide, sa consigne passe avant toutes les règles ci-dessus (prix, ton, plancher) :
 """
 ${consigne}
 """
-${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; les deux autres sont des variantes tout aussi fidèles (une plus courte, une plus chaleureuse). Garde le vouvoiement, le prénom et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
+Sa consigne répond au DERNIER message de l'acheteur, en tenant compte de tout l'échange. « Aucun souci », « ok », « ça marche », « pas de problème », « je suis dispo », « je suis en vacances » veulent dire qu'il est D'ACCORD avec ce que l'acheteur propose (heure, lieu, prix, mode de remise) : la réponse confirme alors cette proposition en reprenant ses détails (heure, lieu), et ne la refuse ni ne la repousse jamais. Exemple : l'acheteur écrit « Je peux passer samedi à 10h à la gare, ça vous va ? » et le vendeur dit « ok pas de souci je suis dispo » → « Pas de souci, je suis dispo 🙂 Samedi 10h à la gare, ça marche ! ».
+${precedentes ? `Pour comprendre sa consigne, voici les propositions qu'il vient d'écarter :\n${precedentes}\n` : ""}Applique-la à la lettre : c'est le vendeur qui te parle à toi ; transforme ce qu'il dit en réponse à l'acheteur (vouvoiement) en gardant son idée, sa décision, son ton et SES PROPRES EXPRESSIONS, même familières ou décalées (par exemple « on finit nu » doit apparaître dans la réponse, adapté en « je finirais nu »), et mets tels quels chaque mot ou chiffre qu'il demande d'inclure. Les trois réponses reprennent toutes ses expressions. Approche : « ferme » ou « couper_court » pour un refus, « accepter » pour un accord, « contre_offre » pour un autre prix, « info » sinon. N'ajoute pas d'argument, de prix ni de condition qu'il n'a pas donnés. La première réponse est la plus fidèle possible à sa consigne ; la deuxième tient en une phrase très courte ; la troisième est un peu plus chaleureuse. Les trois disent la même décision mais avec des phrases vraiment différentes (pas la même phrase réordonnée), sans rien ajouter d'autre (pas de « merci pour votre message », pas de disponibilité déjà dite). Garde le vouvoiement et un smiley. Si la consigne est ambiguë, choisis l'interprétation la plus probable et dis-le dans « resume » (« J'ai compris que… »).
 ` : ""}${suite ? `
 SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message et l'acheteur n'a rien répondu depuis. Ta réponse est un petit message de plus, juste après le sien, pour ajouter une information. Donc : pas de « merci », pas de « bonjour » ni de nouvelle salutation, pas le prénom de l'acheteur en ouverture, ne réponds à rien. Commence directement par l'information (par exemple « Petite précision : … », « J'oubliais : … », « Au fait, … »).
+` : ""}${apresMoi ? `
+LE VENDEUR A ÉCRIT LE DERNIER MESSAGE : il a déjà répondu à la dernière question de l'acheteur, et l'acheteur n'a rien écrit depuis. Ne réponds plus à cette question, ne redis rien de ce que le vendeur a écrit (ni disponibilité, ni langue, ni état), pas de « bonjour », pas de « merci ». Propose trois petits messages de suite, courts, qui font avancer la vente : une relance douce plus tard (« Je reste dispo si vous avez une autre question »), une proposition concrète (une photo, l'envoi ou la remise en main propre si on n'en a pas encore parlé), ou une petite précision utile. Dans le résumé, dis que le vendeur a déjà répondu et que ce sont des relances au besoin ; ne dis jamais que l'acheteur n'a pas précisé sa demande.
 ` : ""}Donne ta proposition avec l'outil « proposer_reponses » (trois réponses).`;
   let o = null;
   for (let essai = 0; essai < 2 && !(o && Array.isArray(o.reponses) && o.reponses.length); essai++) {
-    try { o = await claude(consigneIA, { max: 2500, timeout: 35000, outil: OUTIL_REPONSES }); }
-    catch (e) { if (essai || !(e instanceof IaError) || /configuré/.test(e.message)) throw e; console.error("IA réponse, nouvel essai :", e.message); }
+    // Deuxième essai sur le modèle de base : si le modèle solide est surchargé, on répond quand même.
+    try { o = await claude(consigneIA, { max: 2500, timeout: 45000, outil: OUTIL_REPONSES, model: essai ? (process.env.CLAUDE_MODEL || "claude-haiku-5-5") : (process.env.CLAUDE_MODEL_REPONSES || process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5") }); }
+    catch (e) { if (essai || /configuré/.test(e.message)) throw (e instanceof IaError ? e : new IaError("Le service d'IA est momentanément indisponible, réessaie dans un instant.")); console.error("IA réponse, nouvel essai :", e.message); }
   }
   const l = (o && Array.isArray(o.reponses) ? o.reponses : []).map((r) => ({ approche: parmi(r && r.approche, ["contre_offre", "ferme", "couper_court", "accepter", "au_revoir", "info"], "info"), titre: txt(r && r.titre, 40), texte: smiley(txt(r && r.texte, 700)) })).filter((r) => r.texte).slice(0, 3);
   // Passages à mettre en gras : seulement ceux qui figurent vraiment dans le texte.
@@ -699,9 +877,84 @@ SUITE DE SON PROPRE MESSAGE : c'est le vendeur qui a écrit le dernier message e
     if (adieux.length) l.splice(0, l.length, ...adieux);
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
+  if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
+  const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  l.forEach((r) => { r.texte = sansPrenomInvente(dispoClaire(sansOuIlHabite(r.texte), objet), qui); });
+  // Le vendeur a déjà dit que c'est disponible : on ne le répète pas.
+  if (/disponible|dispo\b/i.test(deja)) l.forEach((r) => { r.texte = sansDispoRepetee(r.texte); });
+  // Personne ne parle de prix : pas de « prix ferme » ni de contre-offre hors sujet.
+  if (!consigne && montantOffre == null && !lot && !parlePrix(conversation)) {
+    const utiles = l.filter((r) => !["ferme", "contre_offre", "couper_court"].includes(r.approche) && !/descendre|baisser|négoci|dernier prix|prix (fixe|ferme)/i.test(r.texte));
+    if (utiles.length) l.splice(0, l.length, ...utiles);
+  }
+  if (apresMoi) l.forEach((r) => { r.texte = sansDispoRepetee(sansPolitesse(r.texte)); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (suite) l.forEach((r) => { r.texte = sansPolitesse(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   if (ana && ana.basse && l.some((r) => r.approche !== "accepter")) l.splice(0, l.length, ...l.filter((r) => r.approche !== "accepter"));
-  return { resume: phrase(o.resume, 260), intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}) };
+  // Langue ou version : jamais une réponse qui affirme sans fait vérifié, ni qui contredit le fait.
+  if (version) l.splice(0, l.length, ...reponsesVersion(l, version, objet));
+  let resume = phrase(o.resume, 260);
+  if (apresMoi && (!resume || /pas (encore )?pr[ée]cis[ée]|s'int[ée]resse [àa] (votre|ton) annonce/i.test(resume))) resume = "Tu as déjà répondu à son dernier message : voici de quoi relancer si besoin.";
+  if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes|page (fournie|transmise)/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
+  return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}), ...(version ? { version: resumeVersion(version) } : {}), ...(apresMoi ? { apresMoi: true } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}) };
+}
+
+// La conversation parle-t-elle de prix (offre, baisse, « dernier prix », un montant) ? Les boutons et l'encadré de l'annonce ne comptent pas.
+export function parlePrix(conversation) {
+  const c = String(conversation || ""), i = c.indexOf("[Conversation]");
+  const corps = (i >= 0 ? c.slice(i + 14) : c).split("\n").map((x) => x.trim())
+    .filter((x) => x && !/^(faire une offre|envoyer|\d+(?:[.,]\d+)?\s?€)$/i.test(x)).join("\n");
+  return /\d\s?(€|euros?\b)|\bprix\b|\boffre\b|baiss|descend|n[ée]goci|moins cher|dernier prix|\bmoins\b|\bfaire [àa]\b|\bremise\b|budget/i.test(corps);
+}
+
+// Lieu affiché par Le Bon Coin sous « À propos de cet acheteur » (ville, département ou région).
+export function lieuxAcheteur(conversation) {
+  const l = String(conversation || "").split("\n").map((x) => x.trim()).filter(Boolean), out = [];
+  l.forEach((x, i) => {
+    if (!/^[àa] propos de cet acheteur$/i.test(x)) return;
+    for (const y of l.slice(i + 1, i + 3)) if (!/membre depuis|transaction|\d/i.test(y) && y.length <= 40) out.push(y);
+  });
+  return [...new Set(out)];
+}
+// « Bonjour Moselle, … » → « Bonjour, … » : un lieu pris pour un prénom.
+export function sansLieu(t, lieux) {
+  let s = String(t);
+  for (const lieu of lieux) {
+    const e = lieu.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    s = s.replace(new RegExp(`\\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci(?: beaucoup| bien)?)\\s+${e}\\b\\s*`, "gu"), "$1 ").replace(/ +([,!?.])/g, (m, p) => (p === "," || p === "." ? p : " " + p));
+  }
+  return s.replace(/ {2,}/g, " ");
+}
+
+// « Merci Garnier ! » alors que l'acheteur s'appelle autrement (ou qu'on ne connaît pas son nom) → « Merci ! ».
+const PAS_PRENOM = /^(à|a|pour|beaucoup|bien|encore|infiniment|mille|monsieur|madame|tout|à vous)$/i;
+export function sansPrenomInvente(t, qui = "") {
+  const connu = String(qui || "").trim().toLowerCase();
+  return String(t).replace(/\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci|[Ss]alut|[Hh]ello)\s+(\p{Lu}[\p{L}\p{N}'’-]+)(\s*)([,!.]?)/gu, (m, salut, nom, esp, p) => {
+    if (PAS_PRENOM.test(nom) || (connu && connu.split(/\s+/).includes(nom.toLowerCase()))) return m;
+    return salut + (p === "!" ? " !" : p);
+  });
+}
+
+export function sansDispoRepetee(t) {
+  const phrases = String(t).match(/[^.!?…]+[.!?…]*\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/gu) || [String(t)];
+  const garde = phrases.map((p) => p.replace(/^(\s*(?:bonjour|bonsoir)\s*,?\s*)?(?:oui,?\s*)?(?:le jeu|la console|la carte|le film|l'article|l'accessoire|il|elle) est (?:toujours |bien )?disponible\s*[.!,]?\s*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*)*/iu, (m, salut) => salut ? salut.replace(/,?\s*$/, ", ") : "")).join("").trim();
+  if (garde.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic},]/gu, "").length < 8) return String(t);
+  return garde.replace(/^(\p{Ll})/u, (c) => c.toUpperCase()).replace(/^((?:Bonjour|Bonsoir), )(\p{Lu})/u, (m, a, c) => a + c.toLowerCase());
+}
+
+// « oui il est bien là » → « oui le jeu est toujours disponible ».
+export function dispoClaire(t, objet = "le jeu") {
+  return String(t).replace(/\b(il|elle) est (?:bien|encore|toujours) (?:là|dispo)(?!\p{L})|\b(il|elle) est toujours disponible\b/giu,
+    (m, a, b, i) => { const o = i === 0 ? objet.charAt(0).toUpperCase() + objet.slice(1) : objet; return `${o} est toujours disponible`; });
+}
+
+// « Si vous venez de Nancy, on peut… » → « On peut… » : on ne reformule pas où habite l'acheteur.
+const OU_IL_HABITE = /(^|[.!?…]\s+|,\s*|\s)(?:si |comme |puisque |vu que )?vous (?:venez|êtes|habitez)(?: juste)? (?:de |d'|à côté de |a cote de |près de |pres de |du côté de |sur |dans le coin|du coin|pas loin)[^,.!?]{0,30}[,.!?]?\s*/giu;
+export function sansOuIlHabite(t) {
+  const s = String(t).replace(OU_IL_HABITE, (m, avant) => (/[.!?…]/.test(avant) ? avant : avant.startsWith(",") ? ", " : avant))
+    .replace(/,\s*,/g, ",").replace(/\s+([,.!?])/g, (m, p) => (p === "," || p === "." ? p : " " + p)).replace(/ {2,}/g, " ").trim()
+    .replace(/(^|[.!?…]\s+|🙂\s+|😊\s+)(\p{Ll})/gu, (m, a, c) => a + c.toUpperCase());
+  return s.replace(/[\s\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").length >= 8 ? s : String(t);
 }
 
 // Suite d'un message du vendeur : on retire un « Merci Sofian ! » ou un « Bonjour, » d'ouverture.
@@ -791,6 +1044,68 @@ Réponds uniquement par un objet JSON : {"reponse": "…", "changements": {"cham
   const o = await claude([{ type: "text", text: prompt }], { max: 2500, timeout: 60000 });
   if (!o || typeof o.reponse !== "string") throw new IaError("Je n'ai pas compris, reformule ton message.");
   return { reponse: affirme(txt(o.reponse, 800)) || "C'est fait.", changements: changementsSurs(o.changements) };
+}
+
+/* ===== Lots =====
+   Idées de lots par thème : licence ou série (Zelda, Banjo, Star Wars), studio (Rareware, Naughty Dog),
+   lignée ou héritier spirituel (GoldenEye et Perfect Dark), univers (Marvel, Disney), genre, ou petits prix.
+   « complet » : la série entière sur ce support (Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), qui vaut une prime. */
+export async function suggererLots(articles, exclure = null) {
+  const l = (Array.isArray(articles) ? articles : []).filter((o) => o && o.id && o.titre).slice(0, 150);
+  if (l.length < MIN_LOT) return [];
+  // lots déjà créés : on ne les repropose pas (l'IA les voit pour chercher d'autres idées)
+  const deja = new Set(exclure || []), num = new Map(l.map((o, i) => [o.id, i + 1]));
+  const lotsFaits = [...deja].map((k) => k.split(",").map((id) => num.get(id))).filter((x) => x.length >= MIN_LOT && x.every(Boolean));
+  if (FAKE()) {
+    const s = suggestionsLocales(l, 8, deja);
+    // l'IA simulée sait que Banjo-Kazooie et Banjo-Tooie forment la série complète sur Nintendo 64
+    for (const x of s) if (/banjo/i.test(x.theme)) { x.complet = true; x.raison = "Banjo-Kazooie et Banjo-Tooie : toute la série sur Nintendo 64."; }
+    return s;
+  }
+  const liste = l.map((o, i) => `${i + 1}. ${[o.titre, o.plateforme, o.categorie && o.categorie !== "jeux" ? `(${o.categorie})` : "", valeurArticle(o) != null ? `${valeurArticle(o)} €` : ""].filter(Boolean).join(" · ")}`).join("\n");
+  const o = await claude(`Un particulier revend ces articles d'occasion sur Le Bon Coin (jeux vidéo, consoles, accessoires, cartes Pokémon, films) :
+${liste}
+
+Propose-lui jusqu'à 8 lots à thème, les plus vendeurs d'abord, en regroupant les articles qui se vendent mieux ensemble :
+- même licence ou série (ex. les Zelda, les Banjo, les Mario Kart) ;
+- même studio ou développeur (ex. les jeux Rareware, Naughty Dog, Insomniac, Treasure) ;
+- même lignée ou héritier spirituel (ex. GoldenEye et Perfect Dark, Banjo et Yooka-Laylee) ;
+- même univers (Star Wars, Marvel, Disney, Dragon Ball) ou même genre bien identifié (RPG, versus fighting, rally) ;
+- petits prix d'une même catégorie (moins de 5 €), qui partent mal à l'unité.
+Regroupe selon la vraie franchise, le vrai studio ou le vrai univers, jamais sur un simple mot commun des titres : Lylat Wars (Star Fox 64) n'est pas un Star Wars, Dark Souls n'a rien à voir avec Perfect Dark. Nomme le thème comme la franchise (« Star Wars », pas « Wars »).
+${lotsFaits.length ? `Le vendeur a déjà créé ces lots (numéros de la liste) : ${lotsFaits.map((x) => "[" + x.join(", ") + "]").join(" ; ")}. Ne les repropose pas à l'identique : cherche d'autres regroupements (un article peut aussi aller dans un autre lot).\n` : ""}Un article peut figurer dans plusieurs idées. Chaque lot a au moins 2 articles. N'invente rien : appuie-toi seulement sur la liste.
+"complet" vaut true seulement si le lot réunit TOUS les jeux principaux de la série sur ce support (ex. Banjo-Kazooie et Banjo-Tooie sur Nintendo 64), ce que les collectionneurs recherchent (la remise du lot est alors plus petite).
+Réponds uniquement par un objet JSON : {"lots": [{"theme": "nom court du thème (ex. « Rareware », « Zelda », « GoldenEye et Perfect Dark »)", "type": "licence" | "série" | "studio" | "lignée" | "univers" | "genre" | "petits prix", "articles": [numéros de la liste], "complet": true | false, "raison": "une phrase en français, tutoiement, qui dit pourquoi ce lot se vend bien"}]}`, { max: 3000, timeout: 60000 });
+  const out = [], vus = new Set();
+  for (const x of (o && Array.isArray(o.lots) ? o.lots : []).slice(0, 8)) {
+    const ids = [...new Set((Array.isArray(x.articles) ? x.articles : []).map((n) => l[Number(n) - 1]).filter(Boolean).map((a) => a.id))].slice(0, MAX_LOT);
+    const k = [...ids].sort().join(",");
+    if (ids.length < MIN_LOT || vus.has(k) || deja.has(k) || !txt(x.theme, 60) || themeDouteux(x.theme)) continue;
+    vus.add(k);
+    out.push({ theme: txt(x.theme, 60), type: parmi(x.type, ["licence", "série", "studio", "lignée", "univers", "genre", "petits prix"], "série"), articles: ids, complet: x.complet === true, raison: affirme(txt(x.raison, 200)) });
+  }
+  return out.length ? out : suggestionsLocales(l, 8, deja);
+}
+
+/* Annonce d'un lot rédigée par l'IA à partir des fiches de ses articles. Sans réponse exploitable : l'annonce de base. */
+export async function annonceLot(articles, lot = {}) {
+  const l = (Array.isArray(articles) ? articles : []).filter(Boolean);
+  const theme = lot.theme || null, px = prix(lot.prixDemande);
+  const simple = annonceLotSimple(l, px, theme);
+  if (FAKE()) return { titre: simple.titre, description: simple.description + "\nN'hésite pas à me poser tes questions !" };
+  const fiches = l.slice(0, 40).map((o, i) => `${i + 1}. ${ligneArticle(o)}${o.region ? `, ${o.region}` : ""}${o.particularites ? `. À noter : ${txt(o.particularites, 200)}` : ""}${o.texteAnnonce ? `\n   Son annonce seule : ${txt(o.texteAnnonce, 500).replace(/\n+/g, " ")}` : ""}`).join("\n");
+  const o = await claude(`Rédige l'annonce Le Bon Coin d'un LOT vendu par un particulier, en français, à partir des fiches de ses articles :
+${fiches}
+${theme && theme.nom ? `Thème du lot : ${theme.nom}${theme.complet ? " (la série complète sur ce support)" : ""}.` : ""}
+${px != null ? `Prix du lot : ${px} €.` : ""}
+
+Règles :
+- Titre (100 caractères au plus) : commence par « Lot », puis le thème ou ce qui se cherche le plus (licence, studio, console), puis le nombre d'articles. Pas d'émoji, pas de majuscules criardes.
+- Description : une phrase d'accroche sur le lot, puis la liste des articles, un par ligne commençant par « - », avec ce qui compte pour chacun (complet, loose, état, édition). Termine par la remise en main propre ou l'envoi soigné en un seul colis.
+- N'ajoute aucune information que les fiches ne donnent pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ». Ne parle pas du prix dans la description.
+Réponds uniquement par un objet JSON : {"titre": "…", "description": "…"}`, { max: 2500, timeout: 60000 }).catch(() => null);
+  const titre = txt(o && o.titre, 100), description = affirme(txt(o && o.description, 4000));
+  return titre && description ? { titre, description } : simple;
 }
 
 /* Traduit en français le résumé anglais d'un jeu (descriptif de la fiche quand Wikipédia n'a pas d'article). */

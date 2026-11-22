@@ -17,11 +17,13 @@ const JEUX = [
     genres: [{ name: "Platform" }], involved_companies: [{ developer: true, company: { name: "Nintendo EAD" } }, { developer: false, company: { name: "Nintendo" } }],
     aggregated_rating: 94.4, aggregated_rating_count: 18, rating: 88.6, rating_count: 1460 },
 ];
+const FAN = { id: 300, name: "Star Fox 2D: War of Lylat", alternative_names: [{ name: "Lylat Wars 2D" }], platforms: [{ name: "Nintendo 64", abbreviation: "N64" }], cover: { image_id: "fan" }, game_type: 5 };
+const SF64 = { id: 2591, name: "Star Fox 64", alternative_names: [{ name: "Lylat Wars" }], platforms: [{ name: "Nintendo 64", abbreviation: "N64" }], cover: { image_id: "sf" }, total_rating_count: 700 };
 let appels = 0, wiki = true;
 const srv = http.createServer((req, res) => {
   let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => {
     res.setHeader("content-type", "application/json");
-    if (req.url.startsWith("/games")) { appels++; const m = /where id = (\d+)/.exec(b); return res.end(JSON.stringify(m ? JEUX.filter((j) => j.id === Number(m[1])) : /search "Zzz/.test(b) ? [{ id: 9, name: "Autre chose" }] : JEUX)); }
+    if (req.url.startsWith("/games")) { appels++; const m = /where id = (\d+)/.exec(b); return res.end(JSON.stringify(m ? JEUX.filter((j) => j.id === Number(m[1])) : /search "Zzz/.test(b) ? [{ id: 9, name: "Autre chose" }] : /search "Lylat/.test(b) ? [FAN] : /where alternative_names.name ~ \*"Lylat/.test(b) ? [SF64] : /where alternative_names/.test(b) ? [] : JEUX)); }
     if (req.url.startsWith("/w/api.php")) return res.end(JSON.stringify(wiki ? { query: { pages: [
       { index: 2, title: "Super Mario 64", fullurl: "https://fr.wikipedia.org/wiki/Super_Mario_64", extract: "Super Mario 64 est un jeu vidéo de plates-formes sorti en 1996[1]. Il a marqué son époque." },
       { index: 1, title: "Super Mario 64 (bande originale)", extract: "Album de musique." }] } } : { query: { pages: [] } }));
@@ -37,6 +39,7 @@ test("le bon jeu sur la bonne console, avec jaquette, captures, notes et texte W
   const i = await infosJeu({ titre: "Super Mario 64 (PAL)", plateforme: "Nintendo 64" });
   assert.equal(i.ref, 1074);
   assert.equal(i.annee, 1996);
+  assert.deepEqual(i.genres, ["Plateforme"]);
   assert.equal(i.studio, "Nintendo EAD");
   assert.match(i.jaquette.petite, /t_cover_big\/co1\.jpg$/);
   assert.equal(i.captures.length, 2);
@@ -64,6 +67,19 @@ test("sans article Wikipédia, le résumé IGDB est traduit ; rien de sûr : on 
   assert.equal(r.autres[0].nom, "Autre chose");
 });
 
+test("nom européen : Lylat Wars trouve Star Fox 64, pas le fan game", async () => {
+  const i = await infosJeu({ titre: "Lylat Wars", plateforme: "Nintendo 64" });
+  assert.equal(i.ref, 2591);
+  assert.ok(score(SF64, "Lylat Wars", "Nintendo 64") > score(FAN, "Lylat Wars", "Nintendo 64"));
+});
+
 test("descriptif coupé en fin de phrase", () => {
   assert.equal(couper("Une phrase. Deux phrases un peu plus longues.", 22), "Une phrase.");
+});
+
+test("genres en français, nom japonais retiré du descriptif", async () => {
+  const { enFrancais } = await import("../server/jeux.mjs");
+  const v = enFrancais({ genres: ["Quiz/Trivia", "Card & Board Game", "Platform"], description: "Mario Party (マリオパーティ, Mario Pāti) est un jeu vidéo." });
+  assert.deepEqual(v.genres, ["Quiz", "Jeu de société", "Plateforme"]);
+  assert.equal(v.description, "Mario Party est un jeu vidéo.");
 });
