@@ -2563,7 +2563,7 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("ebayFeu
    quel ; si l'article a déjà son lien eBay, il ouvre l'annonce. (/sl/sell mène à une page de présentation d'eBay.) */
 var EBAY_VENDRE="https://www.ebay.fr/sl/prelist/suggest";
 function lienEbayFiche(){var u=$("f_annonceEbay").value.trim();return /^https?:\/\/(www\.|m\.)?ebay\.[a-z.]+\/itm\//i.test(u)?u:""}
-function majBoutonEbay(){var u=lienEbayFiche(),b=$("fEbay");b.href=u||EBAY_VENDRE;
+function majBoutonEbay(){var u=lienEbayFiche(),b=$("fEbay"),t=titreEbay();b.href=u||(EBAY_VENDRE+(t?"?title="+encodeURIComponent(t):""));
   $("fEbayTx").innerHTML=u?'<span class="pc-seul">Voir l\'annonce sur eBay</span><span class="mob-seul">Voir l\'annonce</span>':'<span class="pc-seul">Créer l\'annonce sur eBay</span><span class="mob-seul">Créer sur eBay</span>'}
 $("f_annonceEbay").addEventListener("input",majBoutonEbay);
 $("fEbay").onclick=function(e){majBoutonEbay();if(lienEbayFiche())return;

@@ -1814,10 +1814,30 @@
   new MutationObserver(function () { clearTimeout(minuterieLiens); minuterieLiens = setTimeout(function () { liensAuto().catch(function () {}); }, 1200); })
     .observe(document.documentElement, { childList: true, subtree: true });
 
+  /* ===== Bouton vert « Remplir avec RetroRevente » au-dessus du champ principal de l'écran de dépôt ===== */
+  var boutonVert = null;
+  function champDepot() {
+    if (mode() !== "depot") return null;
+    return champ("input:not([type]), input[type=text], input[type=search]", /titre|title|subject|objet de l.annonce/, /recherch|search|ville|adresse|code postal|localisation/)
+      || [].filter.call(document.querySelectorAll("main input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), main textarea"), function (x) { return visible(x) && !x.disabled; })[0] || null;
+  }
+  function placerBoutonVert() {
+    if (!boutonVert) boutonVert = rrBoutonRemplir(function () {
+      if (!etat.choisie || !ouvert) return replie(false, function () { if (etat.choisie) remplirMaintenant(); else if (etat.ouvrirRecherche) etat.ouvrirRecherche(); });
+      remplirMaintenant();
+    }, "retrorevente-lbc-remplir", function () { return ombre && ombre.querySelector(".p, .rond"); });
+    boutonVert.placer(champDepot());
+    boutonVert.titre(etat.choisie ? "Remplir cet écran avec « " + etat.choisie.titre + " »" : "Choisir l'annonce à déposer");
+  }
+  function remplirMaintenant() {
+    remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); });
+  }
+
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
     guetterConfirmation().catch(function () {});
+    try { placerBoutonVert(); } catch (e) {}
     if (location.pathname === vu) return;
     confirmationFetee = false;
     vu = location.pathname;

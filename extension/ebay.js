@@ -490,14 +490,29 @@
     return t.length === 1 ? t[0] : null;
   }
   // La loupe : bouton du formulaire, sinon bouton le plus proche du champ (jamais « Mettre en vente »).
+  // eBay : la loupe est button.keyword-suggestion__button [aria-label=Rechercher], hors du bloc du champ, qui contient
+  // aussi « Effacer le texte » (le cliquer vide le champ). On vise donc la loupe et on écarte tout bouton « effacer ».
+  var PAS_LOUPE = /effacer|clear|supprimer|reset|vider|fermer|close|mettre en vente|publier|list it/;
   function boutonRecherche(c) {
-    var ok = function (x) { return x !== c && visibleEl(x) && !/mettre en vente|publier|list it/i.test(x.textContent || ""); };
-    var b = c.form && [].filter.call(c.form.querySelectorAll("button[type=submit], button:not([type]), [role=button]"), ok)[0];
+    var ok = function (x) { return x !== c && visibleEl(x) && !PAS_LOUPE.test(norm([x.getAttribute("aria-label"), x.title, x.textContent].join(" "))); };
+    var vise = [].filter.call(document.querySelectorAll(".keyword-suggestion__button, button[aria-label='Rechercher'], button[aria-label='Search'], button[type=submit]"), ok);
+    if (vise.length) {
+      // La plus proche du champ.
+      var r = c.getBoundingClientRect();
+      vise.sort(function (x, y) { var a = x.getBoundingClientRect(), b = y.getBoundingClientRect(); return Math.abs(a.top - r.top) + Math.abs(a.left - r.right) - (Math.abs(b.top - r.top) + Math.abs(b.left - r.right)); });
+      return vise[0];
+    }
+    var b = c.form && [].filter.call(c.form.querySelectorAll("button, [role=button]"), ok)[0];
     for (var z = c.parentElement, i = 0; !b && z && i < 5; i++, z = z.parentElement) b = [].filter.call(z.querySelectorAll("button, [role=button]"), ok)[0];
     return b || null;
   }
+
   var attentePrelist = null, enSaisie = false, journal = [], personneATape = false, gardien = null;
-  function noter(t, c) { journal.push(Math.round(performance.now()) + " ms · " + t + (c ? " · valeur " + (c.value || "").length + " car." : "")); if (journal.length > 60) journal.shift(); }
+  try { journal = JSON.parse(sessionStorage.getItem("rrEbayJournal") || "[]"); if (journal.length) journal.push("— page (re)chargée : " + location.pathname + location.search.slice(0, 80)); } catch (e) { journal = []; }
+  function noter(t, c) {
+    journal.push(new Date().toTimeString().slice(0, 8) + " · " + t + (c ? " · valeur " + (c.value || "").length + " car." : "")); if (journal.length > 80) journal.shift();
+    try { sessionStorage.setItem("rrEbayJournal", JSON.stringify(journal)); } catch (e) {}
+  }
   document.addEventListener("input", function (e) { if (e.isTrusted && e.target && e.target.tagName === "INPUT" && !(hote && hote.contains(e.target))) personneATape = true; }, true);
   // Le titre doit rester dans le champ : si la page le vide (rechargement du composant, nouveau champ…), on le retape,
   // jusqu'à 5 fois en 15 s, tant que la personne n'a rien tapé elle-même.
@@ -531,7 +546,8 @@
     depot.faits.prelist = a.id; depot.manque = ""; personneATape = false;
     try { sessionStorage.setItem("rrEbayCherche", a.id); } catch (e) {}
     noter("champ trouvé : " + (c.getAttribute("placeholder") || c.name || c.id || c.tagName), c);
-    taperLettres(c, a.ebay.titre).then(function () {
+    // Champ déjà prérempli par l'adresse (…/suggest?title=…) : rien à taper.
+    (norm(c.value) === norm(a.ebay.titre) ? Promise.resolve() : taperLettres(c, a.ebay.titre)).then(function () {
       noter("titre tapé lettre par lettre", c); dessinerDepot();
       garder(a);
       lancerRecherche(c, a, 0);
@@ -547,7 +563,13 @@
       noter("loupe " + (b ? (b.disabled || b.getAttribute("aria-disabled") === "true" ? "grisée" : "active") : "introuvable") + " (essai " + n + ")", c);
       if (b && (b.disabled || b.getAttribute("aria-disabled") === "true") && n < 10) return lancerRecherche(c, a, n + 1);
       if (!String(c.value || "").trim()) { noter("champ vide : recherche pas lancée", c); depot.manque = "eBay a vidé le champ : clique « Remplir avec RetroRevente », ou colle le titre (il est copié)."; copierTitre(a); dessinerDepot(); return; }
-      var ici = location.href; setTimeout(function () { noter("2 s après la recherche : " + (location.href !== ici ? "page changée" : "même page"), champPrelist()); }, 2000);
+      var ici = location.href;
+      setTimeout(function () {
+        var x = champPrelist(), bouge = location.href !== ici || !x;
+        noter("2,5 s après la recherche : " + (bouge ? "page changée" : "même page"), x);
+        // Rien n'a bougé et le titre est toujours là : on tente la touche Entrée (eBay lance aussi la recherche ainsi).
+        if (!bouge && x && String(x.value || "").trim()) { entree(x); noter("Entrée envoyée en secours", x); }
+      }, 2500);
       if (b && !b.disabled) { b.click(); noter("loupe cliquée", c); } else if (c.form && c.form.requestSubmit) { c.form.requestSubmit(); noter("formulaire envoyé", c); } else { entree(c); noter("Entrée envoyée", c); }
       fait("titre", true); dessinerDepot();
       bulle("RetroRevente a cherché « " + a.ebay.titre + " » sur eBay : choisis l'objet correspondant ou continue sans.");
@@ -579,27 +601,9 @@
   // Bouton de secours au-dessus du champ, à droite (les suggestions d'eBay s'ouvrent dessous) : « Remplir avec RetroRevente ».
   var secours = null;
   function placerSecours() {
-    var c = mode() === "prelist" ? champPrelist() : null;
-    if (!c) { if (secours) secours.style.display = "none"; return; }
-    if (!secours) {
-      secours = document.createElement("div"); secours.id = "retrorevente-ebay-remplir";
-      var o = secours.attachShadow({ mode: "open" }), st = document.createElement("style");
-      st.textContent = ".r{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:9px 16px 9px 9px;background:#D4F57A;color:#1A1A1A;" +
-        "font:700 14px/1 'RR Rubik',ui-rounded,system-ui,-apple-system,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:transform .2s}" +
-        ".r:hover{transform:translateY(-1px)}.r:focus-visible{outline:2px solid #0064D2;outline-offset:2px}.r b{background:#1A1A1A;color:#D4F57A;border-radius:999px;padding:5px 7px;font:800 11px/1 inherit}";
-      o.appendChild(st);
-      o.appendChild(el("button", { class: "r", type: "button", onclick: clicSecours }, [el("b", { texte: "RR" }), "Remplir avec RetroRevente"]));
-      secours.style.cssText = "position:fixed;z-index:2147483645;display:none";
-      document.documentElement.appendChild(secours);
-      addEventListener("scroll", placerSecours, true); addEventListener("resize", placerSecours);
-    }
-    var r = c.getBoundingClientRect();
-    // Champ caché par une fenêtre d'eBay (« Confirmer les informations »…) : le bouton s'efface aussi.
-    var dessus = document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2);
-    if (dessus && dessus !== c && !c.contains(dessus) && !(dessus.contains && dessus.contains(c)) && dessus !== secours) { secours.style.display = "none"; return; }
-    secours.style.display = ""; var w = secours.getBoundingClientRect();
-    secours.style.top = Math.round(Math.max(4, r.top - w.height - 10)) + "px"; secours.style.left = Math.round(Math.max(4, r.right - w.width)) + "px";
-    var btn = secours.shadowRoot.querySelector("button"); btn.title = depot.a ? "Taper « " + depot.a.ebay.titre + " » et lancer la recherche" : "Choisir l'article à mettre en vente";
+    if (!secours) secours = rrBoutonRemplir(clicSecours, "retrorevente-ebay-remplir", function () { return ombre && ombre.querySelector(".p, .rond"); });
+    secours.placer(mode() === "prelist" ? champPrelist() : null);
+    secours.titre(depot.a ? "Taper « " + depot.a.ebay.titre + " » et lancer la recherche" : "Choisir l'article à mettre en vente");
   }
   function clicSecours() {
     ouvert = true; if (!hote) construire(); hote.style.display = "";
@@ -762,7 +766,7 @@
   }
   suivre();
   new MutationObserver(function (l) {
-    if (l.every(function (x) { return (hote && (x.target === hote || hote.contains(x.target))) || (secours && x.target === secours); })) return;
+    if (l.every(function (x) { return (hote && (x.target === hote || hote.contains(x.target))) || (secours && x.target === secours.hote()); })) return;
     clearTimeout(minuterie); minuterie = setTimeout(suivre, 1500);
   }).observe(document.documentElement, { childList: true, subtree: true });
   setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else placerSecours(); }, 1000);
