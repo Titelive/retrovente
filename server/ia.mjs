@@ -1186,7 +1186,7 @@ export function specifiquesSurs(fiche = {}, champs = []) {
     const n = nomSpec(c.nom);
     let v = "";
     if (/^(plateforme|plate forme|platform)/.test(n)) v = fiche.plateforme || "";
-    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? "" : fiche.nom || "";   // un lot n'a pas de nom de jeu
+    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? `Lot de ${(fiche.jeux && fiche.jeux.length) || fiche.contient.length} jeux` : fiche.nom || "";   // obligatoire chez eBay : pour un lot, « Lot de N jeux », jamais un jeu précis
     else if (/^(modele|model)$/.test(n) && fiche.categorie === "consoles") v = fiche.nom || "";
     else if (/^(code (de )?region|region)/.test(n)) v = /pal/i.test(fiche.region || "") ? "PAL" : /ntsc.?j|japon/i.test(fiche.region || "") ? "NTSC-J" : /ntsc/i.test(fiche.region || "") ? "NTSC-U/C" : "";
     else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot && fiche.contient ? String(fiche.contient.length) : "";
