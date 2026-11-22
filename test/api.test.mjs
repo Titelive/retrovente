@@ -764,9 +764,9 @@ test("caractéristiques eBay : valeurs sûres tirées de la fiche (lot compris)"
   const seul = specifiquesSurs({ nom: "Kirby 64", plateforme: "Nintendo 64", region: "PAL" }, champs);
   assert.deepEqual(seul, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Kirby 64", "Code de région": "PAL" });
   const lot = specifiquesSurs({ nom: "Lot de 2 jeux", plateforme: "Nintendo 64", contient: ["a", "b"], jeux: ["Zelda", "Conker"] }, champs);
-  assert.deepEqual(lot, { Plateforme: "Nintendo 64", "Quantité unitaire": "2" });   // pas de nom de jeu pour un lot
+  assert.deepEqual(lot, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux", "Quantité unitaire": "2" });   // jamais un jeu précis pour un lot
   const { specifiquesEbay } = await import("../server/ia.mjs");
-  assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64" });
+  assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux" });
 });
 
 test("couleur du site : au choix pour un Collectionneur, imposée pour les autres formules", async () => {

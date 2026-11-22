@@ -675,22 +675,43 @@
   // eBay y met d'office le titre : on le remplace ; un texte plus long écrit par la personne est gardé.
   function zoneDescription() {
     var t = champs("textarea", /description/)[0]; if (t) return t;
-    var zones = [].filter.call(document.querySelectorAll("[contenteditable]:not([contenteditable=false])"), function (x) { return visibleEl(x) && !(x.parentElement && x.parentElement.closest("[contenteditable]:not([contenteditable=false])")); });
-    [].forEach.call(document.querySelectorAll("iframe"), function (f) { try { var d = f.contentDocument; if (d && d.body && (d.body.isContentEditable || d.designMode === "on") && visibleEl(f)) zones.push(d.body); } catch (e) {} });
+    // eBay : iframe#se-rte-frame__summary (srcdoc, title « Description ») ; la zone éditable est son body ou un bloc dedans.
+    var cadres = [].filter.call(document.querySelectorAll("iframe"), visibleEl), zones = [];
+    for (var i = 0; i < cadres.length; i++) {
+      var f = cadres[i], d = null; try { d = f.contentDocument; } catch (e) {}
+      if (!d || !d.body) continue;
+      var z = d.body.isContentEditable || d.designMode === "on" ? d.body : d.querySelector("[contenteditable]:not([contenteditable=false])");
+      if (!z) continue;
+      if (/description|rte/.test(norm([f.id, f.name, f.title, f.getAttribute("aria-label")].join(" ")))) return z;
+      zones.push(z);
+    }
+    [].forEach.call(document.querySelectorAll("[contenteditable]:not([contenteditable=false])"), function (x) { if (visibleEl(x) && !(x.parentElement && x.parentElement.closest("[contenteditable]:not([contenteditable=false])"))) zones.push(x); });
     var parle = function (x) { var f = x.ownerDocument !== document ? x.ownerDocument.defaultView.frameElement : x; for (var z = f, i = 0; z && i < 7; i++, z = z.parentElement) { var tx = decrire(z, true) + " " + texteDe(z).slice(0, 300); if (/description/.test(tx)) return true; } return false; };
     return zones.filter(parle)[0] || (zones.length === 1 ? zones[0] : null);
   }
+  // Repli : l'éditeur riche reste inaccessible (iframe fermée à l'extension) → mode « Afficher le code HTML », une zone de texte.
+  function modeHtml() { return [].filter.call(document.querySelectorAll("input[name=descriptionEditorMode]"), function (x) { return !(hote && hote.contains(x)); })[0]; }
   function remplirDescription(a) {
     if (!a.ebay.description || depot.faits.desc === a.id) return depot.lignes.desc;
-    var z = zoneDescription(); if (!z) return false;
+    var z = zoneDescription();
+    if (!z) {
+      var m = modeHtml();
+      if (m && !m.checked && depot.faits.descHtml !== a.id) { depot.faits.descHtml = a.id; noter("description : passage en mode HTML"); cliquer(m.closest("label") || m); setTimeout(function () { if (mode() === "formulaire") remplirDepot(); }, 1200); }
+      else noter("description : zone introuvable");
+      return false;
+    }
     depot.faits.desc = a.id;
     var texte = a.ebay.description, deja = z.tagName === "TEXTAREA" ? norm(z.value) : texteDe(z), premiere = norm(texte.split("\n")[0]).slice(0, 60);
     if (premiere && deja.indexOf(premiere) >= 0) return true;          // déjà remplie
     if (deja.length > 150) return true;                                // texte de la personne : on n'y touche pas
-    if (z.tagName === "TEXTAREA") { ecrireValeur(z, texte); z.blur(); return true; }
+    if (z.tagName === "TEXTAREA") {
+      var m2 = modeHtml(), enHtml = m2 && m2.checked;   // mode HTML : des paragraphes, sinon les retours à la ligne sont perdus
+      ecrireValeur(z, enHtml ? texte.split("\n").map(function (l) { return l ? "<p>" + l.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>" : "<p><br></p>"; }).join("\n") : texte); z.blur(); noter("description écrite (zone de texte" + (enHtml ? ", HTML" : "") + ")"); return true;
+    }
     var d = z.ownerDocument, html = texte.split("\n").map(function (l) { var p = d.createElement("p"); p.textContent = l; return l ? p.outerHTML : "<p><br></p>"; }).join("");
     z.focus(); var ok = false;
     try { var sel = d.getSelection(), r = d.createRange(); r.selectNodeContents(z); sel.removeAllRanges(); sel.addRange(r); ok = d.execCommand("insertHTML", false, html); } catch (e) {}
+    noter("description écrite (éditeur riche" + (z.ownerDocument !== document ? ", iframe" : "") + ")");
     if (!ok || texteDe(z).indexOf(premiere) < 0) { z.innerHTML = html; z.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" })); }
     z.dispatchEvent(new Event("change", { bubbles: true })); z.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
     try { z.blur(); d.defaultView.frameElement && d.defaultView.frameElement.blur(); } catch (e) {}

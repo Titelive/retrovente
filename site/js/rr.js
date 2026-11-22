@@ -52,7 +52,7 @@
       if (!lienCx) return;
       var nom = m.nom || "Mon compte", av = d.createElement("span");
       av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
-      if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase();
+      if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase(); if (window.RR_NIV) av.dataset.niv = window.RR_NIV;
       lienCx.innerHTML = ""; lienCx.appendChild(av); var t = d.createElement("span"); t.textContent = nom; lienCx.appendChild(t);
       if (fid !== "gratuit") { var bd = d.createElement("span"); bd.className = "badge-formule"; bd.textContent = { vendeur: "Vendeur", collectionneur: "Collectionneur", pass: "Pass" }[fid] || ""; lienCx.appendChild(bd); }
       lienCx.classList.add("nav-moi"); lienCx.href = "/app/?compte"; lienCx.title = "Mon compte";

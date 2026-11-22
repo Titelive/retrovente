@@ -231,7 +231,9 @@ ol.fil [aria-current]{color:var(--encre);font-weight:600;overflow:hidden;text-ov
 
 /* ---------- compte dans le menu ---------- */
 .nav-liens a.nav-moi{gap:9px}
-.av-mini{width:24px;height:24px;flex:none;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:inline-grid;place-items:center;font:700 12px/1 var(--texte);overflow:hidden}
+.av-mini{width:24px;height:24px;flex:none;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:inline-grid;place-items:center;font:700 12px/1 var(--texte);overflow:visible;position:relative}
+/* niveau du vendeur (appli) : petite pastille pixel au coin de l'avatar */
+.av-mini[data-niv]::after{content:attr(data-niv);position:absolute;right:-8px;bottom:-6px;min-width:16px;height:14px;padding:0 3px;box-sizing:border-box;border-radius:4px;background:var(--nuit);color:var(--anis);font:400 9px/14px var(--pixel);text-align:center;box-shadow:0 0 0 1.5px var(--carte,#fff)}
 
 /* ---------- sans animations (réglage du compte) ---------- */
 html.sans-anim *,html.sans-anim *::before,html.sans-anim *::after{animation:none!important;transition:none!important}
