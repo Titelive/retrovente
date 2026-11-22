@@ -768,3 +768,20 @@ test("caractéristiques eBay : valeurs sûres tirées de la fiche (lot compris)"
   const { specifiquesEbay } = await import("../server/ia.mjs");
   assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux" });
 });
+
+test("couleur du site : au choix pour un Collectionneur, imposée pour les autres formules", async () => {
+  const g = await compte("teinte-gratuit@exemple.fr"), c = await compte("teinte-collec@exemple.fr", true);
+  assert.equal((await call("GET", "/api/moi", null, g)).json.teinte, "");
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "lilas" }, g)).status, 403);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "");                       // or par défaut
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "rouge" }, c)).status, 400);
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "menthe" }, c)).json.teinte, "menthe");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "menthe");                 // gardé sur le compte
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "or" }, c)).json.teinte, "");
+  await call("POST", "/api/compte/profil", { teinte: "lilas" }, c);
+  // L'abonnement se termine : la couleur de la formule reprend le dessus (le choix reste gardé pour un retour).
+  db.prepare("UPDATE users SET plan_status = 'canceled' WHERE email = ?").run("teinte-collec@exemple.fr");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "");
+  db.prepare("UPDATE users SET plan_status = 'active' WHERE email = ?").run("teinte-collec@exemple.fr");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "lilas");
+});
