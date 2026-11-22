@@ -15,9 +15,9 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=16">
+<link rel="stylesheet" href="/css/rr.css?v=17">
 <script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}if(/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.classList.add("co");document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=10" defer></script>
+<script src="/js/rr.js?v=11" defer></script>
 <style>
 [hidden]{display:none!important}
 body{min-height:100vh;font-size:16px;line-height:1.5}
@@ -262,6 +262,26 @@ img[data-ph]:not([src]){visibility:hidden}
 /* Grille équilibrée (JS) : 2 demi-colonnes par carte, la dernière ligne incomplète est centrée */
 .tr-grille.equil{grid-template-columns:repeat(calc(var(--tr-c,4) * 2),minmax(0,1fr))}.tr-grille.equil>.tr{grid-column:span 2}
 @media(max-width:560px){.tr-grille{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.tr{padding:14px 12px}.tr .med{width:48px;height:48px;border-radius:14px}.tr .med svg{width:24px;height:24px}.tr.ok::after{right:10px;top:12px}}
+/* Niveau et XP du vendeur (calculés comme les trophées, rien n'est stocké) */
+.niv{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:center;margin:22px 0 4px;padding:20px 22px;border-radius:24px;background:var(--nuit);color:#fff;box-shadow:0 0 0 1px rgba(var(--anis-rgb),.25),0 22px 44px -22px rgba(26,26,26,.7)}
+.niv-med{grid-row:1/3;width:76px;height:76px;border-radius:20px;display:grid;place-content:center;justify-items:center;gap:3px;color:var(--nuit);background:linear-gradient(135deg,var(--anis),var(--anis-f));box-shadow:5px 5px 0 rgba(var(--anis-rgb),.28),inset 0 0 0 3px rgba(255,255,255,.35)}
+.niv-med small{font:400 9px/1 var(--pixel);letter-spacing:.1em}.niv-med b{font:900 34px/1 var(--titre)}
+.niv-tx{min-width:0}.niv-tx .pixel{color:var(--anis);font-size:10px}
+.niv-tx h2{margin:6px 0 10px;font-size:22px;line-height:1.1;color:#fff;text-wrap:balance}
+.niv-barre{height:14px;border-radius:4px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 10px,transparent 10px 13px);overflow:hidden}
+.niv-barre i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--anis) 0 10px,transparent 10px 13px);transition:width .8s var(--ease,ease)}
+.niv-xp{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0 0;font:400 10px/1.4 var(--pixel);letter-spacing:.04em;color:rgba(255,255,255,.75)}.niv-xp b{color:var(--anis);font-weight:400}
+.niv details{grid-column:1/-1;margin-top:10px;border-top:1px dashed rgba(255,255,255,.16);padding-top:10px}
+.niv summary{cursor:pointer;font-size:14px;font-weight:600;color:rgba(255,255,255,.9);list-style:none;display:flex;align-items:center;gap:8px}.niv summary::-webkit-details-marker{display:none}
+.niv summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:rgba(var(--anis-rgb),.16);color:var(--anis);font:400 12px/1 var(--pixel)}
+.niv details[open] summary::before{content:"−"}
+.niv ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.niv li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline;font-size:14px;color:rgba(255,255,255,.88);padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.05)}
+.niv li small{grid-column:1;color:rgba(255,255,255,.6);font-size:12px}.niv li span:last-child{grid-row:1/3;grid-column:2;font:400 11px/1 var(--pixel);color:var(--anis);white-space:nowrap}
+.niv .niv-note{margin:10px 0 0;font-size:12px;color:rgba(255,255,255,.6)}
+.niv.monte .niv-med{animation:trBrille 1.2s steps(4,end) 3}
+html[data-formule="collectionneur"] .niv-med{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00}
+@media(max-width:560px){.niv{grid-template-columns:auto 1fr;padding:16px;gap:4px 14px;align-items:start}.niv-med{width:60px;height:60px;border-radius:16px;margin-top:4px}.niv-med b{font-size:26px}.niv-tx h2{font-size:18px;margin:4px 0 8px}.niv li{grid-template-columns:1fr}.niv li span:last-child{grid-row:auto;grid-column:1}}
 /* Encart « l'IA travaille » : une seule carte, une seule barre fluide (transform, sans reflow), l'étape en cours change en fondu */
 .ia-etat{--ia-a:var(--anis);--ia-b:var(--anis-f);list-style:none;margin:12px 0 0;padding:0}
 html[data-formule="collectionneur"] .ia-etat{--ia-a:var(--or-1);--ia-b:var(--or-2)}
@@ -1541,6 +1561,7 @@ html.sans-anim .vt-b.pousse{animation:none}
 <!-- ========== Trophées ========== -->
 <main class="app wrap vue" id="trophees" hidden>
   <div class="tete"><div><p class="pixel">Trophées</p><h1 style="margin-top:8px">Ta salle des trophées</h1><p style="color:var(--gris);margin:8px 0 0">Débloque-les en vendant : chaque article, chaque vente compte.</p></div></div>
+  <section class="niv" data-niv="trophees" aria-label="Mon niveau"></section>
   <section class="tr-score"><div class="tr-jauge"><b id="trNb">0</b><small id="trSur">/ 0 débloqués</small></div><div class="tr-barre"><i id="trBarre"></i></div><p id="trProchain"></p></section>
   <ol class="tr-grille" id="trGrille"></ol>
 </main>
@@ -1552,6 +1573,7 @@ html.sans-anim .vt-b.pousse{animation:none}
     <span class="cj-tx"><b>Mes articles</b><small id="cJeuxTx">Tes annonces, tes prix et tes ventes</small></span>
     <span class="btn cj-bt">Ouvrir mes articles <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
   </a>
+  <section class="niv" data-niv="compte" aria-label="Mon niveau"></section>
   <a class="cta-jeux tr-cta" href="/app/?trophees" id="cTroph">
     <span class="cj-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>
     <span class="cj-tx"><b>Mes trophées</b><small id="cTrophTx">Tes succès de vendeur</small></span>
@@ -1903,7 +1925,43 @@ function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(funct
     ["chrono","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(tempsGagne()/60),10],
     ["calendrier","Vétéran","Membre depuis un an.",anc,365]
   ].map(function(t){return{ico:t[0],nom:t[1],desc:t[2],val:Math.min(t[3],t[4]),max:t[4],ok:t[3]>=t[4]}})}
-function majTrophNav(){var l=listeTrophees(),n=l.filter(function(t){return t.ok}).length;$("bTrophN").textContent=n+"/"+l.length;if($("cTrophTx"))$("cTrophTx").textContent=n+" trophée"+(n>1?"s":"")+" débloqué"+(n>1?"s":"")+" sur "+l.length;return l}
+/* ===== Niveau et XP du vendeur : calculés à partir des articles et des trophées (rien n'est stocké) =====
+   Barème : chaque étape de la vente rapporte, la vente rapporte le plus, chaque trophée donne un gros bonus.
+   Niveau n atteint à 50 × n × (n − 1) XP : 100, 300, 600, 1 000, 1 500… (chaque niveau demande 100 XP de plus que le précédent). */
+var XP_BAR={article:10,photo:5,enVente:10,vente:40,lot:20,trophee:100},XP_EUR_MAX=100,
+  NIV_NOMS=["Joueur du dimanche","Chineur","Fouineur","Brocanteur","Marchand de pixels","Négociant","Expert rétro","Chasseur de pépites","Maître du grenier","Légende 8 bits","Légende 16 bits","Légende 64 bits"];
+function nivSeuil(n){return 50*n*(n-1)}
+function nivNom(n){return n<=NIV_NOMS.length?NIV_NOMS[n-1]:"Boss final"}
+function xpVendeur(trs){var A=articles(),v=A.filter(vendu),tr=(trs||listeTrophees()).filter(function(t){return t.ok}).length,
+    eur=v.reduce(function(a,o){return a+Math.min(XP_EUR_MAX,Math.max(0,Math.round(+o.prixVente||0)))},0),
+    l=[
+      ["Article ajouté","",A.length,XP_BAR.article],
+      ["Article avec photo","",A.filter(function(o){return o.photo}).length,XP_BAR.photo],
+      ["Article mis en vente","",A.filter(function(o){return o.statut&&o.statut!=="retire"}).length,XP_BAR.enVente],
+      ["Article vendu","",v.length,XP_BAR.vente],
+      ["Lot vendu","",lotsVendus(),XP_BAR.lot],
+      ["Euro encaissé","1 XP par euro, jusqu'à "+XP_EUR_MAX+" par vente",eur,1],
+      ["Trophée débloqué","",tr,XP_BAR.trophee]
+    ].map(function(x){return{nom:x[0],aide:x[1],n:x[2],pts:x[3],xp:x[2]*x[3]}}),
+    xp=l.reduce(function(a,x){return a+x.xp},0),n=1;
+  while(xp>=nivSeuil(n+1))n++;
+  return{xp:xp,niv:n,nom:nivNom(n),de:nivSeuil(n),a:nivSeuil(n+1),detail:l}}
+function fmtXp(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")}
+function majNiveau(trs){var x=xpVendeur(trs),av=null,monte=false;window.RR_NIV=x.niv;
+  [].forEach.call(document.querySelectorAll(".nav-moi .av-mini"),function(e){e.dataset.niv=x.niv});
+  try{av=+localStorage.getItem("rr-niv")||0;localStorage.setItem("rr-niv",x.niv)}catch(e){}
+  if(av&&x.niv>av){monte=true;toast("Niveau "+x.niv+" atteint : "+x.nom+" !","ok");if(typeof confettis==="function")setTimeout(confettis,200)}
+  [].forEach.call(document.querySelectorAll("[data-niv]:not(.av-mini)"),function(h){peindreNiveau(h,x,monte)});return x}
+function peindreNiveau(h,x,monte){var pct=Math.max(0,Math.min(100,100*(x.xp-x.de)/(x.a-x.de))),reste=x.a-x.xp;
+  h.classList.toggle("monte",!!monte);
+  h.innerHTML='<div class="niv-med" aria-hidden="true"><small>NIV.</small><b>'+x.niv+'</b></div>'+
+    '<div class="niv-tx"><p class="pixel">Niveau '+x.niv+' · '+fmtXp(x.xp)+' XP</p><h2>'+esc(x.nom)+'</h2>'+
+    '<div class="niv-barre" role="progressbar" aria-label="Progression vers le niveau '+(x.niv+1)+'" aria-valuemin="0" aria-valuemax="'+(x.a-x.de)+'" aria-valuenow="'+(x.xp-x.de)+'"><i></i></div>'+
+    '<p class="niv-xp"><span>'+fmtXp(x.xp-x.de)+' / '+fmtXp(x.a-x.de)+' XP</span><span>Encore <b>'+fmtXp(reste)+' XP</b> pour le niveau '+(x.niv+1)+' : '+esc(nivNom(x.niv+1))+'</span></p></div>'+
+    '<details><summary>Comment gagner de l\'XP</summary><ul>'+x.detail.map(function(d){return '<li><span>'+esc(d.nom)+(d.pts>1?' : +'+d.pts+' XP':'')+'</span>'+(d.aide?'<small>'+esc(d.aide)+'</small>':'<small>'+d.n+' pour l\'instant</small>')+'<span>'+fmtXp(d.xp)+' XP</span></li>'}).join("")+'</ul>'+
+    '<p class="niv-note">L\'XP se recalcule à partir de tes articles : un article supprimé ou remis en vente retire les points qu\'il rapportait.</p></details>';
+  var i=h.querySelector(".niv-barre i");requestAnimationFrame(function(){requestAnimationFrame(function(){i.style.width=pct+"%"})})}
+function majTrophNav(){var l=listeTrophees(),n=l.filter(function(t){return t.ok}).length;$("bTrophN").textContent=n+"/"+l.length;if($("cTrophTx"))$("cTrophTx").textContent=n+" trophée"+(n>1?"s":"")+" débloqué"+(n>1?"s":"")+" sur "+l.length;try{majNiveau(l)}catch(e){}return l}
 function dessinerTrophees(){var l=majTrophNav(),ok=l.filter(function(t){return t.ok}),vus={};try{vus=JSON.parse(localStorage.getItem("rr-troph")||"{}")}catch(e){}
   $("trNb").textContent=ok.length;$("trSur").textContent="/ "+l.length+" débloqués";requestAnimationFrame(function(){$("trBarre").style.width=(100*ok.length/l.length)+"%"});
   var pro=l.filter(function(t){return !t.ok}).sort(function(a,b){return b.val/b.max-a.val/a.max})[0];
