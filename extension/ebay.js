@@ -452,6 +452,32 @@
     if (!ok || c.value !== v) ecrireValeur(c, v); else c.dispatchEvent(new Event("change", { bubbles: true }));
     c.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true }));
   }
+  // Saisie lettre par lettre, comme au clavier : keydown, beforeinput/input (insertText), keyup pour chaque lettre.
+  // Certains champs d'eBay ne prennent en compte que ce qui arrive ainsi (une valeur posée d'un coup est effacée).
+  var pause = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  async function taperLettres(c, v) {
+    c.focus(); c.click();
+    try { c.select(); } catch (e) {}
+    if (c.value) { var ok0 = false; try { ok0 = document.execCommand("delete"); } catch (e) {} if (!ok0 || c.value) ecrireValeur(c, ""); }
+    for (var i = 0; i < v.length; i++) {
+      var ch = v[i], o = { key: ch, bubbles: true, cancelable: true, composed: true };
+      if (document.activeElement !== c) c.focus();
+      var go = c.dispatchEvent(new KeyboardEvent("keydown", o));
+      c.dispatchEvent(new KeyboardEvent("keypress", o));
+      if (go) {
+        var avant = c.value, ok = false;
+        try { ok = document.execCommand("insertText", false, ch); } catch (e) {}
+        if (!ok || c.value === avant) {
+          c.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: ch, bubbles: true, cancelable: true }));
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(c, avant + ch);
+          c.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: ch, bubbles: true }));
+        }
+      }
+      c.dispatchEvent(new KeyboardEvent("keyup", o));
+      if (i % 4 === 3) await pause(12);
+    }
+    c.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   function entree(c) {
     ["keydown", "keypress", "keyup"].forEach(function (t) { c.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true })); });
   }
@@ -470,7 +496,7 @@
     for (var z = c.parentElement, i = 0; !b && z && i < 5; i++, z = z.parentElement) b = [].filter.call(z.querySelectorAll("button, [role=button]"), ok)[0];
     return b || null;
   }
-  var attentePrelist = null, journal = [], personneATape = false, gardien = null;
+  var attentePrelist = null, enSaisie = false, journal = [], personneATape = false, gardien = null;
   function noter(t, c) { journal.push(Math.round(performance.now()) + " ms · " + t + (c ? " · valeur " + (c.value || "").length + " car." : "")); if (journal.length > 60) journal.shift(); }
   document.addEventListener("input", function (e) { if (e.isTrusted && e.target && e.target.tagName === "INPUT" && !(hote && hote.contains(e.target))) personneATape = true; }, true);
   // Le titre doit rester dans le champ : si la page le vide (rechargement du composant, nouveau champ…), on le retape,
@@ -480,12 +506,12 @@
     gardien = setInterval(function () {
       var x = champPrelist();
       if (personneATape || mode() !== "prelist" || Date.now() - debut > 15000 || n >= 5) { clearInterval(gardien); return; }
-      if (x && !String(x.value || "").trim()) { n++; noter("champ vidé par la page : je retape", x); taper(x, a.ebay.titre); noter("retapé", x); }
+      if (x && !String(x.value || "").trim() && !enSaisie) { n++; noter("champ vidé par la page : je retape", x); enSaisie = true; taperLettres(x, a.ebay.titre).then(function () { enSaisie = false; noter("retapé", x); }); }
     }, 500);
   }
   // Page « Commencer votre annonce » : le titre dans « Dites-nous ce que vous vendez », puis la loupe.
   // Le champ peut arriver tard : on l'attend jusqu'à 20 s.
-  function remplirPrelist(a) {
+  function remplirPrelist(a, force) {
     if (depot.faits.prelist === a.id) return;
     var c = champPrelist();
     if (!c) {
@@ -495,29 +521,37 @@
         var x = champPrelist();
         if (!x && Date.now() - debut < 20000) return;
         clearInterval(attentePrelist); attentePrelist = null;
-        if (x) remplirPrelist(a); else { depot.manque = "Champ « Dites-nous ce que vous vendez » introuvable : tape le titre, RetroRevente remplira la suite."; dessinerDepot(); }
+        if (x) remplirPrelist(a, force); else { depot.manque = "Champ « Dites-nous ce que vous vendez » introuvable : tape le titre, RetroRevente remplira la suite."; dessinerDepot(); }
       }, 300);
       return;
     }
+    // Une seule recherche automatique par article et par onglet : sur la page suivante, eBay peut remontrer le champ
+    // avec le titre, et il ne faut pas relancer la recherche en boucle. Le bouton « Remplir avec RetroRevente » force.
+    if (!force) { var deja = ""; try { deja = sessionStorage.getItem("rrEbayCherche") || ""; } catch (e) {} if (deja === a.id) { depot.faits.prelist = a.id; return; } }
     depot.faits.prelist = a.id; depot.manque = ""; personneATape = false;
+    try { sessionStorage.setItem("rrEbayCherche", a.id); } catch (e) {}
     noter("champ trouvé : " + (c.getAttribute("placeholder") || c.name || c.id || c.tagName), c);
-    taper(c, a.ebay.titre); noter("titre tapé", c); dessinerDepot();
-    garder(a);
-    lancerRecherche(c, a, 0);
+    taperLettres(c, a.ebay.titre).then(function () {
+      noter("titre tapé lettre par lettre", c); dessinerDepot();
+      garder(a);
+      lancerRecherche(c, a, 0);
+    });
   }
   // On attend que la loupe soit active (elle est grisée tant que le champ est vide), et on retape si la page a effacé le titre.
   function lancerRecherche(c, a, n) {
     setTimeout(function () {
       if (!c.isConnected) { var x = champPrelist(); if (!x) return; c = x; }
-      if (norm(c.value) !== norm(a.ebay.titre) && n < 3) { taper(c, a.ebay.titre); return lancerRecherche(c, a, n + 1); }
+      if (enSaisie && n < 20) return lancerRecherche(c, a, n + 1);
+      if (norm(c.value) !== norm(a.ebay.titre) && n < 3) { enSaisie = true; return taperLettres(c, a.ebay.titre).then(function () { enSaisie = false; lancerRecherche(c, a, n + 1); }); }
       var b = boutonRecherche(c);
       noter("loupe " + (b ? (b.disabled || b.getAttribute("aria-disabled") === "true" ? "grisée" : "active") : "introuvable") + " (essai " + n + ")", c);
       if (b && (b.disabled || b.getAttribute("aria-disabled") === "true") && n < 10) return lancerRecherche(c, a, n + 1);
       if (!String(c.value || "").trim()) { noter("champ vide : recherche pas lancée", c); depot.manque = "eBay a vidé le champ : clique « Remplir avec RetroRevente », ou colle le titre (il est copié)."; copierTitre(a); dessinerDepot(); return; }
+      var ici = location.href; setTimeout(function () { noter("2 s après la recherche : " + (location.href !== ici ? "page changée" : "même page"), champPrelist()); }, 2000);
       if (b && !b.disabled) { b.click(); noter("loupe cliquée", c); } else if (c.form && c.form.requestSubmit) { c.form.requestSubmit(); noter("formulaire envoyé", c); } else { entree(c); noter("Entrée envoyée", c); }
       fait("titre", true); dessinerDepot();
       bulle("RetroRevente a cherché « " + a.ebay.titre + " » sur eBay : choisis l'objet correspondant ou continue sans.");
-    }, n ? 300 : 450);
+    }, n ? 300 : 700);
   }
   function copierTitre(a) { try { navigator.clipboard.writeText(a.ebay.titre).catch(function () {}); } catch (e) {} }
   // Diagnostic : structure de la page autour du champ (sans ce qui y est tapé) et journal du remplissage, à coller dans la discussion.
@@ -560,6 +594,9 @@
       addEventListener("scroll", placerSecours, true); addEventListener("resize", placerSecours);
     }
     var r = c.getBoundingClientRect();
+    // Champ caché par une fenêtre d'eBay (« Confirmer les informations »…) : le bouton s'efface aussi.
+    var dessus = document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2);
+    if (dessus && dessus !== c && !c.contains(dessus) && !(dessus.contains && dessus.contains(c)) && dessus !== secours) { secours.style.display = "none"; return; }
     secours.style.display = ""; var w = secours.getBoundingClientRect();
     secours.style.top = Math.round(Math.max(4, r.top - w.height - 10)) + "px"; secours.style.left = Math.round(Math.max(4, r.right - w.width)) + "px";
     var btn = secours.shadowRoot.querySelector("button"); btn.title = depot.a ? "Taper « " + depot.a.ebay.titre + " » et lancer la recherche" : "Choisir l'article à mettre en vente";
@@ -567,7 +604,7 @@
   function clicSecours() {
     ouvert = true; if (!hote) construire(); hote.style.display = "";
     charger().then(articleDepot).then(function (a) {
-      if (a && a.ebay) { depot.faits.prelist = null; depot.lignes = {}; noter("bouton « Remplir avec RetroRevente »"); remplirPrelist(a); return; }
+      if (a && a.ebay) { depot.faits.prelist = null; depot.lignes = {}; noter("bouton « Remplir avec RetroRevente »"); remplirPrelist(a, true); return; }
       dessinerDepot();
       var s = ombre.querySelector(".sel"); if (s && s.ouvrir) s.ouvrir();
     }, function (e) { depot.erreur = e.message || "RetroRevente ne répond pas."; dessinerDepot(); });
@@ -575,14 +612,16 @@
   // État : bouton radio, option de liste ou bouton dont le texte est l'état eBay voulu (une valeur déjà choisie est gardée).
   function choisirEtat(a) {
     if (!a.ebay.etat || depot.faits.etat === a.id) return depot.lignes.etat;
-    var cible = norm(a.ebay.etat);
+    var cible = norm(a.ebay.etat), cibles = ETAT_SYN[cible] || [cible];
     var radios = [].filter.call(document.querySelectorAll("input[type=radio]"), function (r) { return !(hote && hote.contains(r)); });
-    var r = radios.filter(function (x) { var l = x.closest("label") || (x.id && document.querySelector("label[for='" + window.CSS.escape(x.id) + "']")) || x.parentElement; return l && norm(l.textContent).indexOf(cible) === 0; })[0];
+    var r = radios.filter(function (x) { var l = x.closest("label") || (x.id && document.querySelector("label[for='" + window.CSS.escape(x.id) + "']")) || x.parentElement; var t = l && norm(l.textContent); return t && cibles.some(function (c) { return t.indexOf(c) === 0; }); })[0];
     if (r) { if (!r.checked) r.click(); depot.faits.etat = a.id; return true; }
     var sel = champs("select", /etat|condition/)[0];
-    if (sel) { var o = [].filter.call(sel.options, function (x) { return norm(x.textContent).indexOf(cible) === 0; })[0]; if (o) { sel.value = o.value; sel.dispatchEvent(new Event("change", { bubbles: true })); depot.faits.etat = a.id; return true; } }
+    if (sel) { var o = [].filter.call(sel.options, function (x) { var t = norm(x.textContent); return cibles.some(function (c) { return t.indexOf(c) === 0; }); })[0]; if (o) { sel.value = o.value; sel.dispatchEvent(new Event("change", { bubbles: true })); depot.faits.etat = a.id; return true; } }
     return false;
   }
+  // eBay change parfois le libellé : « État acceptable » s'appelle aussi « État correct ».
+  var ETAT_SYN = { "etat acceptable": ["etat acceptable", "etat correct"], "etat correct": ["etat correct", "etat acceptable"], "pour pieces detachees ou ne fonctionne pas": ["pour pieces"] };
   var SYNONYMES = { "nom du jeu": ["nom du jeu", "titre du jeu", "game name"], plateforme: ["plateforme", "plate-forme", "platform"], region: ["code region", "region"],
     contenu: ["contenu", "inclus", "included"], modele: ["modele", "model"], personnage: ["personnage", "character"], extension: ["extension", "set"], numero: ["numero de carte", "numero", "card number"],
     rarete: ["rarete", "rarity"], langue: ["langue", "language"], gradation: ["note", "grade", "gradation"], "titre du film": ["titre du film", "film title", "titre du film/serie"], format: ["format"],
@@ -655,7 +694,16 @@
   async function remplirDepot() {
     var a = await articleDepot();
     if (!hote) construire();
-    if (a && a.ebay) { if (mode() === "prelist") remplirPrelist(a); else await remplirFormulaire(a); }
+    if (a && a.ebay) {
+      if (mode() === "prelist") {
+        remplirPrelist(a);
+        // « Confirmer les informations » : l'état de l'objet, dans la fenêtre qui suit le choix de l'objet.
+        if (/etat de l.objet|condition/.test(norm((document.body && document.body.innerText) || "").slice(0, 20000)) && choisirEtat(a)) {
+          fait("etat", true); noter("état choisi : " + a.ebay.etat);
+          bulle("État « " + a.ebay.etat + " » choisi : vérifie, puis clique « Continuer la mise en vente ».");
+        }
+      } else await remplirFormulaire(a);
+    }
     dessinerDepot();
   }
   var LIGNES = [["titre", "Titre"], ["etat", "État"], ["carac", "Caractéristiques"], ["prix", "Prix"], ["offres", "Refus des offres trop basses"], ["desc", "Description"], ["photos", "Photos"]];
@@ -673,7 +721,7 @@
     p.appendChild(sel);
     if (depot.a) {
       var l = el("ul", { class: "etapes" });
-      (mode() === "prelist" ? [["titre", "Titre tapé et recherche lancée"]] : LIGNES).forEach(function (x) {
+      (mode() === "prelist" ? [["titre", "Titre tapé et recherche lancée"], ["etat", "État de l'objet"]] : LIGNES).forEach(function (x) {
         l.appendChild(el("li", { class: depot.lignes[x[0]] ? "ok" : "" }, [el("span", { class: "puce", texte: depot.lignes[x[0]] ? "✓" : "·" }), x[1]]));
       });
       p.appendChild(l);
