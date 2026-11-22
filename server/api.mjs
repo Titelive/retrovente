@@ -537,6 +537,17 @@ export async function handleApi(req) {
       const faits = l.map((x, i) => modifierObjet(eu.id, getItem(eu.id, x.id), { objet: { statut: "vendu", prixVente: parts[i] ?? x.prixDemande, ...(remise ? { remise } : {}) } }).objet);
       return { status: 200, json: { ok: true, vendus: faits.map((o) => ({ id: o.id, titre: o.titre, prixVente: o.prixVente })) }, headers: CORS };
     }
+    // Caractéristiques eBay de la page « Terminer votre annonce » : valeurs de la fiche, complétées par l'IA.
+    if (p === "/api/extension/specifiques" && method === "POST") {
+      if (!allow("spec:" + eu.id, 60, 600)) return { status: 429, json: { error: "Trop de demandes, réessaie dans un moment." }, headers: CORS };
+      const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
+      if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
+      const a = avecContenu(eu.id, [it])[0];
+      const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
+        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter(Boolean).map((x) => x.titre).filter(Boolean) : [] };
+      const valeurs = await ia.specifiquesEbay(fiche, b.champs);
+      return { status: 200, json: { ok: true, valeurs }, headers: CORS };
+    }
     // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin ou eBay).
     if (p === "/api/extension/reponse" && method === "POST") {
       if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
