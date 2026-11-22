@@ -289,10 +289,10 @@ html.sans-anim .lueurs i{animation:none}
 .badge-formule{font:400 9px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:7px;background:var(--anis);color:var(--nuit);margin-left:2px}
 html[data-formule="vendeur"] .av-mini{box-shadow:0 0 0 2px var(--anis)}
 html[data-formule="vendeur"] .logo-svg .eclair{filter:drop-shadow(0 0 4px rgba(var(--anis-rgb),.9))}
-html[data-formule="collectionneur"] .badge-formule{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00;box-shadow:0 0 12px rgba(247,215,116,.45)}
-html[data-formule="collectionneur"] .av-mini{box-shadow:0 0 0 2px var(--or-1),0 0 10px rgba(247,215,116,.6)}
-html[data-formule="collectionneur"] .nav{box-shadow:inset 0 -2px 0 rgba(247,215,116,.55)}
-html[data-formule="collectionneur"] .logo-svg .eclair{fill:var(--or-1)!important;filter:drop-shadow(0 0 5px rgba(247,215,116,.9))}
+html[data-formule="collectionneur"] .badge-formule{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:var(--or-encre);box-shadow:0 0 12px rgba(var(--or-rgb),.45)}
+html[data-formule="collectionneur"] .av-mini{box-shadow:0 0 0 2px var(--or-1),0 0 10px rgba(var(--or-rgb),.6)}
+html[data-formule="collectionneur"] .nav{box-shadow:inset 0 -2px 0 rgba(var(--or-rgb),.55)}
+html[data-formule="collectionneur"] .logo-svg .eclair{fill:var(--or-1)!important;filter:drop-shadow(0 0 5px rgba(var(--or-rgb),.9))}
 html[data-formule="collectionneur"] .lecture{background:linear-gradient(90deg,var(--anis),var(--or-1))}
 html[data-formule="pass"] .badge-formule{background:var(--holo);background-size:300% 100%;color:var(--nuit);animation:holo 4s linear infinite}
 html[data-formule="pass"] .av-mini{box-shadow:0 0 0 2px transparent;background-clip:padding-box;outline:2px solid #B98CFF;outline-offset:1px}
@@ -303,7 +303,7 @@ html[data-formule="pass"] .logo-svg .eclair{filter:drop-shadow(0 0 5px rgba(185,
 /* ===== Couleurs du site selon la formule : l'accent (--anis) change pour tout le site =====
    Découverte : vert anis · Vendeur : menthe vive · Collectionneur : or éclatant · Pass : lilas vif */
 html[data-formule="vendeur"]{--anis:#5EF0C6;--anis-f:#2FD9A9;--anis-p:#DDFBF1;--anis-rgb:94,240,198;--anis-t:#0E6B50}
-html[data-formule="collectionneur"]{--anis:#FFD23F;--anis-f:#F5A90A;--anis-p:#FFF4CC;--anis-rgb:255,210,63;--anis-t:#8A5A00;--or-1:#FFE27A;--or-2:#F0A500;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
+html[data-formule="collectionneur"]{--anis:#FFD23F;--anis-f:#F5A90A;--anis-p:#FFF4CC;--anis-rgb:255,210,63;--anis-t:#8A5A00;--or-0:#FFF3B0;--or-1:#FFE27A;--or-2:#F0A500;--or-m:#FFB800;--or-rgb:247,215,116;--or-f-rgb:240,165,0;--or-encre:#2A1E00;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
 html[data-formule="pass"]{--anis:#C4A8FF;--anis-f:#A07BFF;--anis-p:#EEE6FF;--anis-rgb:196,168,255;--anis-t:#5B2FD0}
 @media (prefers-color-scheme:dark){
   html[data-formule="vendeur"]:not([data-theme="light"]){--anis-p:#12271F;--anis-t:var(--anis)}
@@ -313,10 +313,23 @@ html[data-formule="vendeur"][data-theme="dark"]{--anis-p:#12271F;--anis-t:var(--
 html[data-formule="collectionneur"][data-theme="dark"]{--anis-p:#2A2312;--anis-t:var(--anis)}
 html[data-formule="pass"][data-theme="dark"]{--anis-p:#211B35;--anis-t:var(--anis)}
 /* Collectionneur : boutons pastel bordés d'or, liseré doré */
-html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,#FFF3B0 0%,#FFD23F 38%,#FFB800 70%,#FFE27A 100%);background-size:200% 100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 1.5px rgba(240,165,0,.6),0 12px 28px -12px rgba(255,184,0,.75);transition:background-position .6s var(--ease),transform .2s}
+html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,var(--or-0) 0%,var(--anis) 38%,var(--or-m) 70%,var(--or-1) 100%);background-size:200% 100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 1.5px rgba(var(--or-f-rgb),.6),0 12px 28px -12px rgba(var(--or-f-rgb),.75);transition:background-position .6s var(--ease),transform .2s}
 html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien):hover{background-position:100% 0}
-html[data-formule="collectionneur"] .heros h1 .vert{background:linear-gradient(100deg,#FFE27A,#FFC21A 40%,#FFF0A8 58%,#FFC21A 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+html[data-formule="collectionneur"] .heros h1 .vert{background:linear-gradient(100deg,var(--or-1),var(--or-m) 40%,var(--or-0) 58%,var(--or-m) 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
 html[data-formule="collectionneur"] .logo-svg .manette{color:inherit}
+/* Collectionneur : la couleur du site se choisit dans Mon compte (html[data-teinte], réglé par rr.js d'après /api/moi).
+   Les touches dorées ci-dessus passent par --or-* : elles prennent la couleur choisie. Sans data-teinte : l'or. */
+html[data-formule="collectionneur"][data-teinte="anis"]{--anis:#D4F57A;--anis-f:#BFE54C;--anis-p:#F1FCD0;--anis-rgb:212,245,122;--anis-t:#4A6410;--or-0:#F4FDD6;--or-1:#E4FA9C;--or-2:#9CCB2A;--or-m:#B5E03F;--or-rgb:212,245,122;--or-f-rgb:140,190,30;--or-encre:#1E2A05}
+html[data-formule="collectionneur"][data-teinte="menthe"]{--anis:#5EF0C6;--anis-f:#2FD9A9;--anis-p:#DDFBF1;--anis-rgb:94,240,198;--anis-t:#0E6B50;--or-0:#D6FDF0;--or-1:#9BF7DC;--or-2:#18BF8F;--or-m:#2FD9A9;--or-rgb:94,240,198;--or-f-rgb:24,191,143;--or-encre:#04261B}
+html[data-formule="collectionneur"][data-teinte="lilas"]{--anis:#C4A8FF;--anis-f:#A07BFF;--anis-p:#EEE6FF;--anis-rgb:196,168,255;--anis-t:#5B2FD0;--or-0:#F1EAFF;--or-1:#D9C8FF;--or-2:#A07BFF;--or-m:#B396FF;--or-rgb:196,168,255;--or-f-rgb:139,92,246;--or-encre:#1E0F45}
+@media (prefers-color-scheme:dark){
+  html[data-formule="collectionneur"][data-teinte="anis"]:not([data-theme="light"]){--anis-p:#232B12}
+  html[data-formule="collectionneur"][data-teinte="menthe"]:not([data-theme="light"]){--anis-p:#12271F}
+  html[data-formule="collectionneur"][data-teinte="lilas"]:not([data-theme="light"]){--anis-p:#211B35}}
+html[data-formule="collectionneur"][data-teinte="anis"][data-theme="dark"]{--anis-p:#232B12;--anis-t:var(--anis)}
+html[data-formule="collectionneur"][data-teinte="menthe"][data-theme="dark"]{--anis-p:#12271F;--anis-t:var(--anis)}
+html[data-formule="collectionneur"][data-teinte="lilas"][data-theme="dark"]{--anis-p:#211B35;--anis-t:var(--anis)}
+@media (prefers-color-scheme:dark){html[data-formule="collectionneur"][data-teinte]:not([data-theme="light"]){--anis-t:var(--anis)}}
 @keyframes holo{to{background-position:300% 0}}
 html.sans-anim .badge-formule,html.sans-anim .lecture{animation:none}
 

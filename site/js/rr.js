@@ -45,6 +45,10 @@
       if (!m) return;
       // la formule change l'habillage (badge, touches dorées ou holographiques) : voir « Habillage selon la formule » dans rr.css
       var fid = (m.formule && m.formule.id) || "gratuit"; d.documentElement.setAttribute("data-formule", fid); try { localStorage.setItem("rr-formule", fid); } catch (e) {}
+      // Collectionneur : couleur du site choisie dans Mon compte (vide = l'or de la formule)
+      var te = fid === "collectionneur" && /^(anis|menthe|lilas)$/.test(m.teinte || "") ? m.teinte : "";
+      if (te) d.documentElement.setAttribute("data-teinte", te); else d.documentElement.removeAttribute("data-teinte");
+      try { te ? localStorage.setItem("rr-teinte", te) : localStorage.removeItem("rr-teinte"); } catch (e) {}
       if (!lienCx) return;
       var nom = m.nom || "Mon compte", av = d.createElement("span");
       av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
