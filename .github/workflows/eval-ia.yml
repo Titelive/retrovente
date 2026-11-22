@@ -1,0 +1,18 @@
+name: Banc d'essai IA
+# Lancé à la main : joue les conversations de tools/eval-reponses.mjs avec la vraie IA, sur le serveur (la clé reste sur le serveur).
+on:
+  workflow_dispatch:
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Jouer les conversations sur le serveur
+        env:
+          KEY: ${{ secrets.IONOS_SSH_KEY }}
+          HOST: ${{ secrets.IONOS_HOST }}
+        run: |
+          install -m 600 /dev/null ~/key && printf '%s\n' "$KEY" > ~/key
+          tar czf - server tools/eval-reponses.mjs package.json | ssh -i ~/key -o StrictHostKeyChecking=accept-new root@"$HOST" \
+            'set -e; D=$(mktemp -d /tmp/rr-eval-XXXX); trap "rm -rf $D" EXIT; tar xzf - -C "$D"; chown -R titelive "$D"; cd "$D"; set -a; . /etc/retrorevente.env; set +a; runuser -u titelive --preserve-environment -- node --no-warnings tools/eval-reponses.mjs'

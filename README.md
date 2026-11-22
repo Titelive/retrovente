@@ -1,11 +1,11 @@
 # RetroRevente
 
-Revendre ses jeux vidéo sur Le Bon Coin en 2 minutes : une photo, et l'annonce est prête (titre, description, état, prix conseillé, photo recadrée), avec le suivi des ventes.
+L'assistant du revendeur rétro, en complément de Le Bon Coin : une photo, et RetroRevente donne la vraie cote (état, boîte, notice, région), prépare la fiche et la photo, suit le stock et les ventes jusqu'au seuil fiscal, et aide à répondre aux acheteurs grâce à l'extension.
 
 - `site/` : pages publiques (accueil, guides, pages légales) et l'appli (`site/app/`).
 - `server/` : serveur Node 22 sans dépendance (pages + API `/api/…`), base SQLite intégrée à Node.
 - `deploy/` : mise en ligne sur le VPS IONOS (service `retrorevente`, port 8082).
-- `extension/` : extension navigateur (Safari, Chrome, Firefox) qui remplit le dépôt d'annonce Le Bon Coin, voir `extension/README.md`.
+- `extension/` : extension navigateur (Safari, Chrome, Firefox) qui remplit le dépôt d'annonce Le Bon Coin et aide à répondre aux acheteurs sur Le Bon Coin et eBay, voir `extension/README.md`.
 - `test/` : tests de l'API (`npm test`).
 
 En local : `npm run dev` puis http://127.0.0.1:8082 (IA simulée, pas besoin de clé).
@@ -47,6 +47,8 @@ Une ligne par variable :
 | `MAIL_FROM` | Facultatif, par défaut `RetroRevente <bonjour@retrorevente.fr>` |
 | `CLAUDE_MODEL` | Facultatif, par défaut `claude-haiku-5-5` |
 | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` | Jaquette, captures d'écran et notes des jeux (base IGDB, gratuite, voir « Fiche du jeu » plus bas) |
+| `TMDB_API_KEY` | Affiche, images, synopsis, casting et note des spectateurs des films (base TMDB, clé gratuite, voir « Films » plus bas) |
+| `LAPOSTE_API_KEY` | Facultatif : état des colis Colissimo, Lettre suivie et Chronopost lu tout seul (API « Suivi v2 » de La Poste, gratuite, voir « Suivi des colis » plus bas) |
 
 Sans clé Stripe, l'appli marche en gratuit et affiche « Le paiement arrive très bientôt ».
 
@@ -72,9 +74,30 @@ Ce que fait le code pour le droit de la consommation :
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
 
+## Vendre aussi sur eBay
+
+Sur la fiche, le bouton **eBay** (à côté de « Le Bon Coin ») ouvre l'annonce **au format eBay**, un bouton « Copier » par champ dans l'ordre de la mise en vente eBay : titre coupé à **80 caractères** entre deux mots, catégorie eBay, état eBay (Neuf, Très bon état, Bon état, État acceptable, Pour pièces détachées), **caractéristiques** (nom du jeu, plateforme, région, contenu ; pour une carte : extension, numéro, langue, gradation ; pour un film : format, édition, année), description (l'envoi avec suivi remplace « main propre ou envoi »), prix en Achat immédiat avec les offres et un **refus automatique sous 85 %** du prix, et les photos. « Créer l'annonce sur eBay » enregistre la fiche, copie le titre et ouvre le formulaire de mise en vente (`ebay.fr/sl/prelist/suggest`, « Que vendez-vous ? ») ; si l'article a déjà son lien eBay, le bouton devient « Voir l'annonce sur eBay ». Avec l'extension (1.11.0), la page eBay se remplit toute seule : titre et recherche, puis état, caractéristiques, prix, description et photos (voir `extension/README.md`).
+
+Chaque article a un **lien eBay** à part (`annonceEbay`, onglet L'annonce), à côté du lien Le Bon Coin : un article peut être en ligne sur les deux. Seule une adresse d'objet eBay est acceptée (`ebay.fr/itm/<numéro>`, ramenée à sa forme courte). L'extension (1.10.0) le remplit toute seule depuis « Mes ventes » / Seller Hub, et propose les réponses IA dans la **messagerie eBay** (voir `extension/README.md`).
+
+## Suivi des colis
+
+Sur la fiche d'une vente envoyée (onglet Suivi), on note le transporteur (Colissimo, Mondial Relay, Relais Colis, Chronopost / Shop2Shop, Lettre suivie, DPD, UPS, GLS) et le numéro de suivi : le transporteur est deviné d'après le numéro, l'article passe en « Envoyé », un bouton ouvre la page de suivi du transporteur et un autre copie un message prêt à coller dans la conversation Le Bon Coin. « Colis livré » se coche à la main ; la date s'affiche aussi sur la carte dans Mes articles. Le colis d'un lot vaut pour tous ses articles.
+
+Pour La Poste (Colissimo, Lettre suivie, Chronopost), l'état se lit tout seul avec une clé : crée un compte sur [developer.laposte.fr](https://developer.laposte.fr), abonne-toi à l'API **Suivi v2** (gratuite) et copie la clé dans `LAPOSTE_API_KEY`. L'état est relu au plus une fois par heure par colis, et « Colis livré » se coche dès que La Poste l'annonce. Sans clé, tout le reste marche.
+
 ## Cartes Pokémon
 
 Catégorie « Carte Pokémon » dans la même appli : la photo d'une carte donne son nom, son extension, son numéro, sa rareté, sa langue, son édition, sa note de gradation (PSA, PCA, CGC…) et son état collectionneur (Mint à Poor, traduit en état Le Bon Coin). La cote part de la **cote Cardmarket du jour**, lue dans la base libre [TCGdex](https://tcgdex.dev) (sans clé ni coût, `server/cartes.mjs`), puis l'IA la recoupe avec les ventes conclues eBay et les annonces Le Bon Coin. Une carte qui vaut moins de 5 € est signalée comme « à mettre en lot ». Le bouton « Plusieurs cartes Pokémon » analyse une photo de classeur ou de cartes étalées : chaque carte est repérée et cotée, celles de 5 € ou plus ont leur propre fiche (photo recadrée sur la carte), les autres forment une fiche « Lot de N cartes » avec son titre, sa description et son prix (80 % des cotes cumulées, 5 € au moins). L'extension propose des réponses propres aux cartes (bords, authenticité, envoi sous toploader). `TCGDEX_URL` (facultatif) change l'adresse de l'API TCGdex.
+
+## Films (Blu-Ray, Blu-Ray 4K UHD, DVD)
+
+Catégorie « Film » dans la même appli : la photo d'une jaquette donne le titre, le **format** (Blu-Ray 4K UHD, 4K UHD + Blu-Ray, Blu-Ray, Blu-Ray 3D, DVD, HD DVD, VHS, lu sur le bandeau de la jaquette), l'**édition** (Steelbook, Édition collector, Édition limitée, Coffret, Mediabook, Digibook, à cocher d'un geste dans la fiche), l'année, le réalisateur, les langues et la zone. La **cote** vient des ventes conclues eBay, des annonces Le Bon Coin et Rakuten pour le même format et la même édition, avec le prix de rachat Momox comme plancher ; un film qui vaut moins de 5 € est signalé « à mettre en lot ». L'annonce Le Bon Coin part dans **Loisirs › DVD - Films**, et l'extension (1.8.0) propose des réponses propres aux films (état des disques, langues et zone, steelbook, envoi protégé). Dans Mes articles, « Grouper par support » range les films par format (4K UHD, Blu-Ray, DVD…).
+
+**Fiche du film** (onglet « Le film ») : l'**affiche**, des **images du film**, la durée, les genres, le réalisateur et le casting, le **synopsis en français**, la **note de la presse** (Metacritic, lue dans Wikidata) et **celle des spectateurs** (TMDB, sur 5), et **ma note** en étoiles. « Pas le bon film ? » propose les films du même nom.
+
+- Images, synopsis et note des spectateurs : [TMDB](https://www.themoviedb.org). Crée un compte, puis Paramètres > API : copie la **clé API** (ou le jeton de lecture) dans `TMDB_API_KEY`. La clé est gratuite pour un usage non commercial ; pour un site payant, TMDB demande une licence commerciale (formulaire sur leur site). Sans clé, la fiche montre le synopsis Wikipédia (CC BY-SA 4.0) et les infos Wikidata (année, réalisateur, genres, durée, presse), sans affiche.
+- Chaque film n'est cherché qu'une fois : la réponse est gardée 30 jours en base (table `jeux_infos`). Code : `server/films.mjs`. `TMDB_URL` et `WIKIDATA_URL` (facultatifs) changent les adresses des API.
 
 ## Retouche des photos (vrai fond gardé)
 
@@ -95,3 +118,7 @@ Dans l'onglet « Le jeu » d'un jeu vidéo : la **jaquette**, des **captures d'�
 - Images et notes : [IGDB](https://www.igdb.com) (Twitch), gratuit. Crée une appli sur [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps) (nom libre, URL de redirection `http://localhost`, catégorie « Website Integration »), puis copie son Client ID et un Client Secret dans `TWITCH_CLIENT_ID` et `TWITCH_CLIENT_SECRET`. Sans ces clés, seule « ma note » s'affiche.
 - Descriptif : l'introduction de l'article Wikipédia en français (licence CC BY-SA 4.0, source citée sous le bloc), sinon le résumé IGDB traduit par l'IA.
 - Chaque jeu n'est cherché qu'une fois : la réponse est gardée 30 jours en base (table `jeux_infos`). Code : `server/jeux.mjs`.
+
+## Profil de vendeur
+
+Juste après l'inscription (puis dans Mon compte), le vendeur dit comment il vend : patient ou pressé, main propre ou envoi, ouvert aux échanges ou non, souple ou attaché à ses prix, et le ton de ses messages (très diplomate, chaleureux, direct, avec humour), plus une note libre. Le profil est gardé dans `users.vendeur` (JSON, `server/profil.mjs`). L'IA des réponses aux acheteurs s'en sert : ton imposé, prix plancher des offres (85 % par défaut, 90 % pour un vendeur patient, 80 % pour un vendeur pressé, aucune contre-offre pour « Prix ferme »), remise et échanges proposés. L'extension coche d'office « Pas de négociation possible » pour un vendeur à prix ferme et adapte ses réponses types.

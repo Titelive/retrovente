@@ -75,6 +75,8 @@ const server = http.createServer(async (req, res) => {
         return res.end();
       }
       if (out.json !== undefined) { h["Content-Type"] = "application/json; charset=utf-8"; res.writeHead(out.status, h); return res.end(JSON.stringify(out.json)); }
+      // longueur annoncée : un téléchargement coupé (photo de 1 Mo) est vu comme incomplet et n'est pas gardé en cache
+      if (Buffer.isBuffer(out.body)) h["Content-Length"] = out.body.length;
       res.writeHead(out.status, h); return res.end(out.body);
     }
     if (!["GET", "HEAD"].includes(req.method)) { res.writeHead(405, { Allow: "GET, HEAD" }); return res.end(); }

@@ -10,7 +10,11 @@ import * as ia from "./ia.mjs";
 import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
+import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
+import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
+import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { normaliserProfil, lireProfil } from "./profil.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
@@ -26,25 +30,33 @@ const fail = (status, msg, extra) => { throw new HttpError(status, msg, extra); 
 /* ===== Fiches ===== */
 function nettoyer(v, avant) {
   const titre = txt(v.titre, 160);
-  const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes";
-  if (!titre) fail(400, carte ? "Indique le nom de la carte." : "Indique le nom du jeu.");
+  const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes", film = categorie === "films";
+  if (!titre) fail(400, carte ? "Indique le nom de la carte." : film ? "Indique le titre du film." : "Indique le nom du jeu.");
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
+  const remise = parmi(v.remise, REMISES, "");
+  // Le colis (vendu ou envoyé, pas en main propre) : transporteur, numéro de suivi, date de livraison, dernier état lu.
+  const colis = ["vendu", "envoye"].includes(statut) && remise !== "main_propre";
+  const suivi = colis ? numeroSuivi(v.suivi) : "", transporteur = colis ? parmi(v.transporteur, IDS_TRANSPORTEURS, "") || devinerTransporteur(suivi) : "";
+  const memeColis = avant && suivi && avant.suivi === suivi && avant.transporteur === transporteur;
   return {
     titre,
     categorie,
     // Cartes Pokémon : plateforme = extension, region = langue ; l'état Le Bon Coin suit l'état collectionneur s'il manque.
     ...(carte ? { numero: txt(v.numero, 20), rarete: txt(v.rarete, 40), edition: txt(v.edition, 40), gradation: txt(v.gradation, 30), etatCarte } : {}),
-    plateforme: txt(v.plateforme, 60), region: txt(v.region, 30),
-    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte ? "" : parmi(v.contenu, ia.CONTENUS, ""),
+    // Films : plateforme = format (Blu-Ray 4K UHD, Blu-Ray, DVD…), region = langues et zone, edition = steelbook, collector…
+    ...(film ? { annee: /^(18|19|20)\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", realisateur: txt(v.realisateur, 80), edition: txt(v.edition, 80) } : {}),
+    plateforme: film ? formatFilm(txt(v.plateforme, 60)) : txt(v.plateforme, 60), region: txt(v.region, 30),
+    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
     dateVente: ["vendu", "envoye"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
-    remise: parmi(v.remise, REMISES, ""),
+    remise, transporteur, suivi, livreLe: colis ? jour(v.livreLe) : "",
+    ...(memeColis && avant.suiviEtat ? { suiviEtat: avant.suiviEtat } : {}),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
-    annonce: lien(v.annonce), notes: txt(v.notes, 1000),
+    annonce: lien(v.annonce), annonceEbay: ebayOuErreur(v.annonceEbay), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
     cote: ia.coteDe(v.cote),
     // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
@@ -53,7 +65,30 @@ function nettoyer(v, avant) {
     ia: !!(v.ia || (avant && avant.ia)),
     photo: !!(avant && photosDe(avant).length),
     photos: ordrePhotos(v.photos, avant),
+    // Lots : la composition ne change que par /api/lots (jamais par la fiche), on la reprend telle quelle.
+    ...(avant && Array.isArray(avant.articles) ? { articles: avant.articles, theme: avant.theme || null, ...(avant.alerte ? { alerte: avant.alerte } : {}), ...(avant.annonceGeneree ? { annonceGeneree: avant.annonceGeneree } : {}), ...(avant.mosaiqueAFaire ? { mosaiqueAFaire: true } : {}) } : {}),
+    // Un article peut être dans plusieurs lots tant qu'il n'est pas vendu (« lots ») ; « lot » est l'ancien champ, à un seul lot.
+    ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
+    ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
   };
+}
+/* Lien d'une annonce eBay : https://www.ebay.fr/itm/<numéro> (ou ebay.com, .be, .ch…), ramené à sa forme courte.
+   Tout autre lien est refusé (chaîne vide). */
+export function lienEbay(v) {
+  const t = txt(v, 500);
+  if (!t) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : "https://" + t);
+    if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.port) return "";
+    if (!/^(www\.|m\.)?ebay\.(fr|com|be|ch|ca|de|it|es|co\.uk)$/i.test(u.hostname)) return "";
+    const m = /^\/itm\/(?:[^/]+\/)?(\d{9,15})\/?$/.exec(u.pathname) || (/^\/itm\/?$/.test(u.pathname) && /^\d{9,15}$/.test(u.searchParams.get("item") || "") ? [0, u.searchParams.get("item")] : null);
+    return m ? `https://www.${u.hostname.replace(/^(www|m)\./i, "").toLowerCase()}/itm/${m[1]}` : "";
+  } catch (e) { return ""; }
+}
+function ebayOuErreur(v) {
+  const l = lienEbay(v);
+  if (!l && txt(v, 500)) fail(400, "Lien eBay invalide : colle l'adresse de l'annonce, par exemple https://www.ebay.fr/itm/123456789012");
+  return l;
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
 export const MAX_PHOTOS = 12;
@@ -63,7 +98,7 @@ function ordrePhotos(liste, avant) {
   const ex = avant ? photosDe(avant) : [];
   if (!Array.isArray(liste)) return ex;
   const par = new Map(ex.map((x) => [x.id, x])), vus = new Set(), out = [];
-  for (const x of liste) { const id = x && String(x.id); if (par.has(id) && !vus.has(id)) { vus.add(id); out.push({ id, legende: txt(x.legende, 200) }); } }
+  for (const x of liste) { const id = x && String(x.id); if (par.has(id) && !vus.has(id)) { vus.add(id); out.push({ ...par.get(id), legende: txt(x.legende, 200) }); } }
   for (const x of ex) if (!vus.has(x.id)) out.push(x);
   return out;
 }
@@ -72,13 +107,213 @@ const itemOut = (r) => { const d = JSON.parse(r.data); const photos = photosDe(d
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
 
+/* ===== Lots ===== */
+const ID = /^[a-f0-9]{16}$/;
+const VENDU = (st) => st === "vendu" || st === "envoye";
+const ecrire = (uid, it) => { const { id, cree: _c, modifie: _m, ...data } = it; db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(data), now(), id, uid); };
+const estLot = (it) => Array.isArray(it && it.articles);
+/* Un article peut être dans plusieurs lots à la fois tant qu'il n'est pas vendu : il porte la liste de ses lots (« lots »).
+   Quand il se vend (à l'unité ou avec un de ses lots), il quitte les autres, et y revient si la vente est annulée (« exLots »). */
+const uniques = (...l) => [...new Set(l.flat().filter(Boolean).map(String))];
+function lotsIds(it) { return it ? uniques(Array.isArray(it.lots) ? it.lots : [], it.lot || []) : []; }
+function exLotsIds(it) { return it ? uniques(Array.isArray(it.exLots) ? it.exLots : [], it.exLot || []) : []; }
+const poser = (m, k, l) => { if (l.length) m[k] = l; else delete m[k]; };
+const mettreLots = (m, l) => { delete m.lot; poser(m, "lots", uniques(l)); };
+const mettreExLots = (m, l) => { delete m.exLot; poser(m, "exLots", uniques(l)); };
+const ajouterAuLot = (m, id) => { mettreLots(m, [...lotsIds(m), id]); mettreExLots(m, exLotsIds(m).filter((x) => x !== id)); };
+const oterDuLot = (m, id) => mettreLots(m, lotsIds(m).filter((x) => x !== id));
+/** Les lots d'un article (ceux qui le contiennent vraiment). */
+const lotsDe = (uid, it) => lotsIds(it).map((id) => getItem(uid, id)).filter((l) => estLot(l) && l.articles.includes(it.id));
+/** Articles qu'on peut mettre dans un lot : à soi, pas vendus, pas un lot. Un article peut être dans plusieurs lots. */
+function articlesPourLot(uid, liste) {
+  const l = [...new Set((Array.isArray(liste) ? liste : []).map(String))].filter((x) => ID.test(x));
+  if (l.length < MIN_LOT) fail(400, "Choisis au moins 2 articles pour faire un lot.");
+  if (l.length > MAX_LOT) fail(400, `${MAX_LOT} articles au plus dans un lot.`);
+  return l.map((id) => {
+    const it = getItem(uid, id);
+    if (!it) fail(404, "Un des articles est introuvable.");
+    if (estLot(it)) fail(400, "Un lot ne peut pas contenir un autre lot.");
+    if (VENDU(it.statut)) fail(400, `« ${it.titre} » est déjà vendu.`);
+    return it;
+  });
+}
+/** Modifie un article ou un lot (fiche, statut, photo) et fait suivre ses lots. */
+function modifierObjet(uid, avant, b) {
+  const it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
+  const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
+  // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
+  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
+  if (estLot(avant) && b.fermerAlerte) delete it.alerte;
+  if (typeof b.photo === "string") {
+    const prem = it.photos[0];
+    if (b.photo === "") { if (prem) { savePhoto(uid, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
+    else if (prem) savePhoto(uid, avant.id, b.photo, prem.id);
+    else { savePhoto(uid, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
+  }
+  it.photo = it.photos.length > 0;
+  db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, uid);
+  let lots = [];
+  if (estLot(it)) lots = tx(() => suivreLot(uid, { ...it, id: avant.id }, avant));
+  // Vendu à l'unité alors que ses lots sont encore en vente : il les quitte tous. Remis en vente : il y revient.
+  else if (lotVendu) lots = [];
+  else if (sesLots.length && VENDU(it.statut) && !VENDU(avant.statut)) lots = tx(() => sesLots.map((l) => sortirDuLot(uid, getItem(uid, l.id), getItem(uid, avant.id))));
+  else if (sesLots.length && !VENDU(it.statut) && valeurArticle(it) !== valeurArticle(avant)) lots = tx(() => sesLots.map((l) => suivrePrix(uid, getItem(uid, l.id), avant)).filter(Boolean));
+  else if (exLotsIds(avant).length && VENDU(avant.statut) && !VENDU(it.statut)) lots = tx(() => exLotsIds(avant).map((id) => revenirDansLot(uid, getItem(uid, id), getItem(uid, avant.id))).filter(Boolean));
+  // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
+  return ({ ok: true, objet: getItem(uid, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
+}
+/** Le colis d'un lot vendu part avec tous ses articles : ils en portent le suivi. */
+const colisDe = (o) => ({ transporteur: o.transporteur || "", suivi: o.suivi || "", livreLe: o.livreLe || "", ...(o.suiviEtat ? { suiviEtat: o.suiviEtat } : {}) });
+const poserColis = (m, lot) => { delete m.suiviEtat; Object.assign(m, colisDe(lot)); };
+/** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
+    Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
+    son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu.
+    Les articles du lot vendu quittent les autres lots où ils étaient ; ils y reviennent si la vente du lot est annulée. */
+function suivreLot(uid, lot, avant) {
+  const vendu = VENDU(lot.statut), etaitVendu = !!(avant && VENDU(avant.statut));
+  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente || avant.statut !== lot.statut || avant.remise !== lot.remise || JSON.stringify(colisDe(avant)) !== JSON.stringify(colisDe(lot))))) return [];
+  const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
+  const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
+  membres.forEach((m, i) => {
+    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; poserColis(m, lot); }
+    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; poserColis(m, {}); }
+    ecrire(uid, m);
+  });
+  const autres = [];
+  for (const m of membres) {
+    if (vendu && !etaitVendu) for (const id of lotsIds(m)) {
+      const l = id !== lot.id && getItem(uid, id);
+      if (estLot(l) && !VENDU(l.statut) && l.articles.includes(m.id)) autres.push(sortirDuLot(uid, l, getItem(uid, m.id)));
+    }
+    if (!vendu && etaitVendu) for (const id of exLotsIds(m)) { const r = revenirDansLot(uid, getItem(uid, id), getItem(uid, m.id)); if (r) autres.push(r); }
+  }
+  return autres;
+}
+/* Un article du lot vendu à l'unité quitte le lot : prix du lot recalculé, sa photo retirée, mosaïque à refaire.
+   S'il revient en vente (« Annuler »), il y retourne. Le titre et l'annonce écrits par l'appli suivent ; ceux que
+   la personne a réécrits restent, et le lot le signale. */
+const champsLot = (l) => ({ titre: l.titre, titreAnnonce: l.titreAnnonce, texteAnnonce: l.texteAnnonce, prixDemande: l.prixDemande, theme: l.theme || null });
+/** Texte au format de l'annonce sans IA : 1re ligne « <titre> : », puis des lignes « - … », puis les phrases fixes. */
+function formatAppli(titre, texte) {
+  const l = String(texte || "").split("\n");
+  return /^Lot\b/.test(String(titre || "")) && l[0] === `${titre} :` && l.length > 2 && /^- /.test(l[1]) && /Remise en main propre ou envoi soigné, en un seul colis\.$/.test(l[l.length - 1]);
+}
+function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id) => getItem(uid, id)).filter(Boolean)) {
+  const nouveaux = ids.map((id) => getItem(uid, id)).filter(Boolean);
+  const auto = annonceLotSimple(anciens, lot.prixDemande, lot.theme);
+  const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
+  let prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
+  // le lot était moins cher que ses articles à l'unité : il le reste après l'arrondi
+  // un lot ne coûte jamais plus que ses articles à l'unité
+  if (c1.somme && prixDemande >= c1.somme && c1.conseille) prixDemande = c1.conseille;
+  const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
+  // L'annonce est « de l'appli » si c'est la dernière qu'elle a écrite (annonceGeneree), celle qu'elle écrirait pour
+  // l'ancienne composition, ou (lots d'avant annonceGeneree) une annonce au format de l'appli : « Lot … : » puis une
+  // ligne « - … » par article. Une annonce réécrite à la main ou par l'IA ne change pas : le lot le signale.
+  const titreAuto = lot.titre === auto.titre || (lot.titre === lot.titreAnnonce && formatAppli(lot.titreAnnonce, lot.texteAnnonce));
+  const annonceAuto = !lot.texteAnnonce || lot.texteAnnonce === lot.annonceGeneree || lot.texteAnnonce === auto.description || formatAppli(lot.titreAnnonce, lot.texteAnnonce);
+  return {
+    ...lot, articles: nouveaux.map((m) => m.id), theme, prixDemande, ...(ids.length !== lot.articles.length ? { mosaiqueAFaire: true } : {}),
+    ...(titreAuto ? { titre: neuf.titre } : {}),
+    ...(annonceAuto ? { texteAnnonce: neuf.description, annonceGeneree: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce || formatAppli(lot.titreAnnonce, lot.texteAnnonce) ? neuf.titre : lot.titreAnnonce } : {}),
+    _annonceAJour: annonceAuto, _ratio: ratio,
+  };
+}
+/** Les lignes « - … » d'une annonce au format de l'appli (une par article), dans l'ordre alphabétique. */
+const lignesArticles = (t) => String(t || "").split("\n").filter((x) => /^- /.test(x)).sort();
+/* Remet d'aplomb un lot en vente dont la composition a été abîmée par une ancienne version (article supprimé resté
+   dans le lot, même article compté deux fois) ou dont l'annonce de l'appli ne correspond plus aux articles :
+   articles dédoublonnés, prix sous la somme des articles, annonce de l'appli réécrite, photo de l'article parti retirée. */
+function reparerLot(uid, lot) {
+  if (!estLot(lot) || VENDU(lot.statut)) return lot;
+  const ids = uniques(lot.articles).filter((id) => { const m = getItem(uid, id); return m && !estLot(m); });
+  if (ids.length < MIN_LOT) return lot;
+  const membres = ids.map((id) => getItem(uid, id)), c = coteLot(membres, lot.theme);
+  const changeIds = ids.length !== lot.articles.length;
+  const annonce = formatAppli(lot.titreAnnonce, lot.texteAnnonce) && lignesArticles(lot.texteAnnonce).join("\n") !== lignesArticles(annonceLotSimple(membres, lot.prixDemande, lot.theme).description).join("\n");
+  const trop = c.somme > 0 && lot.prixDemande != null && lot.prixDemande >= c.somme;
+  if (!changeIds && !annonce && !trop) return lot;
+  const { _annonceAJour, _ratio, ...n } = recomposer(uid, { ...lot, articles: ids }, ids, lot.theme);
+  const ph = photosDe(lot), part = ph.filter((x) => x.de && !ids.includes(x.de));
+  for (const x of part) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+  const photos = ph.filter((x) => !part.includes(x));
+  const l = { ...n, photos, photo: photos.length > 0, ...(changeIds ? { mosaiqueAFaire: true } : {}) };
+  ecrire(uid, l);
+  return getItem(uid, lot.id);
+}
+function photoMembre(uid, lot, m) {
+  const ph = photosDe(m)[0], f = ph && fichierPhoto(uid, m.id, ph.id);
+  if (!f || !fs.existsSync(f)) return null;
+  const pid = crypto.randomBytes(4).toString("hex");
+  fs.mkdirSync(path.dirname(fichierPhoto(uid, lot.id, pid)), { recursive: true });
+  fs.copyFileSync(f, fichierPhoto(uid, lot.id, pid));
+  return { id: pid, legende: txt(m.titre, 200), de: m.id };
+}
+function sortirDuLot(uid, lot, m) {
+  const reste = lot.articles.filter((id) => id !== m.id);
+  oterDuLot(m, lot.id); mettreExLots(m, [...exLotsIds(m), lot.id]); ecrire(uid, m);
+  if (reste.length < MIN_LOT) { defaireLot(uid, lot); return { id: lot.id, titre: lot.titre, action: "defait" }; }
+  const avant = champsLot(lot);
+  const theme = lot.theme ? { ...lot.theme, complet: false } : null;
+  const n = recomposer(uid, lot, reste, theme);
+  // sa photo s'en va aussi (les lots d'avant ne notaient pas d'où venait chaque photo : on la reconnaît à sa légende)
+  const ph = photosDe(lot), part = ph.filter((x) => x.de === m.id || (!x.de && x.id !== (ph[0] && ph[0].id) && x.legende === m.titre)).slice(0, 1);
+  for (const x of part) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+  const photos = ph.filter((x) => !part.includes(x));
+  const a = lot.alerte || {};
+  const vendus = [...(a.vendus || []).filter((x) => x.id !== m.id), { id: m.id, titre: m.titre, photo: part.length > 0 }];
+  const { _annonceAJour, _ratio, ...l } = n;
+  ecrire(uid, { ...l, photos, photo: photos.length > 0, alerte: { vendus, annonce: !!a.annonce || !_annonceAJour, avant: a.avant || avant, ancienPrix: a.ancienPrix ?? lot.prixDemande, apres: champsLot(l) } });
+  return { id: lot.id, titre: l.titre, action: "retire", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
+}
+/* Le prix d'un article du lot change : le prix du lot suit (même remise), et l'annonce écrite par l'appli aussi. */
+function suivrePrix(uid, lot, avantArticle) {
+  const anciens = lot.articles.map((id) => (id === avantArticle.id ? avantArticle : getItem(uid, id))).filter(Boolean);
+  const { _annonceAJour, _ratio, ...l } = recomposer(uid, lot, lot.articles, lot.theme, null, anciens);
+  if (l.prixDemande === lot.prixDemande && l.texteAnnonce === lot.texteAnnonce) return null;
+  ecrire(uid, l);
+  return { id: lot.id, titre: l.titre, action: "prix", prix: l.prixDemande, ancienPrix: lot.prixDemande, annonce: _annonceAJour };
+}
+function revenirDansLot(uid, lot, m) {
+  const lid = lot && lot.id;
+  if (!estLot(lot) || VENDU(lot.statut) || lot.articles.includes(m.id) || lot.articles.length >= MAX_LOT) { mettreExLots(m, exLotsIds(m).filter((x) => x !== lid)); ecrire(uid, m); return null; }
+  ajouterAuLot(m, lot.id); ecrire(uid, m);
+  const a = lot.alerte || {}, vendus = (a.vendus || []).filter((x) => x.id !== m.id), dernier = !vendus.length && a.avant;
+  const n = recomposer(uid, lot, [...lot.articles, m.id], lot.theme);
+  const { _annonceAJour, _ratio, ...l } = n;
+  // retour à l'identique (le « Annuler » juste après la vente) : chaque champ que la personne n'a pas touché entre-temps reprend sa valeur d'avant
+  if (dernier && a.apres) for (const k of Object.keys(a.avant)) if (JSON.stringify(lot[k] ?? null) === JSON.stringify(a.apres[k] ?? null)) l[k] = a.avant[k];
+  const ph = photosDe(lot), np = (a.vendus || []).some((x) => x.id === m.id && x.photo) && ph.length < MAX_PHOTOS ? photoMembre(uid, lot, m) : null;
+  const photos = np ? [...ph, np] : ph;
+  if (vendus.length) l.alerte = { ...a, vendus, apres: champsLot(l) }; else delete l.alerte;
+  ecrire(uid, { ...l, photos, photo: photos.length > 0 });
+  return { id: lot.id, titre: l.titre, action: "remis", prix: l.prixDemande };
+}
+/** Défaire un lot : ses articles redeviennent indépendants (un lot vendu laisse ses articles vendus, avec leur part du prix). */
+function defaireLot(uid, lot) {
+  for (const id of lot.articles) { const m = getItem(uid, id); if (m && lotsIds(m).includes(lot.id)) { oterDuLot(m, lot.id); ecrire(uid, m); } }
+  db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(lot.id, uid);
+  for (const x of photosDe(lot)) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+}
+const themeDe = (t) => (t && typeof t === "object" && txt(t.nom, 60) ? { nom: txt(t.nom, 60), type: txt(t.type, 20), complet: t.complet === true } : null);
+
 function savePhoto(uid, id, data, pid = "p0") {
   const f = fichierPhoto(uid, id, pid);
   if (data === "") { fs.rmSync(f, { force: true }); return false; }
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(data));
   if (!m || data.length > ia.MAX_PHOTO) fail(400, "Photo trop lourde ou illisible.");
+  const buf = Buffer.from(m[1], "base64");
+  if (jpegCoupe(buf)) fail(400, "La photo est arrivée incomplète. Réessaie.");
+  // écriture atomique : un fichier temporaire, puis renommé ; jamais de photo à moitié écrite (coupure, disque plein)
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, Buffer.from(m[1], "base64"));
+  const tmp = `${f}.${process.pid}.${Date.now().toString(36)}.tmp`;
+  try { fs.writeFileSync(tmp, buf); fs.renameSync(tmp, f); } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+  return true;
+}
+/** Un JPEG commence par FFD8 et se termine par FFD9 (parfois suivi de quelques octets de remplissage). */
+export function jpegCoupe(buf) {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return false;   // pas un JPEG : rien à vérifier ici
+  for (let i = buf.length - 1; i > 0 && i >= buf.length - 256; i--) if (buf[i] === 0xd9 && buf[i - 1] === 0xff) return false;
   return true;
 }
 
@@ -92,12 +327,12 @@ function needQuota(u) {
   if (q.reste === 0) fail(402, `Tu as utilisé tes ${q.max} articles de ce mois avec la formule ${rights(u).nom}.`, { quota: true });
 }
 /* IA : réservée aux formules payantes. En Découverte, un seul essai, pour un seul jeu (voir essai.mjs). */
-const MSG_ESSAI_FINI = "Tu as profité de ton annonce offerte par l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
+const MSG_ESSAI_FINI = "Tu as profité de ton article offert avec l'IA. Elle t'attend dans toutes les formules payantes, sur tous tes jeux.";
 function iaAllowed(u, kind, req) {
   if (!allow("ia:" + u.id, 40, 600) || !allow("iaip:" + req.ip, 90, 600)) fail(429, "Trop de demandes à l'IA d'un coup, attends quelques minutes.");
   const r = rights(u), us = usageOf(u.id);
   if (r.id === "gratuit") {
-    if (!u.email_ok) fail(403, "Ta première annonce par l'IA est offerte : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
+    if (!u.email_ok) fail(403, "Ton premier article avec l'IA est offert : confirme ton adresse e-mail grâce au lien qu'on t'a envoyé, et c'est parti.", { verif: true });
     const refus = ouvrirEssai(u, req);
     if (refus) fail(402, refus, { ia: true });
     const tot = usageTotal(u.id);
@@ -131,7 +366,8 @@ async function envoyerVerif(uid, email) {
 function bilan(uid) {
   const items = listItems(uid), an = String(new Date().getFullYear());
   const vendus = items.filter((v) => ["vendu", "envoye"].includes(v.statut));
-  const annee = vendus.filter((v) => (v.dateVente || "").startsWith(an));
+  // Seuils de déclaration : seules les ventes passées par une plateforme comptent, pas celles remises en main propre.
+  const annee = vendus.filter((v) => (v.dateVente || "").startsWith(an) && v.remise !== "main_propre");
   const somme = (l) => Math.round(l.reduce((a, v) => a + (v.prixVente || 0), 0) * 100) / 100;
   return {
     objets: items.length, enVente: items.filter((v) => v.statut === "en_vente" || v.statut === "reserve").length,
@@ -143,8 +379,9 @@ function bilan(uid) {
 function me(u) {
   const r = rights(u);
   return {
+    suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
-    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", emailEnAttente: u.email_until > now() ? u.email_new : "",
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -152,7 +389,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "transporteur", "suivi", "livreLe", "lot", "annonce", "annonceEbay", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -163,8 +400,11 @@ function csv(items) {
 const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état.", correct: "État correct.", pieces: "Pour pièces." };
 const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice.", boite_vide: "Boîte seule, sans le jeu." };
 export function annonceLbc(v) {
-  const nom = [v.titre, v.plateforme].filter(Boolean).join(" ");
-  const description = v.texteAnnonce || (v.categorie === "cartes"
+  const film = v.categorie === "films";
+  const nom = film ? [v.titre, formatCourt(v.plateforme), v.edition && v.edition.split(/\s*,\s*/)[0]].filter(Boolean).join(" ") : [v.titre, v.plateforme].filter(Boolean).join(" ");
+  const description = v.texteAnnonce || (film
+    ? [`Film ${v.titre}${v.annee ? ` (${v.annee})` : ""}${v.realisateur ? " de " + v.realisateur : ""}${v.plateforme ? ", en " + v.plateforme : ""}${v.edition ? ", " + editionTexte(v.edition) : ""}.`, v.region ? v.region.replace(/^./, (c) => c.toUpperCase()) + "." : "", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
+    : v.categorie === "cartes"
     ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
     : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
   return {
@@ -172,8 +412,37 @@ export function annonceLbc(v) {
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
-    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, modifie: v.modifie,
+    ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
+    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", urlEbay: v.annonceEbay || "", modifie: v.modifie,
   };
+}
+const annoncePourExtension = (v) => { const a = annonceLbc(v); return { ...a, ebay: annonceEbay(v, a) }; };
+/* Annonce au format eBay (lue par l'extension sur la page de mise en vente eBay) : titre de 80 caractères coupé entre
+   deux mots, état eBay, caractéristiques, description (envoi suivi plutôt que main propre), prix. Même règles que le
+   panneau « Publier sur eBay » de l'appli. */
+const ETAT_EBAY = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État acceptable", pieces: "Pour pièces détachées ou ne fonctionne pas" };
+const CONTENU_EBAY = { seul: "Jeu seul (loose)", boite: "Jeu et boîte, sans notice", complet: "Jeu, boîte et notice (complet)", boite_vide: "Boîte seule" };
+export function titreEbay(t) {
+  t = String(t || "").replace(/\s+/g, " ").trim();
+  if (t.length <= 80) return t;
+  const c = t.slice(0, 81), i = c.lastIndexOf(" ");
+  return (i > 40 ? c.slice(0, i) : c.slice(0, 80)).replace(/[\s,;:–-]+$/, "");
+}
+export function annonceEbay(v, base) {
+  const carte = v.categorie === "cartes", film = v.categorie === "films";
+  const car = (carte ? [["Personnage", v.titre], ["Extension", v.plateforme], ["Numéro", v.numero], ["Rareté", v.rarete], ["Langue", v.region], ["Gradation", v.gradation]]
+    : film ? [["Titre du film", v.titre], ["Format", v.plateforme], ["Édition", v.edition], ["Année", v.annee], ["Réalisateur", v.realisateur], ["Langues et zone", v.region]]
+    : [[v.categorie === "consoles" ? "Modèle" : "Nom du jeu", v.titre], ["Plateforme", v.plateforme], ["Région", v.region], ["Contenu", CONTENU_EBAY[v.contenu]]]).filter((x) => x[1]);
+  return {
+    titre: titreEbay(base.titre), etat: ETAT_EBAY[v.etat] || "", caracteristiques: car.map(([nom, valeur]) => ({ nom, valeur: String(valeur).slice(0, 65) })),
+    description: String(base.description || "").replace(/Remise en main propre ou envoi\.?/, "Envoi soigné et rapide, avec suivi."),
+    prix: base.prix, plancher: base.prix != null ? Math.min(base.prix, ia.rond(base.prix * 0.85, true)) : null,
+  };
+}
+// Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
+function avecContenu(uid, l) {
+  const noms = new Map(listItems(uid).map((v) => [v.id, [v.titre, v.plateforme].filter(Boolean).join(" ")]));
+  return l.map((v) => (estLot(v) ? { ...annoncePourExtension(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annoncePourExtension(v)));
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 
@@ -223,9 +492,9 @@ export async function handleApi(req) {
     const eu = extUser(req);
     if (!eu) return { status: 401, json: { error: "Extension déconnectée : reconnecte-la depuis Mon compte sur retrorevente.fr." }, headers: CORS };
     if (p === "/api/extension/annonces" && method === "GET") {
-      const l = listItems(eu.id).filter((v) => v.statut === "en_vente").map(annonceLbc);
+      const l = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente"));
       const r = rights(eu);
-      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom }, annonces: l }, headers: CORS };
+      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom, vendeur: lireProfil(eu.vendeur) }, annonces: l }, headers: CORS };
     }
     const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
     if (mx && method === "GET") {
@@ -239,24 +508,54 @@ export async function handleApi(req) {
     if (p === "/api/extension/lien" && method === "POST") {
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       if (!it) return { status: 404, json: { error: "Jeu introuvable." }, headers: CORS };
-      let url = ""; try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
-      if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
+      // site : « lbc » (par défaut) ou « ebay » ; chaque article a un lien par site.
+      const ebay = b.site === "ebay", champ = ebay ? "annonceEbay" : "annonce";
+      let url = "";
+      if (ebay) url = lienEbay(b.url);
+      else try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
+      if (!url) return { status: 400, json: { error: ebay ? "Lien d'annonce eBay invalide." : "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
       // Une annonce = un seul jeu : on ne rattache pas un lien déjà pris par un autre jeu.
-      if (listItems(eu.id).some((v) => v.id !== it.id && v.annonce === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
-      if (it.annonce !== url) {
+      if (listItems(eu.id).some((v) => v.id !== it.id && v[champ] === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
+      // Prix lu sur « Mes annonces » de Le Bon Coin (ou eBay) : le prix demandé suit celui de l'annonce en ligne.
+      const px = Number(b.prix), nouveauPrix = Number.isFinite(px) && px >= 1 && px <= 100000 ? Math.round(px) : null;
+      const prixChange = nouveauPrix != null && (it.prixDemande == null || Math.round(it.prixDemande) !== nouveauPrix);
+      if (it[champ] !== url || prixChange) {
         const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
-        d.annonce = url;
+        d[champ] = url;
+        if (prixChange) d.prixDemande = nouveauPrix;
         db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), now(), it.id, eu.id);
       }
-      return { status: 200, json: { ok: true, url }, headers: CORS };
+      return { status: 200, json: { ok: true, url, prix: nouveauPrix != null ? nouveauPrix : (it.prixDemande != null ? Math.round(it.prixDemande) : null), prixChange }, headers: CORS };
     }
-    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
+    /* Vente conclue sur Le Bon Coin (offre acceptée) : les annonces achetées passent en Vendu, le prix réparti au
+       prorata de leur prix. Une annonce-lot fait passer ses jeux en Vendu avec elle. */
+    if (p === "/api/extension/vendu" && method === "POST") {
+      const b = body(), ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).filter((x) => /^[a-f0-9]{16}$/.test(String(x))))].slice(0, 20);
+      const l = ids.map((id) => getItem(eu.id, id)).filter((x) => x && !VENDU(x.statut));
+      if (!l.length) return { status: 400, json: { error: "Aucun article à passer en vendu." }, headers: CORS };
+      const total = prix(b.prix), parts = repartir(total, l);
+      const remise = REMISES.includes(b.remise) ? b.remise : "";
+      const faits = l.map((x, i) => modifierObjet(eu.id, getItem(eu.id, x.id), { objet: { statut: "vendu", prixVente: parts[i] ?? x.prixDemande, ...(remise ? { remise } : {}) } }).objet);
+      return { status: 200, json: { ok: true, vendus: faits.map((o) => ({ id: o.id, titre: o.titre, prixVente: o.prixVente })) }, headers: CORS };
+    }
+    // Caractéristiques eBay de la page « Terminer votre annonce » : valeurs de la fiche, complétées par l'IA.
+    if (p === "/api/extension/specifiques" && method === "POST") {
+      if (!allow("spec:" + eu.id, 60, 600)) return { status: 429, json: { error: "Trop de demandes, réessaie dans un moment." }, headers: CORS };
+      const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
+      if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
+      const a = avecContenu(eu.id, [it])[0];
+      const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
+        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter(Boolean).map((x) => x.titre).filter(Boolean) : [] };
+      const valeurs = await ia.specifiquesEbay(fiche, b.champs);
+      return { status: 200, json: { ok: true, valeurs }, headers: CORS };
+    }
+    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin ou eBay).
     if (p === "/api/extension/reponse" && method === "POST") {
       if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
       try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
-      const tous = listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve").map(annonceLbc);
-      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite });
+      const tous = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve"));
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, site: b.site === "ebay" ? "ebay" : "lbc", profil: lireProfil(eu.vendeur) });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
     }
@@ -292,6 +591,8 @@ function lienLbc(v) {
     const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
     const uid = Number(r.lastInsertRowid), t = createSession(uid);
     if (lbc) db.prepare("UPDATE users SET lbc = ? WHERE id = ?").run(lbc, uid);
+    const pv = normaliserProfil(b.vendeur);
+    if (Object.keys(pv).length) db.prepare("UPDATE users SET vendeur = ? WHERE id = ?").run(JSON.stringify(pv), uid);
     envoyerVerif(uid, email).catch(() => {});
     return ok({ ok: true }, 200, { "Set-Cookie": sessionCookie(t, secure()) });
   }
@@ -351,6 +652,7 @@ function lienLbc(v) {
       maj.pseudo = ps;
     }
     if (b.lbc !== undefined) maj.lbc = lienLbc(b.lbc);
+    if (b.vendeur !== undefined) { const pv = normaliserProfil(b.vendeur); maj.vendeur = Object.keys(pv).length ? JSON.stringify(pv) : ""; }
     if (b.avatar !== undefined) {
       const a = String(b.avatar || "");
       if (a && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a) || a.length > 120000)) fail(400, "Image de profil invalide ou trop lourde.");
@@ -403,7 +705,7 @@ function lienLbc(v) {
   }
 
   /* --- fiches --- */
-  if (p === "/api/objets" && method === "GET") return ok({ objets: listItems(u.id) });
+  if (p === "/api/objets" && method === "GET") { const t = listItems(u.id); if (t.some((x) => estLot(x) && !VENDU(x.statut))) tx(() => t.forEach((x) => { if (estLot(x)) reparerLot(u.id, x); })); return ok({ objets: t.some((x) => estLot(x)) ? listItems(u.id) : t }); }
   if (p === "/api/objets" && method === "POST") {
     const b = body();
     const id = crypto.randomBytes(8).toString("hex");
@@ -423,23 +725,43 @@ function lienLbc(v) {
   const mo = /^\/api\/objets\/([a-f0-9]{16})$/.exec(p);
   if (mo) {
     const avant = getItem(u.id, mo[1]); if (!avant) fail(404, "Article introuvable.");
-    if (method === "PUT") {
-      const b = body(), it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
-      if (typeof b.photo === "string") {
-        const prem = it.photos[0];
-        if (b.photo === "") { if (prem) { savePhoto(u.id, avant.id, "", prem.id); it.photos = it.photos.slice(1); } }
-        else if (prem) savePhoto(u.id, avant.id, b.photo, prem.id);
-        else { savePhoto(u.id, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
-      }
-      it.photo = it.photos.length > 0;
-      db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, u.id);
-      return ok({ ok: true, objet: getItem(u.id, avant.id) });
-    }
+    if (method === "PUT") return ok(modifierObjet(u.id, avant, body()));
     if (method === "DELETE") {
+      if (estLot(avant)) { defaireLot(u.id, avant); return ok({ ok: true }); }
+      const sesLots = lotsDe(u.id, avant), lv = sesLots.find((l) => VENDU(l.statut));
+      if (lv) fail(409, `Cet article est parti avec le lot « ${lv.titre} » : défais le lot avant de le supprimer.`);
+      // supprimé (un doublon, par exemple) : il quitte d'abord ses lots, qui se recalculent
+      if (sesLots.length) tx(() => sesLots.forEach(({ id: lid }) => {
+        const l = getItem(u.id, lid); if (!estLot(l)) return;
+        const reste = l.articles.filter((id) => id !== avant.id);
+        if (reste.length < MIN_LOT) return defaireLot(u.id, l);
+        const { _annonceAJour, _ratio, ...n } = recomposer(u.id, l, reste, l.theme && !reste.some((id) => (getItem(u.id, id) || {}).titre === avant.titre) ? { ...l.theme, complet: false } : l.theme);
+        const ph = photosDe(l), part = ph.filter((x) => x.de === avant.id || (!x.de && x.id !== (ph[0] && ph[0].id) && x.legende === avant.titre)).slice(0, 1);
+        for (const x of part) fs.rmSync(fichierPhoto(u.id, l.id, x.id), { force: true });
+        const photos = ph.filter((x) => !part.includes(x));
+        ecrire(u.id, { ...n, photos, photo: photos.length > 0 });
+      }));
       db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").run(avant.id, u.id);
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
     }
+  }
+  // Suivi des colis : relit l'état chez La Poste des colis envoyés pas encore livrés (au plus une fois par heure chacun,
+  // sauf « force » sur un seul colis), et le fait suivre aux articles d'un lot.
+  if (p === "/api/suivis" && method === "POST") {
+    const b = body(), force = !!b.force, seuls = Array.isArray(b.ids) ? new Set(b.ids.map(String)) : null;
+    const l = listItems(u.id).filter((o) => o.statut === "envoye" && o.suivi && !o.livreLe && suiviAuto(o.transporteur) && !(o.suiviEtat && o.suiviEtat.fini) && (!seuls || seuls.has(o.id)) && (!lotsDe(u.id, o).some((x) => VENDU(x.statut))))
+      .filter((o) => (force && seuls) || !o.suiviEtat || Date.now() - Date.parse(o.suiviEtat.maj || 0) > 3600e3).slice(0, 15);
+    if (l.length && !allow("suivi:" + u.id, 40, 3600)) fail(429, "Suivi déjà relu plusieurs fois, réessaie dans un moment.");
+    const objets = [];
+    for (const o of l) {
+      let e; try { e = await etatLaPoste(o.suivi); } catch (err) { console.error("suivi", err.message); continue; }
+      const suiviEtat = { ...(e || { libelle: "", date: "", livre: false, fini: false }), maj: new Date().toISOString() };
+      const n = { ...o, suiviEtat, ...(suiviEtat.livre && !o.livreLe ? { livreLe: suiviEtat.date || new Date().toISOString().slice(0, 10) } : {}) };
+      tx(() => { ecrire(u.id, n); if (estLot(n)) for (const id of n.articles) { const m = getItem(u.id, id); if (m && VENDU(m.statut)) { poserColis(m, n); ecrire(u.id, m); } } });
+      objets.push(getItem(u.id, o.id));
+    }
+    return ok({ objets, auto: !!process.env.LAPOSTE_API_KEY });
   }
   // Galerie : ajouter, remplacer (retouche) ou retirer une photo
   const mg = /^\/api\/objets\/([a-f0-9]{16})\/photos(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
@@ -461,8 +783,88 @@ function lienLbc(v) {
       photos = liste.filter((x) => x.id !== mg[2]);
     } else fail(405, "Méthode non prise en charge.");
     const { id: _i, cree: _c, modifie: _m, ...data } = avant;
+    // la mosaïque d'un lot vient d'être refaite : elle est à jour
+    if (estLot(avant) && b.photo && /articles du lot/.test(String(b.legende || ""))) delete data.mosaiqueAFaire;
     db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify({ ...data, photos, photo: photos.length > 0 }), now(), avant.id, u.id);
     return ok({ ok: true, objet: getItem(u.id, avant.id) });
+  }
+  /* --- lots --- */
+  if (p === "/api/lots/cote" && method === "POST") {
+    const b = body(), ids = (Array.isArray(b.articles) ? b.articles : []).map(String).filter((x) => ID.test(x)).slice(0, MAX_LOT);
+    return ok({ ok: true, cote: coteLot(ids.map((id) => getItem(u.id, id)).filter(Boolean), themeDe(b.theme)) });
+  }
+  if (p === "/api/lots/suggestions" && method === "POST") {
+    const b = body(), tous = listItems(u.id);
+    // Tous les articles à vendre comptent, même ceux déjà dans un lot (un jeu peut être dans plusieurs lots) ;
+    // on ne repropose pas un lot qui existe déjà avec exactement les mêmes articles.
+    const existants = new Set(tous.filter((l) => estLot(l) && !VENDU(l.statut)).map((l) => [...l.articles].sort().join(",")));
+    const libres = tous.filter((o) => !estLot(o) && !VENDU(o.statut) && o.statut !== "retire");
+    let l, parIa = false;
+    // Les lots déjà créés sont écartés AVANT de garder les 8 premières idées : sinon, une fois les premières idées
+    // devenues des lots, il ne restait plus rien à proposer (« Pas encore d'idée de lot » avec 20 jeux à vendre).
+    if (b.ia && libres.length >= MIN_LOT) { iaAllowed(u, "dialogue", req); l = await ia.suggererLots(libres, existants); bump(u.id, "dialogue"); parIa = true; }
+    else l = suggestionsLocales(libres, 8, existants);
+    const par = new Map(libres.map((o) => [o.id, o]));
+    l = l.filter((x) => !existants.has([...x.articles].sort().join(",")));
+    return ok({ ok: true, ia: parIa, suggestions: l.map((x) => ({ ...x, cote: coteLot(x.articles.map((id) => par.get(id)).filter(Boolean), { nom: x.theme, type: x.type, complet: x.complet }) })) });
+  }
+  if (p === "/api/lots" && method === "POST") {
+    const b = body(), theme = themeDe(b.theme);
+    const id = crypto.randomBytes(8).toString("hex");
+    const lot = tx(() => {
+      const membres = articlesPourLot(u.id, b.articles), r = resumeLot(membres), c = coteLot(membres, theme);
+      const a = annonceLotSimple(membres, c.conseille, theme);
+      const it = { ...nettoyer({ titre: a.titre, categorie: r.categorie, plateforme: r.plateforme, etat: r.etat, prixDemande: c.conseille, titreAnnonce: a.titre, texteAnnonce: a.description, statut: "en_vente" }, null), annonceGeneree: a.description, contenu: "", articles: membres.map((m) => m.id), theme };
+      db.prepare("INSERT INTO items(id, user_id, data, created, updated) VALUES (?, ?, ?, ?, ?)").run(id, u.id, JSON.stringify(it), now(), now());
+      for (const m of membres) { ajouterAuLot(m, id); ecrire(u.id, m); }
+      return it;
+    });
+    // Photos du lot : la mosaïque composée par l'appli en premier, puis la première photo de chaque article.
+    const photos = [];
+    if (typeof b.photo === "string" && b.photo) { try { if (savePhoto(u.id, id, b.photo, "p0")) photos.push({ id: "p0", legende: txt(`Les ${lot.articles.length} articles du lot réunis`, 200) }); } catch (e) { if (!(e instanceof HttpError)) throw e; } }
+    for (const mid of lot.articles) {
+      if (photos.length >= MAX_PHOTOS) break;
+      const m = getItem(u.id, mid), ph = m && photosDe(m)[0], f = ph && fichierPhoto(u.id, m.id, ph.id);
+      if (!f || !fs.existsSync(f)) continue;
+      const pid = photos.length ? crypto.randomBytes(4).toString("hex") : "p0";
+      fs.mkdirSync(path.dirname(fichierPhoto(u.id, id, pid)), { recursive: true });
+      fs.copyFileSync(f, fichierPhoto(u.id, id, pid));
+      photos.push({ id: pid, legende: txt(m.titre, 200), de: m.id });
+    }
+    if (photos.length) ecrire(u.id, { ...getItem(u.id, id), photos, photo: true });
+    return ok({ ok: true, objet: getItem(u.id, id) });
+  }
+  const ml = /^\/api\/lots\/([a-f0-9]{16})(\/annonce)?$/.exec(p);
+  if (ml) {
+    const lot = getItem(u.id, ml[1]); if (!estLot(lot)) fail(404, "Lot introuvable.");
+    if (ml[2] && method === "POST" && body().simple) {
+      // l'annonce de l'appli pour la composition actuelle, sans l'IA (gratuit)
+      const px = prix(body().prixDemande) ?? lot.prixDemande;
+      const a = annonceLotSimple(lot.articles.map((id) => getItem(u.id, id)).filter(Boolean), px, lot.theme);
+      return ok({ ok: true, ...a });
+    }
+    if (ml[2] && method === "POST") {
+      iaAllowed(u, "dialogue", req);
+      const membres = lot.articles.map((id) => getItem(u.id, id)).filter(Boolean);
+      const a = await ia.annonceLot(membres, { theme: lot.theme, prixDemande: body().prixDemande ?? lot.prixDemande });
+      bump(u.id, "dialogue");
+      return ok({ ok: true, ...a });
+    }
+    if (ml[2]) fail(405, "Méthode non prise en charge.");
+    if (method === "DELETE") { defaireLot(u.id, lot); return ok({ ok: true }); }
+    if (method === "PUT") {
+      if (VENDU(lot.statut)) fail(409, "Ce lot est vendu : sa composition ne change plus.");
+      const membres = tx(() => {
+        const l = articlesPourLot(u.id, body().articles), garde = new Set(l.map((m) => m.id));
+        for (const id of lot.articles) if (!garde.has(id)) { const m = getItem(u.id, id); if (m && lotsIds(m).includes(lot.id)) { oterDuLot(m, lot.id); ecrire(u.id, m); } }
+        for (const m of l) if (!lotsIds(m).includes(lot.id)) { ajouterAuLot(m, lot.id); ecrire(u.id, m); }
+        // prix, titre et annonce de l'appli suivent la nouvelle composition
+        const { _annonceAJour, _ratio, ...it } = recomposer(u.id, lot, l.map((m) => m.id), lot.theme);
+        ecrire(u.id, { ...it, mosaiqueAFaire: true });
+        return l;
+      });
+      return ok({ ok: true, objet: getItem(u.id, lot.id), cote: coteLot(membres, lot.theme) });
+    }
   }
   const mp = /^\/api\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
   if (mp && method === "GET") {
@@ -484,7 +886,7 @@ function lienLbc(v) {
   }
 
   /* --- IA --- */
-  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const b = body(); const o = await ia.identifier(b.photo, b.indice === "films" ? "films" : ""); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = [];
     // Avec « flux », l'avancement (photo N/M, jaunissement) est envoyé au fil de l'eau, puis le résultat.
     if (b.flux) return { status: 200, headers: {}, flux: async (envoi) => {
@@ -500,6 +902,13 @@ function lienLbc(v) {
     try { return ok({ ok: true, infos: await infosJeu({ titre: b.titre, plateforme: b.plateforme, ref: b.ref }, ia.traduire) }); }
     catch (e) { console.error("infos jeu", e.message); fail(503, "Les infos du jeu sont momentanément indisponibles."); }
   }
+  // Affiche, images, synopsis, réalisateur, casting et notes d'un film (TMDB, Wikidata ou Wikipédia, gardés en cache).
+  if (p === "/api/film-infos" && method === "POST") {
+    if (!allow("infos:" + u.id, 200, 3600)) fail(429, "Trop de recherches d'infos, réessaie dans un moment.");
+    const b = body();
+    try { return ok({ ok: true, infos: await infosFilm({ titre: b.titre, annee: b.annee, ref: b.ref }) }); }
+    catch (e) { console.error("infos film", e.message); fail(503, "Les infos du film sont momentanément indisponibles."); }
+  }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
   if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {
@@ -508,12 +917,14 @@ function lienLbc(v) {
   }
   if (p === "/api/ia/endroit" && method === "POST") { iaAllowed(u, "cadrer", req); const tr = []; const s = await ia.endroit(body().photo, tr); bump(u.id, "cadrer"); return ok({ ok: true, ...s, ...(isAdmin(u) ? { trace: tr } : {}) }); }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u, "cadrer", req); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
-  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
+  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc" || q === "ebay") bump(u.id, q); return ok({ ok: true }); }
 
   /* --- export --- */
   if (p === "/api/export.csv" && method === "GET") {
     if (!rights(u).export) fail(402, "L'export est inclus dans la formule Collectionneur.");
-    return { status: 200, body: Buffer.from(csv(listItems(u.id))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
+    const tous = listItems(u.id), noms = new Map(tous.filter(estLot).map((l) => [l.id, l.titre]));
+    // les lots n'ont pas de ligne à eux : leurs articles portent chacun sa part du prix, et le nom du lot
+    return { status: 200, body: Buffer.from(csv(tous.filter((o) => !estLot(o)).map((o) => ({ ...o, lot: lotsIds(o).map((id) => noms.get(id)).filter(Boolean).join(" ; ") })))), headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="retrorevente-${new Date().toISOString().slice(0, 10)}.csv"` } };
   }
 
   /* --- paiement --- */
