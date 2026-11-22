@@ -19,6 +19,11 @@ export function effectivePlan(u, at = new Date()) {
 }
 export const rights = (u) => ({ id: effectivePlan(u), ...PLANS[effectivePlan(u)] });
 
+// Couleurs du site (une par formule). Un Collectionneur choisit la sienne dans Mon compte ; les autres formules gardent
+// la couleur de leur formule. « or » (Collectionneur) est la couleur par défaut, enregistrée comme une valeur vide.
+export const TEINTES = ["or", "anis", "menthe", "lilas"];
+export const teinteDe = (u) => (effectivePlan(u) === "collectionneur" && TEINTES.includes(u.teinte) && u.teinte !== "or" ? u.teinte : "");
+
 // Seuils de déclaration des plateformes aux impôts (directive DAC7) : 30 ventes ou 2 000 € sur l'année civile.
 export const SEUIL_VENTES = 30, SEUIL_MONTANT = 2000;
 

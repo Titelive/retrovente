@@ -15,9 +15,9 @@
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/css/polices.css">
-<link rel="stylesheet" href="/css/rr.css?v=18">
-<script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}if(/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.classList.add("co");document.documentElement.classList.add("js")</script>
-<script src="/js/rr.js?v=11" defer></script>
+<link rel="stylesheet" href="/css/rr.css?v=19">
+<script>try{var f=localStorage.getItem("rr-formule");if(/^(vendeur|collectionneur|pass)$/.test(f||"")&&/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.setAttribute("data-formule",f)}catch(e){}try{var c=localStorage.getItem("rr-teinte");if(f==="collectionneur"&&/^(anis|menthe|lilas)$/.test(c||"")&&document.documentElement.getAttribute("data-formule")===f)document.documentElement.setAttribute("data-teinte",c)}catch(e){}try{var t=localStorage.getItem("rr-theme");document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))}catch(e){}try{if(localStorage.getItem("rr-anim")==="off")document.documentElement.classList.add("sans-anim")}catch(e){}if(/(^|;\s*)rr_co=1/.test(document.cookie))document.documentElement.classList.add("co");document.documentElement.classList.add("js")</script>
+<script src="/js/rr.js?v=12" defer></script>
 <style>
 [hidden]{display:none!important}
 body{min-height:100vh;font-size:16px;line-height:1.5}
@@ -637,6 +637,20 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 :root[data-theme="dark"] .interrupteur input:checked+.piste{background:var(--anis)}
 .interrupteur input:checked+.piste::after{transform:translateX(20px)}
 .interrupteur input:focus-visible+.piste{outline:3px solid var(--anis);outline-offset:3px}
+/* couleur du site (Collectionneur) */
+.teintes{padding:10px 0 4px;border-top:1px solid var(--trait);margin-top:8px}
+.teintes-t{margin:0 0 10px}.teintes-t b{display:block;font-size:16px}.teintes-t small{display:block;font-size:13.5px;color:var(--gris);margin-top:2px}
+.teintes-t small a,.teintes-t small button{font:inherit;color:var(--anis-t);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.teintes-l{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:560px){.teintes-l{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.teintes-l button{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border-radius:16px;border:0;background:var(--papier);color:var(--encre);font:600 15px/1.15 var(--texte);text-align:left;cursor:pointer;box-shadow:inset 0 0 0 1.5px var(--trait);transition:box-shadow .25s,transform .25s var(--ease)}
+.teintes-l button i{flex:none;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--t1),var(--t2));box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 6px 14px -6px var(--t2);display:grid;place-items:center;transition:transform .35s var(--ease)}
+.teintes-l button span{min-width:0}.teintes-l button small{display:block;font:500 12px/1.2 var(--texte);color:var(--gris);margin-top:2px}
+.teintes-l button:hover:not(:disabled){transform:translateY(-2px)}.teintes-l button:hover:not(:disabled) i{transform:rotate(-10deg) scale(1.06)}
+.teintes-l button[aria-checked="true"]{box-shadow:inset 0 0 0 2px var(--t2),0 10px 24px -16px var(--t2)}
+.teintes-l button[aria-checked="true"] i::after{content:"";width:14px;height:14px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.3l3 3 6-6.5' fill='none' stroke='%231A1A1A' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat}
+.teintes-l button:disabled{cursor:not-allowed;opacity:.5}
+.teintes-l button:disabled i{filter:saturate(.6)}
 .interrupteur b{display:block;font-size:16px}.interrupteur small{display:block;font-size:13.5px;color:var(--gris);margin-top:2px}
 /* lisibilité : états actifs visibles en sombre, rien ne déborde sur mobile */
 :root[data-theme="dark"] .filtres button[aria-pressed="true"],:root[data-theme="dark"] .onglets button[aria-selected="true"],:root[data-theme="dark"] .bascule button[aria-pressed="true"]{background:var(--anis);color:var(--nuit)}
@@ -674,9 +688,9 @@ button.tps:hover .tps-c,button.tps:focus-visible .tps-c{color:var(--anis)}
 #cTestBt .btn[aria-pressed="true"]{--bg:var(--anis);--fg:var(--nuit)}
 /* habillage selon la formule (voir aussi rr.css) */
 html[data-formule="vendeur"] #quota{box-shadow:inset 0 0 0 1.5px var(--anis)}
-html[data-formule="collectionneur"] #quota{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00}
+html[data-formule="collectionneur"] #quota{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:var(--or-encre)}
 html[data-formule="collectionneur"] #quota b,html[data-formule="pass"] #quota b{color:inherit;font-weight:800}
-html[data-formule="collectionneur"] .chiffres .tps,html[data-formule="collectionneur"] .lbc{box-shadow:inset 0 0 0 2px rgba(247,215,116,.7),0 18px 40px -24px rgba(201,150,43,.6)}
+html[data-formule="collectionneur"] .chiffres .tps,html[data-formule="collectionneur"] .lbc{box-shadow:inset 0 0 0 2px rgba(var(--or-rgb),.7),0 18px 40px -24px rgba(var(--or-f-rgb),.6)}
 html[data-formule="collectionneur"] .chiffres .tps b,html[data-formule="collectionneur"] .tps strong{color:var(--or-1)}
 html[data-formule="pass"] #quota{background:var(--holo);background-size:300% 100%;color:var(--nuit);animation:holo 5s linear infinite}
 html[data-formule="pass"] .chiffres .tps,html[data-formule="pass"] .lbc{box-shadow:inset 0 0 0 2px rgba(185,140,255,.7),0 18px 40px -24px rgba(185,140,255,.6)}
@@ -1630,6 +1644,15 @@ html.sans-anim .vt-b.pousse{animation:none}
     <label class="interrupteur"><input type="checkbox" id="pAnim" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Animations</b><small>Apparitions, transitions et effets. Désactive-les si elles te gênent (réglage gardé sur cet appareil).</small></span></label>
     <label class="interrupteur" id="pDebugZone" hidden><input type="checkbox" id="pDebug" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Menu de débogage</b><small>Affiche le Journal IA (réponses brutes de l'IA, durées, jetons). Réservé aux administrateurs, gardé sur cet appareil.</small></span></label>
     <label class="interrupteur"><input type="checkbox" id="pSombre" role="switch"><span class="piste" aria-hidden="true"></span><span><b>Mode sombre</b><small>Aussi accessible avec le bouton soleil / lune du menu.</small></span></label>
+    <div class="teintes" id="pTeinte">
+      <p class="teintes-t"><b>Couleur du site</b><small id="pTeinteTx"></small></p>
+      <div class="teintes-l" role="radiogroup" aria-label="Couleur du site">
+        <button type="button" role="radio" data-teinte="or" style="--t1:#FFE27A;--t2:#F0A500"><i aria-hidden="true"></i><span>Or<small>Collectionneur</small></span></button>
+        <button type="button" role="radio" data-teinte="anis" style="--t1:#E4FA9C;--t2:#9CCB2A"><i aria-hidden="true"></i><span>Anis<small>Découverte</small></span></button>
+        <button type="button" role="radio" data-teinte="menthe" style="--t1:#9BF7DC;--t2:#18BF8F"><i aria-hidden="true"></i><span>Menthe<small>Vendeur</small></span></button>
+        <button type="button" role="radio" data-teinte="lilas" style="--t1:#D9C8FF;--t2:#A07BFF"><i aria-hidden="true"></i><span>Lilas<small>Pass</small></span></button>
+      </div>
+    </div>
   </section>
   <section class="carte zone" id="cExt">
     <h2>Extension Le Bon Coin</h2>
@@ -3029,7 +3052,7 @@ $("qGo").onclick=function(){var b=this,t=b.textContent;busy(b,true,"Envoi…");
   api("POST",DEM==="resilier"?"/api/resilier":"/api/retractation",{nom:$("qNom").value.trim(),email:$("qEmail").value.trim(),confirmer:true}).then(function(){
     $("dDem").close();busy(b,false,t);toast(DEM==="resilier"?"Résiliation enregistrée. Une confirmation t'a été envoyée par e-mail.":"Rétractation enregistrée. Un accusé de réception t'a été envoyé par e-mail.","ok");
     return api("GET","/api/moi").then(function(j){ME=j;compte()})}).catch(function(e){busy(b,false,t);$("qEtape1").hidden=false;$("qEtape2").hidden=true;$("qErr").textContent=e.message})};
-$("cSortir").onclick=function(){api("POST","/api/deconnexion").then(function(){ME=null;OBJ=[];document.documentElement.removeAttribute("data-formule");try{localStorage.removeItem("rr-formule")}catch(e){}auth()})};
+$("cSortir").onclick=function(){api("POST","/api/deconnexion").then(function(){ME=null;OBJ=[];document.documentElement.removeAttribute("data-formule");document.documentElement.removeAttribute("data-teinte");try{localStorage.removeItem("rr-formule");localStorage.removeItem("rr-teinte")}catch(e){}auth()})};
 $("cMdp").onclick=function(){$("mErr").textContent="";$("mAncien").value=$("mNouveau").value="";$("dMdp").showModal()};
 $("mGo").onclick=function(){api("POST","/api/compte/motdepasse",{ancien:$("mAncien").value,nouveau:$("mNouveau").value}).then(function(){$("dMdp").close();toast("Mot de passe changé.","ok")}).catch(function(e){$("mErr").textContent=e.message})};
 $("cSuppr").onclick=function(){$("sErr").textContent="";$("sMdp").value="";$("dSuppr").showModal()};
@@ -3072,7 +3095,19 @@ function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
 function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
 function profil(){pvForm($("pvCompte"),ME.vendeur);$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
   $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
-  $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark"}
+  $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark";teintes()}
+/* Couleur du site : au choix pour un Collectionneur (enregistrée sur le compte), celle de la formule pour les autres */
+var TEINTE_FORMULE={gratuit:"anis",vendeur:"menthe",collectionneur:"or",pass:"lilas"};
+function teintes(){var fid=(ME.formule&&ME.formule.id)||"gratuit",libre=fid==="collectionneur",cur=libre?(ME.teinte||"or"):TEINTE_FORMULE[fid]||"anis";
+  $("pTeinte").querySelectorAll("[data-teinte]").forEach(function(b){var on=b.dataset.teinte===cur;b.setAttribute("aria-checked",String(on));b.disabled=!libre;b.tabIndex=on?0:-1});
+  $("pTeinteTx").innerHTML=libre?"Avec ta formule Collectionneur, choisis la couleur du site parmi celles de toutes les formules. Gardée sur ton compte, sur tous tes appareils."
+    :"La couleur suit ta formule. Avec la formule Collectionneur, tu choisis celle que tu préfères parmi toutes les formules. <button type=\"button\" data-voir-formules>Voir les formules</button>"}
+function choisirTeinte(t){if(!ME||(ME.formule&&ME.formule.id)!=="collectionneur"||(ME.teinte||"or")===t)return;var avant=ME.teinte||"";
+  ME.teinte=t==="or"?"":t;entete();teintes();   // aperçu immédiat, annulé si l'enregistrement échoue
+  api("POST","/api/compte/profil",{teinte:t}).then(function(m){majMoi(m);toast("Couleur du site enregistrée.","ok")}).catch(function(e){ME.teinte=avant;entete();teintes();erreur(e,"Enregistrement impossible.")})}
+$("pTeinte").addEventListener("click",function(e){var b=e.target.closest("[data-teinte]");if(b&&!b.disabled)choisirTeinte(b.dataset.teinte);if(e.target.closest("[data-voir-formules]")){var f=$("cFormule");f&&f.scrollIntoView({behavior:"smooth",block:"start"})}});
+$("pTeinte").addEventListener("keydown",function(e){var b=e.target.closest("[data-teinte]");if(!b||b.disabled)return;var l=[].slice.call($("pTeinte").querySelectorAll("[data-teinte]")),i=l.indexOf(b),d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];
+  if(!d)return;e.preventDefault();var n=l[(i+d+l.length)%l.length];n.focus();choisirTeinte(n.dataset.teinte)});
 function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
 $("pLbcGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{lbc:$("pLbc").value}).then(function(m){majMoi(m);toast(m.lbc?"Lien Le Bon Coin enregistré.":"Lien Le Bon Coin retiré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le lien")})};
 /* ===== Profil de vendeur ===== */

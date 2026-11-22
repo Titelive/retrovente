@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { db, now, month, bump, usageOf, usageTotal, allow, photoPath, tx } from "./db.mjs";
 import { retoucher } from "./photo.mjs";
 import { hashPass, checkPass, validEmail, createSession, sessionCookie, currentUser, endSession, endAllSessions, makeReset, useReset, sendMail, createExtKey, extUser, endExtKeys, countExtKeys } from "./auth.mjs";
-import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION } from "./plans.mjs";
+import { rights, isAdmin, PLANS, SEUIL_VENTES, SEUIL_MONTANT, CGV_VERSION, TEINTES, teinteDe } from "./plans.mjs";
 import * as ia from "./ia.mjs";
 import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
@@ -396,7 +396,7 @@ function me(u) {
   return {
     suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
-    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), emailEnAttente: u.email_until > now() ? u.email_new : "",
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), teinte: teinteDe(u), emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -560,7 +560,8 @@ export async function handleApi(req) {
       if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
       const a = avecContenu(eu.id, [it])[0];
       const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
-        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter(Boolean).map((x) => x.titre).filter(Boolean) : [] };
+        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter((x) => x && x.categorie === "jeux").map((x) => x.titre).filter(Boolean) : [],
+        nbArticles: estLot(it) ? it.articles.length : 1 };
       const valeurs = await ia.specifiquesEbay(fiche, b.champs);
       return { status: 200, json: { ok: true, valeurs }, headers: CORS };
     }
@@ -667,6 +668,11 @@ function lienLbc(v) {
       maj.pseudo = ps;
     }
     if (b.lbc !== undefined) maj.lbc = lienLbc(b.lbc);
+    if (b.teinte !== undefined) {
+      if (rights(u).id !== "collectionneur") fail(403, "Le choix de la couleur du site est réservé à la formule Collectionneur.");
+      if (!TEINTES.includes(b.teinte)) fail(400, "Couleur inconnue.");
+      maj.teinte = b.teinte === "or" ? "" : b.teinte;
+    }
     if (b.vendeur !== undefined) { const pv = normaliserProfil(b.vendeur); maj.vendeur = Object.keys(pv).length ? JSON.stringify(pv) : ""; }
     if (b.avatar !== undefined) {
       const a = String(b.avatar || "");
