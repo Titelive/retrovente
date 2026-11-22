@@ -95,7 +95,8 @@ test("IA simulée : identifier et cote comptent pour le temps gagné", async () 
   const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
   assert.equal(r.json.objet.plateforme, "Nintendo 64");
   const k = await call("POST", "/api/ia/cote", { objet: r.json.objet }, c);
-  assert.equal(k.json.cote.conseille, 49);
+  assert.equal(k.json.cote.conseille, 53);   // vente probable 48 € (médiane pondérée) + 10 %, sous l'annonce concurrente à 60 €
+  assert.ok(k.json.cote.conseille < 60 && k.json.cote.rapide < k.json.cote.probable);
   assert.equal((await call("POST", "/api/ia/identifier", { photo: "pas une image" }, c)).status !== 200, true);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.usage.identifier, 1); assert.equal(moi.json.usage.cote, 1);
