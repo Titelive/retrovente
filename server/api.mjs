@@ -560,7 +560,8 @@ export async function handleApi(req) {
       if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
       const a = avecContenu(eu.id, [it])[0];
       const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
-        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter(Boolean).map((x) => x.titre).filter(Boolean) : [] };
+        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter((x) => x && x.categorie === "jeux").map((x) => x.titre).filter(Boolean) : [],
+        nbArticles: estLot(it) ? it.articles.length : 1 };
       const valeurs = await ia.specifiquesEbay(fiche, b.champs);
       return { status: 200, json: { ok: true, valeurs }, headers: CORS };
     }

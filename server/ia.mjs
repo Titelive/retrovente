@@ -1179,6 +1179,8 @@ export async function traduire(texte) {
    Les valeurs sûres viennent de la fiche ; l'IA complète le reste (éditeur, genre, année, classification…)
    et laisse vide ce qu'elle ne sait pas. Pour un lot : valeurs communes à ses articles (même plateforme, même éditeur). */
 const nomSpec = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// « Lot de 11 jeux » : seuls les jeux comptent (11 jeux + 1 accessoire), sinon « Lot de N articles ».
+const nomLot = (f) => { const j = Array.isArray(f.jeux) ? f.jeux.length : 0, n = f.nbArticles || (f.contient || []).length; return j > 1 ? `Lot de ${j} jeux` : `Lot de ${n} articles`; };
 export function specifiquesSurs(fiche = {}, champs = []) {
   const lot = Array.isArray(fiche.contient) && fiche.contient.length > 1;
   const sur = {};
@@ -1186,10 +1188,10 @@ export function specifiquesSurs(fiche = {}, champs = []) {
     const n = nomSpec(c.nom);
     let v = "";
     if (/^(plateforme|plate forme|platform)/.test(n)) v = fiche.plateforme || "";
-    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? `Lot de ${(fiche.jeux && fiche.jeux.length) || fiche.contient.length} jeux` : fiche.nom || "";   // obligatoire chez eBay : pour un lot, « Lot de N jeux », jamais un jeu précis
+    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? nomLot(fiche) : fiche.nom || "";   // obligatoire chez eBay : pour un lot, « Lot de N jeux », jamais un jeu précis
     else if (/^(modele|model)$/.test(n) && fiche.categorie === "consoles") v = fiche.nom || "";
     else if (/^(code (de )?region|region)/.test(n)) v = /pal/i.test(fiche.region || "") ? "PAL" : /ntsc.?j|japon/i.test(fiche.region || "") ? "NTSC-J" : /ntsc/i.test(fiche.region || "") ? "NTSC-U/C" : "";
-    else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot && fiche.contient ? String(fiche.contient.length) : "";
+    else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot ? String(fiche.nbArticles || (fiche.contient || []).length) : "";
     else if (/^(unite de mesure|unit type)/.test(n)) v = lot ? "Unité" : "";
     if (Array.isArray(v)) { const l = v.map((x) => txt(x, 65)).filter(Boolean); if (l.length) sur[c.nom] = l; }
     else if (v) sur[c.nom] = String(v).slice(0, 65);
