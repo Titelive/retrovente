@@ -1115,3 +1115,52 @@ export async function traduire(texte) {
   const o = await claude(`Traduis en français ce résumé d'un jeu vidéo, fidèlement, sans rien ajouter ni retirer, dans un français naturel. Garde les noms propres (personnages, lieux, titres) tels qu'ils sont connus en France. Réponds uniquement par un objet JSON {"texte": "..."}.\n\n${t}`, { max: 2500, effort: "low" });
   return o && typeof o.texte === "string" ? txt(o.texte, 3000) : "";
 }
+
+/* Caractéristiques eBay (« Plateforme », « Éditeur », « Genre », « Année de sortie »…) : l'extension envoie les
+   champs de la page (libellé, obligatoire, valeurs que propose eBay) et reçoit une valeur pour chacun.
+   Les valeurs sûres viennent de la fiche ; l'IA complète le reste (éditeur, genre, année, classification…)
+   et laisse vide ce qu'elle ne sait pas. Pour un lot : valeurs communes à ses articles (même plateforme, même éditeur). */
+const nomSpec = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+export function specifiquesSurs(fiche = {}, champs = []) {
+  const lot = Array.isArray(fiche.contient) && fiche.contient.length > 1;
+  const sur = {};
+  for (const c of champs) {
+    const n = nomSpec(c.nom);
+    let v = "";
+    if (/^(plateforme|plate forme|platform)/.test(n)) v = fiche.plateforme || "";
+    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? (Array.isArray(fiche.jeux) && fiche.jeux.length ? (c.multiple ? fiche.jeux.slice(0, 30) : fiche.jeux[0]) : "") : fiche.nom || "";
+    else if (/^(modele|model)$/.test(n) && fiche.categorie === "consoles") v = fiche.nom || "";
+    else if (/^(code (de )?region|region)/.test(n)) v = /pal/i.test(fiche.region || "") ? "PAL" : /ntsc.?j|japon/i.test(fiche.region || "") ? "NTSC-J" : /ntsc/i.test(fiche.region || "") ? "NTSC-U/C" : "";
+    else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot && fiche.contient ? String(fiche.contient.length) : "";
+    else if (/^(unite de mesure|unit type)/.test(n)) v = lot ? "Unité" : "";
+    if (Array.isArray(v)) { const l = v.map((x) => txt(x, 65)).filter(Boolean); if (l.length) sur[c.nom] = l; }
+    else if (v) sur[c.nom] = String(v).slice(0, 65);
+  }
+  return sur;
+}
+export async function specifiquesEbay(fiche = {}, champs = []) {
+  champs = (Array.isArray(champs) ? champs : []).slice(0, 40).map((c) => ({ nom: txt(c && c.nom, 60), obligatoire: !!(c && c.obligatoire), multiple: !!(c && c.multiple), suggestions: (Array.isArray(c && c.suggestions) ? c.suggestions : []).slice(0, 12).map((s) => txt(s, 60)).filter(Boolean) })).filter((c) => c.nom);
+  const sur = specifiquesSurs(fiche, champs);
+  const reste = champs.filter((c) => !sur[c.nom]);
+  if (!reste.length || FAKE()) return sur;
+  const lot = Array.isArray(fiche.contient) && fiche.contient.length > 1;
+  const o = await claude(`Tu remplis les caractéristiques d'une annonce eBay France pour un particulier qui vend ${lot ? "un LOT" : "un article"} de jeu vidéo rétro.
+Article : ${txt(fiche.titre, 200)}${fiche.plateforme ? ` ; plateforme : ${txt(fiche.plateforme, 60)}` : ""}${fiche.region ? ` ; région : ${txt(fiche.region, 40)}` : ""}${fiche.contenu ? ` ; contenu : ${txt(fiche.contenu, 60)}` : ""}${fiche.annee ? ` ; année : ${txt(fiche.annee, 10)}` : ""}
+${lot ? `Le lot contient :\n${fiche.contient.slice(0, 40).map((x) => "- " + txt(x, 120)).join("\n")}\n` : ""}${fiche.description ? `Description : ${txt(fiche.description, 1200)}\n` : ""}
+Champs à remplir (libellé ; valeurs que propose eBay entre crochets) :
+${reste.map((c) => `- ${c.nom}${c.obligatoire ? " (obligatoire)" : ""}${c.multiple ? " (plusieurs valeurs possibles)" : ""}${c.suggestions.length ? " [" + c.suggestions.join(", ") + "]" : ""}`).join("\n")}
+
+Règles :
+- Donne une valeur seulement si tu en es sûr d'après l'article et tes connaissances du jeu (éditeur, genre, année de sortie européenne, classification PEGI).
+- Préfère exactement une des valeurs proposées par eBay quand l'une convient. Écris en français, comme sur eBay.fr.
+- Pour un lot : une valeur commune à tous ses articles (par ex. l'éditeur seulement s'il est le même pour tous) ; pour « Nom du jeu vidéo », mets les noms des jeux du lot (liste) si le champ accepte plusieurs valeurs, sinon le plus connu.
+- Laisse de côté les champs que tu ne peux pas remplir avec certitude (numéro de pièce, EAN, poids…).
+Réponds uniquement par un objet JSON {"Libellé exact du champ": "valeur" ou ["valeur", …]}.`, { max: 2000, effort: "low" }).catch(() => null);
+  const out = { ...sur };
+  if (o && typeof o === "object") for (const c of reste) {
+    const v = o[c.nom];
+    if (Array.isArray(v)) { const l = v.map((x) => txt(x, 65)).filter(Boolean).slice(0, 30); if (l.length) out[c.nom] = c.multiple ? l : l[0]; }
+    else if (typeof v === "string" || typeof v === "number") { const s = txt(v, 65); if (s) out[c.nom] = s; }
+  }
+  return out;
+}

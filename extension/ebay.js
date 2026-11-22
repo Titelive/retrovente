@@ -513,7 +513,7 @@
     journal.push(new Date().toTimeString().slice(0, 8) + " · " + t + (c ? " · valeur " + (c.value || "").length + " car." : "")); if (journal.length > 80) journal.shift();
     try { sessionStorage.setItem("rrEbayJournal", JSON.stringify(journal)); } catch (e) {}
   }
-  document.addEventListener("input", function (e) { if (e.isTrusted && e.target && e.target.tagName === "INPUT" && !(hote && hote.contains(e.target))) personneATape = true; }, true);
+  document.addEventListener("input", function (e) { if (e.isTrusted && e instanceof InputEvent && e.target && e.target.tagName === "INPUT" && !(hote && hote.contains(e.target))) personneATape = true; }, true);
   // Le titre doit rester dans le champ : si la page le vide (rechargement du composant, nouveau champ…), on le retape,
   // jusqu'à 5 fois en 15 s, tant que la personne n'a rien tapé elle-même.
   function garder(a) {
@@ -589,6 +589,13 @@
     } else l.push("Champ : introuvable");
     l.push("", "Champs texte visibles :");
     [].forEach.call(document.querySelectorAll("input, textarea, [contenteditable=true], [role=combobox]"), function (x) { if (visibleEl(x)) l.push("  " + nettoie(x)); });
+    if (mode() === "formulaire") {
+      l.push("", "Caractéristiques :");
+      attributsPage().forEach(function (c) { var g = ligneAttribut(c.bouton); l.push("  " + c.nom + (c.obligatoire ? " (obligatoire)" : "") + (c.multiple ? " (multiple)" : "") + " · bouton " + nettoie(c.bouton).slice(0, 250) + " · ligne <" + g.tagName.toLowerCase() + "." + String(g.className || "").trim().split(/\s+/).slice(0, 3).join(".") + "> " + (g.innerText || "").replace(/\s+/g, " ").slice(0, 120)); });
+      var z = zoneDescription(); l.push("Description : " + (z ? (z.ownerDocument !== document ? "iframe · " : "") + nettoie(z).slice(0, 250) : "introuvable"));
+      [].forEach.call(document.querySelectorAll("iframe"), function (f) { if (visibleEl(f)) l.push("  iframe " + nettoie(f).slice(0, 200)); });
+      [].forEach.call(document.querySelectorAll("[contenteditable]"), function (f) { if (visibleEl(f)) l.push("  éditable " + nettoie(f).slice(0, 200)); });
+    }
     l.push("", "Journal :"); l = l.concat(journal.length ? journal : ["  (vide)"]);
     return l.join("\n");
   }
@@ -643,19 +650,144 @@
     });
     return n > 0;
   }
+  // Description : éditeur riche d'eBay (iframe ou zone éditable créée par la page), ou zone de texte en mode HTML.
+  // eBay y met d'office le titre : on le remplace ; un texte plus long écrit par la personne est gardé.
+  function zoneDescription() {
+    var t = champs("textarea", /description/)[0]; if (t) return t;
+    var zones = [].filter.call(document.querySelectorAll("[contenteditable]:not([contenteditable=false])"), function (x) { return visibleEl(x) && !(x.parentElement && x.parentElement.closest("[contenteditable]:not([contenteditable=false])")); });
+    [].forEach.call(document.querySelectorAll("iframe"), function (f) { try { var d = f.contentDocument; if (d && d.body && (d.body.isContentEditable || d.designMode === "on") && visibleEl(f)) zones.push(d.body); } catch (e) {} });
+    var parle = function (x) { var f = x.ownerDocument !== document ? x.ownerDocument.defaultView.frameElement : x; for (var z = f, i = 0; z && i < 7; i++, z = z.parentElement) { var tx = decrire(z, true) + " " + texteDe(z).slice(0, 300); if (/description/.test(tx)) return true; } return false; };
+    return zones.filter(parle)[0] || (zones.length === 1 ? zones[0] : null);
+  }
   function remplirDescription(a) {
     if (!a.ebay.description || depot.faits.desc === a.id) return depot.lignes.desc;
-    var t = champs("textarea", /description/)[0];
-    if (t) { poser(t, a.ebay.description); depot.faits.desc = a.id; return true; }
-    var zones = [].slice.call(document.querySelectorAll("[contenteditable=''], [contenteditable=true]"));
-    [].forEach.call(document.querySelectorAll("iframe"), function (f) { try { var d = f.contentDocument; if (d && (d.body.isContentEditable || d.designMode === "on")) zones.push(d.body); } catch (e) {} });
-    var z = zones.filter(function (x) { return x.ownerDocument !== document || (visibleEl(x) && /description/.test(decrire(x) + " " + norm((x.closest("section, fieldset, [role=group]") || {}).innerText || "").slice(0, 200))); })[0];
-    if (!z) return false;
+    var z = zoneDescription(); if (!z) return false;
     depot.faits.desc = a.id;
-    if ((z.innerText || "").trim().length > 10) return true;   // texte déjà écrit : on n'y touche pas
-    z.innerHTML = a.ebay.description.split("\n").map(function (l) { var p = document.createElement("p"); p.textContent = l; return p.outerHTML; }).join("");
-    z.dispatchEvent(new Event("input", { bubbles: true }));
+    var texte = a.ebay.description, deja = z.tagName === "TEXTAREA" ? norm(z.value) : texteDe(z), premiere = norm(texte.split("\n")[0]).slice(0, 60);
+    if (premiere && deja.indexOf(premiere) >= 0) return true;          // déjà remplie
+    if (deja.length > 150) return true;                                // texte de la personne : on n'y touche pas
+    if (z.tagName === "TEXTAREA") { ecrireValeur(z, texte); z.blur(); return true; }
+    var d = z.ownerDocument, html = texte.split("\n").map(function (l) { var p = d.createElement("p"); p.textContent = l; return l ? p.outerHTML : "<p><br></p>"; }).join("");
+    z.focus(); var ok = false;
+    try { var sel = d.getSelection(), r = d.createRange(); r.selectNodeContents(z); sel.removeAllRanges(); sel.addRange(r); ok = d.execCommand("insertHTML", false, html); } catch (e) {}
+    if (!ok || texteDe(z).indexOf(premiere) < 0) { z.innerHTML = html; z.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" })); }
+    z.dispatchEvent(new Event("change", { bubbles: true })); z.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
+    try { z.blur(); d.defaultView.frameElement && d.defaultView.frameElement.blur(); } catch (e) {}
     return true;
+  }
+  /* ===== Caractéristiques de « Terminer votre annonce » (Plateforme, Nom du jeu vidéo, Éditeur, Genre…) =====
+     Chaque caractéristique est un bouton (name="attributes.<Libellé>") qui ouvre un menu : un champ « Recherchez/ajoutez
+     des détails », des cases (choix multiple) ou des boutons (choix simple), et « Ajouter une valeur personnalisée ».
+     Les valeurs « Fréquentes » sont aussi des boutons sous le champ. Les valeurs viennent de RetroRevente (fiche + IA). */
+  var PAS_CLIC = /mettre en vente|publier|list it|soumettre|submit|acheter|payer|supprimer|delete|effacer|clear/;
+  function texteDe(x) { return norm((x && (x.innerText || x.textContent)) || ""); }
+  function cliquer(x) {
+    if (!x || PAS_CLIC.test(norm([x.getAttribute("aria-label"), x.textContent].join(" ")))) return false;
+    try { x.scrollIntoView({ block: "center" }); } catch (e) {}
+    ["pointerdown", "mousedown", "pointerup", "mouseup"].forEach(function (t) { x.dispatchEvent(new (t.indexOf("pointer") === 0 && window.PointerEvent ? PointerEvent : MouseEvent)(t, { bubbles: true, cancelable: true, view: window })); });
+    x.click(); return true;
+  }
+  // Modèle de la page (JSON dans les <script>) : libellé, obligatoire, choix multiple, valeurs fréquentes.
+  function modeleAttributs() {
+    var l = {}, re = /"name":"attributes\.([^"]{1,60})"([^]{0,4000}?)"attributeName"/g;
+    [].forEach.call(document.querySelectorAll("script:not([src])"), function (s) {
+      var t = s.textContent; if (t.indexOf("\"attributes.") < 0) return;
+      var m; re.lastIndex = 0;
+      while ((m = re.exec(t))) {
+        var c = m[2], fr = /"frequentlySelectedOptions":\[([^\]]*)\]/.exec(t.slice(m.index, m.index + 60000));
+        l[m[1]] = { nom: m[1], obligatoire: /"groups":\["REQUIRED"/.test(c), multiple: /"multiSelectEnabled":true/.test(c),
+          suggestions: fr ? (fr[1].match(/"value":"([^"]{1,60})"/g) || []).map(function (v) { return v.slice(9, -1); }) : [] };
+      }
+    });
+    return l;
+  }
+  // Le bouton d'une caractéristique, et sa ligne (libellé, bouton, valeurs fréquentes).
+  function boutonAttribut(nom) {
+    var x = [].filter.call(document.querySelectorAll("[name]"), function (e) { return e.getAttribute("name") === "attributes." + nom && visibleEl(e); })[0];
+    if (x) return x.matches("input[type=hidden]") ? null : x;
+    // Sinon : le libellé, puis le premier bouton à menu qui le suit dans sa ligne.
+    var lib = [].filter.call(document.querySelectorAll("label, button, span, div, a"), function (e) { return e.children.length <= 1 && texteDe(e) === norm(nom) && visibleEl(e) && !(hote && hote.contains(e)); })[0];
+    for (var z = lib && lib.parentElement, i = 0; z && i < 5; i++, z = z.parentElement) {
+      var b = z.querySelector("[aria-haspopup], [aria-expanded], [role=combobox]"); if (b && b !== lib && visibleEl(b)) return b;
+    }
+    return null;
+  }
+  function ligneAttribut(b) {
+    for (var z = b.parentElement, i = 0; z && i < 6; i++, z = z.parentElement) { if (z.querySelectorAll("[name^='attributes.']").length > 1 || texteDe(z).length > 400) break; if (/frequ/.test(texteDe(z)) || i >= 3) return z; }
+    return b.parentElement;
+  }
+  function attributsPage() {
+    var mod = modeleAttributs(), noms = Object.keys(mod);
+    [].forEach.call(document.querySelectorAll("[name^='attributes.']"), function (e) { var n = e.getAttribute("name").slice(11); if (noms.indexOf(n) < 0) { noms.push(n); mod[n] = { nom: n, suggestions: [] }; } });
+    return noms.map(function (n) { var b = boutonAttribut(n); return b ? Object.assign({}, mod[n], { bouton: b }) : null; }).filter(Boolean);
+  }
+  function valeurAttribut(c) {
+    var t = texteDe(c.bouton).replace(new RegExp("^" + norm(c.nom).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "").trim();
+    if (c.bouton.matches("input, select")) t = norm(c.bouton.value);
+    return /^[-–—\s]*$/.test(t) ? "" : t;
+  }
+  async function attendre(f, ms) { for (var t = 0; t < (ms || 2000); t += 100) { var r = f(); if (r) return r; await pause(100); } return null; }
+  function champMenu() {
+    return [].filter.call(document.querySelectorAll("input[type=text], input[type=search], input:not([type])"), function (x) {
+      return visibleEl(x) && /recherch|ajoute|search|add/.test(norm([x.placeholder, x.getAttribute("aria-label")].join(" "))) && !/dites-nous|vendez/.test(norm(x.placeholder));
+    })[0];
+  }
+  function optionMenu(boite, v) {
+    var n = norm(v), l = [].filter.call(boite.querySelectorAll("[role=option], [role=menuitem], [role=menuitemradio], [role=menuitemcheckbox], label, button, li"), function (x) { return visibleEl(x) && !(hote && hote.contains(x)); });
+    return l.filter(function (x) { return texteDe(x) === n; })[0] || l.filter(function (x) { var t = texteDe(x); return t.indexOf(n) === 0 && t.length - n.length <= 3; })[0];
+  }
+  async function choisirValeur(c, v) {
+    // 1. Une valeur « Fréquentes » qui correspond : un clic suffit.
+    var ligne = ligneAttribut(c.bouton);
+    var vite = [].filter.call(ligne.querySelectorAll("button, a, [role=button]"), function (x) { return x !== c.bouton && !c.bouton.contains(x) && visibleEl(x) && texteDe(x) === norm(v); })[0];
+    if (vite) { cliquer(vite); await pause(400); return true; }
+    // 2. Le menu : on cherche la valeur, on la coche, sinon on l'ajoute comme valeur personnalisée.
+    cliquer(c.bouton);
+    var champ = await attendre(champMenu, 2500);
+    var boite = champ; for (var i = 0; boite && i < 6 && !(boite.querySelectorAll("button, label, [role=option], li").length > 2); i++) boite = boite.parentElement;
+    boite = boite || document.body;
+    var o = optionMenu(boite, v);
+    if (!o && champ) { await taperLettres(champ, v); o = await attendre(function () { return optionMenu(boite, v); }, 1500); }
+    var ok = false;
+    if (o) { var cb = o.querySelector("input[type=checkbox], input[type=radio]"); if (!(cb && cb.checked)) cliquer(cb || o); ok = true; }
+    else {
+      var aj = [].filter.call(boite.querySelectorAll("button, [role=button], [role=option], li"), function (x) { return visibleEl(x) && /ajouter|add/.test(texteDe(x)); })[0];
+      if (aj) { cliquer(aj); ok = true; } else if (champ) { entree(champ); ok = true; }
+    }
+    await pause(400);
+    // Fermer le menu : « Terminé » / « Appliquer » s'il y en a, sinon Échap.
+    var fin = [].filter.call(boite.querySelectorAll("button"), function (x) { return visibleEl(x) && /^(termine|appliquer|ok|valider|done|apply)$/.test(texteDe(x)); })[0];
+    if (fin) cliquer(fin);
+    else { var cible = champ || document.activeElement || document.body; ["keydown", "keyup"].forEach(function (t) { cible.dispatchEvent(new KeyboardEvent(t, { key: "Escape", code: "Escape", keyCode: 27, bubbles: true })); }); }
+    await pause(300);
+    return ok;
+  }
+  var specCache = {};
+  async function remplirSpecifiques(a) {
+    if (depot.faits.carac === a.id) return depot.lignes.carac;
+    var l = attributsPage();
+    if (!l.length) return false;
+    depot.faits.carac = a.id;
+    var vides = l.filter(function (c) { return !valeurAttribut(c); });
+    noter("caractéristiques : " + l.length + " (vides : " + vides.length + ")");
+    if (!vides.length) return true;
+    var r = specCache[a.id] || (specCache[a.id] = rrDemander({ type: "specifiques", annonce: a.id, champs: vides.map(function (c) { return { nom: c.nom, obligatoire: !!c.obligatoire, multiple: !!c.multiple, suggestions: c.suggestions || [] }; }) }));
+    var vals = {}; try { vals = ((await r) || {}).valeurs || {}; } catch (e) { delete specCache[a.id]; noter("caractéristiques : " + e.message); depot.faits.carac = ""; return false; }
+    var n = 0;
+    for (var i = 0; i < vides.length; i++) {
+      var c = vides[i], v = vals[c.nom]; if (v == null || v === "") continue;
+      var b = boutonAttribut(c.nom); if (!b) continue; c.bouton = b;
+      var liste = (Array.isArray(v) ? v : [v]).slice(0, c.multiple ? 30 : 1);
+      for (var j = 0; j < liste.length; j++) { try { if (await choisirValeur(c, String(liste[j]))) n++; } catch (e) { noter("caractéristique « " + c.nom + " » : " + e.message); } }
+      noter("caractéristique « " + c.nom + " » : " + liste.join(", "));
+    }
+    return n > 0 || vides.every(function (c) { return !c.obligatoire; });
+  }
+  // L'état sur « Terminer votre annonce » : déjà choisi à l'étape d'avant, il s'affiche en texte sous « État de l'objet ».
+  function etatDejaChoisi(a) {
+    var cible = norm(a.ebay.etat), cibles = ETAT_SYN[cible] || [cible];
+    var t = norm((document.body && document.body.innerText) || ""), i = t.indexOf("etat de l'objet");
+    return i >= 0 && cibles.some(function (c) { var k = t.indexOf(c, i); return k >= 0 && k - i < 80; });
   }
   async function remplirPhotos(a) {
     if (!a.photo || depot.faits.photos === a.id) return depot.lignes.photos;
@@ -680,10 +812,11 @@
       if (titre) fait("titre", poser(titre, a.ebay.titre));
       if (a.ebay.prix != null) { var px = champs("input:not([type=checkbox]):not([type=radio]):not([type=hidden])", /prix|price|achat immediat|buy it now/, /livraison|shipping|envoi|minimum|refus|accept|offre|offer|reserve|depart|start/, true)[0]; if (px) fait("prix", poser(px, String(a.ebay.prix))); }
       if (a.ebay.plancher != null) { var pl = champs("input:not([type=checkbox]):not([type=radio]):not([type=hidden])", /refus|decline|minimum/, /livraison|shipping/, true)[0]; if (pl) fait("offres", poser(pl, String(a.ebay.plancher))); }
-      fait("etat", choisirEtat(a));
-      fait("carac", remplirCarac(a));
+      fait("etat", choisirEtat(a) || etatDejaChoisi(a));
       fait("desc", remplirDescription(a));
       fait("photos", await remplirPhotos(a).catch(function () { return false; }));
+      var rc = remplirCarac(a); dessinerDepot();
+      fait("carac", await remplirSpecifiques(a).catch(function (e) { noter("caractéristiques : " + e.message); return false; }) || rc);
     } finally { enCours = false; dessinerDepot(); }
   }
   async function articleDepot() {
@@ -704,11 +837,39 @@
         // « Confirmer les informations » : l'état de l'objet, dans la fenêtre qui suit le choix de l'objet.
         if (/etat de l.objet|condition/.test(norm((document.body && document.body.innerText) || "").slice(0, 20000)) && choisirEtat(a)) {
           fait("etat", true); noter("état choisi : " + a.ebay.etat);
-          bulle("État « " + a.ebay.etat + " » choisi : vérifie, puis clique « Continuer la mise en vente ».");
         }
+        avancer(a);
       } else await remplirFormulaire(a);
     }
     dessinerDepot();
+  }
+  /* Étapes entre la recherche et le formulaire, cliquées toutes seules : « Continuer sans correspondance » (aucun
+     produit du catalogue choisi : le titre reste le nôtre), puis « Continuer la mise en vente » une fois l'état coché.
+     Jamais « Mettre en vente » : la publication reste à la personne. Une fois par article et par bouton. */
+  var SUIVANT = [
+    { cle: "suite", re: /^continuer la mise en vente$|^continuer$|^suivant$|^continue( to listing)?$|^next$/, pret: function (a) { return depot.lignes.etat || !a.ebay.etat || !document.querySelector("input[type=radio]"); } },
+    { cle: "sans", re: /continuer sans (correspondance|selectionner|choisir|produit)|je ne trouve pas|aucune correspondance|ne figure pas|continue without/, pret: function () { return true; } }];
+  var minuterieAvancer = null;
+  function avancer(a) {
+    if (minuterieAvancer) return;   // un essai déjà prévu
+    minuterieAvancer = setTimeout(function () {
+      minuterieAvancer = null;
+      if (mode() !== "prelist" || personneATape) return;
+      var cherche = ""; try { cherche = sessionStorage.getItem("rrEbayCherche") || ""; } catch (e) {}
+      if (cherche !== a.id || /\/suggest/.test(location.pathname)) return;   // la recherche d'abord
+      var deja = {}; try { deja = JSON.parse(sessionStorage.getItem("rrEbayClics") || "{}"); } catch (e) {}
+      var boutons = [].filter.call(document.querySelectorAll("button, a[role=button], [role=button], input[type=submit]"), function (x) { return visibleEl(x) && !x.disabled && x.getAttribute("aria-disabled") !== "true"; });
+      for (var i = 0; i < SUIVANT.length; i++) {
+        var s = SUIVANT[i], k = a.id + ":" + s.cle + ":" + location.pathname;
+        if (deja[k] || !s.pret(a)) continue;
+        var b = boutons.filter(function (x) { var t = texteDe(x) || norm(x.value); return s.re.test(t) && !PAS_CLIC.test(t); })[0];
+        if (!b) continue;
+        deja[k] = 1; try { sessionStorage.setItem("rrEbayClics", JSON.stringify(deja)); } catch (e) {}
+        noter("clic : « " + (b.innerText || b.value || "").trim() + " »"); cliquer(b);
+        setTimeout(function () { if (mode() === "prelist") remplirDepot(); }, 1500);   // fenêtre ouverte par le clic
+        return;
+      }
+    }, 1200);
   }
   var LIGNES = [["titre", "Titre"], ["etat", "État"], ["carac", "Caractéristiques"], ["prix", "Prix"], ["offres", "Refus des offres trop basses"], ["desc", "Description"], ["photos", "Photos"]];
   function dessinerDepot() {
@@ -730,7 +891,7 @@
       });
       p.appendChild(l);
       if (depot.manque) p.appendChild(el("p", { class: "s bad", texte: depot.manque }));
-      p.appendChild(el("p", { class: "s ok", texte: mode() === "prelist" ? "Choisis l'objet qui correspond (ou continue sans), puis l'état : RetroRevente remplira le formulaire." : "Relis chaque champ, ajoute ce qui manque, puis clique toi-même « Mettre en vente »." }));
+      p.appendChild(el("p", { class: "s ok", texte: mode() === "prelist" ? "RetroRevente lance la recherche, coche l'état et passe aux étapes suivantes tout seul." : "Tout est rempli automatiquement. Relis, puis clique toi-même « Mettre en vente »." }));
 
     } else p.appendChild(el("p", { class: "s", texte: "Choisis l'article : RetroRevente tape son titre, puis remplit le formulaire d'eBay." }));
     p.appendChild(el("div", { class: "outils" }, [

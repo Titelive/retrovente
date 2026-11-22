@@ -728,3 +728,13 @@ test("photos : JPEG incomplet refusé, écriture sans fichier temporaire laissé
   const tous = fs.readdirSync(dossier, { recursive: true }).map(String);
   assert.deepEqual(tous.filter((f) => f.endsWith(".tmp")), []);
 });
+
+test("caractéristiques eBay : valeurs sûres tirées de la fiche (lot compris)", async () => {
+  const { specifiquesSurs } = await import("../server/ia.mjs");
+  const champs = [{ nom: "Plateforme", multiple: true }, { nom: "Nom du jeu vidéo", multiple: true }, { nom: "Éditeur" }, { nom: "Code de région" }, { nom: "Quantité unitaire" }];
+  const seul = specifiquesSurs({ nom: "Kirby 64", plateforme: "Nintendo 64", region: "PAL" }, champs);
+  assert.deepEqual(seul, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Kirby 64", "Code de région": "PAL" });
+  const lot = specifiquesSurs({ nom: "Lot de 2 jeux", plateforme: "Nintendo 64", contient: ["a", "b"], jeux: ["Zelda", "Conker"] }, champs);
+  assert.deepEqual(lot, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": ["Zelda", "Conker"], "Quantité unitaire": "2" });
+  assert.equal(specifiquesSurs({ contient: ["a", "b"], jeux: ["Zelda", "Conker"] }, [{ nom: "Nom du jeu vidéo" }])["Nom du jeu vidéo"], "Zelda");
+});
