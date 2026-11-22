@@ -147,7 +147,7 @@
     "button,textarea,select{font:inherit;color:inherit}" +
     ".rond{position:relative;width:58px;height:58px;padding:0;border-radius:15px;border:0;background:transparent;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.28);transition:transform .25s var(--ease)}" +
     ".rond img{display:block;width:58px;height:58px;border-radius:15px}.rond:hover{transform:translateY(-2px) rotate(-4deg)}" +
-    ".rond i{position:absolute;right:-6px;top:-6px;font:800 10.5px/1 var(--titre);font-style:normal;background:var(--ebay);color:#fff;border-radius:999px;padding:4px 6px;box-shadow:0 0 0 2px var(--carte)}" +
+    ".rond i{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);font:800 10.5px/1 var(--titre);font-style:normal;background:var(--ebay);color:#fff;border-radius:999px;padding:4px 6px;box-shadow:0 0 0 2px var(--carte)}" +
     ".p{width:380px;max-width:calc(100vw - 36px);max-height:calc(100vh - 36px);overflow:auto;background:var(--carte);border-radius:26px;box-shadow:0 18px 50px rgba(0,0,0,.3);padding:18px;display:flex;flex-direction:column;gap:12px;animation:monte .3s var(--ease)}" +
     "@keyframes monte{from{opacity:0;transform:translateY(10px) scale(.98)}}" +
     ".t{display:flex;align-items:center;justify-content:space-between;gap:8px}.t b{font:700 17px/1 var(--titre);letter-spacing:-.3px;display:flex;align-items:center;gap:8px}" +
@@ -607,6 +607,27 @@
   }
   // Bouton de secours au-dessus du champ, à droite (les suggestions d'eBay s'ouvrent dessous) : « Remplir avec RetroRevente ».
   var secours = null;
+  // Bouton rond fermé : s'il touche un élément fixe d'eBay (flèche « haut de page »…), il se décale à gauche de celui-ci.
+  function eviterFixes() {
+    var b = ombre && ombre.querySelector(".b"); if (!b) return;
+    if (ouvert && ombre.querySelector(".p")) { b.style.right = ""; return; }
+    b.style.right = "";
+    var r = b.getBoundingClientRect(); if (!r.width) return;
+    // Éléments sous le bouton (et 8 px autour), puis leur ancêtre fixe : peu coûteux, même sur une grosse page.
+    var gene = [], pts = [[r.left - 8, r.top - 8], [r.right - 2, r.top - 8], [r.left + r.width / 2, r.top - 4], [r.left - 8, r.bottom - 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 2, r.bottom - 2]];
+    pts.forEach(function (pt) {
+      document.elementsFromPoint(pt[0], pt[1]).forEach(function (x) {
+        if (x === hote || (secours && x === secours.hote()) || x === document.body || x === document.documentElement) return;
+        for (var z = x, i = 0; z && z !== document.body && i < 6; i++, z = z.parentElement) {
+          var st = getComputedStyle(z);
+          if (st.position === "fixed") { var q = z.getBoundingClientRect(); if (q.width < 200 && q.height < 200 && gene.indexOf(z) < 0) gene.push(z); break; }
+        }
+      });
+    });
+    if (!gene.length) return;
+    var gauche = Math.min.apply(null, gene.map(function (x) { return x.getBoundingClientRect().left; }));
+    b.style.right = Math.max(18, Math.round(innerWidth - gauche + 12)) + "px";
+  }
   function placerSecours() {
     if (!secours) secours = rrBoutonRemplir(clicSecours, "retrorevente-ebay-remplir", function () { return ombre && ombre.querySelector(".p, .rond"); });
     secours.placer(mode() === "prelist" ? champPrelist() : null);
@@ -737,6 +758,8 @@
     return l.filter(function (x) { return texteDe(x) === n; })[0] || l.filter(function (x) { var t = texteDe(x); return t.indexOf(n) === 0 && t.length - n.length <= 3; })[0];
   }
   async function choisirValeur(c, v) {
+    // Champ texte libre (« Quantité unitaire ») : on tape la valeur.
+    if (c.bouton.matches("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea")) { await taperLettres(c.bouton, v); c.bouton.dispatchEvent(new Event("change", { bubbles: true })); c.bouton.blur(); return true; }
     // 1. Une valeur « Fréquentes » qui correspond : un clic suffit.
     var ligne = ligneAttribut(c.bouton);
     var vite = [].filter.call(ligne.querySelectorAll("button, a, [role=button]"), function (x) { return x !== c.bouton && !c.bouton.contains(x) && visibleEl(x) && texteDe(x) === norm(v); })[0];
@@ -930,5 +953,5 @@
     if (l.every(function (x) { return (hote && (x.target === hote || hote.contains(x.target))) || (secours && x.target === secours.hote()); })) return;
     clearTimeout(minuterie); minuterie = setTimeout(suivre, 1500);
   }).observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else placerSecours(); }, 1000);
+  setInterval(function () { if (location.pathname + location.search !== vu || (mode() === "prelist" && !vu)) suivre(); else placerSecours(); eviterFixes(); }, 1000);
 })();

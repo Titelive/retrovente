@@ -1145,7 +1145,7 @@ export function specifiquesSurs(fiche = {}, champs = []) {
     const n = nomSpec(c.nom);
     let v = "";
     if (/^(plateforme|plate forme|platform)/.test(n)) v = fiche.plateforme || "";
-    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? (Array.isArray(fiche.jeux) && fiche.jeux.length ? (c.multiple ? fiche.jeux.slice(0, 30) : fiche.jeux[0]) : "") : fiche.nom || "";
+    else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? "" : fiche.nom || "";   // un lot n'a pas de nom de jeu
     else if (/^(modele|model)$/.test(n) && fiche.categorie === "consoles") v = fiche.nom || "";
     else if (/^(code (de )?region|region)/.test(n)) v = /pal/i.test(fiche.region || "") ? "PAL" : /ntsc.?j|japon/i.test(fiche.region || "") ? "NTSC-J" : /ntsc/i.test(fiche.region || "") ? "NTSC-U/C" : "";
     else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot && fiche.contient ? String(fiche.contient.length) : "";
@@ -1159,8 +1159,10 @@ export async function specifiquesEbay(fiche = {}, champs = []) {
   champs = (Array.isArray(champs) ? champs : []).slice(0, 40).map((c) => ({ nom: txt(c && c.nom, 60), obligatoire: !!(c && c.obligatoire), multiple: !!(c && c.multiple), suggestions: (Array.isArray(c && c.suggestions) ? c.suggestions : []).slice(0, 12).map((s) => txt(s, 60)).filter(Boolean) })).filter((c) => c.nom);
   const sur = specifiquesSurs(fiche, champs);
   const reste = champs.filter((c) => !sur[c.nom]);
-  if (!reste.length || FAKE()) return sur;
   const lot = Array.isArray(fiche.contient) && fiche.contient.length > 1;
+  // Lot : seulement ce qui vaut pour tout le lot (plateforme, région, quantité). Rien de propre à un jeu
+  // (nom, éditeur, genre, année, classification, série…) : on ne demande rien à l'IA.
+  if (!reste.length || lot || FAKE()) return sur;
   const o = await claude(`Tu remplis les caractéristiques d'une annonce eBay France pour un particulier qui vend ${lot ? "un LOT" : "un article"} de jeu vidéo rétro.
 Article : ${txt(fiche.titre, 200)}${fiche.plateforme ? ` ; plateforme : ${txt(fiche.plateforme, 60)}` : ""}${fiche.region ? ` ; région : ${txt(fiche.region, 40)}` : ""}${fiche.contenu ? ` ; contenu : ${txt(fiche.contenu, 60)}` : ""}${fiche.annee ? ` ; année : ${txt(fiche.annee, 10)}` : ""}
 ${lot ? `Le lot contient :\n${fiche.contient.slice(0, 40).map((x) => "- " + txt(x, 120)).join("\n")}\n` : ""}${fiche.description ? `Description : ${txt(fiche.description, 1200)}\n` : ""}
@@ -1170,7 +1172,6 @@ ${reste.map((c) => `- ${c.nom}${c.obligatoire ? " (obligatoire)" : ""}${c.multip
 Règles :
 - Donne une valeur seulement si tu en es sûr d'après l'article et tes connaissances du jeu (éditeur, genre, année de sortie européenne, classification PEGI).
 - Préfère exactement une des valeurs proposées par eBay quand l'une convient. Écris en français, comme sur eBay.fr.
-- Pour un lot : une valeur commune à tous ses articles (par ex. l'éditeur seulement s'il est le même pour tous) ; pour « Nom du jeu vidéo », mets les noms des jeux du lot (liste) si le champ accepte plusieurs valeurs, sinon le plus connu.
 - Laisse de côté les champs que tu ne peux pas remplir avec certitude (numéro de pièce, EAN, poids…).
 Réponds uniquement par un objet JSON {"Libellé exact du champ": "valeur" ou ["valeur", …]}.`, { max: 2000, effort: "low" }).catch(() => null);
   const out = { ...sur };
