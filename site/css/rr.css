@@ -323,6 +323,7 @@ html.sans-anim .badge-formule,html.sans-anim .lecture{animation:none}
 /* Accents écrits en dur dans les SVG (traits, remplissages) : ils suivent aussi la couleur de la formule */
 svg[stroke="#D4F57A" i],svg [stroke="#D4F57A" i]{stroke:var(--anis)}
 svg[fill="#D4F57A" i],svg [fill="#D4F57A" i]{fill:var(--anis)}
-/* Menu : jamais sur deux lignes ; sur les écrans moyens, on retire les petites icônes pour faire de la place */
+/* Menu : jamais sur deux lignes ; sur les écrans moyens, les icônes restent et le menu se resserre pour faire de la place */
 .nav-liens a{white-space:nowrap}
-@media(min-width:1021px) and (max-width:1360px){.nav-liens a:not(.nav-cta) .i{display:none}.nav-liens a{padding:10px 10px}}
+@media(min-width:1021px) and (max-width:1360px){.nav-liens{gap:0}.nav-liens a{gap:6px;padding:10px 8px;font-size:14.5px}.nav-liens a .i{width:16px;height:16px}.nav-liens .nav-cta{margin-left:4px;padding:11px 14px}.nav .wrap{gap:10px}}
+@media(min-width:1021px) and (max-width:1120px){.nav-liens a{padding:10px 6px;font-size:14px}.nav-liens a.nav-moi .badge-formule{display:none}}

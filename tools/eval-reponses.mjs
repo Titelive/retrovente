@@ -25,6 +25,7 @@ const differentes = { nom: "3 réponses vraiment différentes", ok: (r, c) => {
 } };
 const COMMUNS = [sans(/Garnier|Moselle/, "pas de prénom inventé ni « Moselle »"), sans(/merci pour votre (message|retour)/i, "pas de « merci pour votre message »"), sans(/texte fourni|transmis|consigne/i, "pas de méta")];
 
+const AUTRES_LOT = [{ id: "a1", nom: "Lot Star Wars : 2 jeux Nintendo 64", titre: "Lot Star Wars : 2 jeux Nintendo 64", prix: 30, etat: "tres_bon", contient: ["Star Wars Rogue Squadron Nintendo 64", "Star Wars Episode I Racer Nintendo 64"] }, { id: "a2", nom: "Rayman 2 The Great Escape", titre: "Rayman 2 The Great Escape Nintendo 64 PAL loose", prix: 25, etat: "tres_bon", contenu: "seul" }];
 const CAS = [
   { nom: "FoodLab + consigne « Aucun souci, je suis en vacances »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\n${M2}`),
     contexte: { acheteur: "carter054", consigne: "Aucun souci, je suis en vacances, ahah", mesMessages: [R1] },
@@ -38,12 +39,28 @@ const CAS = [
   { nom: "Consigne de refus : « non c'est 20 pas moins »", conversation: conv(`${M1}\nAujourd'hui\n${R1}\nil y a 12 min\nC'est votre dernier prix ? 15 € ?\nil y a 1 min`),
     contexte: { acheteur: "carter054", consigne: "non c'est 20 pas moins", mesMessages: [R1] },
     verifs: [avec(/20/, "garde 20 €"), sans(/\b15 ?€.{0,20}(ok|d'accord|ça marche|va pour)/i, "n'accepte pas 15 €"), differentes] },
+  { nom: "Lot de 2 à 57 €, offre de 55 € (« ces trois jeux »)", annonce: {},
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nMembre depuis mai 2017\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nVous avez 48 heures pour accepter.\nil y a 2 min - Message automatique leboncoin\nrebonjour\nil y a 1 min\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min\nVoir l'offre\nEnvoyer",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57 }, mesMessages: [] },
+    verifs: [sans(/Grand Theft|GTA/i, "pas de jeu inventé"), sans(/pas (3|trois)\b|(2|deux) articles,? pas/i, "ne corrige pas « trois jeux »")] },
+  { nom: "Lot de 2 annonces = 3 jeux (dont un lot Star Wars)", annonce: {}, autres: AUTRES_LOT,
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 2 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 1 min",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
+    verifs: [sans(/\b(2|deux) jeux,? pas (3|trois)|pas (3|trois) jeux|seulement (2|deux) jeux/i, "ne corrige pas « trois jeux »"), sans(/Conker|Grand Theft/i, "pas d'autre jeu")] },
+  { nom: "Offre presque insultante : 200 € pour un lot à 330 €", annonce: { titre: "Lot Rareware : 7 jeux Nintendo 64", plateforme: "Nintendo 64", categorie: "jeux", prix: 330, etat: "tres_bon", description: "Lot Rareware : 7 jeux Nintendo 64 : Donkey Kong 64, Banjo-Kazooie, Banjo-Tooie, GoldenEye 007, Perfect Dark, Jet Force Gemini, Diddy Kong Racing." },
+    conversation: "[Annonce concernée]\nJram76100\n5 (315)\nLot Rareware : 7 jeux Nintendo 64\n330 €\n\n[Conversation]\nÀ propos de cet acheteur\nSeine-Maritime\nAujourd'hui\nOffre reçue\nVoici l'offre de Jram76100 : 200 €.\nVous avez 48 heures pour accepter.\nil y a 16 min - Message automatique leboncoin",
+    contexte: { acheteur: "Jram76100", offre: 200, mesMessages: [] },
+    verifs: [{ nom: "aucun prix entre 200 et 319 €", ok: (r) => r.reponses.every((x) => !(x.texte.match(/\d{3}(?= ?€)/g) || []).some((n) => +n > 200 && +n < 320)) }, sans(/76100 76100/, "pseudo pas doublé"), sans(/\baccept/i, "n'accepte pas")] },
+  { nom: "Vente conclue (« Vendu ! ») : confirmer l'envoi", annonce: {}, autres: AUTRES_LOT,
+    conversation: "[Annonce concernée]\nVolzenki\n5 (51)\nLot de 2 articles\n57 €\n\n[Conversation]\nÀ propos de cet acheteur\nEssonne\nAujourd'hui\nOffre reçue\nVoici l'offre de Volzenki : 55 €.\nil y a 20 min - Message automatique leboncoin\nje voudrai vous acheter ces trois jeux pour 55€\nil y a 15 min\nVendu !\nVous avez accepté l'offre de Volzenki. Expédiez le colis sous 5 jours.\nil y a 1 min - Message automatique leboncoin",
+    contexte: { acheteur: "Volzenki", offre: 55, lot: { n: 2, prix: 57, articles: ["Lot Star Wars : 2 jeux Nintendo 64", "Rayman 2 The Great Escape Nintendo 64 PAL loose"] }, mesMessages: [] },
+    verifs: [sans(/contre|plancher|je peux (vous )?(le |les )?faire à|dernier prix|négoci/i, "ne négocie plus"), avec(/envo|exp[ée]di|colis|emball|part/i, "confirme l'envoi")] },
 ];
 
 let echecs = 0;
 for (const c of CAS) {
   let r;
-  try { r = await repondre(c.conversation, PD, [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
+  try { r = await repondre(c.conversation, c.annonce || PD, c.autres || [], c.contexte); } catch (e) { console.log(`\n✗ ${c.nom} : erreur ${e.message}`); echecs++; continue; }
   console.log(`\n=== ${c.nom}\nRésumé : ${r.resume}`);
   r.reponses.forEach((x, i) => console.log(`  ${i + 1}. [${x.approche}] ${x.texte}`));
   for (const v of [...c.verifs, ...COMMUNS]) { const ok = v.ok(r, c); if (!ok) echecs++; console.log(`  ${ok ? "✓" : "✗"} ${v.nom}`); }

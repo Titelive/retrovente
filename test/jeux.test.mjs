@@ -39,6 +39,7 @@ test("le bon jeu sur la bonne console, avec jaquette, captures, notes et texte W
   const i = await infosJeu({ titre: "Super Mario 64 (PAL)", plateforme: "Nintendo 64" });
   assert.equal(i.ref, 1074);
   assert.equal(i.annee, 1996);
+  assert.deepEqual(i.genres, ["Plateforme"]);
   assert.equal(i.studio, "Nintendo EAD");
   assert.match(i.jaquette.petite, /t_cover_big\/co1\.jpg$/);
   assert.equal(i.captures.length, 2);
@@ -74,4 +75,11 @@ test("nom européen : Lylat Wars trouve Star Fox 64, pas le fan game", async () 
 
 test("descriptif coupé en fin de phrase", () => {
   assert.equal(couper("Une phrase. Deux phrases un peu plus longues.", 22), "Une phrase.");
+});
+
+test("genres en français, nom japonais retiré du descriptif", async () => {
+  const { enFrancais } = await import("../server/jeux.mjs");
+  const v = enFrancais({ genres: ["Quiz/Trivia", "Card & Board Game", "Platform"], description: "Mario Party (マリオパーティ, Mario Pāti) est un jeu vidéo." });
+  assert.deepEqual(v.genres, ["Quiz", "Jeu de société", "Plateforme"]);
+  assert.equal(v.description, "Mario Party est un jeu vidéo.");
 });

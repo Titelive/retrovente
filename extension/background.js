@@ -1,5 +1,5 @@
 // Arrière-plan : seul endroit qui parle à retrorevente.fr, avec la clé de l'extension (lecture seule des annonces).
-// Ne contacte jamais Le Bon Coin.
+// Ne contacte jamais Le Bon Coin ni eBay.
 var RR = globalThis.browser || globalThis.chrome;
 var SERVEUR = "https://retrorevente.fr";
 var SERVEURS_OK = /^(https:\/\/retrorevente\.fr|http:\/\/(127\.0\.0\.1|localhost)(:\d+)?)$/;
@@ -91,11 +91,19 @@ var ACTIONS = {
     return { type: r.headers.get("content-type") || "image/jpeg", base64: base64(await r.arrayBuffer()) };
   },
   reponse: async function (m) {
-    var r = await appel("/api/extension/reponse", { method: "POST", headers: await entetes(), body: JSON.stringify({ annonce: m.annonce || "", conversation: String(m.conversation || "").slice(-5000), lot: m.lot || null, offre: m.offre || null, acheteur: String(m.acheteur || "").slice(0, 40), consigne: String(m.consigne || "").slice(0, 400), suite: !!m.suite, precedentes: Array.isArray(m.precedentes) ? m.precedentes.slice(0, 3).map(function (x) { return String(x || "").slice(0, 500); }) : [], mesMessages: Array.isArray(m.mesMessages) ? m.mesMessages.slice(-4).map(function (x) { return String(x || "").slice(0, 600); }) : [] }) });
+    var r = await appel("/api/extension/reponse", { method: "POST", headers: await entetes(), body: JSON.stringify({ site: m.site === "ebay" ? "ebay" : "lbc", annonce: m.annonce || "", conversation: String(m.conversation || "").slice(-5000), lot: m.lot || null, offre: m.offre || null, acheteur: String(m.acheteur || "").slice(0, 40), consigne: String(m.consigne || "").slice(0, 400), suite: !!m.suite, precedentes: Array.isArray(m.precedentes) ? m.precedentes.slice(0, 3).map(function (x) { return String(x || "").slice(0, 500); }) : [], mesMessages: Array.isArray(m.mesMessages) ? m.mesMessages.slice(-4).map(function (x) { return String(x || "").slice(0, 600); }) : [] }) });
     return r.json();
   },
   lien: async function (m) {
-    var r = await appel("/api/extension/lien", { method: "POST", headers: await entetes(), body: JSON.stringify({ annonce: m.annonce, url: m.url, prix: m.prix || null }) });
+    var r = await appel("/api/extension/lien", { method: "POST", headers: await entetes(), body: JSON.stringify({ site: m.site === "ebay" ? "ebay" : "lbc", annonce: m.annonce, url: m.url, prix: m.prix || null }) });
+    return r.json();
+  },
+  specifiques: async function (m) {
+    var r = await appel("/api/extension/specifiques", { method: "POST", headers: await entetes(), body: JSON.stringify({ annonce: m.annonce, champs: m.champs || [] }) });
+    return r.json();
+  },
+  vendu: async function (m) {
+    var r = await appel("/api/extension/vendu", { method: "POST", headers: await entetes(), body: JSON.stringify({ ids: m.ids || [], prix: m.prix || null, remise: m.remise || "" }) });
     return r.json();
   },
   rempli: async function () { await appel("/api/extension/rempli", { method: "POST" }); return { ok: true }; },
