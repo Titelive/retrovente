@@ -12,6 +12,7 @@ import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
+import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 import { normaliserProfil, lireProfil } from "./profil.mjs";
 
@@ -34,6 +35,11 @@ function nettoyer(v, avant) {
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
+  const remise = parmi(v.remise, REMISES, "");
+  // Le colis (vendu ou envoyé, pas en main propre) : transporteur, numéro de suivi, date de livraison, dernier état lu.
+  const colis = ["vendu", "envoye"].includes(statut) && remise !== "main_propre";
+  const suivi = colis ? numeroSuivi(v.suivi) : "", transporteur = colis ? parmi(v.transporteur, IDS_TRANSPORTEURS, "") || devinerTransporteur(suivi) : "";
+  const memeColis = avant && suivi && avant.suivi === suivi && avant.transporteur === transporteur;
   return {
     titre,
     categorie,
@@ -47,9 +53,10 @@ function nettoyer(v, avant) {
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
     dateVente: ["vendu", "envoye"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
-    remise: parmi(v.remise, REMISES, ""),
+    remise, transporteur, suivi, livreLe: colis ? jour(v.livreLe) : "",
+    ...(memeColis && avant.suiviEtat ? { suiviEtat: avant.suiviEtat } : {}),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
-    annonce: lien(v.annonce), notes: txt(v.notes, 1000),
+    annonce: lien(v.annonce), annonceEbay: ebayOuErreur(v.annonceEbay), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
     cote: ia.coteDe(v.cote),
     // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
@@ -64,6 +71,24 @@ function nettoyer(v, avant) {
     ...(lotsIds(avant).length ? { lots: lotsIds(avant) } : {}),
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
   };
+}
+/* Lien d'une annonce eBay : https://www.ebay.fr/itm/<numéro> (ou ebay.com, .be, .ch…), ramené à sa forme courte.
+   Tout autre lien est refusé (chaîne vide). */
+export function lienEbay(v) {
+  const t = txt(v, 500);
+  if (!t) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : "https://" + t);
+    if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.port) return "";
+    if (!/^(www\.|m\.)?ebay\.(fr|com|be|ch|ca|de|it|es|co\.uk)$/i.test(u.hostname)) return "";
+    const m = /^\/itm\/(?:[^/]+\/)?(\d{9,15})\/?$/.exec(u.pathname) || (/^\/itm\/?$/.test(u.pathname) && /^\d{9,15}$/.test(u.searchParams.get("item") || "") ? [0, u.searchParams.get("item")] : null);
+    return m ? `https://www.${u.hostname.replace(/^(www|m)\./i, "").toLowerCase()}/itm/${m[1]}` : "";
+  } catch (e) { return ""; }
+}
+function ebayOuErreur(v) {
+  const l = lienEbay(v);
+  if (!l && txt(v, 500)) fail(400, "Lien eBay invalide : colle l'adresse de l'annonce, par exemple https://www.ebay.fr/itm/123456789012");
+  return l;
 }
 /* Galerie : item.photos = [{ id, legende }] dans l'ordre d'affichage. « p0 » est la photo historique (fichier <objet>.jpg). */
 export const MAX_PHOTOS = 12;
@@ -117,7 +142,7 @@ function modifierObjet(uid, avant, b) {
   const it = nettoyer({ ...avant, ...(b.objet || {}) }, avant);
   const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
   // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
-  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; }
+  if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
   if (estLot(avant) && b.fermerAlerte) delete it.alerte;
   if (typeof b.photo === "string") {
     const prem = it.photos[0];
@@ -137,18 +162,21 @@ function modifierObjet(uid, avant, b) {
   // pour un article : « lot » = le premier lot touché (ancienne réponse), « lots » = tous
   return ({ ok: true, objet: getItem(uid, avant.id), ...(lots.length && !estLot(it) ? { lot: lots[0], lots } : {}), ...(lots.length && estLot(it) ? { autresLots: lots } : {}) });
 }
+/** Le colis d'un lot vendu part avec tous ses articles : ils en portent le suivi. */
+const colisDe = (o) => ({ transporteur: o.transporteur || "", suivi: o.suivi || "", livreLe: o.livreLe || "", ...(o.suiviEtat ? { suiviEtat: o.suiviEtat } : {}) });
+const poserColis = (m, lot) => { delete m.suiviEtat; Object.assign(m, colisDe(lot)); };
 /** Lot vendu : ses articles passent en vendu, le prix et les frais se partagent au prorata de leur valeur.
     Lot remis en vente après une vente : ses articles redeviennent à vendre. Le reste du temps, chaque article garde
     son propre statut : il reste en vente à l'unité tant que le lot n'est pas vendu.
     Les articles du lot vendu quittent les autres lots où ils étaient ; ils y reviennent si la vente du lot est annulée. */
 function suivreLot(uid, lot, avant) {
   const vendu = VENDU(lot.statut), etaitVendu = !!(avant && VENDU(avant.statut));
-  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente))) return [];
+  if (vendu === etaitVendu && !(vendu && avant && (avant.prixVente !== lot.prixVente || avant.frais !== lot.frais || avant.dateVente !== lot.dateVente || avant.statut !== lot.statut || avant.remise !== lot.remise || JSON.stringify(colisDe(avant)) !== JSON.stringify(colisDe(lot))))) return [];
   const membres = lot.articles.map((id) => getItem(uid, id)).filter(Boolean);
   const px = vendu ? repartir(lot.prixVente ?? lot.prixDemande, membres) : [], fr = vendu && lot.frais != null ? repartir(lot.frais, membres) : [];
   membres.forEach((m, i) => {
-    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; }
-    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; }
+    if (vendu) { m.statut = lot.statut; m.dateVente = lot.dateVente; m.prixVente = px[i]; m.frais = fr.length ? fr[i] : null; m.remise = lot.remise; poserColis(m, lot); }
+    else { m.statut = "en_vente"; m.dateVente = ""; m.prixVente = null; m.frais = null; m.remise = ""; poserColis(m, {}); }
     ecrire(uid, m);
   });
   const autres = [];
@@ -176,7 +204,8 @@ function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id)
   const c0 = coteLot(anciens, lot.theme), c1 = coteLot(nouveaux, theme);
   let prixDemande = lot.prixDemande == null ? c1.conseille : c0.conseille && c1.conseille ? Math.max(1, rondLot(lot.prixDemande * c1.conseille / c0.conseille)) : lot.prixDemande;
   // le lot était moins cher que ses articles à l'unité : il le reste après l'arrondi
-  if (c1.somme && prixDemande >= c1.somme && lot.prixDemande != null && c0.somme && lot.prixDemande < c0.somme) prixDemande = c1.conseille;
+  // un lot ne coûte jamais plus que ses articles à l'unité
+  if (c1.somme && prixDemande >= c1.somme && c1.conseille) prixDemande = c1.conseille;
   const neuf = annonceLotSimple(nouveaux, prixDemande, theme);
   // L'annonce est « de l'appli » si c'est la dernière qu'elle a écrite (annonceGeneree), celle qu'elle écrirait pour
   // l'ancienne composition, ou (lots d'avant annonceGeneree) une annonce au format de l'appli : « Lot … : » puis une
@@ -189,6 +218,28 @@ function recomposer(uid, lot, ids, theme, ratio, anciens = lot.articles.map((id)
     ...(annonceAuto ? { texteAnnonce: neuf.description, annonceGeneree: neuf.description, titreAnnonce: lot.titreAnnonce === auto.titre || !lot.titreAnnonce || formatAppli(lot.titreAnnonce, lot.texteAnnonce) ? neuf.titre : lot.titreAnnonce } : {}),
     _annonceAJour: annonceAuto, _ratio: ratio,
   };
+}
+/** Les lignes « - … » d'une annonce au format de l'appli (une par article), dans l'ordre alphabétique. */
+const lignesArticles = (t) => String(t || "").split("\n").filter((x) => /^- /.test(x)).sort();
+/* Remet d'aplomb un lot en vente dont la composition a été abîmée par une ancienne version (article supprimé resté
+   dans le lot, même article compté deux fois) ou dont l'annonce de l'appli ne correspond plus aux articles :
+   articles dédoublonnés, prix sous la somme des articles, annonce de l'appli réécrite, photo de l'article parti retirée. */
+function reparerLot(uid, lot) {
+  if (!estLot(lot) || VENDU(lot.statut)) return lot;
+  const ids = uniques(lot.articles).filter((id) => { const m = getItem(uid, id); return m && !estLot(m); });
+  if (ids.length < MIN_LOT) return lot;
+  const membres = ids.map((id) => getItem(uid, id)), c = coteLot(membres, lot.theme);
+  const changeIds = ids.length !== lot.articles.length;
+  const annonce = formatAppli(lot.titreAnnonce, lot.texteAnnonce) && lignesArticles(lot.texteAnnonce).join("\n") !== lignesArticles(annonceLotSimple(membres, lot.prixDemande, lot.theme).description).join("\n");
+  const trop = c.somme > 0 && lot.prixDemande != null && lot.prixDemande >= c.somme;
+  if (!changeIds && !annonce && !trop) return lot;
+  const { _annonceAJour, _ratio, ...n } = recomposer(uid, { ...lot, articles: ids }, ids, lot.theme);
+  const ph = photosDe(lot), part = ph.filter((x) => x.de && !ids.includes(x.de));
+  for (const x of part) fs.rmSync(fichierPhoto(uid, lot.id, x.id), { force: true });
+  const photos = ph.filter((x) => !part.includes(x));
+  const l = { ...n, photos, photo: photos.length > 0, ...(changeIds ? { mosaiqueAFaire: true } : {}) };
+  ecrire(uid, l);
+  return getItem(uid, lot.id);
 }
 function photoMembre(uid, lot, m) {
   const ph = photosDe(m)[0], f = ph && fichierPhoto(uid, m.id, ph.id);
@@ -251,8 +302,18 @@ function savePhoto(uid, id, data, pid = "p0") {
   if (data === "") { fs.rmSync(f, { force: true }); return false; }
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(data));
   if (!m || data.length > ia.MAX_PHOTO) fail(400, "Photo trop lourde ou illisible.");
+  const buf = Buffer.from(m[1], "base64");
+  if (jpegCoupe(buf)) fail(400, "La photo est arrivée incomplète. Réessaie.");
+  // écriture atomique : un fichier temporaire, puis renommé ; jamais de photo à moitié écrite (coupure, disque plein)
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, Buffer.from(m[1], "base64"));
+  const tmp = `${f}.${process.pid}.${Date.now().toString(36)}.tmp`;
+  try { fs.writeFileSync(tmp, buf); fs.renameSync(tmp, f); } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+  return true;
+}
+/** Un JPEG commence par FFD8 et se termine par FFD9 (parfois suivi de quelques octets de remplissage). */
+export function jpegCoupe(buf) {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return false;   // pas un JPEG : rien à vérifier ici
+  for (let i = buf.length - 1; i > 0 && i >= buf.length - 256; i--) if (buf[i] === 0xd9 && buf[i - 1] === 0xff) return false;
   return true;
 }
 
@@ -318,6 +379,7 @@ function bilan(uid) {
 function me(u) {
   const r = rights(u);
   return {
+    suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
     email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
@@ -327,7 +389,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "lot", "annonce", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "transporteur", "suivi", "livreLe", "lot", "annonce", "annonceEbay", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -351,13 +413,36 @@ export function annonceLbc(v) {
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
     ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
-    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", modifie: v.modifie,
+    photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", urlEbay: v.annonceEbay || "", modifie: v.modifie,
+  };
+}
+const annoncePourExtension = (v) => { const a = annonceLbc(v); return { ...a, ebay: annonceEbay(v, a) }; };
+/* Annonce au format eBay (lue par l'extension sur la page de mise en vente eBay) : titre de 80 caractères coupé entre
+   deux mots, état eBay, caractéristiques, description (envoi suivi plutôt que main propre), prix. Même règles que le
+   panneau « Publier sur eBay » de l'appli. */
+const ETAT_EBAY = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État acceptable", pieces: "Pour pièces détachées ou ne fonctionne pas" };
+const CONTENU_EBAY = { seul: "Jeu seul (loose)", boite: "Jeu et boîte, sans notice", complet: "Jeu, boîte et notice (complet)", boite_vide: "Boîte seule" };
+export function titreEbay(t) {
+  t = String(t || "").replace(/\s+/g, " ").trim();
+  if (t.length <= 80) return t;
+  const c = t.slice(0, 81), i = c.lastIndexOf(" ");
+  return (i > 40 ? c.slice(0, i) : c.slice(0, 80)).replace(/[\s,;:–-]+$/, "");
+}
+export function annonceEbay(v, base) {
+  const carte = v.categorie === "cartes", film = v.categorie === "films";
+  const car = (carte ? [["Personnage", v.titre], ["Extension", v.plateforme], ["Numéro", v.numero], ["Rareté", v.rarete], ["Langue", v.region], ["Gradation", v.gradation]]
+    : film ? [["Titre du film", v.titre], ["Format", v.plateforme], ["Édition", v.edition], ["Année", v.annee], ["Réalisateur", v.realisateur], ["Langues et zone", v.region]]
+    : [[v.categorie === "consoles" ? "Modèle" : "Nom du jeu", v.titre], ["Plateforme", v.plateforme], ["Région", v.region], ["Contenu", CONTENU_EBAY[v.contenu]]]).filter((x) => x[1]);
+  return {
+    titre: titreEbay(base.titre), etat: ETAT_EBAY[v.etat] || "", caracteristiques: car.map(([nom, valeur]) => ({ nom, valeur: String(valeur).slice(0, 65) })),
+    description: String(base.description || "").replace(/Remise en main propre ou envoi\.?/, "Envoi soigné et rapide, avec suivi."),
+    prix: base.prix, plancher: base.prix != null ? Math.min(base.prix, ia.rond(base.prix * 0.85, true)) : null,
   };
 }
 // Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
 function avecContenu(uid, l) {
   const noms = new Map(listItems(uid).map((v) => [v.id, [v.titre, v.plateforme].filter(Boolean).join(" ")]));
-  return l.map((v) => (estLot(v) ? { ...annonceLbc(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annonceLbc(v)));
+  return l.map((v) => (estLot(v) ? { ...annoncePourExtension(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annoncePourExtension(v)));
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 
@@ -423,16 +508,20 @@ export async function handleApi(req) {
     if (p === "/api/extension/lien" && method === "POST") {
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       if (!it) return { status: 404, json: { error: "Jeu introuvable." }, headers: CORS };
-      let url = ""; try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
-      if (!url) return { status: 400, json: { error: "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
+      // site : « lbc » (par défaut) ou « ebay » ; chaque article a un lien par site.
+      const ebay = b.site === "ebay", champ = ebay ? "annonceEbay" : "annonce";
+      let url = "";
+      if (ebay) url = lienEbay(b.url);
+      else try { const x = new URL(String(b.url || "")); if (x.protocol === "https:" && x.hostname === "www.leboncoin.fr" && /^\/ad\/[a-z_]+\/\d{6,}$/.test(x.pathname.replace(/\/$/, ""))) url = "https://www.leboncoin.fr" + x.pathname.replace(/\/$/, ""); } catch (e) {}
+      if (!url) return { status: 400, json: { error: ebay ? "Lien d'annonce eBay invalide." : "Lien d'annonce Le Bon Coin invalide." }, headers: CORS };
       // Une annonce = un seul jeu : on ne rattache pas un lien déjà pris par un autre jeu.
-      if (listItems(eu.id).some((v) => v.id !== it.id && v.annonce === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
-      // Prix lu sur « Mes annonces » de Le Bon Coin : le prix demandé suit celui de l'annonce en ligne.
+      if (listItems(eu.id).some((v) => v.id !== it.id && v[champ] === url)) return { status: 409, json: { error: "Cette annonce est déjà liée à un autre jeu." }, headers: CORS };
+      // Prix lu sur « Mes annonces » de Le Bon Coin (ou eBay) : le prix demandé suit celui de l'annonce en ligne.
       const px = Number(b.prix), nouveauPrix = Number.isFinite(px) && px >= 1 && px <= 100000 ? Math.round(px) : null;
       const prixChange = nouveauPrix != null && (it.prixDemande == null || Math.round(it.prixDemande) !== nouveauPrix);
-      if (it.annonce !== url || prixChange) {
+      if (it[champ] !== url || prixChange) {
         const r = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(it.id, eu.id), d = JSON.parse(r.data);
-        d.annonce = url;
+        d[champ] = url;
         if (prixChange) d.prixDemande = nouveauPrix;
         db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), now(), it.id, eu.id);
       }
@@ -449,13 +538,24 @@ export async function handleApi(req) {
       const faits = l.map((x, i) => modifierObjet(eu.id, getItem(eu.id, x.id), { objet: { statut: "vendu", prixVente: parts[i] ?? x.prixDemande, ...(remise ? { remise } : {}) } }).objet);
       return { status: 200, json: { ok: true, vendus: faits.map((o) => ({ id: o.id, titre: o.titre, prixVente: o.prixVente })) }, headers: CORS };
     }
-    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin).
+    // Caractéristiques eBay de la page « Terminer votre annonce » : valeurs de la fiche, complétées par l'IA.
+    if (p === "/api/extension/specifiques" && method === "POST") {
+      if (!allow("spec:" + eu.id, 60, 600)) return { status: 429, json: { error: "Trop de demandes, réessaie dans un moment." }, headers: CORS };
+      const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
+      if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
+      const a = avecContenu(eu.id, [it])[0];
+      const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
+        jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter(Boolean).map((x) => x.titre).filter(Boolean) : [] };
+      const valeurs = await ia.specifiquesEbay(fiche, b.champs);
+      return { status: 200, json: { ok: true, valeurs }, headers: CORS };
+    }
+    // Réponse aux acheteurs proposée par l'IA (messagerie Le Bon Coin ou eBay).
     if (p === "/api/extension/reponse" && method === "POST") {
       if (!allow("rep:" + eu.id, 30, 600)) return { status: 429, json: { error: "Tu as atteint la limite de réponses IA pour le moment. Les réponses types restent disponibles." }, headers: CORS };
       try { iaAllowed(eu, "reponse", req); } catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message, ...(e.extra || {}) }, headers: CORS }; throw e; }
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       const tous = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente" || v.statut === "reserve"));
-      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, profil: lireProfil(eu.vendeur) });
+      const out = await ia.repondre(b.conversation, it ? annonceLbc(it) : {}, tous, { lot: b.lot, offre: b.offre, acheteur: b.acheteur, consigne: b.consigne, precedentes: b.precedentes, mesMessages: b.mesMessages, suite: !!b.suite, site: b.site === "ebay" ? "ebay" : "lbc", profil: lireProfil(eu.vendeur) });
       bump(eu.id, "reponse");
       return { status: 200, json: { ok: true, ...out }, headers: CORS };
     }
@@ -605,7 +705,7 @@ function lienLbc(v) {
   }
 
   /* --- fiches --- */
-  if (p === "/api/objets" && method === "GET") return ok({ objets: listItems(u.id) });
+  if (p === "/api/objets" && method === "GET") { const t = listItems(u.id); if (t.some((x) => estLot(x) && !VENDU(x.statut))) tx(() => t.forEach((x) => { if (estLot(x)) reparerLot(u.id, x); })); return ok({ objets: t.some((x) => estLot(x)) ? listItems(u.id) : t }); }
   if (p === "/api/objets" && method === "POST") {
     const b = body();
     const id = crypto.randomBytes(8).toString("hex");
@@ -645,6 +745,23 @@ function lienLbc(v) {
       for (const x of photosDe(avant)) fs.rmSync(fichierPhoto(u.id, avant.id, x.id), { force: true });
       return ok({ ok: true });
     }
+  }
+  // Suivi des colis : relit l'état chez La Poste des colis envoyés pas encore livrés (au plus une fois par heure chacun,
+  // sauf « force » sur un seul colis), et le fait suivre aux articles d'un lot.
+  if (p === "/api/suivis" && method === "POST") {
+    const b = body(), force = !!b.force, seuls = Array.isArray(b.ids) ? new Set(b.ids.map(String)) : null;
+    const l = listItems(u.id).filter((o) => o.statut === "envoye" && o.suivi && !o.livreLe && suiviAuto(o.transporteur) && !(o.suiviEtat && o.suiviEtat.fini) && (!seuls || seuls.has(o.id)) && (!lotsDe(u.id, o).some((x) => VENDU(x.statut))))
+      .filter((o) => (force && seuls) || !o.suiviEtat || Date.now() - Date.parse(o.suiviEtat.maj || 0) > 3600e3).slice(0, 15);
+    if (l.length && !allow("suivi:" + u.id, 40, 3600)) fail(429, "Suivi déjà relu plusieurs fois, réessaie dans un moment.");
+    const objets = [];
+    for (const o of l) {
+      let e; try { e = await etatLaPoste(o.suivi); } catch (err) { console.error("suivi", err.message); continue; }
+      const suiviEtat = { ...(e || { libelle: "", date: "", livre: false, fini: false }), maj: new Date().toISOString() };
+      const n = { ...o, suiviEtat, ...(suiviEtat.livre && !o.livreLe ? { livreLe: suiviEtat.date || new Date().toISOString().slice(0, 10) } : {}) };
+      tx(() => { ecrire(u.id, n); if (estLot(n)) for (const id of n.articles) { const m = getItem(u.id, id); if (m && VENDU(m.statut)) { poserColis(m, n); ecrire(u.id, m); } } });
+      objets.push(getItem(u.id, o.id));
+    }
+    return ok({ objets, auto: !!process.env.LAPOSTE_API_KEY });
   }
   // Galerie : ajouter, remplacer (retouche) ou retirer une photo
   const mg = /^\/api\/objets\/([a-f0-9]{16})\/photos(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
@@ -769,7 +886,7 @@ function lienLbc(v) {
   }
 
   /* --- IA --- */
-  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const o = await ia.identifier(body().photo); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const b = body(); const o = await ia.identifier(b.photo, b.indice === "films" ? "films" : ""); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = [];
     // Avec « flux », l'avancement (photo N/M, jaunissement) est envoyé au fil de l'eau, puis le résultat.
     if (b.flux) return { status: 200, headers: {}, flux: async (envoi) => {
@@ -800,7 +917,7 @@ function lienLbc(v) {
   }
   if (p === "/api/ia/endroit" && method === "POST") { iaAllowed(u, "cadrer", req); const tr = []; const s = await ia.endroit(body().photo, tr); bump(u.id, "cadrer"); return ok({ ok: true, ...s, ...(isAdmin(u) ? { trace: tr } : {}) }); }
   if (p === "/api/ia/cadrer" && method === "POST") { iaAllowed(u, "cadrer", req); const c = await ia.cadrer(body().photo); bump(u.id, "cadrer"); return ok({ ok: true, cadre: c }); }
-  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc") bump(u.id, "lbc"); return ok({ ok: true }); }
+  if (p === "/api/compter" && method === "POST") { const q = body().quoi; if (q === "lbc" || q === "ebay") bump(u.id, q); return ok({ ok: true }); }
 
   /* --- export --- */
   if (p === "/api/export.csv" && method === "GET") {

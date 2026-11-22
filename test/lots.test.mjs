@@ -226,6 +226,7 @@ test("lot : le prix suit celui de ses articles, et un doublon supprimé quitte l
   assert.deepEqual(l.articles, [pm.id, mp.id, sm.id]);
   assert.equal(l.photos.length, 4); assert.ok(l.mosaiqueAFaire);
   assert.ok(l.prixDemande < 175);
+  assert.match(l.titreAnnonce, /3 jeux/); assert.doesNotMatch(l.texteAnnonce, /4 jeux|Paper Mario[^]*Paper Mario/);
   // lot vendu : ses articles ne se suppriment plus seuls
   await call("PUT", "/api/objets/" + lot.id, { objet: { statut: "vendu" } }, c);
   assert.equal((await call("DELETE", "/api/objets/" + mp.id, null, c)).status, 409);
@@ -353,4 +354,26 @@ test("idées de lots : une fois les premières idées devenues des lots, les sui
   // l'IA (simulée) ne repropose pas non plus les lots existants
   const ia = (await call("POST", "/api/lots/suggestions", { ia: true }, c)).json.suggestions;
   for (const x of ia) assert.ok(!crees.has([...x.articles].sort().join(",")));
+});
+
+test("lot abîmé par une ancienne version (doublon supprimé resté dedans) : réparé à l'affichage", async () => {
+  const c = await compte("repare@exemple.fr");
+  const o = (titre, prixDemande) => ajout(c, { titre, plateforme: "Nintendo 64", prixDemande }, PHOTO);
+  const pm = await o("Paper Mario", 135), mp = await o("Mario Party", 35), sm = await o("Super Mario 64", 25), pm2 = await o("Paper Mario", 120);
+  const lot = (await call("POST", "/api/lots", { articles: [pm.id, mp.id, sm.id, pm2.id], photo: PHOTO }, c)).json.objet;
+  assert.match(lot.titreAnnonce, /4 jeux/);
+  // l'ancienne version supprimait l'article sans le sortir du lot, et le prix restait à 280 €
+  db.prepare("DELETE FROM items WHERE id = ?").run(pm.id);
+  const row = db.prepare("SELECT data FROM items WHERE id = ?").get(lot.id), d = JSON.parse(row.data);
+  db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify({ ...d, titre: "Lot Mario sur N64 : 3 jeux Nintendo 64", prixDemande: 280 }), lot.id);
+  const l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.deepEqual(l.articles, [mp.id, sm.id, pm2.id]);
+  assert.match(l.titreAnnonce, /3 jeux/);
+  assert.equal((l.texteAnnonce.match(/Paper Mario/g) || []).length, 1);
+  assert.ok(l.prixDemande < 180, String(l.prixDemande));
+  assert.match(l.texteAnnonce, new RegExp(`environ 180 € : le lot est à ${l.prixDemande} €`));
+  assert.equal(l.photos.length, 4); assert.ok(l.mosaiqueAFaire);
+  // une seconde lecture ne change plus rien
+  const l2 = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
+  assert.deepEqual({ ...l2, modifie: 0 }, { ...l, modifie: 0 });
 });
