@@ -172,6 +172,69 @@ try {
     await page.unroute("**/api/photo/**");
   });
 
+  // Ailleurs que sur les cartes : toute photo du serveur passe par la même vérification (blob:, entière).
+  const etatImgs = (sel) => page.evaluate((sel) => [...document.querySelectorAll(sel)].map((i) => {
+    let bas = null;
+    if (i.complete && i.naturalWidth) {
+      const c = document.createElement("canvas"); c.width = c.height = 40; const g = c.getContext("2d"); g.drawImage(i, 0, 0, 40, 40);
+      const d = g.getImageData(0, 30, 40, 10).data; let blancs = 0; for (let k = 0; k < d.length; k += 4) if (d[k] > 245 && d[k + 1] > 245 && d[k + 2] > 245) blancs++;
+      bas = blancs / (d.length / 4);
+    }
+    return { src: (i.getAttribute("src") || "").slice(0, 5), w: i.naturalWidth, bas };
+  }), sel);
+  const entieres = async (sel, n, ms = 20000) => {
+    const t = Date.now(); let e;
+    while (Date.now() - t < ms) {
+      e = await etatImgs(sel);
+      if (e.length === n && e.every((x) => x.src === "blob:" && x.w > 0 && x.bas === 0)) return e;
+      await page.waitForTimeout(250);
+    }
+    throw new Error(sel + " incomplètes : " + JSON.stringify(e));
+  };
+  const coupeLaPremiereFois = async () => {
+    const vus = {};
+    await page.route("**/api/photo/**", async (r) => {
+      const u = r.request().url(), rep = await r.fetch(), corps = await rep.body();
+      if (!vus[u]) { vus[u] = 1; return r.fulfill({ response: rep, body: corps.subarray(0, Math.floor(corps.length * 0.04)) }); }
+      return r.fulfill({ response: rep, body: corps });
+    });
+    return vus;
+  };
+  const ouvrir = async (id) => { await page.click(`#liste .jeu[data-id="${id}"] .jeu-ouvrir`); await page.waitForSelector("#fiche:not([hidden])"); };
+
+  await etape("fiche d'un lot : vignettes des articles entières, même coupées en route (la vignette blanche de Jet Force Gemini)", async () => {
+    await ouvrirListe(); await toutesEntieres();
+    const vus = await coupeLaPremiereFois();
+    await ouvrirListe(); await ouvrir(ids.lot);
+    await entieres("#fLotBloc .lb-liste .vg img", 2);
+    assert.ok(Object.keys(vus).length >= 2);
+    assert.equal(await page.locator('#fLotBloc .lb-liste .vg[style*="url("]').count(), 0, "plus aucune photo en image de fond");
+    await page.unroute("**/api/photo/**");
+  });
+
+  await etape("fiche d'un article : grande photo et galerie entières, même coupées en route", async () => {
+    await coupeLaPremiereFois();
+    await ouvrirListe(); await ouvrir(ids.a);
+    await entieres("#fPhoto > img", 1);
+    await entieres("#fGal li img", 2);
+    await page.unroute("**/api/photo/**");
+  });
+
+  await etape("rotation dans la fiche : la photo tournée (celle qui sera enregistrée) est entière, sans bande ni blanc", async () => {
+    await coupeLaPremiereFois();
+    await ouvrirListe(); await ouvrir(ids.b);
+    await page.click("#fPivot");
+    await page.waitForFunction(() => { const i = document.querySelector("#fPhoto > img"); return i && /^data:/.test(i.getAttribute("src") || "") && i.complete && i.naturalWidth; }, null, { timeout: 20000 });
+    const vides = await page.evaluate(() => {
+      const i = document.querySelector("#fPhoto > img"), c = document.createElement("canvas"); c.width = c.height = 40; const g = c.getContext("2d"); g.drawImage(i, 0, 0, 40, 40);
+      const d = g.getImageData(0, 0, 40, 40).data; let n = 0;
+      for (let k = 0; k < d.length; k += 4) if (d[k + 3] < 255 || (d[k] > 245 && d[k + 1] > 245 && d[k + 2] > 245) || d[k] + d[k + 1] + d[k + 2] < 10) n++;
+      return n;
+    });
+    assert.equal(vides, 0);
+    await page.unroute("**/api/photo/**");
+  });
+
   await etape("le serveur refuse un JPEG incomplet", async () => {
     const r = await page.evaluate(async (id) => {
       const c = document.createElement("canvas"); c.width = c.height = 300; c.getContext("2d").fillRect(0, 0, 300, 300);

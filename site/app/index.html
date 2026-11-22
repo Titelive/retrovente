@@ -180,6 +180,7 @@ main.app{padding:34px 0 110px;display:flex;flex-direction:column;gap:24px}
 .jeu:hover{transform:translateY(-4px);box-shadow:0 0 0 1px var(--trait),0 24px 40px -24px rgba(0,0,0,.35)}
 .jeu .im{aspect-ratio:1;background:var(--papier);display:grid;place-items:center;overflow:hidden;margin:8px;border-radius:18px}
 .jeu .im img{width:100%;height:100%;object-fit:cover}
+.br .vg,.lb-liste .vg,.id-pile span{overflow:hidden}.br .vg img,.lb-liste .vg img,.id-pile span img{display:block;width:100%;height:100%;object-fit:cover}
 /* photos chargées par PH : rien tant qu'elle n'est pas entière ; si elle ne vient pas, un mot plutôt qu'un carré blanc */
 img[data-ph]:not([src]){visibility:hidden}
 .jeu .im:has(img[data-ph-ko])::after{content:"Photo indisponible";position:absolute;inset:0;display:grid;place-items:center;font:400 11px/1 var(--pixel);color:var(--gris-c);letter-spacing:.1em;text-transform:uppercase}
@@ -2113,8 +2114,15 @@ var PH=(function(){
     abimee:function(){}   // remplacée plus bas, pour les lots (mosaïque à refaire)
   }})();
 /* Adresses des photos d'un article, la première en tête (les suivantes servent de secours si elle est abîmée). */
+/* LA seule fabrique d'adresse de photo de l'appli. Toute photo du serveur passe par PH (téléchargée en entier, vérifiée).
+   Jamais d'adresse de photo du serveur directement dans un src, un url() ou un new Image() : Safari peut alors montrer
+   (ou dessiner dans un canvas, puis enregistrer pour de bon) une photo coupée en route. test/photos.test.mjs y veille. */
+function urlPhoto(id,pid,v){return "/api/photo/"+id+(pid?"/"+pid:"")+(v!=null?"?v="+encodeURIComponent(v):"")}
+function estUrlPhoto(u){return /^\/api\/photo\//.test(String(u||""))}
+/* <img> pour n'importe quelle source : une photo du serveur passe par PH, une photo locale (data:, blob:) s'affiche telle quelle. */
+function imgSrc(src,attrs){return estUrlPhoto(src)?PH.img([src],attrs):'<img alt=""'+(attrs||"")+' src="'+esc(src)+'">'}
 function photosUrls(o){if(!o||!o.photo)return [];var l=Array.isArray(o.photos)&&o.photos.length?o.photos:[{id:""}];
-  return l.slice(0,4).map(function(x){return "/api/photo/"+o.id+(x.id?"/"+x.id:"")+"?v="+encodeURIComponent(o.modifie||"")})}
+  return l.slice(0,4).map(function(x){return urlPhoto(o.id,x.id,o.modifie||"")})}
 function imgCarte(o){var u=photosUrls(o),m=estLot(o)&&o.photos&&o.photos[0]&&/articles du lot/.test(o.photos[0].legende||"");
   return PH.img(u,m?' data-lot="'+o.id+'"':'')}
 var TRI="recent",GRP="";
@@ -2200,8 +2208,8 @@ function cur(){return GAL[SEL]||null}
 function setPhoto(d){if(d===null){GAL=[];SEL=0;DELS=[];afficher();return}
   if(!cur()){GAL.push({pid:null,src:d,data:d,legende:"",orig:null});SEL=GAL.length-1}else{cur().src=d;cur().data=d}afficher()}
 function afficher(){var c=cur();PHOTO=c?c.src:null;var b=$("fPhoto");[].forEach.call(b.querySelectorAll("img,.pixel"),function(x){x.remove()});
-  if(c){var i=new Image();i.alt="Photo "+(SEL+1)+" du jeu";i.src=c.src;b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}
-  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" aria-label="'+esc("Photo "+(i+1)+(g.legende?" : "+g.legende:""))+'"><img alt="" src="'+esc(g.src)+'"><span class="num">'+(i+1)+'</span><button type="button" class="suppr" data-suppr aria-label="Supprimer la photo '+(i+1)+'" title="Supprimer">✕</button>'+
+  if(c){var t=document.createElement("div");t.innerHTML=imgSrc(c.src,' data-ph-prio="1"');var i=t.firstChild;i.alt="Photo "+(SEL+1)+" du jeu";b.insertBefore(i,b.firstChild)}else{var s=document.createElement("span");s.className="pixel";s.style.color="var(--gris)";s.textContent="Pas de photo";b.insertBefore(s,b.firstChild)}
+  $("fGal").innerHTML=GAL.map(function(g,i){return '<li draggable="true" data-i="'+i+'" class="'+(i===SEL?"sel":"")+'" aria-label="'+esc("Photo "+(i+1)+(g.legende?" : "+g.legende:""))+'">'+imgSrc(g.src,' data-ph-prio="1"')+'<span class="num">'+(i+1)+'</span><button type="button" class="suppr" data-suppr aria-label="Supprimer la photo '+(i+1)+'" title="Supprimer">✕</button>'+
     (GAL.length>1?'<span class="dep"><button type="button" data-dep="-1" aria-label="Avancer la photo '+(i+1)+'"'+(i?"":" disabled")+'>‹</button><button type="button" data-dep="1" aria-label="Reculer la photo '+(i+1)+'"'+(i<GAL.length-1?"":" disabled")+'>›</button></span>':"")+'</li>'}).join("")+
     (GAL.length<12&&!ANALYSE?'<li class="ajout" role="button" tabindex="0" aria-label="Ajouter des photos">+</li>':"");
   $("fLegZone").hidden=!c;if(c){$("fLegN").textContent=SEL+1;$("fLeg").value=c.legende||""}
@@ -2417,7 +2425,7 @@ function analyser(f,indice){
         return chargerImg(g.src).then(function(img){var d=tourneHD(img,r);g.src=g.data=d;IMG=null;afficher();journal("Sens","photo tournée de "+r+"°");return nettoyerPhoto(true,0,0)})}),estimer()])})
     .catch(function(e){erreur(e,"Reconnaissance impossible.");$("f_titre").focus()}).then(function(){attente(null);ANALYSE=false;afficher()})}
 $("fIa").onclick=function(){if(!PHOTO){$("fPhotoIn").click();return}
-  if(IMG){analyserImg()}else{var i=new Image();i.onload=function(){IMG=i;analyserImg()};i.src=PHOTO}};
+  if(IMG){analyserImg()}else{chargerImg(PHOTO).then(function(i){IMG=i;analyserImg()}).catch(function(e){erreur(e,"Photo illisible.")})}};
 function analyserImg(){attente("Je relis la photo pour remplir la fiche…");api("POST","/api/ia/identifier",{photo:versData(IMG,null,1000)}).then(function(j){var o=j.objet;IA_FAITE=true;
   ["titre","categorie","plateforme","region"].forEach(function(k){$("f_"+k).value=o[k]});remplirCarte(o);if(o.etat)$("f_etat").value=o.etat;if(o.contenu)$("f_contenu").value=o.contenu;
   if(o.annonce)$("f_titreAnnonce").value=o.annonce;if(o.description){$("f_texteAnnonce").value=o.description;majOrigine();majParticularites()}puces(o.particularites||[]);ME.usage.identifier=(ME.usage.identifier||0)+1;toast(GAL.length>1?"Fiche remplie. Je décris maintenant chaque photo…":"Fiche remplie.","ok");attente(null);
@@ -2761,7 +2769,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOri
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouvel article";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
-  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:"/api/photo/"+o.id+"/"+x.id+"?v="+encodeURIComponent(o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
+  if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:urlPhoto(o.id,x.id,o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
   montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
@@ -2793,15 +2801,15 @@ $("qJeter").onclick=function(){var k=cle();clearTimeout(TBR);BR.del(k).then(func
 $("qEnreg").onclick=function(){SUITE=null;$("dQuitter").close();$("fSave").click()};
 function depuisMaintenant(t){var m=Math.round((Date.now()-t)/60000);return m<1?"à l'instant":m<60?"il y a "+m+" min":m<1440?"il y a "+Math.round(m/60)+" h":"le "+new Date(t).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}
 function dessinerBrouillons(){BR.tous().then(function(l){var z=$("brouillons");z.hidden=!l.length;
-  $("brListe").innerHTML=l.map(function(d,i){var p=d.photos&&d.photos[0],im=p?(p.src||(d.id&&p.pid?"/api/photo/"+d.id+"/"+p.pid:"")):"";
-    return '<div class="br" style="--i:'+i+'"><span class="vg"'+(im?' style="background-image:url('+esc(im)+')"':'')+'>'+(im?"":"Photo")+'</span><span class="tx"><b>'+esc(d.titre)+'</b><small>'+(d.id?"Modifications non enregistrées":"Nouvel article")+" · "+depuisMaintenant(d.maj)+'</small><span class="ac"><button type="button" data-rep="'+esc(d.k)+'">Reprendre</button><button type="button" data-jet="'+esc(d.k)+'">Supprimer</button></span></span></div>'}).join("")})}
+  $("brListe").innerHTML=l.map(function(d,i){var p=d.photos&&d.photos[0],im=p?(p.src||(d.id&&p.pid?urlPhoto(d.id,p.pid):"")):"";
+    return '<div class="br" style="--i:'+i+'"><span class="vg">'+(im?imgSrc(im):"Photo")+'</span><span class="tx"><b>'+esc(d.titre)+'</b><small>'+(d.id?"Modifications non enregistrées":"Nouvel article")+" · "+depuisMaintenant(d.maj)+'</small><span class="ac"><button type="button" data-rep="'+esc(d.k)+'">Reprendre</button><button type="button" data-jet="'+esc(d.k)+'">Supprimer</button></span></span></div>'}).join("")})}
 $("brListe").addEventListener("click",function(e){var r=e.target.closest("[data-rep]"),j=e.target.closest("[data-jet]");
   if(j){BR.del(j.dataset.jet).then(dessinerBrouillons);return}
   if(!r)return;BR.tous().then(function(l){var d=l.filter(function(x){return x.k===r.dataset.rep})[0];if(d)reprendre(d)})});
 function reprendre(d){var o=d.id?OBJ.filter(function(x){return x.id===d.id})[0]:null;if(d.id&&!o){BR.del(d.k).then(dessinerBrouillons);toast("Cet article n'existe plus.","bad");return false}
     ouvrirFiche(o||null);CLE=d.cle;
     F.forEach(function(k){if(d.champs[k]!=null)$("f_"+k).value=d.champs[k]});modeCarte();puces();majVente();if(d.cote)montrerCote(d.cote);
-    DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?"/api/photo/"+o.id+"/"+p.pid+"?v="+encodeURIComponent(o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
+    DELS=d.dels||[];GAL=(d.photos||[]).map(function(p){return{pid:p.pid,data:p.data,src:p.data||p.src||(o&&p.pid?urlPhoto(o.id,p.pid,o.modifie):""),legende:p.legende,orig:p.orig||null,rv:p.rv||0,vueOrig:!!p.vueOrig}});SEL=0;afficher();
     $("fTitre").textContent=d.champs.titre||(o?o.titre:"Nouvel article");majLbc();if(window.ongletFiche)ongletFiche("article");toast("Brouillon repris.","ok");majSites();if(window.majAdresse)majAdresse();refaireAnciennes().then(function(){if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))return decrire(true,0,false,true)});return true}
 $("fFermer").onclick=fermerFiche;$("fListe").onclick=function(){$("fFermer").click()};
 
@@ -2984,7 +2992,10 @@ charger(true);
 /* ===== Nettoyage de la photo =====
    Le serveur retouche en gardant le vrai fond (redressement, recadrage, objets à côté effacés, reflets atténués).
    On ne retouche jamais l'objet lui-même : les défauts restent visibles. L'original reste disponible. */
-function chargerImg(src){return new Promise(function(ok,ko){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ko(new Error("Photo illisible."))};i.src=src})}
+/* Image prête pour un canvas (rotation, retouche, numérotation, analyse…) : une photo du serveur est d'abord téléchargée en
+   entier et vérifiée par PH ; sinon une photo coupée en route serait redessinée puis enregistrée pour de bon (bande, puis blanc). */
+function chargerImg(src){return (estUrlPhoto(src)?PH.obtenir(src,true).then(function(m){return m.u},function(){throw new Error("Photo illisible.")}):Promise.resolve(src)).then(function(u){
+  return new Promise(function(ok,ko){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ko(new Error("Photo illisible."))};i.src=u})})}
 function sourceImg(){return IMG?Promise.resolve(IMG):PHOTO?chargerImg(PHOTO):Promise.reject(new Error("Ajoute d'abord une photo."))}
 /* Version de la retouche : une photo retouchée par une version plus ancienne (recadrage hasardeux) est refaite depuis l'original */
 var RV=2;
@@ -3368,7 +3379,7 @@ function dessinerIdees(){var L=$("ideesListe"),b=$("ideesIa");b.disabled=IDEES.i
   var l=IDEES.l.filter(function(x){var ok=x.articles.filter(function(id){var o=parId(id);return o&&libre(o)});return ok.length>=2&&!existe[ok.slice().sort().join(",")]}).sort(function(a,b){return (b.complet?1:0)-(a.complet?1:0)});
   if(!l.length){L.innerHTML='<div class="id-vide"><b style="color:var(--encre)">Pas encore d\'idée de lot</b>Quand tu auras plusieurs jeux d\'une même série, d\'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.</div>';return}
   L.innerHTML=l.map(function(x,i){var m=x.articles.map(parId).filter(Boolean),c=x.cote||{};
-    return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span'+(o.photo?' style="background-image:url(/api/photo/'+o.id+'?v='+encodeURIComponent(o.modifie)+')"':'')+'></span>'}).join("")+'<b>'+m.length+'</b></div>'+
+    return '<article class="idee'+(x.complet?' complet':'')+'" style="--i:'+i+'"><div class="id-h"><div class="id-pile">'+m.slice(0,3).map(function(o){return '<span>'+(o.photo?PH.img(photosUrls(o)):'')+'</span>'}).join("")+'<b>'+m.length+'</b></div>'+
       '<div class="id-nom"><span class="id-type">'+esc(x.complet?"Série complète":TYPE_NOM[x.type]||"Thème")+'</span><b>'+esc(x.theme)+'</b></div></div>'+
       '<p class="id-titres">'+esc(m.map(function(o){return o.titre}).join(", "))+'</p>'+(x.raison?'<p>'+esc(x.raison)+'</p>':'')+
       '<div class="id-px">'+(c.conseille!=null?'<b>'+eur(c.conseille)+'</b>'+(c.somme&&c.conseille<Math.round(c.somme)?'<s>'+eur(Math.round(c.somme))+' à l\'unité</s>':'')+ajTxt(c):'<small style="color:var(--gris)">Ajoute un prix à ces articles pour estimer le lot.</small>')+'</div>'+
@@ -3523,7 +3534,7 @@ function ficheLot(o){var lot=estLot(o),f=$("fiche");f.classList.toggle("mode-lot
   var vus={},doubles={};m.forEach(function(x){var k=(x.titre||"").toLowerCase()+"|"+(x.plateforme||"");if(vus[k])doubles[k]=1;vus[k]=1});
   var nd=Object.keys(doubles).length;
   $("fLotBloc").innerHTML='<div class="lb-tete"><div><h4>'+pluriel(m.length,"article")+' dans ce lot</h4>'+(o.theme&&o.theme.nom?'<span class="lb-theme">'+esc((o.theme.complet?"Série complète · ":(TYPE_NOM[o.theme.type]||"Thème")+" · ")+o.theme.nom)+'</span>':'')+'</div></div>'+
-    '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x),dbl=doubles[(x.titre||"").toLowerCase()+"|"+(x.plateforme||"")];return '<li'+(dbl?' class="double"':'')+'><span class="vg"'+(x.photo?' style="background-image:url(/api/photo/'+x.id+'?v='+encodeURIComponent(x.modifie)+')"':'')+'>'+(x.photo?'':'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+(nd?'<p class="lb-double">⚠️ Un même article apparaît deux fois dans ce lot. Si tu n\'en as qu\'un, ouvre le doublon et supprime-le : il quitte le lot, et le prix du lot se recalcule.</p>':'')+
+    '<ul class="lb-liste">'+m.map(function(x){var v=valeur(x),dbl=doubles[(x.titre||"").toLowerCase()+"|"+(x.plateforme||"")];return '<li'+(dbl?' class="double"':'')+'><span class="vg">'+(x.photo?PH.img(photosUrls(x)):'Photo')+'</span><button class="tx" type="button" data-ouvrir="'+x.id+'"><b>'+esc(x.titre)+'</b><small>'+esc([x.plateforme,CON[x.contenu],ETA[x.etat]].filter(Boolean).join(" · "))+'</small></button><span class="val">'+(vendu(o)&&x.prixVente!=null?eur(x.prixVente):v!=null?eur(v):"—")+'</span>'+(ok&&m.length>2?'<button class="moins" type="button" data-retirer="'+x.id+'" aria-label="Retirer '+esc(x.titre)+' du lot" title="Retirer du lot">✕</button>':'')+'</li>'}).join("")+'</ul>'+(nd?'<p class="lb-double">⚠️ Un même article apparaît deux fois dans ce lot. Si tu n\'en as qu\'un, ouvre le doublon et supprime-le : il quitte le lot, et le prix du lot se recalcule.</p>':'')+
     '<div class="lb-pied">'+(ok?'<button class="pl" type="button" id="lbAjout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter ou retirer des articles</button>':'')+'<button class="pl" type="button" id="lbMosa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Refaire la mosaïque</button></div>';
   calculerCoteLot(o,false)}
 /* L'annonce du lot liste-t-elle encore les bons articles ? (une ligne « - Titre, … » par article) */
