@@ -78,11 +78,20 @@ test("état La Poste relu, livré coché tout seul, et suivi du lot sur ses arti
     r = await call("POST", "/api/suivis", {}, c); assert.equal(r.json.objets.length, 0); assert.equal(appels, 1);
     r = await call("POST", "/api/suivis", { ids: [lot.id], force: true }, c);
     assert.equal(r.json.objets[0].livreLe, "2026-11-22"); assert.equal(r.json.objets[0].suiviEtat.livre, true);
+    assert.equal(r.json.objets[0].statut, "recu");                                         // livré : l'acheteur l'a reçu
     const art = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === b.id);
-    assert.equal(art.livreLe, "2026-11-22"); assert.equal(art.suiviEtat.livre, true);
+    assert.equal(art.livreLe, "2026-11-22"); assert.equal(art.suiviEtat.livre, true); assert.equal(art.statut, "recu");
     // livré : plus jamais relu
     r = await call("POST", "/api/suivis", { ids: [lot.id], force: true }, c); assert.equal(r.json.objets.length, 0); assert.equal(appels, 2);
   } finally { globalThis.fetch = vieux; delete process.env.LAPOSTE_API_KEY; }
+});
+
+test("Reçu : une vente comme les autres, qui garde son colis", async () => {
+  const c = await compte("recu@exemple.fr");
+  const o = await ajout(c, { titre: "Wave Race 64", plateforme: "Nintendo 64", prixDemande: 25 });
+  const n = await maj(c, o.id, { statut: "recu", remise: "envoi", prixVente: 25, suivi: "6A12345678901", livreLe: "2026-11-21" });
+  assert.equal(n.statut, "recu"); assert.equal(n.suivi, "6A12345678901"); assert.equal(n.livreLe, "2026-11-21");
+  assert.ok(n.dateVente);                                         // compte comme vendu (date de vente posée)
 });
 
 test("sans clé La Poste : rien n'est relu", async () => {

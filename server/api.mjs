@@ -17,7 +17,7 @@ import { coteLot, repartir, resumeLot, annonceLotSimple, majPhrasePrix, suggesti
 import { normaliserProfil, lireProfil } from "./profil.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
-const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "retire"];
+const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "recu", "retire"];
 const REMISES = ["main_propre", "envoi", ""];
 const FAIR_USE = 600;   // appels IA par mois, plafond de bon usage des formules illimitées
 
@@ -37,7 +37,7 @@ function nettoyer(v, avant) {
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
   const remise = parmi(v.remise, REMISES, "");
   // Le colis (vendu ou envoyé, pas en main propre) : transporteur, numéro de suivi, date de livraison, dernier état lu.
-  const colis = ["vendu", "envoye"].includes(statut) && remise !== "main_propre";
+  const colis = ["vendu", "envoye", "recu"].includes(statut) && remise !== "main_propre";
   const suivi = colis ? numeroSuivi(v.suivi) : "", transporteur = colis ? parmi(v.transporteur, IDS_TRANSPORTEURS, "") || devinerTransporteur(suivi) : "";
   const memeColis = avant && suivi && avant.suivi === suivi && avant.transporteur === transporteur;
   return {
@@ -52,7 +52,7 @@ function nettoyer(v, avant) {
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
-    dateVente: ["vendu", "envoye"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
+    dateVente: ["vendu", "envoye", "recu"].includes(statut) ? (jour(v.dateVente) || (avant && avant.dateVente) || auj) : "",
     remise, transporteur, suivi, livreLe: colis ? jour(v.livreLe) : "",
     ...(memeColis && avant.suiviEtat ? { suiviEtat: avant.suiviEtat } : {}),
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
@@ -111,7 +111,7 @@ const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE u
 
 /* ===== Lots ===== */
 const ID = /^[a-f0-9]{16}$/;
-const VENDU = (st) => st === "vendu" || st === "envoye";
+const VENDU = (st) => st === "vendu" || st === "envoye" || st === "recu";
 const ecrire = (uid, it) => { const { id, cree: _c, modifie: _m, ...data } = it; db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(data), now(), id, uid); };
 const estLot = (it) => Array.isArray(it && it.articles);
 /* Un article peut être dans plusieurs lots à la fois tant qu'il n'est pas vendu : il porte la liste de ses lots (« lots »).
@@ -385,7 +385,7 @@ async function envoyerVerif(uid, email) {
 /* ===== Bilan (vendus cette année, seuil fiscal) ===== */
 function bilan(uid) {
   const items = listItems(uid), an = String(new Date().getFullYear());
-  const vendus = items.filter((v) => ["vendu", "envoye"].includes(v.statut));
+  const vendus = items.filter((v) => ["vendu", "envoye", "recu"].includes(v.statut));
   // Seuils de déclaration : seules les ventes passées par une plateforme comptent, pas celles remises en main propre.
   const annee = vendus.filter((v) => (v.dateVente || "").startsWith(an) && v.remise !== "main_propre");
   const somme = (l) => Math.round(l.reduce((a, v) => a + (v.prixVente || 0), 0) * 100) / 100;
@@ -784,8 +784,9 @@ function lienLbc(v) {
     for (const o of l) {
       let e; try { e = await etatLaPoste(o.suivi); } catch (err) { console.error("suivi", err.message); continue; }
       const suiviEtat = { ...(e || { libelle: "", date: "", livre: false, fini: false }), maj: new Date().toISOString() };
-      const n = { ...o, suiviEtat, ...(suiviEtat.livre && !o.livreLe ? { livreLe: suiviEtat.date || new Date().toISOString().slice(0, 10) } : {}) };
-      tx(() => { ecrire(u.id, n); if (estLot(n)) for (const id of n.articles) { const m = getItem(u.id, id); if (m && VENDU(m.statut)) { poserColis(m, n); ecrire(u.id, m); } } });
+      // Colis livré : l'acheteur l'a reçu, la vente passe en « Reçu ».
+      const n = { ...o, suiviEtat, ...(suiviEtat.livre && !o.livreLe ? { livreLe: suiviEtat.date || new Date().toISOString().slice(0, 10), statut: "recu" } : {}) };
+      tx(() => { ecrire(u.id, n); if (estLot(n)) for (const id of n.articles) { const m = getItem(u.id, id); if (m && VENDU(m.statut)) { poserColis(m, n); m.statut = n.statut; ecrire(u.id, m); } } });
       objets.push(getItem(u.id, o.id));
     }
     return ok({ objets, auto: !!process.env.LAPOSTE_API_KEY });

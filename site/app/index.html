@@ -195,7 +195,7 @@ img[data-ph]:not([src]){visibility:hidden}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-v-bg:#1D3A14;--st-v-tx:#B5F09A;--st-v-pt:#7BD957;--st-r-bg:#3A2E0E;--st-r-tx:#FFD873;--st-f-bg:#F4F4EE;--st-f-tx:#1A1A1A}}
 :root[data-theme="dark"]{--st-v-bg:#1D3A14;--st-v-tx:#B5F09A;--st-v-pt:#7BD957;--st-r-bg:#3A2E0E;--st-r-tx:#FFD873;--st-f-bg:#F4F4EE;--st-f-tx:#1A1A1A}
 .st.en_vente{background:var(--st-v-bg);color:var(--st-v-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-v-tx) 25%,transparent)}
-.st.vendu,.st.envoye{background:var(--st-f-bg);color:var(--st-f-tx);box-shadow:none}
+.st.vendu,.st.envoye,.st.recu{background:var(--st-f-bg);color:var(--st-f-tx);box-shadow:none}
 .st.reserve{background:var(--st-r-bg);color:var(--st-r-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-r-tx) 25%,transparent)}
 .st.retire{background:var(--papier);color:var(--encre);opacity:.85}
 .vide{padding:56px 24px;text-align:center;color:var(--gris);border-radius:28px;background:var(--carte);box-shadow:0 0 0 1px var(--trait);display:flex;flex-direction:column;gap:14px;align-items:center}
@@ -719,8 +719,13 @@ a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid v
 :root{--st-e-bg:#E3EBFF;--st-e-tx:#1F3F8F}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-e-bg:#16223F;--st-e-tx:#A9C1FF}}
 :root[data-theme="dark"]{--st-e-bg:#16223F;--st-e-tx:#A9C1FF}
+/* Reçu : vert d'eau, la vente est bouclée */
+:root{--st-c-bg:#D2F1EA;--st-c-tx:#0B5A4E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--st-c-bg:#0F3531;--st-c-tx:#8EE3CF}}
+:root[data-theme="dark"]{--st-c-bg:#0F3531;--st-c-tx:#8EE3CF}
 .st svg{width:12px;height:12px;flex:none}
 .st.envoye{background:var(--st-e-bg);color:var(--st-e-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-e-tx) 25%,transparent)}
+.st.recu{background:var(--st-c-bg);color:var(--st-c-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-c-tx) 25%,transparent)}
 .jeu-ouvrir{position:absolute;inset:0;z-index:1;border:0;padding:0;margin:0;background:none;border-radius:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .jeu-ouvrir:focus-visible{outline:3px solid var(--anis-f);outline-offset:2px}
 .st-bt{position:relative;z-index:2;display:inline-flex;align-items:center;gap:5px;border:0;font-family:inherit;cursor:pointer;transition:transform .2s var(--ease),filter .2s}
@@ -746,10 +751,11 @@ a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid v
 .st-ico.reserve{background:var(--st-r-bg);color:var(--st-r-tx)}
 .st-ico.vendu{background:var(--st-f-bg);color:var(--st-f-tx)}
 .st-ico.envoye{background:var(--st-e-bg);color:var(--st-e-tx)}
+.st-ico.recu{background:var(--st-c-bg);color:var(--st-c-tx)}
 .st-ico.retire{background:var(--papier);color:var(--gris)}
 .st-menu .st-ico{width:36px;height:36px}
 .nouv-menu.st-menu i.st-ico{font-size:0}
-.nouv-menu.st-menu i.st-ico.en_vente{background:var(--st-v-bg)}.nouv-menu.st-menu i.st-ico.reserve{background:var(--st-r-bg)}.nouv-menu.st-menu i.st-ico.vendu{background:var(--st-f-bg)}.nouv-menu.st-menu i.st-ico.envoye{background:var(--st-e-bg)}.nouv-menu.st-menu i.st-ico.retire{background:var(--papier)}
+.nouv-menu.st-menu i.st-ico.en_vente{background:var(--st-v-bg)}.nouv-menu.st-menu i.st-ico.reserve{background:var(--st-r-bg)}.nouv-menu.st-menu i.st-ico.vendu{background:var(--st-f-bg)}.nouv-menu.st-menu i.st-ico.envoye{background:var(--st-e-bg)}.nouv-menu.st-menu i.st-ico.recu{background:var(--st-c-bg)}.nouv-menu.st-menu i.st-ico.retire{background:var(--papier)}
 .st-voile{position:fixed;inset:0;z-index:84;background:rgba(10,10,10,.38);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);animation:voile-in .2s ease}
 @keyframes voile-in{from{opacity:0}}
 @media(min-width:641px){.st-voile{background:none;backdrop-filter:none;-webkit-backdrop-filter:none}}
@@ -758,7 +764,7 @@ a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid v
   .st-menu button{padding:12px}}
 /* fiche : les cinq statuts en pastilles */
 .st-f>span{display:block}
-.st-choix{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:2px}
+.st-choix{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:2px}
 .st-choix button{display:grid;justify-items:center;gap:7px;padding:12px 4px 10px;border:0;border-radius:16px;background:var(--papier);color:var(--gris);font:600 13px/1.15 var(--texte);cursor:pointer;box-shadow:inset 0 0 0 1px var(--trait);transition:background .2s,color .2s,box-shadow .2s,transform .2s var(--ease);min-width:0}
 .st-choix button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-choix button .st-ico{width:34px;height:34px;border-radius:11px;opacity:.7;filter:saturate(.6);transition:.2s}
@@ -771,16 +777,18 @@ a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid v
 .st-choix-aide{margin:6px 2px 0;font-size:12.5px;color:var(--gris);font-weight:400;min-height:1.3em}
 #f_statut,#f_remise{display:none!important}
 /* Cartes vendues : teintées, pour les repérer d'un coup d'œil (Vendu aux couleurs de la formule, Envoyé en bleu comme sa pastille) */
-:root{--carte-vendu:color-mix(in srgb,var(--anis) 32%,var(--carte));--trait-vendu:var(--anis-f);--carte-envoye:color-mix(in srgb,var(--st-e-bg) 75%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}}
-:root[data-theme="dark"]{--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
+:root{--carte-vendu:color-mix(in srgb,var(--anis) 32%,var(--carte));--trait-vendu:var(--anis-f);--carte-envoye:color-mix(in srgb,var(--st-e-bg) 75%,var(--carte));--carte-recu:color-mix(in srgb,var(--st-c-bg) 75%,var(--carte));--trait-recu:color-mix(in srgb,var(--st-c-tx) 40%,var(--trait));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--carte-recu:color-mix(in srgb,var(--st-c-bg) 80%,var(--carte));--trait-recu:color-mix(in srgb,var(--st-c-tx) 40%,var(--trait));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}}
+:root[data-theme="dark"]{--carte-vendu:color-mix(in srgb,var(--anis) 16%,var(--carte));--trait-vendu:color-mix(in srgb,var(--anis) 55%,var(--trait));--carte-envoye:color-mix(in srgb,var(--st-e-bg) 80%,var(--carte));--carte-recu:color-mix(in srgb,var(--st-c-bg) 80%,var(--carte));--trait-recu:color-mix(in srgb,var(--st-c-tx) 40%,var(--trait));--trait-envoye:color-mix(in srgb,var(--st-e-tx) 40%,var(--trait))}
 .jeu.v-vendu{--carte:var(--carte-vendu);--trait:var(--trait-vendu)}
 .jeu.v-envoye{--carte:var(--carte-envoye);--trait:var(--trait-envoye)}
-.jeu.v-vendu .im,.jeu.v-envoye .im{background:color-mix(in srgb,var(--carte) 70%,var(--papier))}
+.jeu.v-recu{--carte:var(--carte-recu);--trait:var(--trait-recu)}
+.jeu.v-vendu .im,.jeu.v-envoye .im,.jeu.v-recu .im{background:color-mix(in srgb,var(--carte) 70%,var(--papier))}
 .jeu .im .tampon{position:absolute;right:10px;top:10px;z-index:1;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font:400 10px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;box-shadow:0 6px 16px -8px rgba(0,0,0,.5)}
 .jeu .im .tampon svg{width:13px;height:13px}
 .jeu.v-vendu .tampon{background:var(--st-f-bg);color:var(--st-f-tx)}
 .jeu.v-envoye .tampon{background:var(--st-e-bg);color:var(--st-e-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-e-tx) 30%,transparent),0 6px 16px -8px rgba(0,0,0,.5)}
+.jeu.v-recu .tampon{background:var(--st-c-bg);color:var(--st-c-tx);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--st-c-tx) 30%,transparent),0 6px 16px -8px rgba(0,0,0,.5)}
 .fisc-main{display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:10px;padding:7px 12px;border-radius:12px;background:var(--anis-p);color:var(--encre);font-size:13.5px;line-height:1.35;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--anis-f) 40%,var(--trait))}
 .fisc-main svg{width:16px;height:16px;flex:none}
 /* Suivi : encart « La vente » (remise, prix, date, frais) */
@@ -831,7 +839,7 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.6;cursor:pointer}
 html.etabli #fiche [data-onglet] input[type=date]{min-height:42px}
 #fSt{flex:none;font-size:13px;padding:7px 11px}
 @media(max-width:700px){#fSt{display:none}}
-@media(max-width:640px){.st-choix{gap:6px}.st-choix button{font-size:12px;letter-spacing:-.01em;padding:10px 2px 8px}.st-choix button span{overflow:visible}}
+@media(max-width:640px){.st-choix{gap:6px;grid-template-columns:repeat(3,minmax(0,1fr))}.st-choix button{font-size:12px;letter-spacing:-.01em;padding:10px 2px 8px}.st-choix button span{overflow:visible}}
 @media(max-width:380px){.st-choix{gap:6px}.st-choix button{font-size:11.5px;padding:10px 2px 8px}.st-choix button .st-ico{width:30px;height:30px}}
 @media (prefers-reduced-motion:reduce){.st-bt,.st-choix button,.st-menu .ok{transition:none}.st-bt.pop{animation:none}}
 /* ===== Bulles de statut : même arrondi que les cartes ===== */
@@ -1535,7 +1543,7 @@ html.sans-anim .vt-b.pousse{animation:none}
         <h3>Suivi</h3>
         <p class="note lot-note" id="fLotNote" hidden></p>
         <div class="champs">
-          <div class="f l2 st-f"><span id="lStatut">Statut</span><div class="st-choix" id="fStChoix" role="radiogroup" aria-labelledby="lStatut"></div><p class="st-choix-aide" id="fStAide"></p><select id="f_statut" data-habille="1" hidden tabindex="-1" aria-hidden="true"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="retire">Retiré de la vente</option></select></div>
+          <div class="f l2 st-f"><span id="lStatut">Statut</span><div class="st-choix" id="fStChoix" role="radiogroup" aria-labelledby="lStatut"></div><p class="st-choix-aide" id="fStAide"></p><select id="f_statut" data-habille="1" hidden tabindex="-1" aria-hidden="true"><option value="en_vente">En vente</option><option value="reserve">Réservé</option><option value="vendu">Vendu</option><option value="envoye">Vendu et envoyé</option><option value="recu">Reçu par l'acheteur</option><option value="retire">Retiré de la vente</option></select></div>
           <section class="l2 vente-encart vte" aria-labelledby="tVente">
             <header><i class="st-ico vendu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i><h4 id="tVente">La vente</h4></header>
             <div class="f"><span id="lRemise">Remise à l'acheteur</span><div class="st-choix duo" id="fRemChoix" role="radiogroup" aria-labelledby="lRemise"></div>
@@ -1824,13 +1832,13 @@ html.sans-anim .vt-b.pousse{animation:none}
 var $=function(i){return document.getElementById(i)};
 var GAL=[],SEL=0,DELS=[],MQ=matchMedia("(max-width:700px)");
 var ME=null,OBJ=[],FILTRE="tout",ED=null,PHOTO=null,PHOTO_CHANGEE=false,IMG=null,ORIG=null,ROT=0,COTE=null,PER="mois",IA_FAITE=false;
-var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",retire:"Retiré"};
+var STA={en_vente:"En vente",reserve:"Réservé",vendu:"Vendu",envoye:"Envoyé",recu:"Reçu",retire:"Retiré"};
 /* Statut de chaque vente : icônes, explications et ordre du parcours */
-var STA_ORDRE=["en_vente","reserve","vendu","envoye","retire"],
-  STA_AIDE={en_vente:"Annonce en ligne, en attente d'un acheteur",reserve:"Un acheteur s'est engagé, pas encore payé",vendu:"Payé, reste à le remettre ou l'envoyer",envoye:"Colis parti ou remis en main propre",retire:"Plus en vente, gardé dans ta liste"},
-  STA_SVG={en_vente:'<path d="M3 12.5V4h8.5l9 9-8.5 8.5z"/><circle cx="7.5" cy="8.5" r="1.4"/>',reserve:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',vendu:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',envoye:'<path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/>',retire:'<rect x="3.5" y="4" width="17" height="5" rx="1.5"/><path d="M5.5 9v10.5h13V9M10 13h4"/>'};
+var STA_ORDRE=["en_vente","reserve","vendu","envoye","recu","retire"],
+  STA_AIDE={en_vente:"Annonce en ligne, en attente d'un acheteur",reserve:"Un acheteur s'est engagé, pas encore payé",vendu:"Payé, reste à le remettre ou l'envoyer",envoye:"Colis parti ou remis en main propre",recu:"L'acheteur l'a bien reçu, vente bouclée",retire:"Plus en vente, gardé dans ta liste"},
+  STA_SVG={en_vente:'<path d="M3 12.5V4h8.5l9 9-8.5 8.5z"/><circle cx="7.5" cy="8.5" r="1.4"/>',reserve:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',vendu:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',envoye:'<path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z"/><path d="M3.5 7.5 12 11.5l8.5-4M12 11.5v9"/>',recu:'<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="m9 14.5 2.2 2.2L15 13"/>',retire:'<rect x="3.5" y="4" width="17" height="5" rx="1.5"/><path d="M5.5 9v10.5h13V9M10 13h4"/>'};
 function icoSta(k,cl){return '<svg'+(cl?' class="'+cl+'"':'')+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(k==="chev"?'<path d="m6 9 6 6 6-6"/>':k==="ok"?'<path d="M5 12.5l4.5 4.5L19 7.5"/>':STA_SVG[k])+'</svg>'}
-function tamponSta(o){return o.statut==="vendu"||o.statut==="envoye"?'<span class="tampon">'+icoSta(o.statut)+STA[o.statut]+'</span>':""}
+function tamponSta(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"?'<span class="tampon">'+icoSta(o.statut)+STA[o.statut]+'</span>':""}
 function boutonSta(o){return CHOIX?'<span class="st '+o.statut+'">'+STA[o.statut]+'</span>':'<button type="button" class="st st-bt '+o.statut+'" aria-haspopup="menu" aria-expanded="false" aria-label="Statut : '+STA[o.statut]+'. Changer le statut">'+pastilleSta(o.statut)+'</button>'}
 function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
@@ -1842,7 +1850,7 @@ var F=["titre","plateforme","region","categorie","numero","rarete","edition","gr
    ni les essais répétés (remplir plusieurs fois la même annonce ne fait pas gagner plus de temps). */
 var TEMPS_DEF={photos:3,texte:4,prix:4,lbc:2,suivi:1},TEMPS=(function(){var t={};try{t=JSON.parse(localStorage.getItem("rr-temps")||"{}")||{}}catch(e){}var o={};for(var k in TEMPS_DEF)o[k]=isFinite(+t[k])&&t[k]!==""&&t[k]!=null?Math.max(0,Math.min(120,+t[k])):TEMPS_DEF[k];return o})(),
   TEMPS_LIB={photos:["Photos","retouche et recadrage, par article photographié"],texte:["Texte de l'annonce","titre et description, par article"],prix:["Recherche du prix","par article dont la cote a été estimée"],lbc:["Publication","saisie sur Le Bon Coin, une fois par article mis en vente"],suivi:["Suivi des ventes","par article vendu"]};
-function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:Math.min(u.lbc||0,OBJ.filter(function(o){return o.statut&&o.statut!=="retire"||o.annonce}).length),suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}).length}}
+function tempsEtapes(){var u=ME.usage||{};return{photos:OBJ.filter(function(o){return o.photo}).length,texte:OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,prix:OBJ.filter(function(o){return o.cote}).length,lbc:Math.min(u.lbc||0,OBJ.filter(function(o){return o.statut&&o.statut!=="retire"||o.annonce}).length),suivi:OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"}).length}}
 var LBC_URL="https://www.leboncoin.fr/deposer-une-annonce";
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -1912,7 +1920,7 @@ function equilibrerOutils(){var g=document.querySelector(".outils-ph");if(!g||!g
   if(window.MutationObserver)new MutationObserver(function(){equilibrerOutils()}).observe(g,{attributes:true,attributeFilter:["hidden"],subtree:true});
   addEventListener("resize",equilibrerOutils)})();
 function trophees(){montrer("trophees");dessinerTrophees()}
-function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
+function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
     plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
   var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
     cartes=OBJ.filter(function(o){return o.categorie==="cartes"}).length,
@@ -1923,7 +1931,7 @@ function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(funct
     eclair=v.filter(function(o){return o.dateMiseEnVente&&o.dateVente&&jours(o.dateMiseEnVente,o.dateVente)<=7}).length,
     plein=v.filter(function(o){return o.prixDemande&&+o.prixVente>=+o.prixDemande}).length,
     rare=v.filter(function(o){return +o.prixVente>=100}).length,
-    envois=v.filter(function(o){return o.statut==="envoye"||o.remise==="envoi"}).length,
+    envois=v.filter(function(o){return o.statut==="envoye"||o.statut==="recu"||o.remise==="envoi"}).length,
     anc=ME.cree?Math.floor(jours(ME.cree,new Date())):0;
   return [
     ["manette","Insert Coin","Ajoute ton tout premier article.",OBJ.length,1],
@@ -2015,7 +2023,7 @@ function vtPas(max){if(max<=0)return 1;var e=Math.pow(10,Math.floor(Math.log10(m
 function vtDonnees(n){var auj=new Date(),mois=[],idx={};
   for(var i=2*n-1;i>=0;i--){var d=new Date(auj.getFullYear(),auj.getMonth()-i,1),k=vtCle(d);idx[k]=mois.length;mois.push({k:k,m:d.getMonth(),a:d.getFullYear(),enc:0,ben:0,nb:0,sansAchat:0,objs:[]})}
   var sansDate=0,sansAchat=0;
-  articles().forEach(function(o){if(o.statut!=="vendu"&&o.statut!=="envoye")return;if(!o.dateVente){sansDate++;return}
+  articles().forEach(function(o){if(!vendu(o))return;if(!o.dateVente){sansDate++;return}
     var x=mois[idx[o.dateVente.slice(0,7)]];if(!x)return;var pv=+o.prixVente||0;
     x.enc+=pv;x.nb++;x.objs.push(o);x.ben+=pv-(+o.frais||0)-(+o.prixAchat||0);if(o.prixAchat==null||o.prixAchat===""){x.sansAchat++}});
   var avant=mois.slice(0,n),cur=mois.slice(n);cur.forEach(function(x){sansAchat+=x.sansAchat});
@@ -2077,7 +2085,7 @@ $("vtMesure").addEventListener("click",function(e){var b=e.target.closest("butto
 $("vtPeriode").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||+b.dataset.p===VT.p)return;VT.p=+b.dataset.p;vtGarder();delete $("ventes").dataset.vu;dessinerVentes()});
 function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="function")dessinerBrouillons();try{dessinerAEffacer()}catch(e){}
   // Les compteurs portent sur les articles : un lot vendu compte par ses articles (chacun a sa part du prix).
-  var ART=articles(),vendus=ART.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"});
+  var ART=articles(),vendus=ART.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"});
   compter($("cTemps"),tempsGagne(),hm);
   compter($("cVente"),ART.filter(function(o){return o.statut==="en_vente"||o.statut==="reserve"}).length,function(v){return String(Math.round(v))});
   compter($("cVendus"),vendus.length,function(v){return String(Math.round(v))});
@@ -2087,7 +2095,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   // les plateformes ne déclarent que les ventes passées par elles : une vente remise en main propre ne compte pas dans les seuils
   var an=String(new Date().getFullYear()),cetteAnnee=function(o){return (o.dateVente||"").indexOf(an)===0},parPlateforme=function(o){return o.remise!=="main_propre"},
     vAn=vendus.filter(cetteAnnee),va=vAn.filter(parPlateforme),mt=va.reduce(function(a,o){return a+(o.prixVente||0)},0),
-    lotsAn=OBJ.filter(function(o){return estLot(o)&&(o.statut==="vendu"||o.statut==="envoye")&&cetteAnnee(o)}),
+    lotsAn=OBJ.filter(function(o){return estLot(o)&&(o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu")&&cetteAnnee(o)}),
     ventes=va.filter(function(o){return !lotDe(o)}).length+lotsAn.filter(parPlateforme).length,   // un lot vendu = une seule vente
     enMain=vAn.filter(function(o){return !lotDe(o)&&!parPlateforme(o)}).length+lotsAn.filter(function(o){return !parPlateforme(o)}).length;
   $("fAn").textContent=an;
@@ -2107,7 +2115,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
   majIdees();
   // les articles d'un lot restent dans la liste : ils sont aussi à vendre à l'unité tant que le lot n'est pas vendu.
   // Un lot vendu, lui, regroupe ses articles dans sa carte.
-  var l=trierArticles(OBJ.filter(function(o){var dl=lotDe(o);return (FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&o.statut==="envoye"))&&(CHOIX?!estLot(o)||CHOIX.lot===o:!(dl&&vendu(dl)))}));
+  var l=trierArticles(OBJ.filter(function(o){var dl=lotDe(o);return (FILTRE==="tout"||o.statut===FILTRE||(FILTRE==="vendu"&&(o.statut==="envoye"||o.statut==="recu")))&&(CHOIX?!estLot(o)||CHOIX.lot===o:!(dl&&vendu(dl)))}));
   if(!OBJ.length){$("liste").innerHTML='<div class="vide" style="grid-column:1/-1"><svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4F57A"/><path fill="#1A1A1A" fill-rule="evenodd" d="M 20.188 15.125 L 43.812 15.125 C 49.719 15.125 53.094 18.5 54.781 26.094 L 58.156 41.281 C 59.844 48.875 52.25 53.094 46.344 47.188 L 40.438 41.281 L 23.562 41.281 L 17.656 47.188 C 11.75 53.094 4.156 48.875 5.844 41.281 L 9.219 26.094 C 10.906 18.5 14.281 15.125 20.188 15.125 Z M 18.5 23.562 L 23.562 23.562 L 23.562 27.781 L 27.781 27.781 L 27.781 32.844 L 23.562 32.844 L 23.562 37.062 L 18.5 37.062 L 18.5 32.844 L 14.281 32.844 L 14.281 27.781 L 18.5 27.781 Z M 41.281 21.031 L 48.031 21.031 L 44.656 26.938 L 50.562 26.938 L 38.75 39.594 L 41.281 31.156 L 35.375 31.156 Z"/></svg><b style="font:700 24px/1.1 var(--titre);letter-spacing:-.03em;color:var(--encre)">Aucun article pour l\'instant</b><span>Prends ton premier article en photo : l\'annonce se remplit toute seule.</span><label class="btn" for="photoIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg> Ajouter en photo</label></div>';return}
   if(!l.length){$("liste").innerHTML='<p class="vide" style="grid-column:1/-1">'+(CHOIX?'Aucun article libre dans ce filtre : choisis « Tous ».':'Aucun article dans cette catégorie.')+'</p>';return}
   var carte=function(o,i){
@@ -2210,7 +2218,7 @@ try{TRI=localStorage.getItem("rr-tri")||TRI;GRP=localStorage.getItem("rr-grp")||
 if(!$("tri").querySelector('option[value="'+TRI+'"]'))TRI="recent";
 if(!$("grp").querySelector('option[value="'+GRP+'"]'))GRP="";
 $("tri").value=TRI;$("grp").value=GRP;
-function prixArticle(o){return o.statut==="vendu"||o.statut==="envoye"?o.prixVente:o.prixDemande}
+function prixArticle(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"?o.prixVente:o.prixDemande}
 var NOMS=new Intl.Collator("fr",{sensitivity:"base",numeric:true});
 function trierArticles(l){
   var num=function(v){return v==null||v===""||isNaN(+v)?null:+v};
@@ -2223,7 +2231,7 @@ function trierArticles(l){
     return TRI==="ancien"?d:-d})}
 var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",films:"Films",autres:"Autres"};
 function formatCourt(f){return{"Blu-Ray 4K UHD":"4K UHD","Blu-Ray 4K UHD + Blu-Ray":"4K UHD + Blu-Ray"}[f]||f||""}
-var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",retire:"Retirés"};
+var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",recu:"Vendus",retire:"Retirés"};
 function grouperArticles(l){
   if(!GRP)return [{nom:"",l:l}];
   var cle=function(o){
@@ -2755,7 +2763,7 @@ function majRemise(){var r=$("f_remise").value;[].forEach.call($("fRemChoix").ch
 $("fRemChoix").addEventListener("click",function(e){var b=e.target.closest("button[data-r]");if(!b)return;var r=$("f_remise").value===b.dataset.r?"":b.dataset.r;$("f_remise").value=r;if(r==="main_propre")$("f_frais").value="";majRemise()});
 $("fRemChoix").addEventListener("keydown",function(e){var d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!d)return;e.preventDefault();var i=REM.map(function(r){return r[0]}).indexOf($("f_remise").value),k=REM[(i+d+REM.length*2)%REM.length][0];$("f_remise").value=k;if(k==="main_propre")$("f_frais").value="";majRemise();$("fRemChoix").querySelector('[data-r="'+k+'"]').focus()});
 function majNet(){var e=$("fVenteNet"),pv=parseFloat($("f_prixVente").value),fr=$("fFraisZone").hidden?0:parseFloat($("f_frais").value)||0,pa=parseFloat($("f_prixAchat").value);
-  if(isNaN(pv)||["vendu","envoye"].indexOf($("f_statut").value)<0){e.innerHTML="";return}var net=Math.round((pv-fr)*100)/100;
+  if(isNaN(pv)||["vendu","envoye","recu"].indexOf($("f_statut").value)<0){e.innerHTML="";return}var net=Math.round((pv-fr)*100)/100;
   e.innerHTML='<span>Il te reste <b>'+eur(net)+'</b></span>'+(isNaN(pa)?"":'<span>Bénéfice <b class="'+(net-pa>=0?"plus":"moins")+'">'+(net-pa>=0?"+":"−")+eur(Math.abs(Math.round((net-pa)*100)/100))+'</b></span>')}
 ["f_prixVente","f_frais","f_prixAchat"].forEach(function(k){$(k).addEventListener("input",majNet)});
 /* Suivi : le colis envoyé. Transporteurs courants sur Le Bon Coin, lien vers leur page de suivi (le même liste que server/colis.mjs). */
@@ -2769,10 +2777,10 @@ function devinerTrp(n){n=numSuivi(n);return /^\d[A-Z]\d{11}$/.test(n)||/^[A-Z]{2
 function lienColis(t,n){var x=TRP.filter(function(y){return y[0]===t})[0];n=numSuivi(n);return x&&x[2]&&n?x[2](encodeURIComponent(n)):""}
 function dateCourte(d){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");return m?(+m[3])+" "+["janv.","févr.","mars","avril","mai","juin","juil.","août","sept.","oct.","nov.","déc."][m[2]-1]:""}
 /* Mes articles : une ligne « Colissimo · Livré le 22 nov. » sous le titre d'une vente envoyée */
-function ligneColis(o){if(!(o.statut==="vendu"||o.statut==="envoye")||o.remise==="main_propre"||!(o.suivi||o.livreLe))return "";
+function ligneColis(o){if(!(o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu")||o.remise==="main_propre"||!(o.suivi||o.livreLe))return "";
   var e=o.suiviEtat,t=o.livreLe?"Livré le "+dateCourte(o.livreLe):e&&e.libelle?"En route":o.statut==="envoye"?"Suivi en cours":"Numéro noté";
   return '<div class="ln colis-ln'+(o.livreLe?' livre':'')+'" title="'+esc((TRP_NOM[o.transporteur]||"Colis")+(o.suivi?" "+o.suivi:"")+(e&&e.libelle&&!o.livreLe?" : "+e.libelle:""))+'">'+(o.livreLe?LIVRE_SVG:COLIS_SVG)+'<span>'+esc([TRP_NOM[o.transporteur]&&o.transporteur!=="autre"?TRP_NOM[o.transporteur]:"",t].filter(Boolean).join(" · "))+'</span></div>'}
-function majColis(){var s=$("f_statut").value,r=$("f_remise").value,z=$("fColis"),vis=(s==="vendu"||s==="envoye")&&r!=="main_propre"&&(r==="envoi"||s==="envoye");z.hidden=!vis;if(!vis)return;
+function majColis(){var s=$("f_statut").value,r=$("f_remise").value,z=$("fColis"),vis=(s==="vendu"||s==="envoye"||s==="recu")&&r!=="main_propre"&&(r==="envoi"||s==="envoye"||s==="recu");z.hidden=!vis;if(!vis)return;
   var t=$("f_transporteur").value,n=numSuivi($("f_suivi").value),l=lienColis(t,n),liv=$("f_livreLe").value,fige=$("f_statut").disabled,
     e=ED&&ED.suivi===n&&ED.transporteur===t?ED.suiviEtat:null,et=$("fColisEtat");
   $("fColisLien").hidden=!l;if(l)$("fColisLien").href=l;
@@ -2789,14 +2797,16 @@ $("f_suivi").addEventListener("input",function(){var n=numSuivi(this.value);if(!
   if(n.length>=8&&$("f_statut").value==="vendu"&&!$("f_statut").disabled){if(!$("f_remise").value)$("f_remise").value="envoi";choisirStatutFiche("envoye")}majColis()});
 $("f_suivi").addEventListener("blur",function(){var n=numSuivi(this.value);if(n!==this.value)this.value=n});
 $("f_transporteur").addEventListener("change",majColis);
-$("fColisLivre").onclick=function(){$("f_livreLe").value=$("f_livreLe").value?"":today();majColis()};
+$("fColisLivre").onclick=function(){var liv=!$("f_livreLe").value;$("f_livreLe").value=liv?today():"";
+  // colis livré : l'acheteur l'a reçu (et l'inverse si on décoche)
+  var s=$("f_statut").value;if(liv&&s==="envoye")choisirStatutFiche("recu");else if(!liv&&s==="recu")choisirStatutFiche("envoye");majColis()};
 $("fColisMsg").onclick=function(){var t=$("f_transporteur").value,n=numSuivi($("f_suivi").value),l=lienColis(t,n),nom=t&&t!=="autre"?TRP_NOM[t]:"";
   var m="Bonjour,\n\nVotre colis est parti"+(nom?" avec "+nom:"")+" : voici le numéro de suivi, "+n+"."+(l?"\nVous pouvez le suivre ici : "+l:"")+"\n\nMerci encore pour votre achat, et bonne journée !";
   copier(m).then(function(){toast("Message copié : colle-le dans la conversation Le Bon Coin.","ok")}).catch(function(){toast("Copie impossible : sélectionne le numéro à la main.","bad")})};
 /* L'état des colis envoyés, relu chez La Poste (Colissimo, Lettre suivie, Chronopost) : au chargement, et à l'ouverture d'une fiche */
 function relireSuivis(ids){if(!ME||!ME.suiviAuto)return;api("POST","/api/suivis",ids?{ids:ids,force:true}:{}).then(function(j){if(!j.objets||!j.objets.length)return;
   j.objets.forEach(function(n){var i=OBJ.map(function(x){return x.id}).indexOf(n.id);if(i>=0)OBJ[i]=n;
-    if(ED&&ED.id===n.id){var etait=ED;ED=n;if(n.livreLe&&!$("f_livreLe").value&&!etait.livreLe){$("f_livreLe").value=n.livreLe;if(SNAP){try{var a=JSON.parse(SNAP);a[0][F.indexOf("livreLe")]=n.livreLe;SNAP=JSON.stringify(a)}catch(e){}}}majColis()}});
+    if(ED&&ED.id===n.id){var etait=ED;ED=n;if(n.livreLe&&!$("f_livreLe").value&&!etait.livreLe){$("f_livreLe").value=n.livreLe;var recu=n.statut==="recu"&&$("f_statut").value==="envoye";if(recu)choisirStatutFiche("recu");if(SNAP){try{var a=JSON.parse(SNAP);a[0][F.indexOf("livreLe")]=n.livreLe;if(recu)a[0][F.indexOf("statut")]="recu";SNAP=JSON.stringify(a)}catch(e){}}}majColis()}});
   if(j.objets.some(function(n){return estLot(n)}))rechargerObjets();else dessiner()}).catch(function(){})}
 function majStatutFiche(){var s=$("f_statut").value||"en_vente";
   var fige=$("f_statut").disabled;[].forEach.call($("fStChoix").children,function(b){var on=b.dataset.s===s;b.setAttribute("aria-checked",on);b.tabIndex=on?0:-1;b.disabled=fige&&!on});$("fSt").disabled=fige;
@@ -2828,17 +2838,17 @@ $("stVoile").addEventListener("pointerdown",function(e){e.preventDefault();ferme
 addEventListener("resize",placerStatut);addEventListener("scroll",placerStatut,{passive:true});
 /* Mes articles : changer le statut d'un clic, enregistré tout de suite, avec « Annuler » */
 function statutRapide(o,s,carte){if(o.statut===s)return;
-  var avant={statut:o.statut,prixVente:o.prixVente,dateVente:o.dateVente},nv={statut:s},vente=s==="vendu"||s==="envoye";
+  var avant={statut:o.statut,prixVente:o.prixVente,dateVente:o.dateVente},nv={statut:s},vente=s==="vendu"||s==="envoye"||s==="recu";
   if(vente&&o.prixVente==null&&o.prixDemande!=null)nv.prixVente=o.prixDemande;
   if(carte)carte.classList.add("en-cours");
   var maj=function(corps){return api("PUT","/api/objets/"+o.id,{objet:corps}).then(function(j){j.objet._lot=j.lot||null;if(estLot(j.objet)||j.lot||lotDe(o))return rechargerObjets().then(function(){return j.objet});var i=OBJ.map(function(x){return x.id}).indexOf(o.id);if(i>=0)OBJ[i]=j.objet;dessiner();
     var c=document.querySelector('#liste .jeu[data-id="'+o.id+'"] .st-bt');if(c){c.classList.add("pop")}return j.objet})};
   var nEf=(o.lotsAEffacer||[]).length;
   maj(nv).then(function(n){var fete=vente&&(avant.statut==="en_vente"||avant.statut==="reserve"),ef=(n.lotsAEffacer||[]).length>nEf;if(ef)setTimeout(montrerAEffacer,350);if(fete&&typeof confettis==="function")confettis();
-    var cache=FILTRE!=="tout"&&!(n.statut===FILTRE||(FILTRE==="vendu"&&n.statut==="envoye"));
+    var cache=FILTRE!=="tout"&&!(n.statut===FILTRE||(FILTRE==="vendu"&&(n.statut==="envoye"||n.statut==="recu")));
     toast("« "+n.titre+" » : "+STA[n.statut].toLowerCase()+(vente&&n.prixVente!=null?" à "+eur(n.prixVente):"")+(cache?", rangé hors de ce filtre":"")+"."+noteLot(n._lot)+(ef?((n.lotsAEffacer||[]).length-nEf>1?" Efface les annonces des lots":" Efface l'annonce du lot")+" sur les sites (encadré rouge).":""),"ok",["Annuler",function(){maj(avant).then(function(r){toast("Statut remis : "+STA[avant.statut].toLowerCase()+"."+noteLot(r&&r._lot),"ok")}).catch(function(e){erreur(e,"Impossible d'annuler.")})}])})
   .catch(function(e){if(carte)carte.classList.remove("en-cours");erreur(e,"Statut non enregistré.")})}
-function majVente(){majStatutFiche();var v=["vendu","envoye"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
+function majVente(){majStatutFiche();var v=["vendu","envoye","recu"].indexOf($("f_statut").value)>=0;[].forEach.call(document.querySelectorAll(".vte"),function(x){x.hidden=!v});
   if(v&&!$("f_dateVente").value)$("f_dateVente").value=today();if(v&&!$("f_prixVente").value&&$("f_prixDemande").value)$("f_prixVente").value=$("f_prixDemande").value;majRemise()}
 $("f_statut").onchange=majVente;
 function majSites(){var a=$("f_annonce").value.trim(),e=$("f_annonceEbay").value.trim(),ok=function(u,re){return re.test(u)?u:""};
@@ -3421,7 +3431,7 @@ function nomsLots(l){return l.map(function(x){return "« "+x.titre+" »"}).join(
 function membres(lot){return (lot.articles||[]).map(parId).filter(Boolean)}
 /* valeur à l'unité : le prix affiché (ce que l'acheteur paierait), sinon le prix conseillé de la cote */
 function valeur(o){var c=o&&o.cote&&o.cote.conseille;return o&&o.prixDemande!=null&&o.prixDemande!==""?+o.prixDemande:c!=null&&c!==""?+c:null}
-function vendu(o){return o.statut==="vendu"||o.statut==="envoye"}
+function vendu(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"}
 function lotsVendus(){return OBJ.filter(function(o){return estLot(o)&&vendu(o)}).length}
 /* sous 5 €, un article se vend mieux en lot (même seuil que la cote des cartes et des films) */
 function petitPrix(o){var v=valeur(o);return !!(o.cote&&o.cote.lot)||v!=null&&v<5}
