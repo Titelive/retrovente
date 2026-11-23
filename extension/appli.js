@@ -16,7 +16,7 @@
   function ici() { if (document.visibilityState !== "hidden") rrDemander({ type: "appli" }).catch(function () {}); }
   ici(); document.addEventListener("visibilitychange", ici); window.addEventListener("focus", ici);
   RR.runtime.onMessage.addListener(function (m) {
-    if (m && m.type === "publiee") dire("publiee", { id: m.id, titre: m.titre, url: m.url });
+    if (m && m.type === "publiee") dire("publiee", { id: m.id, titre: m.titre, url: m.url, site: m.site });
   });
   function presente() { dire("present", { version: RR.runtime.getManifest().version }); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", presente); else presente();

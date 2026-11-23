@@ -13,7 +13,7 @@ import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
 import * as stripe from "./stripe.mjs";
 import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
-import { coteLot, repartir, resumeLot, annonceLotSimple, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
+import { coteLot, repartir, resumeLot, annonceLotSimple, majPhrasePrix, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 import { normaliserProfil, lireProfil } from "./profil.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
@@ -154,6 +154,11 @@ function modifierObjet(uid, avant, b) {
     else { savePhoto(uid, avant.id, b.photo, "p0"); it.photos = [{ id: "p0", legende: "" }]; }
   }
   it.photo = it.photos.length > 0;
+  // Lot : la phrase du prix dans l'annonce suit le prix demandé (et la cote actuelle des articles).
+  if (estLot(it) && it.texteAnnonce) {
+    const t = majPhrasePrix(it.texteAnnonce, coteLot(it.articles.map((id) => getItem(uid, id)).filter(Boolean)).somme, it.prixDemande);
+    if (t !== it.texteAnnonce) { if (it.annonceGeneree === it.texteAnnonce) it.annonceGeneree = t; it.texteAnnonce = t; }
+  }
   db.prepare("UPDATE items SET data = ?, updated = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(it), now(), avant.id, uid);
   let lots = [];
   if (estLot(it)) lots = tx(() => suivreLot(uid, { ...it, id: avant.id }, avant));
@@ -450,14 +455,15 @@ export function annonceEbay(v, base) {
     : [[v.categorie === "consoles" ? "Modèle" : "Nom du jeu", v.titre], ["Plateforme", v.plateforme], ["Région", v.region], ["Contenu", CONTENU_EBAY[v.contenu]]]).filter((x) => x[1]);
   return {
     titre: titreEbay(base.titre), etat: ETAT_EBAY[v.etat] || "", caracteristiques: car.map(([nom, valeur]) => ({ nom, valeur: String(valeur).slice(0, 65) })),
-    description: String(base.description || "").replace(/Remise en main propre ou envoi\.?/, "Envoi soigné et rapide, avec suivi."),
+    description: String(base.description || "").replace(/Remise en main propre ou envoi( soigné)?(, en un seul colis)?\.?/, (m, s, colis) => `Envoi soigné et rapide, avec suivi${colis ? ", en un seul colis" : ""}.`),
     prix: base.prix, plancher: base.prix != null ? Math.min(base.prix, ia.rond(base.prix * 0.85, true)) : null,
   };
 }
 // Lots : les noms des jeux qu'ils contiennent (une annonce « Lot Star Wars : 2 jeux » compte pour 2 jeux).
 function avecContenu(uid, l) {
   const noms = new Map(listItems(uid).map((v) => [v.id, [v.titre, v.plateforme].filter(Boolean).join(" ")]));
-  return l.map((v) => (estLot(v) ? { ...annoncePourExtension(v), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annoncePourExtension(v)));
+  const aJour = (v) => (v.texteAnnonce ? { ...v, texteAnnonce: majPhrasePrix(v.texteAnnonce, coteLot(v.articles.map((id) => getItem(uid, id)).filter(Boolean)).somme, v.prixDemande) } : v);
+  return l.map((v) => (estLot(v) ? { ...annoncePourExtension(aJour(v)), contient: v.articles.map((id) => noms.get(id)).filter(Boolean) } : annoncePourExtension(v)));
 }
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 

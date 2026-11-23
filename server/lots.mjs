@@ -119,6 +119,16 @@ export function ligneArticle(o, commun = "") {
   return nom + (det.length ? ", " + det.join(", ") : "");
 }
 
+/** La phrase « Vendus séparément, ils valent environ S : le lot est à P. » suit la cote et le prix actuels du lot
+    (le prix change après l'écriture de l'annonce). Lot plus cher que ses articles : la phrase disparaît. */
+const PHRASE_PRIX = /Vendus séparément, ils valent environ [^\n]*? : le lot est à [^\n]*?€\./;
+export function majPhrasePrix(texte, somme, prixLot) {
+  const t = String(texte || "");
+  if (!PHRASE_PRIX.test(t)) return t;
+  const ph = somme && prixLot && prixLot < somme ? `Vendus séparément, ils valent environ ${eur(Math.round(somme))} : le lot est à ${eur(prixLot)}.` : "";
+  return t.replace(PHRASE_PRIX, ph).replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /** Annonce du lot sans l'IA : liste des articles, valeur à l'unité, un seul envoi. Sert aussi de secours à l'IA. */
 export function annonceLotSimple(articles, prixLot, theme = null) {
   const l = articles.filter(Boolean), r = resumeLot(l), c = coteLot(l);
