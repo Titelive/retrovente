@@ -390,8 +390,8 @@ struct Fiche: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if article.annonceMorte(appli) { bandeauAnnonceMorte }
                     HStack(alignment: .top, spacing: 24) {
-                        galerie.frame(width: 340)
-                        champs.frame(maxWidth: .infinity)
+                        galerie.frame(minWidth: 220, idealWidth: 340, maxWidth: 340)
+                        champs.frame(minWidth: 380, maxWidth: .infinity)
                     }
                 }.padding(24)
             }
