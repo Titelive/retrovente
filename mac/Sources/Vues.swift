@@ -267,19 +267,27 @@ struct Avatar: View {
 }
 
 struct Vignette: View {
-    let article: Article; var photo: Photo? = nil
-    @State private var image: NSImage? = nil
+    let article: Article; var photo: Photo? = nil; var taille: Images.Taille = .carte
+    @State private var image: NSImage?
+    init(article: Article, photo: Photo? = nil, taille: Images.Taille = .carte) {
+        self.article = article; self.photo = photo; self.taille = taille
+        // Déjà en mémoire : affichée dès le premier rendu (pas de case vide en revenant dans la grille).
+        _image = State(initialValue: Vignette.url(article, photo).flatMap { Images.enCache($0, taille) })
+    }
+    static func url(_ a: Article, _ photo: Photo?) -> URL? { (photo ?? a.photos.first).map { API.urlPhoto(a.id, $0.id, v: a.modifie) } }
     var body: some View {
         // La photo remplit le cadre sans jamais en sortir (le cadre fixe la taille, la photo est rognée).
         Rectangle().fill(LinearGradient(colors: [Color.rrOr.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .overlay {
-            if let i = image { Image(nsImage: i).resizable().scaledToFill() }
+            if let i = image { Image(nsImage: i).resizable().interpolation(.medium).scaledToFill() }
             else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrOr) }
         }
         .clipped()
-        .task(id: "\((photo ?? article.photos.first)?.id ?? "")|\(article.modifie)") {
-            guard let p = photo ?? article.photos.first else { image = nil; return }
-            image = await Images.charger(API.urlPhoto(article.id, p.id, v: article.modifie))
+        .task(id: Vignette.url(article, photo)?.absoluteString ?? "") {
+            guard let u = Vignette.url(article, photo) else { image = nil; return }
+            if let i = Images.enCache(u, taille) { if image !== i { image = i }; return }
+            let i = await Images.charger(u, taille)
+            if !Task.isCancelled { image = i }
         }
     }
 }
@@ -422,12 +430,12 @@ struct Fiche: View {
 
     private var galerie: some View {
         VStack(spacing: 12) {
-            Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article, photo: photo) }.clipShape(RoundedRectangle(cornerRadius: 22))
+            Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article, photo: photo, taille: .grande) }.clipShape(RoundedRectangle(cornerRadius: 22))
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.08)))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(article.photos) { p in
-                        Vignette(article: article, photo: p).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
+                        Vignette(article: article, photo: p, taille: .mini).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrOr : .clear, lineWidth: 2))
                             .onTapGesture { photo = p }
                             .contextMenu { Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } } }

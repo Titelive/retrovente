@@ -1,6 +1,7 @@
 // RetroRevente en natif : le compte et les articles, lus et modifiés par l'API de retrorevente.fr (/api/…),
 // avec la même session (cookie) que l'appli web. Aucune page web pour cette partie de l'app.
 import AppKit
+import ImageIO
 import SwiftUI
 
 // MARK: Données
@@ -165,7 +166,7 @@ enum Libelles {
     }
 }
 
-struct Profil {
+struct Profil: Equatable {
     var email = "", nom = "", pseudo = "", avatar = "", lbc = "", adresse = "", cree = "", formule = "Découverte", formuleId = "gratuit"
     var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
     var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
@@ -244,17 +245,66 @@ func jpegData(_ image: NSImage, max: CGFloat = 2000, poids: Int = 2_000_000) -> 
 }
 
 /// Images de l'API (avec la session), gardées en mémoire.
+/// Fluidité : chaque photo est réduite à la taille où elle s'affiche (une vignette de carte n'a pas besoin des
+/// 2000 px d'origine) et décodée hors du fil principal ; le défilement ne décode plus rien. Un même fichier n'est
+/// téléchargé qu'une fois, même si plusieurs cartes le demandent en même temps.
 @MainActor
 final class Images {
-    static let cache = NSCache<NSURL, NSImage>()
-    static func charger(_ url: URL) async -> NSImage? {
-        if let i = cache.object(forKey: url as NSURL) { return i }
-        var r = URLRequest(url: url); r.setValue(API.appareil, forHTTPHeaderField: "x-rr-app")
-        guard let (d, rep) = try? await URLSession.shared.data(for: r), (rep as? HTTPURLResponse)?.statusCode == 200, let i = NSImage(data: d) else { return nil }
-        cache.setObject(i, forKey: url as NSURL)
+    enum Taille: CGFloat { case mini = 200, carte = 720, grande = 1600, pleine = 0 }
+    private static let images: NSCache<NSString, NSImage> = { let c = NSCache<NSString, NSImage>(); c.totalCostLimit = 300 << 20; return c }()
+    private static let donnees: NSCache<NSURL, NSData> = { let c = NSCache<NSURL, NSData>(); c.totalCostLimit = 150 << 20; return c }()
+    private static var enVol: [String: Task<NSImage?, Never>] = [:]
+    private static var telechargements: [URL: Task<Data?, Never>] = [:]
+
+    private static func cle(_ url: URL, _ t: Taille) -> NSString { "\(Int(t.rawValue))|\(url.absoluteString)" as NSString }
+    /// Déjà prête : la vue l'affiche tout de suite, sans case vide le temps d'une image.
+    static func enCache(_ url: URL, _ t: Taille = .carte) -> NSImage? { images.object(forKey: cle(url, t)) }
+
+    static func charger(_ url: URL, _ t: Taille = .pleine) async -> NSImage? {
+        let k = cle(url, t)
+        if let i = images.object(forKey: k) { return i }
+        if let e = enVol[k as String] { return await e.value }
+        let tache = Task<NSImage?, Never> {
+            guard let d = await telecharger(url) else { return nil }
+            let i = await Task.detached(priority: .userInitiated) { Images.decoder(d, t.rawValue) }.value
+            if let i = i { images.setObject(i, forKey: k, cost: Int(i.size.width * i.size.height * 4)) }
+            return i
+        }
+        enVol[k as String] = tache
+        let i = await tache.value
+        enVol[k as String] = nil
         return i
     }
-    static func oublier(_ url: URL) { cache.removeObject(forKey: url as NSURL) }
+    private static func telecharger(_ url: URL) async -> Data? {
+        if let d = donnees.object(forKey: url as NSURL) { return d as Data }
+        if let e = telechargements[url] { return await e.value }
+        let tache = Task<Data?, Never> {
+            var r = URLRequest(url: url); r.setValue(API.appareil, forHTTPHeaderField: "x-rr-app")
+            guard let (d, rep) = try? await URLSession.shared.data(for: r), (rep as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            donnees.setObject(d as NSData, forKey: url as NSURL, cost: d.count)
+            return d
+        }
+        telechargements[url] = tache
+        let d = await tache.value
+        telechargements[url] = nil
+        return d
+    }
+    /// Décodage réduit (ImageIO), orientation appliquée, pixels prêts : rien à décoder au moment de dessiner.
+    nonisolated static func decoder(_ d: Data, _ max: CGFloat) -> NSImage? {
+        guard let src = CGImageSourceCreateWithData(d as CFData, nil) else { return nil }
+        var o: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                  kCGImageSourceShouldCacheImmediately: true]
+        if max > 0 { o[kCGImageSourceThumbnailMaxPixelSize] = max }
+        else if let p = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] {
+            o[kCGImageSourceThumbnailMaxPixelSize] = Swift.max((p[kCGImagePropertyPixelWidth] as? Int) ?? 4000, (p[kCGImagePropertyPixelHeight] as? Int) ?? 4000)
+        }
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, o as CFDictionary) else { return NSImage(data: d) }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+    }
+    static func oublier(_ url: URL) {
+        donnees.removeObject(forKey: url as NSURL)
+        for t in [Taille.mini, .carte, .grande, .pleine] { images.removeObject(forKey: cle(url, t)) }
+    }
 }
 
 // MARK: État de l'appli
@@ -292,7 +342,8 @@ final class Appli: ObservableObject {
     enum Etat { case chargement, deconnecte, connecte }
     @Published var etat: Etat = .chargement
     @Published var profil = Profil()
-    @Published var articles: [Article] = []
+    @Published var articles: [Article] = [] { didSet { index = Dictionary(articles.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a }) } }
+    private(set) var index: [String: Int] = [:]   // id → position : parId en temps constant (appelé des centaines de fois par rendu)
     @Published var erreur: String? = nil
     @Published var fete: String? = nil        // titre de l'annonce publiée (confettis)
     @Published var compteOuvert = false
@@ -366,12 +417,12 @@ final class Appli: ObservableObject {
         catch let e as ErreurRR where e.status == 401 { etat = .deconnecte }
         catch { etat = .deconnecte; erreur = (error as? ErreurRR)?.message ?? "Pas de connexion à RetroRevente." }
     }
-    func chargerProfil() async throws { profil = Profil(try await API.json("GET", "/api/moi")) }
+    func chargerProfil() async throws { let p = Profil(try await API.json("GET", "/api/moi")); if p != profil { profil = p } }
     func recharger() async {
         do {
             let j = try await API.json("GET", "/api/objets")
-            articles = (j["objets"] as? [[String: Any]] ?? []).map(Article.init)
-                .sorted { $0.modifie > $1.modifie }
+            let n = (j["objets"] as? [[String: Any]] ?? []).map(Article.init).sorted { $0.modifie > $1.modifie }
+            if n != articles { articles = n }   // rien de changé : la grille n'est pas redessinée
             dernierChargement = Date()
             verif.appli = self; verif.planifier(articles)
         } catch { signaler(error) }
