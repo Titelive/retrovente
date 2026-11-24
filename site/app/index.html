@@ -1576,6 +1576,7 @@ html.sans-anim .vt-b.pousse{animation:none}
         <div class="stats-fiche" id="fStats" aria-live="polite" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
+        <button class="btn jaune petit" type="button" id="fReecrire" style="align-self:flex-start;margin-top:8px" title="L'IA réécrit le titre et la description d'après la fiche et les photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> Réécrire avec l'IA</button>
         <label class="f">Lien de l'annonce Le Bon Coin une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
         <label class="f">Lien de l'annonce eBay une fois publiée (facultatif)<input type="url" id="f_annonceEbay" inputmode="url" placeholder="https://www.ebay.fr/itm/…"></label>
       </section>
@@ -2410,7 +2411,11 @@ function pivoter(src){return chargerImg(src).then(function(img){var cv=document.
 $("fPivot").onclick=function(){var c=cur();if(!c)return;Promise.all([pivoter(c.src),c.orig?pivoter(c.orig):null]).then(function(r){c.src=c.data=r[0];if(r[1])c.orig=r[1];IMG=null;afficher()}).catch(function(e){erreur(e,"Rotation impossible.")})};
 /* Description : bloc « Photos : 1. … » tenu à jour avec l'ordre et les légendes */
 var RE_PHOTOS=/\n*Photos :\n(?:\d+\. [^\n]*(?:\n|$))*/;
+function legNet(x){return String(x||"").toLowerCase().replace(/\s+/g," ").replace(/[\s.]+$/,"").trim()}
 function majDescPhotos(){var t=$("f_texteAnnonce"),v=t.value.replace(RE_PHOTOS,"\n").replace(/\n+$/,"");
+  // l'IA a parfois déjà listé les photos dans le texte : ces lignes font doublon avec le bloc « Photos : », on les retire
+  var legs=GAL.map(function(g){return legNet(g.legende)}).filter(Boolean);
+  if(legs.length)v=v.split("\n").filter(function(x){var m=/^\s*(?:photo\s*)?\d+\s*[.):–-]\s*(.+)$/i.exec(x);return !(m&&legs.indexOf(legNet(m[1]))>=0)}).join("\n").replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"");
   var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende.replace(/\s*\.$/,""):""}).filter(Boolean);
   if(l.length&&GAL.some(function(g){return g.legende}))v=(v?v+"\n\n":"")+"Photos :\n"+l.join("\n");
   if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
@@ -2757,6 +2762,7 @@ $("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial(
 $("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
 $("dTexte").addEventListener("input",taille);
 $("dSug").addEventListener("click",function(e){var b=e.target.closest("button");if(b)envoyerDial(b.textContent)});
+$("fReecrire").onclick=function(){envoyerDial("Réécris toute l'annonce, titre et description, d'après la fiche et les légendes des photos. Ne liste pas les photos : le bloc « Photos » est ajouté à la fin.")};
 $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-annule]");if(!b)return;var m=DIAL[+b.dataset.annule];if(!m||!m.avant)return;poser(m.avant);m.avant=null;dessinerDial();toast("Changements annulés.","ok")});
 
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
