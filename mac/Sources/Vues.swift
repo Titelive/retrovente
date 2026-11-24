@@ -292,6 +292,45 @@ struct Fiche: View {
     @State private var retirer = false
     @State private var original: Article? = nil
 
+    /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
+    private var bandeauAnnonceMorte: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill").font(.title2).foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Cette annonce n'est plus en ligne sur Le Bon Coin").font(.headline)
+                Text(article.estLot ? "Elle est désactivée, supprimée ou expirée. Redépose le lot : son titre accrocheur et son annonce sont refaits avec ses articles."
+                                    : "Elle est désactivée, supprimée ou expirée. Redépose-la, ou retrouve-la si tu l'as republiée sous un autre lien.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Menu {
+                Button("Retrouver dans Mes annonces") { Task { await oublierLien(); appli.fenetre?.aller(.annonces) } }
+                Button("Oublier le lien") { Task { await oublierLien() } }
+            } label: { Text("Autres choix") }.menuStyle(.button).boutonVerre().fixedSize()
+            Button { Task { await redeposer() } } label: { Label("Redéposer", systemImage: "paperplane.fill") }
+                .boutonVerre(principal: true).disabled(enCours || article.statut != "en_vente")
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.orange.opacity(0.5)))
+    }
+    private func oublierLien() async {
+        var n = article; n.annonce = ""
+        enCours = true; defer { enCours = false }
+        if let r = await appli.enregistrer(n) { article = r; original = r; appli.message = "Lien Le Bon Coin oublié." }
+    }
+    /// Redépose : lot = titre et annonce refaits d'abord ; puis le lien mort est oublié et le dépôt part en coulisses.
+    private func redeposer() async {
+        if article.estLot { await refaireAnnonceLot() }
+        var n = article; n.annonce = ""
+        enCours = true
+        let r = await appli.enregistrer(n)
+        enCours = false
+        guard let r = r else { return }
+        article = r; original = r
+        appli.deposer(r)
+    }
+
     /// Lot : titre accrocheur et annonce refaits par le serveur avec les articles du lot (comme « Mettre à jour l'annonce » du site).
     private func refaireAnnonceLot() async {
         enCours = true; defer { enCours = false }
@@ -340,6 +379,7 @@ struct Fiche: View {
                 Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
                     .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || article == original)
             }
+            if article.annonceMorte(appli) { bandeauAnnonceMorte.padding(.horizontal, 24).padding(.top, 8) }
             ScrollView {
                 HStack(alignment: .top, spacing: 24) {
                     galerie.frame(width: 340)
@@ -347,7 +387,7 @@ struct Fiche: View {
                 }.padding(24)
             }
         }
-        .onAppear { original = article; photo = article.photos.first }
+        .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
         } message: { Text("La fiche et ses photos seront effacées.") }

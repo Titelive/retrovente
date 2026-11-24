@@ -431,10 +431,18 @@ struct Etiquette: View {
 
 /// Pastilles « LBC » et « eBay » : l'annonce est en ligne sur ces sites (clic : l'annonce).
 struct Sites: View {
-    let article: Article; let appli: Appli
+    let article: Article; @ObservedObject var appli: Appli
     var body: some View {
         HStack(spacing: 4) {
-            if !article.annonce.isEmpty {
+            if article.annonceMorte(appli) {
+                Button { appli.selection = article.id } label: {
+                    HStack(spacing: 3) { Image(systemName: "xmark").font(.system(size: 8, weight: .black)); Text("LBC").strikethrough() }
+                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(nsColor: NSColor(hex: 0xEC5A13)))
+                        .padding(.horizontal, 7).padding(.vertical, 4)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: NSColor(hex: 0xEC5A13)), lineWidth: 1.5))
+                }.buttonStyle(.plain).help("Annonce désactivée sur Le Bon Coin : ouvre la fiche pour la redéposer")
+            } else if !article.annonce.isEmpty {
                 pastille("LBC", Color(nsColor: NSColor(hex: 0xEC5A13))) { appli.fenetre?.voirAnnonce(article) }.help("Voir l'annonce sur Le Bon Coin")
             }
             if let u = URL(string: article.annonceEbay), !article.annonceEbay.isEmpty {

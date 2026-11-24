@@ -29,6 +29,7 @@ extension Fenetre {
 
     private func annonceMorte(_ id: String) {
         guard let a = modele.parId(id) else { return }
+        modele.annoncesMortes[id] = a.annonce
         let al = NSAlert()
         al.messageText = "Cette annonce n'est plus en ligne"
         al.informativeText = "Le Bon Coin indique que l'annonce de « \(a.titre) » est désactivée. Elle a peut-être été republiée sous un autre lien, vendue ou supprimée.\n\n« Retrouver la bonne annonce » oublie ce lien et ouvre Mes annonces : RetroRevente y relie toute seule l'annonce en ligne à ta fiche."

@@ -316,6 +316,11 @@ final class Appli: ObservableObject {
     @Published var focusRecherche = 0          // ⌘K : place le curseur dans la recherche
     @Published var message: String? = nil      // petit message de confirmation (statut changé, lot créé…)
     var dernierChargement = Date.distantPast
+    /// Annonces Le Bon Coin vues désactivées (article → lien vérifié), gardées d'une ouverture à l'autre.
+    @Published var annoncesMortes: [String: String] = UserDefaults.standard.dictionary(forKey: "annoncesMortes") as? [String: String] ?? [:] {
+        didSet { UserDefaults.standard.set(annoncesMortes, forKey: "annoncesMortes") }
+    }
+    let verif = VerifAnnonces()
     @Published var gestion: GestionAnnonce? = nil {
         didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
@@ -341,7 +346,7 @@ final class Appli: ObservableObject {
                 ["id": "a6", "titre": "Manette DualShock 2", "categorie": "accessoires", "plateforme": "PlayStation 2", "prixDemande": 15, "statut": "en_vente", "modifie": "1"],
             ]
             articles = ex.map(Article.init); etat = .connecte
-            if d == "fiche" { selection = "a1" }
+            if d == "fiche" { selection = "a1"; annoncesMortes = ["a1": articles.first { $0.id == "a1" }?.annonce ?? ""] } else { annoncesMortes = [:] }
             if d == "nouveau" { nouveauOuvert = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
@@ -360,6 +365,7 @@ final class Appli: ObservableObject {
             articles = (j["objets"] as? [[String: Any]] ?? []).map(Article.init)
                 .sorted { $0.modifie > $1.modifie }
             dernierChargement = Date()
+            verif.appli = self; verif.planifier(articles)
         } catch { signaler(error) }
     }
     func connecter(email: String, motdepasse: String) async throws {
