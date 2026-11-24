@@ -78,6 +78,12 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let contenu = NSView()
         // RetroRevente : écrans natifs (SwiftUI). La vue web « appli » ne sert plus qu'en secours.
         modele.fenetre = self
+        // Un clic dans la fenêtre, en dehors de la feuille ouverte (nouvel article, dépôt…), la referme,
+        // sauf pendant une publication ou un envoi en cours.
+        NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] e in
+            guard let self = self, e.window === self.fenetre, self.fenetre.attachedSheet != nil else { return e }
+            return self.fermerFeuille() ? nil : e
+        }
         // Données à jour : au retour dans l'app, et toutes les 90 s pendant qu'elle est au premier plan.
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.modele.rafraichir() }
@@ -234,6 +240,15 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         c.addSubview(v, positioned: .below, relativeTo: nil)
         NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo: c.leadingAnchor), v.trailingAnchor.constraint(equalTo: c.trailingAnchor),
                                      v.topAnchor.constraint(equalTo: c.topAnchor), v.bottomAnchor.constraint(equalTo: c.bottomAnchor)])
+    }
+
+    /// Ferme la feuille ouverte comme son bouton « Annuler ». Renvoie false si elle doit rester (action en cours).
+    @discardableResult func fermerFeuille() -> Bool {
+        if let d = modele.depot { if d.etape == .publication { return false }; annulerCoulisses(); return true }
+        if let g = modele.gestion { if g.etape == .envoi { return false }; modele.gestion = nil; return true }
+        if modele.nouveauOuvert { modele.nouveauOuvert = false; return true }
+        if modele.choixDepot { modele.choixDepot = false; return true }
+        return false
     }
 
     func ouvrir(_ url: URL) {

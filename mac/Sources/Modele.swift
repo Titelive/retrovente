@@ -538,6 +538,7 @@ final class Appli: ObservableObject {
             let j = try await API.json("POST", "/api/ia/cote", ["objet": ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]])
             guard let c = j["cote"] as? [String: Any] else { return nil }
             var b = a; b.cote = Cote(c)
+            if b.prixDemande == nil, let p = (c["conseille"] as? NSNumber)?.doubleValue { b.prixDemande = p }   // prix vide : le prix conseillé
             return await enregistrer(b)
         } catch { signaler(error); return nil }
     }

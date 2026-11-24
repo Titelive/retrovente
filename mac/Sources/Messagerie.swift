@@ -142,8 +142,10 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     private func appel(_ js: String, _ args: [String: Any] = [:]) async -> [String: Any]? {
         guard let v = vue else { return nil }
         do {
-            let r = try await v.callAsyncJavaScript("if (!window.rrMessagerie) return { absent: true }; " + js, arguments: args, in: nil, in: Scripts.monde)
-            return r as? [String: Any] ?? ["erreur": "Réponse vide de la page"]
+            // Résultat passé en texte JSON : rien ne se perd entre la page et l'app.
+            let r = try await Messagerie.appelJS(v, "const __r = await (async () => { if (!window.rrMessagerie) return { absent: true }; " + js + " })(); return JSON.stringify(__r === undefined ? null : __r);", args)
+            if let t = r as? String, let o = try? JSONSerialization.jsonObject(with: Data(t.utf8)) as? [String: Any] { return o }
+            return r as? [String: Any] ?? ["erreur": "Réponse vide de la page (\(r.map { String(describing: type(of: $0)) + " " + String(describing: $0).prefix(80) } ?? "nil"))"]
         } catch {
             NSLog("RetroRevente messagerie : erreur JavaScript %@", String(describing: error))
             return ["erreur": "Erreur JavaScript", "pile": String(describing: error)]
@@ -181,6 +183,22 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         }
     }
 
+    // Versions à rappel (completion handler) : les variantes async de WebKit rendaient un résultat vide sur certains macOS.
+    static func appelJS(_ v: WKWebView, _ js: String, _ args: [String: Any]) async throws -> Any? {
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Any?, Error>) in
+            v.callAsyncJavaScript(js, arguments: args, in: nil, in: Scripts.monde) { r in
+                switch r { case .success(let x): c.resume(returning: x); case .failure(let e): c.resume(throwing: e) }
+            }
+        }
+    }
+    static func evaluerJS(_ v: WKWebView, _ js: String) async throws -> Any? {
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Any?, Error>) in
+            v.evaluateJavaScript(js, in: nil, in: Scripts.monde) { r in
+                switch r { case .success(let x): c.resume(returning: x); case .failure(let e): c.resume(throwing: e) }
+            }
+        }
+    }
+
     /// Diagnostic sans contenu privé (structure de la page, pas les messages) : ~/Library/Application Support/RetroRevente/diag-messagerie.json
     func diagnostiquer(_ raison: String) async {
         guard let v = vue else { return }
@@ -201,11 +219,13 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
           dates: dates, esquisse: masque((main || document.body).innerText.replace(/\\s+/g, ' ')).slice(0, 600)
         });
         """
-        var d: [String: Any] = ["raison": raison, "quand": ISO8601DateFormatter().string(from: Date()), "derniereErreur": derniereErreur,
+        var d: [String: Any] = ["vue": ["url": (v.url?.absoluteString ?? "nil").replacingOccurrences(of: #"\d{4,}"#, with: "#", options: .regularExpression), "titre": v.title ?? "", "charge": v.isLoading, "progres": v.estimatedProgress, "fenetre": v.window != nil, "taille": "\(Int(v.frame.width))x\(Int(v.frame.height))"],
+                                "raison": raison, "quand": ISO8601DateFormatter().string(from: Date()), "derniereErreur": derniereErreur,
                                 "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?", "conversations": conversations.count]
         do {
-            let r = try await v.evaluateJavaScript(js, in: nil, in: Scripts.monde)
+            let r = try await Messagerie.evaluerJS(v, js)
             if let t = r as? String, let o = try? JSONSerialization.jsonObject(with: Data(t.utf8)) { d["page"] = o }
+            else { d["pageBrut"] = r.map { String(describing: type(of: $0)) + " " + String(describing: $0).prefix(200) } ?? "nil" }
         } catch { d["erreurDiagnostic"] = String(describing: error) }
         if let l = await appel("return await window.rrMessagerie.liste();") {
             d["liste"] = ["cles": Array(l.keys), "erreur": l["erreur"] ?? "", "pile": l["pile"] ?? "", "n": (l["conversations"] as? [Any])?.count ?? -1]

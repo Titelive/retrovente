@@ -313,6 +313,8 @@ struct Fiche: View {
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
     @State private var redaction = false
+    /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
+    @State private var aRetirerDePhotos: [String] = []
 
     /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
     private var bandeauAnnonceMorte: some View {
@@ -389,7 +391,13 @@ struct Fiche: View {
             guard let n = await appli.enregistrer(article) else { return }
             article = n; original = n
         }
+        await apresEnregistrement()
         appli.fenetre?.modifierEnCoulisses(article)
+    }
+    /// Fiche enregistrée : les photos ajoutées depuis Photos peuvent maintenant en être retirées.
+    private func apresEnregistrement() async {
+        let l = aRetirerDePhotos; aRetirerDePhotos = []
+        if !l.isEmpty { await Phototheque.retirer(l) }
     }
 
     var body: some View {
@@ -416,8 +424,8 @@ struct Fiche: View {
                     Button { appli.deposer(article) } label: { Label("Déposer sur Le Bon Coin", systemImage: "paperplane") }.boutonVerre()
                         .help("Remplit l'annonce Le Bon Coin en coulisses : tu la relis et tu publies dans l'app").disabled(article.statut != "en_vente")
                 }
-                Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
-                    .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || article == original)
+                Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n; await apresEnregistrement() }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
+                    .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || (article == original && aRetirerDePhotos.isEmpty))
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -483,7 +491,7 @@ struct Fiche: View {
                         ajoutEnCours -= 1
                     }
                     recharger()
-                    await Phototheque.retirer(envoyees)
+                    aRetirerDePhotos += envoyees
                 }
             }
             if article.publiee, let u = URL(string: article.annonce) {
