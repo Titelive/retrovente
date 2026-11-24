@@ -173,7 +173,7 @@ struct Bilan: View {
                         chiffre("Encaissé", Libelles.prix(encaisse), "eurosign.circle")
                         chiffre("Net (après frais)", Libelles.prix(net), "banknote")
                         chiffre("Marge", achats > 0 ? Libelles.prix(net - achats) : "—", "chart.line.uptrend.xyaxis")
-                        chiffre("En vente", "\(enVente.count) · \(Libelles.prix(stock))", "tag")
+                        chiffre(stock > 0 ? "En vente · \(Libelles.prix(stock)) demandés" : "En vente", "\(enVente.count) article\(enVente.count > 1 ? "s" : "")", "tag")
                     }
                     carte("Seuil fiscal \(an)", "building.columns") {
                         if appli.profil.fiscal {

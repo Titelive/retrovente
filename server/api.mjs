@@ -226,6 +226,8 @@ function modifierObjet(uid, avant, b) {
   const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
   // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
   if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
+  // Passé en vendu sans prix de vente : on reprend le prix demandé, pour que la vente compte dans l'encaissé.
+  else if (VENDU(it.statut) && !VENDU(avant.statut) && it.prixVente == null && it.prixDemande != null) it.prixVente = it.prixDemande;
   if (estLot(avant) && b.fermerAlerte) delete it.alerte;
   if (b.lotEfface && it.lotsAEffacer) { it.lotsAEffacer = it.lotsAEffacer.filter((x) => b.lotEfface !== "*" && x.id !== String(b.lotEfface)); if (!it.lotsAEffacer.length) delete it.lotsAEffacer; }
   if (typeof b.photo === "string") {
