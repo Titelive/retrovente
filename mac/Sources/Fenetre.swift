@@ -238,10 +238,17 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     /// Ouvre une adresse dans le bon navigateur (lien « Le Bon Coin » d'une fiche, « Ouvrir Mon compte »…).
     /// Vue de vérification des annonces : posée tout au fond de la fenêtre, sous l'app, jamais visible.
     /// Dans la fenêtre, Le Bon Coin la traite comme une vraie page (sans fenêtre, son anti-robot la bloque).
-    func accueillirEnFond(_ v: NSView) {
+    /// `taille` : taille fixe (messagerie : assez large pour que Le Bon Coin montre la liste ET la conversation,
+    /// quelle que soit la taille de la fenêtre).
+    func accueillirEnFond(_ v: NSView, taille: NSSize? = nil) {
         guard let c = fenetre.contentView, v.superview !== c else { return }
         v.translatesAutoresizingMaskIntoConstraints = false
         c.addSubview(v, positioned: .below, relativeTo: nil)
+        if let t = taille {
+            NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo: c.leadingAnchor), v.topAnchor.constraint(equalTo: c.topAnchor),
+                                         v.widthAnchor.constraint(equalToConstant: t.width), v.heightAnchor.constraint(equalToConstant: t.height)])
+            return
+        }
         NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo: c.leadingAnchor), v.trailingAnchor.constraint(equalTo: c.trailingAnchor),
                                      v.topAnchor.constraint(equalTo: c.topAnchor), v.bottomAnchor.constraint(equalTo: c.bottomAnchor)])
     }

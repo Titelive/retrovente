@@ -1,18 +1,36 @@
 import AppKit
 import SwiftUI
 import WebKit
+import UserNotifications
 
 // Messagerie native : la messagerie Le Bon Coin reste chargée dans un navigateur caché, posé au fond de la fenêtre et
 // jamais affiché. L'app lit la liste des conversations et leurs messages (lbc.js, window.rrMessagerie), propose les
 // réponses de l'IA et n'envoie un message que sur un clic « Envoyer ».
 
 struct ConversationLbc: Identifiable, Equatable {
-    let cle: String; let lignes: [String]; let image: String; let nonLu: Bool
+    let cle: String; let lignes: [String]; let image: String; var nonLu: Bool
     var id: String { cle }
     var nom: String { lignes.first ?? "Conversation" }
+    /// Ligne « Charlotte G. - il y a 2 min » : l'acheteur et la date.
+    private var signature: (String, String)? {
+        for l in lignes.dropFirst() {
+            if let r = l.range(of: " - ", options: .backwards) {
+                let d = String(l[r.upperBound...]).trimmingCharacters(in: .whitespaces)
+                if ConversationLbc.estDate(d) { return (String(l[..<r.lowerBound]).trimmingCharacters(in: .whitespaces), d) }
+            }
+        }
+        return nil
+    }
+    var acheteur: String { signature?.0 ?? "" }
+    /// Dernier message de la conversation (ni la signature, ni une date seule).
+    var apercu: String {
+        lignes.dropFirst().first { l in !ConversationLbc.estDate(l) && !(signature.map { l.hasSuffix(" - " + $0.1) } ?? false) } ?? ""
+    }
     /// Lignes hors nom et date : titre de l'annonce, puis dernier message.
     var details: [String] { Array(lignes.dropFirst().filter { !ConversationLbc.estDate($0) }.prefix(2)) }
-    var date: String { lignes.dropFirst().first(where: ConversationLbc.estDate) ?? "" }
+    var date: String { signature?.1 ?? lignes.dropFirst().first(where: ConversationLbc.estDate) ?? "" }
+    /// Conversation sans annonce (chatbot promotionnel « Discussion avec le Père Noël »…) : pas affichée.
+    var horsAnnonce: Bool { lignes.prefix(2).joined(separator: " ").range(of: #"p[èe]re no[ëe]l|chatbot|^discussion avec\b"#, options: [.regularExpression, .caseInsensitive]) != nil }
     static func estDate(_ s: String) -> Bool {
         s.range(of: #"^(il y a .*|hier.*|aujourd'hui.*|\d{1,2}[:h]\d{2}|\d{1,2}/\d{1,2}(/\d{2,4})?|(lun|mar|mer|jeu|ven|sam|dim)\w*\.?|\d{1,2} \p{L}+\.?( \d{4})?)$"#, options: [.regularExpression, .caseInsensitive]) != nil
     }
@@ -23,7 +41,13 @@ struct ConversationLbc: Identifiable, Equatable {
 }
 
 struct MessageLbc: Identifiable, Equatable {
-    let id: Int; let cote: String; let texte: String; let meta: String
+    enum Genre: Equatable { case message, heure, auto }
+    let id: Int; let cote: String; var texte: String; var meta: String
+    var genre: Genre = .message
+    /// Première ligne d'un message automatique Le Bon Coin (« Offre reçue », « Vendu ! »…) et le reste.
+    var titreAuto: String { texte.components(separatedBy: "\n").first ?? texte }
+    var corpsAuto: String { texte.components(separatedBy: "\n").dropFirst().joined(separator: "\n") }
+    static let premieresLignesAuto = #"^(offre (reçue|acceptée|refusée|expirée|envoyée)|vendu ?!?|paiement.*|colis.*|votre colis.*|achat.*confirm.*|transaction.*|réservé.*|annonce (désactivée|supprimée|expirée))$"#
 }
 
 struct FilLbc: Equatable {
@@ -32,9 +56,28 @@ struct FilLbc: Equatable {
     init(_ d: [String: Any]) {
         cle = d["cle"] as? String ?? ""; acheteur = d["acheteur"] as? String ?? ""; annonce = d["annonce"] as? [String] ?? []
         dernierMoi = d["dernierMoi"] as? Bool ?? false
-        messages = (d["messages"] as? [[String: Any]] ?? []).enumerated().map { i, m in
-            MessageLbc(id: i, cote: m["cote"] as? String ?? "lui", texte: m["texte"] as? String ?? "", meta: m["meta"] as? String ?? "")
+        let bruts = (d["messages"] as? [[String: Any]] ?? []).enumerated().map { i, m in
+            MessageLbc(id: i, cote: m["cote"] as? String ?? "lui", texte: (m["texte"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines), meta: m["meta"] as? String ?? "")
         }
+        messages = FilLbc.ranger(bruts)
+    }
+    /// Range le fil lu dans la page : les mentions « il y a 7 min - Message automatique leboncoin » rejoignent le message
+    /// qu'elles signent (qui devient une carte Le Bon Coin), les heures seules deviennent des séparateurs.
+    static func ranger(_ l: [MessageLbc]) -> [MessageLbc] {
+        var out: [MessageLbc] = []
+        for var m in l where !m.texte.isEmpty {
+            if m.texte.range(of: #"message automatique"#, options: [.regularExpression, .caseInsensitive]) != nil, m.texte.count < 90, !out.isEmpty {
+                out[out.count - 1].genre = .auto
+                continue
+            }
+            if ConversationLbc.estDate(m.texte) {
+                if out.last?.genre == .heure { out[out.count - 1].texte = m.texte; continue }
+                m.genre = .heure; out.append(m); continue
+            }
+            if m.titreAuto.range(of: MessageLbc.premieresLignesAuto, options: [.regularExpression, .caseInsensitive]) != nil { m.genre = .auto }
+            out.append(m)
+        }
+        return out
     }
 }
 
@@ -58,6 +101,12 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var envoi = false
     @Published var avis = ""
 
+    /// Conversations masquées dans l'app (gardées sur Le Bon Coin) : on peut les faire réapparaître.
+    @Published var masquees: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "conversationsMasquees") ?? []) {
+        didSet { UserDefaults.standard.set(Array(masquees), forKey: "conversationsMasquees") }
+    }
+    @Published var suppression: String? = nil
+
     weak var fenetre: Fenetre?
     private var vue: WKWebView?
     private var minuterie: Timer?
@@ -75,7 +124,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         if vue == nil {
             let v = f.navigateurCache()
             v.navigationDelegate = self
-            f.accueillirEnFond(v)
+            f.accueillirEnFond(v, taille: NSSize(width: 1440, height: 960))
             vue = v
         }
         if !charge { recharger() } else { Task { await lire() } }
@@ -165,8 +214,10 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
             if debut != nil { debut = nil; await diagnostiquer("connexion") }
             etat = .connexion; return
         }
-        let l = (r["conversations"] as? [[String: Any]] ?? []).map(ConversationLbc.init)
-        if l != conversations { conversations = l }
+        // null : la page ne montre que la conversation ouverte, on garde la liste déjà lue.
+        let l = (r["conversations"] as? [[String: Any]]).map { $0.map(ConversationLbc.init).filter { !$0.horsAnnonce && !masquees.contains($0.cle) } } ?? conversations
+        let marquee = marquerNonLus(l)
+        if marquee != conversations { withAnimation(.easeOut(duration: 0.25)) { conversations = marquee } }
         if !l.isEmpty {
             if debut != nil { debut = nil; await diagnostiquer("ok") }
             etat = .pret
@@ -240,6 +291,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     func ouvrir(_ c: ConversationLbc) async {
         guard !filCharge else { return }
+        marquerLue(c)
         ouverte = c.cle; filCharge = true; reponses = []; resume = ""; iaErreur = ""; brouillon = ""; avis = ""
         defer { filCharge = false }
         guard let r = await appel("return await window.rrMessagerie.ouvrir(cle);", ["cle": c.cle]) else { return }
@@ -247,6 +299,72 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         fil = FilLbc(r)
         await lire()
         if !fil.dernierMoi { await proposer() }
+    }
+
+    // Non lus : le rond jaune n'apparaît que sur une conversation dont le dernier message a changé depuis que tu l'as
+    // ouverte (ou que Le Bon Coin marque non lue). Au tout premier passage, tout est considéré comme lu.
+    private var vus: [String: String] = UserDefaults.standard.dictionary(forKey: "conversationsVues") as? [String: String] ?? [:] {
+        didSet { UserDefaults.standard.set(vus, forKey: "conversationsVues") }
+    }
+    private var notifiees: Set<String> = []
+    private func signature(_ c: ConversationLbc) -> String { c.apercu.isEmpty ? c.lignes.dropFirst().joined(separator: "|") : c.apercu }
+    private func marquerNonLus(_ l: [ConversationLbc]) -> [ConversationLbc] {
+        let premier = UserDefaults.standard.object(forKey: "conversationsVues") == nil
+        var out: [ConversationLbc] = []
+        for var c in l {
+            let sig = signature(c)
+            if c.cle == ouverte || premier { vus[c.cle] = sig; c.nonLu = false }
+            else if let v = vus[c.cle] { c.nonLu = c.nonLu || v != sig }
+            else { c.nonLu = true }
+            if c.nonLu, !premier, !notifiees.contains(c.cle + sig) {
+                notifiees.insert(c.cle + sig)
+                if vus[c.cle] != nil || !vus.isEmpty { notifier(c) }
+            }
+            out.append(c)
+        }
+        if premier { UserDefaults.standard.set(vus, forKey: "conversationsVues") }
+        let n = out.filter(\.nonLu).count
+        NSApp.dockTile.badgeLabel = n > 0 ? "\(n)" : nil
+        return out
+    }
+    private func notifier(_ c: ConversationLbc) {
+        guard !(NSApp.isActive && fenetre?.modele.messagesOuvert == true) else { return }
+        let centre = UNUserNotificationCenter.current()
+        let titre = c.acheteur.isEmpty ? "Nouveau message" : "Message de \(c.acheteur)"
+        let corps = c.apercu.isEmpty ? c.nom : "\(c.nom) : \(c.apercu)"
+        centre.requestAuthorization(options: [.alert, .sound, .badge]) { ok, _ in
+            guard ok else { return }
+            let n = UNMutableNotificationContent()
+            n.title = String(titre.prefix(80)); n.body = String(corps.prefix(200)); n.sound = .default
+            centre.add(UNNotificationRequest(identifier: "rr-msg-\(Date().timeIntervalSince1970)", content: n, trigger: nil))
+        }
+    }
+    private func marquerLue(_ c: ConversationLbc) {
+        vus[c.cle] = signature(c)
+        if let i = conversations.firstIndex(where: { $0.cle == c.cle }) { conversations[i].nonLu = false }
+        let n = conversations.filter(\.nonLu).count
+        NSApp.dockTile.badgeLabel = n > 0 ? "\(n)" : nil
+    }
+
+    func masquer(_ c: ConversationLbc) {
+        masquees.insert(c.cle)
+        withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
+        if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
+    }
+    func toutAfficher() { masquees = []; Task { await lire() } }
+
+    /// Supprime la conversation sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
+    func supprimer(_ c: ConversationLbc) async {
+        suppression = c.cle; defer { suppression = nil }
+        let r = await appel("return await window.rrMessagerie.supprimer(cle);", ["cle": c.cle])
+        if (r?["ok"] as? Bool) == true {
+            withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
+            if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
+            fenetre?.modele.message = "Conversation supprimée de Le Bon Coin."
+        } else {
+            fenetre?.modele.message = "Je n'ai pas réussi à supprimer cette conversation sur Le Bon Coin. Tu peux la masquer ici, ou la supprimer sur le site."
+        }
+        await lire()
     }
 
     /// Réponses de l'IA pour la conversation ouverte (avec une consigne : « dis-lui que… »).
@@ -279,176 +397,346 @@ struct MessagesVue: View {
     @ObservedObject var appli: Appli
     @ObservedObject var m: Messagerie
     @State private var consigne = ""
+    @State private var survol: String? = nil
+    @State private var aSupprimer: ConversationLbc? = nil
+    @Environment(\.accessibilityReduceMotion) private var sansMouvement
 
     var body: some View {
         HStack(spacing: 0) {
-            liste.frame(width: 320)
-            Divider()
+            liste.frame(width: 330)
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .onAppear { if let f = appli.fenetre { m.demarrer(f) } }
         .onDisappear { m.arreter() }
+        .confirmationDialog("Supprimer la conversation avec \(aSupprimer.map { $0.acheteur.isEmpty ? $0.nom : $0.acheteur } ?? "") ?",
+                            isPresented: Binding(get: { aSupprimer != nil }, set: { if !$0 { aSupprimer = nil } }), presenting: aSupprimer) { c in
+            Button("Supprimer sur Le Bon Coin", role: .destructive) { Task { await m.supprimer(c) } }
+            Button("Seulement la masquer ici") { m.masquer(c) }
+        } message: { _ in Text("Supprimée sur Le Bon Coin, elle ne pourra pas être récupérée. Masquée, elle reste sur Le Bon Coin et tu peux la faire réapparaître.") }
     }
+
+    // MARK: Liste des conversations
+
+    private var nonLus: Int { m.conversations.filter(\.nonLu).count }
 
     private var liste: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Messages").font(.system(size: 26, weight: .heavy, design: .rounded))
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Messages").font(.system(size: 28, weight: .heavy, design: .rounded))
+                if nonLus > 0 {
+                    Text("\(nonLus)").font(.caption.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrNuit)
+                        .padding(.horizontal, 7).padding(.vertical, 2).background(Color.rrOr, in: Capsule())
+                        .transition(.scale.combined(with: .opacity))
+                }
                 Spacer()
-                Button { m.recharger() } label: { Image(systemName: "arrow.clockwise") }.boutonVerre().help("Relire la messagerie Le Bon Coin")
-            }.padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 10)
+                Menu {
+                    Button("Relire la messagerie") { m.recharger() }
+                    if !m.masquees.isEmpty { Button("Réafficher les conversations masquées (\(m.masquees.count))") { m.toutAfficher() } }
+                    Divider()
+                    Button("Ouvrir sur Le Bon Coin") { appli.fenetre?.allerSurLeSite(.messages) }
+                } label: { Image(systemName: "ellipsis.circle").font(.title3) } primaryAction: { m.recharger() }
+                .menuStyle(.borderlessButton).fixedSize().help("Relire (clic) · plus d'options (flèche)")
+            }
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: nonLus)
             switch m.etat {
             case .veille, .chargement where m.conversations.isEmpty:
-                VStack(spacing: 10) { ProgressView(); Text("Je lis ta messagerie Le Bon Coin…").foregroundStyle(.secondary) }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                etatVide(symbole: nil, texte: "Je lis ta messagerie Le Bon Coin…")
             case .connexion:
-                VStack(spacing: 10) {
-                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 36)).foregroundStyle(Color.rrOr)
+                VStack(spacing: 12) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 38)).foregroundStyle(Color.rrOr)
                     Text("Le Bon Coin te demande de te connecter.").multilineTextAlignment(.center)
                     Button("Ouvrir Le Bon Coin") { appli.fenetre?.allerSurLeSite(.messages) }.boutonVerre(principal: true)
                 }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .erreur(let t):
-                VStack(spacing: 10) { Text(t).multilineTextAlignment(.center); Button("Réessayer") { m.recharger() }.boutonVerre() }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 12) { Text(t).multilineTextAlignment(.center).foregroundStyle(.secondary); Button("Réessayer") { m.recharger() }.boutonVerre() }
+                    .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
             default:
                 if m.conversations.isEmpty {
-                    Text("Aucune conversation pour l'instant.").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    etatVide(symbole: "tray", texte: "Aucune conversation pour l'instant.")
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 4) {
-                            ForEach(m.conversations) { c in ligne(c) }
-                        }.padding(.horizontal, 10).padding(.bottom, 12)
+                        LazyVStack(spacing: 6) {
+                            ForEach(m.conversations) { c in
+                                ligne(c).transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
+                            }
+                        }.padding(.horizontal, 12).padding(.bottom, 14)
                     }
                 }
             }
-            Divider()
-            Button { appli.fenetre?.allerSurLeSite(.messages) } label: { Label("Ouvrir sur Le Bon Coin", systemImage: "safari") }
-                .buttonStyle(.link).font(.callout).padding(12)
         }
         .background(.regularMaterial)
+        .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.06)).frame(width: 1) }
+    }
+
+    private func etatVide(symbole: String?, texte: String) -> some View {
+        VStack(spacing: 12) {
+            if let s = symbole { Image(systemName: s).font(.system(size: 34, weight: .light)).foregroundStyle(.secondary) } else { ProgressView() }
+            Text(texte).foregroundStyle(.secondary)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func vignette(_ url: String, taille: CGFloat, rayon: CGFloat) -> some View {
+        AsyncImage(url: URL(string: url)) { i in i.resizable().scaledToFill() } placeholder: {
+            LinearGradient(colors: [Color.rrOr.opacity(0.35), Color.rrOr.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(Image(systemName: "gamecontroller.fill").foregroundStyle(Color.rrOr))
+        }
+        .frame(width: taille, height: taille).clipShape(RoundedRectangle(cornerRadius: rayon, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: rayon, style: .continuous).stroke(Color.primary.opacity(0.08)))
     }
 
     private func ligne(_ c: ConversationLbc) -> some View {
-        let active = m.ouverte == c.cle
+        let active = m.ouverte == c.cle, survole = survol == c.cle
         return Button { Task { await m.ouvrir(c) } } label: {
-            HStack(alignment: .top, spacing: 10) {
-                AsyncImage(url: URL(string: c.image)) { i in i.resizable().scaledToFill() } placeholder: { Color.rrOr.opacity(0.15).overlay(Image(systemName: "bubble.left").foregroundStyle(Color.rrOr)) }
-                    .frame(width: 46, height: 46).clipShape(RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(c.nom).font(.callout.weight(c.nonLu ? .heavy : .semibold)).lineLimit(1)
+            HStack(alignment: .center, spacing: 12) {
+                vignette(c.image, taille: 52, rayon: 13)
+                    .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+                    .overlay(alignment: .topTrailing) {
+                        if c.nonLu {
+                            Circle().fill(Color.rrOr).frame(width: 12, height: 12)
+                                .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 2)).offset(x: 4, y: -4)
+                                .transition(.scale)
+                        }
+                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(c.acheteur.isEmpty ? c.nom : c.acheteur).font(.system(size: 13.5, weight: c.nonLu ? .heavy : .semibold, design: .rounded)).lineLimit(1)
                         Spacer(minLength: 4)
-                        Text(c.date).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(c.date).font(.caption2.weight(c.nonLu ? .bold : .regular)).foregroundStyle(c.nonLu ? Color.rrOr : .secondary).lineLimit(1)
                     }
-                    ForEach(Array(c.details.enumerated()), id: \.offset) { i, t in
-                        Text(t).font(i == 0 ? .caption.weight(.medium) : .caption).foregroundStyle(i == 0 ? .primary : .secondary).lineLimit(1)
+                    if !c.acheteur.isEmpty {
+                        Text(c.nom).font(.caption.weight(.semibold)).foregroundStyle(Color.rrOr.opacity(0.9)).lineLimit(1)
                     }
+                    Text(c.apercu.isEmpty ? (c.details.last ?? "") : c.apercu).font(.caption)
+                        .foregroundStyle(c.nonLu ? .primary : .secondary).lineLimit(1)
                 }
-                if c.nonLu { Circle().fill(Color.rrOr).frame(width: 9, height: 9).padding(.top, 6) }
             }
-            .padding(8).contentShape(Rectangle())
-            .background(active ? Color.accentColor.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 12))
-        }.buttonStyle(.plain)
+            .padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(active ? Color.rrOr.opacity(0.18) : survole ? Color.primary.opacity(0.06) : .clear)
+            }
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(active ? Color.rrOr.opacity(0.7) : .clear, lineWidth: 1.5))
+            .opacity(m.suppression == c.cle ? 0.4 : 1)
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { survol = h ? c.cle : (survol == c.cle ? nil : survol) } }
+        .contextMenu {
+            Button("Masquer cette conversation") { m.masquer(c) }
+            Button("Supprimer…", role: .destructive) { aSupprimer = c }
+        }
     }
+
+    // MARK: Conversation
+
+    private var conversationOuverte: ConversationLbc? { m.conversations.first { $0.cle == m.ouverte } }
 
     @ViewBuilder private var detail: some View {
         if m.ouverte == nil {
-            VStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.bubble.right").font(.system(size: 46, weight: .light)).foregroundStyle(Color.rrOr)
-                Text("Choisis une conversation").font(.title3.weight(.semibold))
-                Text("L'IA lit le dernier message et te propose des réponses. Rien ne part sans ton clic.").foregroundStyle(.secondary)
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(Color.rrOr.opacity(0.14)).frame(width: 110, height: 110)
+                    Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 44)).foregroundStyle(Color.rrOr)
+                }
+                Text("Choisis une conversation").font(.title2.weight(.heavy))
+                Text("L'IA lit le dernier message et te propose des réponses.\nRien ne part sans ton clic.").multilineTextAlignment(.center).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 0) {
                 entete
-                Divider()
                 ScrollViewReader { p in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 8) {
+                        LazyVStack(alignment: .leading, spacing: 6) {
                             if m.filCharge { ProgressView().frame(maxWidth: .infinity).padding() }
-                            ForEach(m.fil.messages) { msg in bulle(msg).id(msg.id) }
-                        }.padding(18)
+                            ForEach(Array(m.fil.messages.enumerated()), id: \.element.id) { i, msg in
+                                element(msg, precedent: i > 0 ? m.fil.messages[i - 1] : nil).id(msg.id)
+                                    .transition(sansMouvement ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                            }
+                        }
+                        .padding(.horizontal, 22).padding(.vertical, 18)
+                        .animation(sansMouvement ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: m.fil.messages.count)
                     }
                     .onChange(of: m.fil.messages.count) { _ in if let d = m.fil.messages.last { withAnimation { p.scrollTo(d.id, anchor: .bottom) } } }
                     .onAppear { if let d = m.fil.messages.last { p.scrollTo(d.id, anchor: .bottom) } }
                 }
-                Divider()
+                .background(
+                    LinearGradient(colors: [Color.rrOr.opacity(0.04), .clear], startPoint: .top, endPoint: .bottom)
+                )
                 redaction
             }
         }
     }
 
     private var entete: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(m.fil.acheteur.isEmpty ? (m.conversations.first { $0.cle == m.ouverte }?.nom ?? "Conversation") : m.fil.acheteur).font(.title3.weight(.heavy)).lineLimit(1)
-                Text(m.fil.annonce.prefix(2).joined(separator: " · ")).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+        let c = conversationOuverte
+        let nom = m.fil.acheteur.isEmpty ? (c?.acheteur.isEmpty == false ? c!.acheteur : "Conversation") : m.fil.acheteur
+        let prix = m.fil.annonce.first { $0.range(of: #"\d\s?€"#, options: .regularExpression) != nil }
+        return HStack(spacing: 14) {
+            vignette(c?.image ?? "", taille: 48, rayon: 12).shadow(color: .black.opacity(0.2), radius: 5, y: 2)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(nom).font(.system(size: 18, weight: .heavy, design: .rounded)).lineLimit(1)
+                Text(c?.nom ?? m.fil.annonce.first ?? "").font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
-        }.padding(.horizontal, 18).padding(.vertical, 12)
+            if let p = prix {
+                Text(p).font(.callout.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrNuit)
+                    .padding(.horizontal, 12).padding(.vertical, 6).background(Color.rrOr, in: Capsule())
+            }
+            if let c = c {
+                Menu {
+                    Button("Masquer cette conversation") { m.masquer(c) }
+                    Button("Supprimer…", role: .destructive) { aSupprimer = c }
+                } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+                .menuStyle(.borderlessButton).fixedSize()
+            }
+        }
+        .padding(.horizontal, 22).padding(.vertical, 14)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 
-    private func bulle(_ msg: MessageLbc) -> some View {
-        Group {
+    @ViewBuilder private func element(_ msg: MessageLbc, precedent: MessageLbc?) -> some View {
+        switch msg.genre {
+        case .heure:
+            Text(msg.texte).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                .padding(.horizontal, 10).padding(.vertical, 3).background(Color.primary.opacity(0.06), in: Capsule())
+                .frame(maxWidth: .infinity).padding(.vertical, 6)
+        case .auto:
+            carteLbc(msg).frame(maxWidth: .infinity).padding(.vertical, 6)
+        case .message:
             if msg.cote == "centre" {
-                Text(msg.texte).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                Text(msg.texte).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.vertical, 4)
             } else {
-                HStack {
-                    if msg.cote == "moi" { Spacer(minLength: 80) }
-                    VStack(alignment: msg.cote == "moi" ? .trailing : .leading, spacing: 3) {
-                        Text(msg.texte).textSelection(.enabled)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(msg.cote == "moi" ? Color.rrOr.opacity(0.85) : Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
-                            .foregroundStyle(msg.cote == "moi" ? Color.rrNuit : Color.primary)
-                        if !msg.meta.isEmpty { Text(msg.meta).font(.caption2).foregroundStyle(.secondary) }
-                    }
-                    if msg.cote != "moi" { Spacer(minLength: 80) }
-                }
+                bulle(msg, suite: precedent?.genre == .message && precedent?.cote == msg.cote)
             }
         }
     }
 
+    private func bulle(_ msg: MessageLbc, suite: Bool) -> some View {
+        let moi = msg.cote == "moi"
+        let initiale = String((m.fil.acheteur.isEmpty ? (conversationOuverte?.acheteur ?? "?") : m.fil.acheteur).prefix(1)).uppercased()
+        return HStack(alignment: .bottom, spacing: 8) {
+            if moi { Spacer(minLength: 90) }
+            else {
+                Circle().fill(Color.rrAnis.opacity(suite ? 0 : 1)).frame(width: 28, height: 28)
+                    .overlay(Text(suite ? "" : initiale).font(.caption.weight(.heavy)).foregroundStyle(Color.rrNuit))
+            }
+            VStack(alignment: moi ? .trailing : .leading, spacing: 3) {
+                Text(msg.texte).textSelection(.enabled).font(.system(size: 13.5))
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .foregroundStyle(moi ? Color.rrNuit : Color.primary)
+                    .background {
+                        if moi {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.4), Color.rrOr], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .shadow(color: Color.rrOr.opacity(0.25), radius: 6, y: 2)
+                        } else {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.07)))
+                                .shadow(color: .black.opacity(0.08), radius: 4, y: 1)
+                        }
+                    }
+                if !msg.meta.isEmpty { Text(msg.meta).font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 6) }
+            }
+            if !moi { Spacer(minLength: 90) }
+        }
+        .padding(.top, suite ? 0 : 6)
+    }
+
+    /// Message automatique Le Bon Coin (offre, vente, envoi…) : une carte à part, avec son icône et sa couleur.
+    private func carteLbc(_ msg: MessageLbc) -> some View {
+        let t = msg.titreAuto.lowercased()
+        let (icone, teinte): (String, Color) =
+            t.contains("refus") || t.contains("expir") ? ("xmark.circle.fill", .red)
+            : t.contains("offre") && t.contains("accept") ? ("checkmark.seal.fill", .green)
+            : t.contains("offre") ? ("tag.fill", .blue)
+            : t.contains("vendu") || t.contains("paiement") ? ("eurosign.circle.fill", .green)
+            : t.contains("colis") || t.contains("commande") || t.contains("envoi") ? ("shippingbox.fill", .orange)
+            : ("info.circle.fill", Color.rrOr)
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icone).font(.system(size: 22)).foregroundStyle(teinte)
+                .frame(width: 40, height: 40).background(teinte.opacity(0.15), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(msg.titreAuto).font(.callout.weight(.heavy))
+                    Spacer(minLength: 8)
+                    Text("Le Bon Coin").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                }
+                if !msg.corpsAuto.isEmpty { Text(msg.corpsAuto).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+                if !msg.meta.isEmpty { Text(msg.meta).font(.caption2).foregroundStyle(.tertiary) }
+            }
+        }
+        .padding(14).frame(maxWidth: 520, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(teinte.opacity(0.35), lineWidth: 1))
+        .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(teinte).frame(width: 4).padding(.vertical, 12) }
+    }
+
+    // MARK: Réponse
+
+    private var peutEnvoyer: Bool { !m.envoi && !m.brouillon.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
     private var redaction: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Label("L'IA te propose", systemImage: "sparkles").font(.callout.weight(.bold)).foregroundStyle(Color.rrOr)
+                Image(systemName: "sparkles").foregroundStyle(Color.rrOr)
+                Text("L'IA te propose").font(.callout.weight(.heavy))
                 if m.iaCharge { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("Autres idées") { Task { await m.proposer() } }.boutonVerre().disabled(m.iaCharge)
+                Button { Task { await m.proposer() } } label: { Label("Autres idées", systemImage: "arrow.triangle.2.circlepath") }
+                    .buttonStyle(.borderless).foregroundStyle(Color.rrOr).disabled(m.iaCharge)
             }
             if !m.iaErreur.isEmpty { Text(m.iaErreur).font(.callout).foregroundStyle(.orange) }
             else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as répondu en dernier : je te proposerai une réponse dès que l'acheteur écrit.").font(.callout).foregroundStyle(.secondary) }
             else if !m.resume.isEmpty { Text(m.resume).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
             if !m.reponses.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach(m.reponses) { r in
-                            Button { m.brouillon = r.texte } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.bold))
-                                    Text(r.texte).font(.caption).foregroundStyle(.secondary).lineLimit(4).multilineTextAlignment(.leading)
-                                }.frame(width: 230, alignment: .leading).padding(10)
-                                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(m.brouillon == r.texte ? Color.rrOr : Color.clear, lineWidth: 2))
+                            let choisie = m.brouillon == r.texte
+                            Button { withAnimation(.easeOut(duration: 0.15)) { m.brouillon = r.texte } } label: {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.heavy)).foregroundStyle(choisie ? Color.rrNuit : Color.rrOr)
+                                    Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.rrNuit.opacity(0.85) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
+                                }
+                                .frame(width: 240, alignment: .leading).padding(12)
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrOr) : AnyShapeStyle(Material.regularMaterial)))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.rrOr.opacity(choisie ? 0 : 0.35)))
                             }.buttonStyle(.plain).help("Placer cette réponse dans le message (tu peux la modifier)")
                         }
-                    }
+                    }.padding(.vertical, 2)
                 }
             }
-            HStack(spacing: 6) {
-                TextField("Dis à l'IA quoi répondre (ex. « propose 40 € »)", text: $consigne).textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
+                Image(systemName: "wand.and.stars").foregroundStyle(.secondary)
+                TextField("Dis à l'IA quoi répondre (ex. « propose 40 € »)", text: $consigne).textFieldStyle(.plain)
                     .onSubmit { let c = consigne; consigne = ""; Task { await m.proposer(c) } }
             }
-            HStack(alignment: .bottom, spacing: 8) {
-                TextEditor(text: $m.brouillon).font(.body).frame(minHeight: 60, maxHeight: 130).scrollContentBackground(.hidden)
-                    .padding(6).background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color.primary.opacity(0.05), in: Capsule())
+            HStack(alignment: .bottom, spacing: 10) {
+                TextEditor(text: $m.brouillon).font(.system(size: 13.5)).frame(minHeight: 44, maxHeight: 130).scrollContentBackground(.hidden)
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.primary.opacity(0.05)))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(peutEnvoyer ? Color.rrOr.opacity(0.6) : Color.primary.opacity(0.08)))
                 Button { Task { await m.envoyer() } } label: {
-                    HStack { if m.envoi { ProgressView().controlSize(.small) }; Label("Envoyer", systemImage: "paperplane.fill") }
+                    ZStack {
+                        Circle().fill(peutEnvoyer ? Color.rrOr : Color.primary.opacity(0.1)).frame(width: 42, height: 42)
+                            .shadow(color: Color.rrOr.opacity(peutEnvoyer ? 0.4 : 0), radius: 8, y: 2)
+                        if m.envoi { ProgressView().controlSize(.small) }
+                        else { Image(systemName: "paperplane.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(peutEnvoyer ? Color.rrNuit : .secondary) }
+                    }
                 }
-                .boutonVerre(principal: true).keyboardShortcut(.return, modifiers: .command)
-                .disabled(m.envoi || m.brouillon.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(.plain).keyboardShortcut(.return, modifiers: .command)
+                .disabled(!peutEnvoyer)
                 .help("Envoie ce message à l'acheteur sur Le Bon Coin (⌘↩)")
+                .scaleEffect(peutEnvoyer ? 1 : 0.92).animation(.spring(response: 0.3, dampingFraction: 0.6), value: peutEnvoyer)
             }
             if !m.avis.isEmpty { Text(m.avis).font(.callout).foregroundStyle(.orange) }
-        }.padding(16)
+        }
+        .padding(18)
+        .background(.bar)
+        .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 }
