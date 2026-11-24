@@ -81,8 +81,12 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         // Un clic dans la fenêtre, en dehors de la feuille ouverte (nouvel article, dépôt…), la referme,
         // sauf pendant une publication ou un envoi en cours.
         NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] e in
-            guard let self = self, e.window === self.fenetre, self.fenetre.attachedSheet != nil else { return e }
-            return self.fermerFeuille() ? nil : e
+            guard let self = self, let w = e.window, let feuille = w.attachedSheet else { return e }
+            // Feuille posée sur une feuille (aperçu des photos de l'app Photos au-dessus de « Nouvel article ») : on ferme celle du dessus.
+            if let dessus = feuille.attachedSheet { Fenetre.fermer(dessus, sur: feuille); return nil }
+            if w === self.fenetre, self.fermerFeuille() { return nil }
+            Fenetre.fermer(feuille, sur: w)   // autre feuille (aperçu des photos, choix de fichier…)
+            return nil
         }
         // Données à jour : au retour dans l'app, et toutes les 90 s pendant qu'elle est au premier plan.
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
@@ -242,6 +246,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
                                      v.topAnchor.constraint(equalTo: c.topAnchor), v.bottomAnchor.constraint(equalTo: c.bottomAnchor)])
     }
 
+    static func fermer(_ feuille: NSWindow, sur w: NSWindow) {
+        if let vc = feuille.contentViewController, vc.presentingViewController != nil { vc.dismiss(nil) } else { w.endSheet(feuille, returnCode: .cancel) }
+    }
     /// Ferme la feuille ouverte comme son bouton « Annuler ». Renvoie false si elle doit rester (action en cours).
     @discardableResult func fermerFeuille() -> Bool {
         if let d = modele.depot { if d.etape == .publication { return false }; annulerCoulisses(); return true }
