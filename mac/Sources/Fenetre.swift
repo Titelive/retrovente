@@ -349,6 +349,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     private func installerBarre() {
         let barre = BarreHaut()
         let logo = Logo()
+        // Cacher / montrer la barre latérale : à côté du logo, comme dans les apps macOS (Notes, Mail…).
+        let barreLaterale = Bouton(symbole: "sidebar.left", titre: nil, aide: "Cacher ou montrer la barre latérale (⌃⌘S)") { [weak self] in self?.basculerBarre(nil) }
         let boutons = Rubrique.allCases.map { r -> Bouton in
             let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
             onglets[r] = b; return b
@@ -362,13 +364,14 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif
-        for v in [logo, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
+        for v in [logo, barreLaterale, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
         margeFeux = logo.leadingAnchor.constraint(equalTo: barre.leadingAnchor, constant: 84)
         let centre = rubriques.centerXAnchor.constraint(equalTo: barre.centerXAnchor); centre.priority = .defaultHigh
         NSLayoutConstraint.activate([
             margeFeux, logo.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
             centre, rubriques.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
-            rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: logo.trailingAnchor, constant: 12),
+            barreLaterale.leadingAnchor.constraint(equalTo: logo.trailingAnchor, constant: 2), barreLaterale.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+            rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: barreLaterale.trailingAnchor, constant: 12),
             droite.leadingAnchor.constraint(greaterThanOrEqualTo: rubriques.trailingAnchor, constant: 12),
             droite.trailingAnchor.constraint(equalTo: barre.trailingAnchor, constant: -12), droite.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
         ])

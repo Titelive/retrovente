@@ -56,13 +56,8 @@ extension EnvironmentValues {
 struct EnTete<Boutons: View>: View {
     let titre: String; var sousTitre: String = ""
     @ViewBuilder var boutons: () -> Boutons
-    @Environment(\.basculerBarre) private var basculerBarre
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            if let b = basculerBarre {
-                Button(action: b) { Image(systemName: "sidebar.left") }
-                    .boutonVerre().help("Cacher ou montrer la barre latérale (⌃⌘S)")
-            }
             // Titre et sous-titre sur une ligne chacun (tronqués si la fenêtre est étroite), boutons jamais repliés :
             // un texte écrasé qui passe à la ligne à chaque lettre agrandissait toute la vue au-delà de la fenêtre.
             VStack(alignment: .leading, spacing: 2) {
