@@ -1575,8 +1575,8 @@ html.sans-anim .vt-b.pousse{animation:none}
         <div class="lot-alerte" id="fLotAnnonce" role="status" hidden></div>
         <div class="stats-fiche" id="fStats" aria-live="polite" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
+        <button class="btn jaune petit" type="button" id="fReecrire" style="float:right;align-self:flex-end;position:relative;z-index:1;margin:2px 0 -30px" title="L'IA réécrit le titre et la description d'après la fiche et les photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> Réécrire avec l'IA</button>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
-        <button class="btn jaune petit" type="button" id="fReecrire" style="align-self:flex-start;margin-top:8px" title="L'IA réécrit le titre et la description d'après la fiche et les photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> Réécrire avec l'IA</button>
         <label class="f">Lien de l'annonce Le Bon Coin une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
         <label class="f">Lien de l'annonce eBay une fois publiée (facultatif)<input type="url" id="f_annonceEbay" inputmode="url" placeholder="https://www.ebay.fr/itm/…"></label>
       </section>
@@ -2741,10 +2741,10 @@ function dessinerDial(){var f=$("dFil");f.hidden=!DIAL.length;$("dSug").hidden=!
     var c="";if(m.ch&&Object.keys(m.ch).length)c='<div class="chg">'+Object.keys(m.ch).map(function(k){return '<span>'+esc(DLIB[k])+(k==="texteAnnonce"?"":" : "+esc(valLisible(k,m.ch[k])))+'</span>'}).join("")+(m.avant?'<button type="button" data-annule="'+i+'">Annuler</button>':'<span style="background:none;color:var(--gris)">Annulé</span>')+'</div>';
     return '<div class="bul '+(m.role==="ia"?"ia":"moi")+(m.err?" err":"")+'">'+esc(m.texte)+c+'</div>'}).join("");
   f.scrollTop=f.scrollHeight}
-function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return;var b=$("dEnv");if(b.disabled)return;
+function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return Promise.resolve();var b=$("dEnv");if(b.disabled)return Promise.resolve();
   DIAL.push({role:"moi",texte:texte});var hist=DIAL.filter(function(m){return !m.err}).map(function(m){return{role:m.role==="ia"?"ia":"vendeur",texte:m.texte}});
   DIAL.push({attente:true});dessinerDial();$("dTexte").value="";taille();b.disabled=true;
-  api("POST","/api/ia/dialoguer",{messages:hist,fiche:ficheDial()}).then(function(j){DIAL.pop();var ch=j.changements||{},avant={};
+  return api("POST","/api/ia/dialoguer",{messages:hist,fiche:ficheDial()}).then(function(j){DIAL.pop();var ch=j.changements||{},avant={};
       Object.keys(ch).forEach(function(k){avant[k]=$("f_"+k).value});if(Object.keys(ch).length){avant.texteAnnonce=$("f_texteAnnonce").value;poser(ch)}
       DIAL.push({role:"ia",texte:j.reponse,ch:ch,avant:Object.keys(ch).length?avant:null});dessinerDial()})
     .catch(function(e){DIAL.pop();DIAL.push({role:"ia",err:true,texte:e.status===401?"Ta session a expiré, reconnecte-toi.":(e.message||"Je n'ai pas pu répondre, réessaie.")});dessinerDial();if(e.status===401)erreur(e)})
@@ -2762,7 +2762,13 @@ $("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial(
 $("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
 $("dTexte").addEventListener("input",taille);
 $("dSug").addEventListener("click",function(e){var b=e.target.closest("button");if(b)envoyerDial(b.textContent)});
-$("fReecrire").onclick=function(){envoyerDial("Réécris toute l'annonce, titre et description, d'après la fiche et les légendes des photos. Ne liste pas les photos : le bloc « Photos » est ajouté à la fin.")};
+/* Réécrire avec l'IA : chaque photo est d'abord décrite (légendes), puis l'IA réécrit titre et description ;
+   le bloc « Photos : » (une ligne par photo) est remis à la fin. */
+$("fReecrire").onclick=function(){var b=this,t=b.innerHTML;if(b.disabled)return;busy(b,true,"Je décris les photos…");
+  (GAL.length?decrire(false,0,true):Promise.resolve()).then(function(){busy(b,true,"Je réécris…");
+    var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende:""}).filter(Boolean).join("\n");
+    return envoyerDial("Réécris toute l'annonce, titre et description, d'après la fiche"+(l?" et ce que montre chacune de mes photos :\n"+l+"\n":". ")+"Ne liste pas les photos dans le texte : le bloc « Photos » est ajouté à la fin, une ligne par photo.")})
+    .then(function(){if(GAL.some(function(g){return g.legende}))majDescPhotos()}).catch(function(e){erreur(e,"Réécriture impossible.")}).then(function(){busy(b,false,t);b.innerHTML=t})};
 $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-annule]");if(!b)return;var m=DIAL[+b.dataset.annule];if(!m||!m.avant)return;poser(m.avant);m.avant=null;dessinerDial();toast("Changements annulés.","ok")});
 
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
