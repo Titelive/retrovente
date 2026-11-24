@@ -68,6 +68,10 @@ enum Menus {
             item("Réduire", #selector(Fenetre.reduire(_:)), "-", .command, f), sep(),
             item("Plein écran", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),
         ])
+        _ = menu("Fichier", [
+            item("Nouvel article", #selector(Fenetre.nouvelArticle(_:)), "n", .command, f), sep(),
+            item("Ouvrir RetroRevente sur le site", #selector(Fenetre.siteWeb(_:)), "", .command, f),
+        ])
         _ = menu("Aller", [
             item("RetroRevente", #selector(Fenetre.allerAppli(_:)), "1", .command, f),
             item("Déposer une annonce", #selector(Fenetre.allerDeposer(_:)), "2", .command, f),

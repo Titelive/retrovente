@@ -15,7 +15,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/extension"
 
 echo "Compilation (Apple Silicon et Intel)…"
 for a in arm64 x86_64; do
-  xcrun swiftc -O -target "$a-apple-macos12.0" -module-name RetroRevente \
+  xcrun swiftc -O -target "$a-apple-macos13.0" -module-name RetroRevente \
     -o "$SORTIE/RetroRevente-$a" mac/Sources/*.swift \
     -framework AppKit -framework WebKit -framework UserNotifications
 done

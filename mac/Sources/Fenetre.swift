@@ -31,6 +31,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     let actions = Actions()
     private lazy var pont = Pont(actions: actions)
     private let ressources = Ressources()
+    let modele = Appli()
+    private var natif: NSView!
     private var appli: WKWebView!
     private var lbc: WKWebView!
     private var visible: Vue = .appli
@@ -40,7 +42,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     private let chargement = Chargement()
     private var observations: [NSKeyValueObservation] = []
     private var fenetresSurgissantes: [NSWindow: WKWebView] = [:]
-    private lazy var compte = Compte(fenetre: self)
+    private lazy var compte = BulleCompte(fenetre: self)
 
     override init() {
         fenetre = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 860),
@@ -67,11 +69,15 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         // macOS 26 : les pages passent sous la barre de verre.
         if Charte.verre { fenetre.styleMask.insert(.fullSizeContentView) }
         let contenu = NSView()
-        for v in [appli!, lbc!] { v.translatesAutoresizingMaskIntoConstraints = false; contenu.addSubview(v) }
+        // RetroRevente : écrans natifs (SwiftUI). La vue web « appli » ne sert plus qu'en secours.
+        modele.fenetre = self
+        natif = NSHostingView(rootView: Racine(appli: modele))
+        appli.isHidden = true
+        for v in [appli!, lbc!, natif!] { v.translatesAutoresizingMaskIntoConstraints = false; contenu.addSubview(v) }
         chargement.translatesAutoresizingMaskIntoConstraints = false
         contenu.addSubview(chargement)
         var c: [NSLayoutConstraint] = []
-        for v in [appli!, lbc!] {
+        for v in [appli!, lbc!, natif!] {
             c += [v.leadingAnchor.constraint(equalTo: contenu.leadingAnchor), v.trailingAnchor.constraint(equalTo: contenu.trailingAnchor),
                   v.topAnchor.constraint(equalTo: contenu.topAnchor), v.bottomAnchor.constraint(equalTo: contenu.bottomAnchor)]
         }
@@ -99,7 +105,6 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         Bloqueur.preparer { [weak self] liste in
             guard let self = self else { return }
             if let l = liste { for v in [self.appli!, self.lbc!] { v.configuration.userContentController.add(l) } }
-            if self.appli.url == nil { self.appli.load(URLRequest(url: Rubrique.appli.adresse)) }
         }
         // Captures automatiques (GitHub) : RR_DEMO=deposer|messages|annonces|compte.
         if let demo = ProcessInfo.processInfo.environment["RR_DEMO"] {
@@ -109,7 +114,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
                 case "deposer": self.aller(.deposer)
                 case "messages": self.aller(.messages)
                 case "annonces": self.aller(.annonces)
-                case "compte": self.afficherCompte(nil)
+                case "compte-lbc": self.afficherCompte(nil)
                 default: break
                 }
             }
@@ -166,21 +171,18 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
     func montrer(_ vue: Vue) {
         visible = vue
-        appli.isHidden = vue != .appli
+        natif.isHidden = vue != .appli
         lbc.isHidden = vue != .lbc
-        fenetre.makeFirstResponder(vue == .appli ? appli : lbc)
+        fenetre.makeFirstResponder(vue == .appli ? natif : lbc)
         majBarre()
     }
 
-    func estVisible(_ v: WKWebView) -> Bool { fenetre.isVisible && !fenetre.isMiniaturized && !v.isHidden && (v === appli || v === lbc) }
-    private var actuel: WKWebView { visible == .appli ? appli : lbc }
+    func estVisible(_ v: WKWebView) -> Bool { fenetre.isVisible && !fenetre.isMiniaturized && !v.isHidden && v === lbc }
+    private var actuel: WKWebView { lbc }
 
     func aller(_ r: Rubrique) {
         montrerFenetre()
-        if r == .appli {
-            if appli.url == nil { appli.load(URLRequest(url: r.adresse)) }
-            montrer(.appli); return
-        }
+        if r == .appli { montrer(.appli); return }
         // Déjà sur la bonne page Le Bon Coin : on la montre sans la recharger (un dépôt en cours n'est pas perdu).
         if !lbcCharge || Rubrique.de(lbc.url) != r { lbc.load(URLRequest(url: r.adresse)); lbcCharge = true }
         montrer(.lbc)
@@ -189,7 +191,11 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     /// Ouvre une adresse dans le bon navigateur (lien « Le Bon Coin » d'une fiche, « Ouvrir Mon compte »…).
     func ouvrir(_ url: URL) {
         switch Fenetre.destination(url) {
-        case .appli?: appli.load(URLRequest(url: url)); montrer(.appli); montrerFenetre()
+        case .appli?:
+            // L'appli RetroRevente est native : « Mon compte » ouvre la fiche compte, le reste s'ouvre sur le site.
+            guard url.path.hasPrefix("/app") else { NSWorkspace.shared.open(url); return }
+            montrer(.appli); montrerFenetre()
+            if url.query?.contains("compte") == true { modele.compteOuvert = modele.etat == .connecte }
         case .lbc?: lbc.load(URLRequest(url: url)); lbcCharge = true; montrer(.lbc); montrerFenetre()
         case nil: NSWorkspace.shared.open(url)
         }
@@ -205,24 +211,21 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     private func majBarre() {
         let rubrique: Rubrique? = visible == .appli ? .appli : Rubrique.de(lbc.url)
         for (r, b) in onglets { b.actif = r == rubrique }
-        precedent?.disponible = actuel.canGoBack
-        suivant?.disponible = actuel.canGoForward
-        chargement.progression = actuel.isLoading ? actuel.estimatedProgress : 1
+        let web = visible == .lbc
+        precedent?.disponible = web && lbc.canGoBack
+        suivant?.disponible = web && lbc.canGoForward
+        recharger?.disponible = web || modele.etat == .connecte
+        chargement.progression = web && lbc.isLoading ? lbc.estimatedProgress : 1
     }
 
     // MARK: Après une publication : retour sur l'appli, qui fait la fête (confettis)
 
     func publiee(id: String, titre: String, url: String) {
-        let msg: [String: Any] = ["type": "publiee", "id": id, "titre": titre, "url": url]
-        if let u = appli.url, Fenetre.destination(u) == .appli, u.path.hasPrefix("/app") {
-            appli.evaluateJavaScript("window.__rrPont && window.__rrPont.recevoir(\(enJSON(msg)))", in: nil, in: Scripts.monde) { _ in }
-        } else {
-            var c = URLComponents(url: Rubrique.appli.adresse, resolvingAgainstBaseURL: false)!
-            c.queryItems = [URLQueryItem(name: "publiee", value: id)]
-            appli.load(URLRequest(url: c.url!))
+        // Le temps de voir « Annonce envoyée » et d'entendre les confettis sur Le Bon Coin, puis la fête dans l'app.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+            guard let self = self else { return }
+            self.montrer(.appli); self.montrerFenetre(); self.modele.publiee(titre: titre)
         }
-        // Le temps de voir « Annonce envoyée » et d'entendre les confettis sur Le Bon Coin.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in self?.montrer(.appli); self?.montrerFenetre() }
     }
 
     // MARK: Menus et raccourcis
@@ -231,14 +234,20 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     @objc func allerDeposer(_ s: Any?) { aller(.deposer) }
     @objc func allerMessages(_ s: Any?) { aller(.messages) }
     @objc func allerAnnonces(_ s: Any?) { aller(.annonces) }
-    @objc func precedente(_ s: Any?) { actuel.goBack() }
-    @objc func suivante(_ s: Any?) { actuel.goForward() }
-    @objc func rechargerPage(_ s: Any?) { actuel.reload() }
+    @objc func precedente(_ s: Any?) { if visible == .lbc { lbc.goBack() } }
+    @objc func suivante(_ s: Any?) { if visible == .lbc { lbc.goForward() } }
+    @objc func rechargerPage(_ s: Any?) { if visible == .lbc { lbc.reload() } else { Task { await modele.recharger() } } }
+    @objc func nouvelArticle(_ s: Any?) { aller(.appli); if modele.etat == .connecte { modele.nouveauOuvert = true } }
+    @objc func siteWeb(_ s: Any?) { modele.ouvrirSurLeWeb() }
     @objc func tailleReelle(_ s: Any?) { actuel.pageZoom = 1 }
     @objc func agrandir(_ s: Any?) { actuel.pageZoom = min(3, actuel.pageZoom + 0.1) }
     @objc func reduire(_ s: Any?) { actuel.pageZoom = max(0.5, actuel.pageZoom - 0.1) }
     @objc func afficherFenetre(_ s: Any?) { montrerFenetre() }
-    @objc func afficherCompte(_ s: Any?) { compte.basculer(depuis: boutonCompte) }
+    @objc func afficherCompte(_ s: Any?) {
+        // Connecté : la fiche compte native. Sinon, l'écran de connexion.
+        aller(.appli)
+        if modele.etat == .connecte { modele.compteOuvert = true }
+    }
     /// ⌥⇧R, comme dans l'extension : sur la page de dépôt, ouvre la recherche du panneau ; ailleurs, ouvre le dépôt.
     @objc func ouvrirRecherche(_ s: Any?) {
         if visible == .lbc, Rubrique.de(lbc.url) == .deposer {
@@ -389,7 +398,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
 /// Le panneau « Compte » : le popup de l'extension (compte connecté, annonces prêtes), dans une bulle sous le bouton.
 @MainActor
-final class Compte: NSObject, WKNavigationDelegate {
+final class BulleCompte: NSObject, WKNavigationDelegate {
     private unowned let fenetre: Fenetre
     private let bulle = NSPopover()
     private lazy var vue: WKWebView = {
