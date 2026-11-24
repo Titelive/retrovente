@@ -185,7 +185,7 @@ Réponds uniquement par un objet JSON avec les clés :
 ${CADRE_CONSIGNE},
 "rotation" (rotation en degrés, dans le sens des aiguilles d'une montre, à appliquer à la photo pour que l'étiquette ou le texte de l'objet soit à l'endroit : 0, 90, 180 ou 270),
 "annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, région, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose »),
-"description" (texte de l'annonce en français, exactement dans ce style, 4 lignes courtes, honnête, sans prix ni émoji, sans inventer ce qui ne se voit pas :
+"description" (texte de l'annonce en français, exactement dans ce style, 4 lignes courtes, honnête, sans prix ni émoji, sans inventer ce qui ne se voit pas ; ${ETAT_SEUL} :
 « Conker's Bad Fur Day sur Nintendo 64, version européenne (PAL, NUS-NFUP-EUR).
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
@@ -541,6 +541,8 @@ export function affirme(t) {
 }
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
+// L'état, pas le design : le décor imprimé d'origine (couleurs, bandeau, logo) n'est ni un défaut ni une particularité.
+const ETAT_SEUL = "Décris l'état réel (usure, rayures, coins, défauts, présence du contenu), jamais le décor d'origine : ne parle ni des couleurs, ni du bandeau, ni des logos imprimés (le bandeau rouge d'une jaquette Switch, par exemple, est normal). N'écris « étiquette » que pour un autocollant réellement collé (étiquette d'une cartouche, étiquette de prix) : une jaquette ou un boîtier imprimé n'a pas d'étiquette.";
 const carte0 = (v) => v.categorie === "cartes";
 // Retire d'une légende les mentions de jaunissement (« plastique légèrement jauni »…), en gardant le reste.
 const sansJauni = (l) => {
@@ -574,11 +576,11 @@ export async function legender(photos, v = {}, trace = null, progres = () => {})
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
   const vues = film ? "« Jaquette, face avant », « Dos de la jaquette », « Tranche », « Intérieur du boîtier », « Disque », « Disques », « Steelbook, face avant », « Steelbook, dos », « Fourreau », « Livret », « Contenu du coffret »…"
     : carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
-    : "« Face avant » = côté avec la grande étiquette illustrée du jeu ; « Dos » = côté opposé, avec la petite étiquette de mentions légales ; « Connecteur », « Tranche gauche », « Tranche droite », « Dessus », « Boîte, face avant », « Boîte, dos », « Notice »…";
+    : "pour une cartouche (Nintendo 64, Super Nintendo, Game Boy…) : « Face avant » = côté avec la grande étiquette illustrée, « Dos » = côté opposé, « Connecteur », « Tranche », « Dessus » ; pour un jeu en boîtier (Switch, DS, PlayStation, Xbox, GameCube…) : « Jaquette, face avant », « Jaquette, dos », « Tranche », « Intérieur du boîtier », « Cartouche » ou « Disque » ; « Boîte, face avant », « Boîte, dos », « Notice »…";
   const defauts = film ? "rayure sur le disque, boîtier fendu, jaquette décolorée, steelbook rayé ou cabossé, étiquette de prix…" : carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
-    const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} Pas de point final.
+    const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} ${ETAT_SEUL} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Une lumière chaude ou le reflet du bois, d'un mur ou de la main donne une teinte crème à un plastique sain : ce n'est pas du jaunissement. Réponds « leger » ou « net » seulement si une zone du plastique est nettement plus jaune qu'une autre zone éclairée pareil ; dans le doute, ou si l'objet n'est pas en plastique, « non ». Ne parle pas de jaunissement dans la légende : réponds-le seulement dans "jauni".`}
 Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
@@ -1156,7 +1158,7 @@ ${l.map((m) => (m.role === "ia" ? "Toi : " : "Vendeur : ") + m.texte).join("\n")
 Règles :
 - Réponds en français, en tutoyant, en une à trois phrases simples. Dis ce que tu as changé.
 - Ce que dit le vendeur sur son objet est vrai : reporte-le dans les champs concernés ET dans texteAnnonce, pour que tout reste cohérent.
-- Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ».
+- Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ». Dans l'état décrit, ne parle pas du décor d'origine (couleurs, bandeau, logos imprimés) et n'appelle pas « étiquette » une jaquette ou un boîtier imprimé : seuls les autocollants réellement collés sont des étiquettes.
 - Sur Switch, Switch 2, PS5 et Xbox Series, il n'y a pas de notice papier : n'en parle jamais (ni « sans notice »).
 - Ne change jamais l'état et ne parle jamais de film plastique, de blister ou de « neuf » si le vendeur ne le dit pas.
 - Version d'un autre pays que la France (ex. region « PAL allemande ») : dis-le dans texteAnnonce (« version allemande ») ; si le vendeur ou la fiche dit qu'elle est en français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ».
