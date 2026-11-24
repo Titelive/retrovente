@@ -226,7 +226,7 @@ test("lot : le prix suit celui de ses articles, et un doublon supprimé quitte l
   assert.deepEqual(l.articles, [pm.id, mp.id, sm.id]);
   assert.equal(l.photos.length, 4); assert.ok(l.mosaiqueAFaire);
   assert.ok(l.prixDemande < 175);
-  assert.match(l.titreAnnonce, /3 jeux/); assert.doesNotMatch(l.texteAnnonce, /4 jeux|Paper Mario[^]*Paper Mario/);
+  assert.match(l.titreAnnonce, /3 jeux/); assert.doesNotMatch(l.texteAnnonce, /4 jeux|- Paper Mario[^]*- Paper Mario/);
   // lot vendu : ses articles ne se suppriment plus seuls
   await call("PUT", "/api/objets/" + lot.id, { objet: { statut: "vendu" } }, c);
   assert.equal((await call("DELETE", "/api/objets/" + mp.id, null, c)).status, 409);
@@ -369,7 +369,7 @@ test("lot abîmé par une ancienne version (doublon supprimé resté dedans) : r
   const l = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === lot.id);
   assert.deepEqual(l.articles, [mp.id, sm.id, pm2.id]);
   assert.match(l.titreAnnonce, /3 jeux/);
-  assert.equal((l.texteAnnonce.match(/Paper Mario/g) || []).length, 1);
+  assert.equal((l.texteAnnonce.match(/^- Paper Mario/gm) || []).length, 1);
   assert.ok(l.prixDemande < 180, String(l.prixDemande));
   assert.match(l.texteAnnonce, new RegExp(`environ 180 € : le lot est à ${l.prixDemande} €`));
   assert.equal(l.photos.length, 4); assert.ok(l.mosaiqueAFaire);
@@ -407,4 +407,20 @@ test("la phrase du prix suit le prix du lot", async () => {
   assert.equal(majPhrasePrix(t, 725, 620), t.replace("640 €", "620 €"));
   assert.equal(majPhrasePrix(t, 725, 800), "Lot :\n- A\n\nRemise en main propre ou envoi soigné, en un seul colis.");
   assert.equal(majPhrasePrix("Sans phrase.", 725, 620), "Sans phrase.");
+});
+
+test("titre du lot : les raretés d'abord, « jeux N64 » (pas la console), accessoire recherché après « + »", () => {
+  const g = (titre, prixDemande, categorie = "jeux") => ({ titre, prixDemande, plateforme: "Nintendo 64", categorie });
+  const l = [g("Conker's Bad Fur Day", 90), g("Paper Mario", 120), g("Kirby 64: The Crystal Shards", 40), g("Banjo-Tooie", 55), g("The Legend of Zelda: Majora's Mask", 45),
+    g("Mario Kart 64", 18), g("Super Mario 64", 25), g("Mario Party", 35), g("Diddy Kong Racing", 12), g("Wave Race 64", 8), g("1080 Snowboarding", 10), g("Expansion Pak", 30, "accessoires")];
+  const t = L.titreLot(l);
+  assert.equal(t, "Lot 11 jeux N64 avec raretés : Paper Mario, Conker, Banjo-Tooie, Majora's Mask + Expansion Pak");
+  assert.ok(t.length <= 100);
+  assert.doesNotMatch(t, /Expansion Pak rare|Lot N64/);
+  assert.match(L.annonceLotSimple(l, 300).description, /Les raretés du lot : Paper Mario, Conker's Bad Fur Day, .* avec l'accessoire Expansion Pak\./);
+  // un jeu marqué rare passe devant, même moins cher
+  assert.match(L.titreLot([...l.slice(5, 11), { ...g("Wave Race 64", 8), rarete: "Rare" }]), /: Wave Race 64/);
+  // rien qui sort du lot : le titre d'avant
+  assert.equal(L.titreLot([g("Wave Race 64", 8), g("1080 Snowboarding", 10), g("Diddy Kong Racing", 12)]), "Lot de 3 jeux Nintendo 64");
+  assert.equal(L.nomCourt("The Legend of Zelda: Ocarina of Time"), "Ocarina of Time");
 });
