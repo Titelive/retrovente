@@ -263,6 +263,7 @@ final class Images {
 struct DepotEnCours: Identifiable, Equatable {
     enum Etape: Equatable {
         case remplissage(String)                 // message de progression
+        case aide(String)                        // Le Bon Coin demande quelque chose : rien n'est montré sans l'accord
         case pret(bouton: String, payant: Bool)  // écran final atteint : on attend « Publier »
         case publication
     }
@@ -275,6 +276,7 @@ struct GestionAnnonce: Identifiable, Equatable {
     enum Action: Equatable { case modifier, supprimer }
     enum Etape: Equatable {
         case travail(String)       // message de progression
+        case aide(String)          // Le Bon Coin demande quelque chose
         case pret(bouton: String)  // modification : écran final atteint, on attend « Enregistrer »
         case envoi
         case fait(String)
@@ -295,6 +297,7 @@ final class Appli: ObservableObject {
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
+    @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
@@ -328,7 +331,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -348,6 +351,7 @@ final class Appli: ObservableObject {
             articles = ex.map(Article.init); etat = .connecte
             if d == "fiche" { selection = "a1"; annoncesMortes = ["a1": articles.first { $0.id == "a1" }?.annonce ?? ""] } else { annoncesMortes = [:] }
             if d == "nouveau" { nouveauOuvert = true }
+            if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"

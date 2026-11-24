@@ -127,7 +127,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 guard let self = self else { return }
                 switch demo {
-                case "deposer": self.aller(.deposer)
+                case "deposer": self.allerSurLeSite(.deposer)
                 case "messages": self.aller(.messages)
                 case "annonces": self.aller(.annonces)
                 case "compte-lbc": self.afficherCompte(nil)
@@ -200,6 +200,13 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     func aller(_ r: Rubrique) {
         montrerFenetre()
         if r == .appli { montrer(.appli); return }
+        // Déposer : dans l'app, on choisit l'article ; Le Bon Coin travaille en coulisses, sans jamais s'afficher.
+        if r == .deposer, modele.etat == .connecte { montrer(.appli); modele.selection = nil; modele.choixDepot = true; return }
+        allerSurLeSite(r)
+    }
+    /// Le Bon Coin à l'écran (Messages, Mes annonces, ou le dépôt quand la personne le demande).
+    func allerSurLeSite(_ r: Rubrique) {
+        montrerFenetre()
         // Déjà sur la bonne page Le Bon Coin : on la montre sans la recharger (un dépôt en cours n'est pas perdu).
         if !lbcCharge || Rubrique.de(lbc.url) != r { lbc.load(URLRequest(url: r.adresse)); lbcCharge = true }
         montrer(.lbc)

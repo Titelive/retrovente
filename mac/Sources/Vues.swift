@@ -198,6 +198,7 @@ struct Accueil: View {
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
         .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
         .sheet(item: $appli.gestion) { g in FeuilleGestion(appli: appli, gestion: g) }
+        .sheet(isPresented: $appli.choixDepot) { ChoixDepot(appli: appli) }
         .onChange(of: filtre) { _ in appli.selection = nil }
         .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
         .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }

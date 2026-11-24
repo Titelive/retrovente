@@ -37,18 +37,42 @@ extension Fenetre {
         montrer(visible)
     }
 
-    /// Montre Le Bon Coin : la personne reprend la main (le panneau RetroRevente y explique quoi faire).
+    /// Le Bon Coin demande quelque chose (connexion, vérification, champ, prix…) : le site reste caché, la feuille de l'app
+    /// l'explique et propose de réessayer, ou d'ouvrir Le Bon Coin si la personne le choisit.
     func besoinDeToi(_ raison: String) {
         guard enCoulisses else { return }
-        modele.depot = nil; modele.gestion = nil
-        montrer(.lbc); montrerFenetre()
+        veilleCoulisses?.invalidate(); veilleCoulisses = nil
+        let t = Fenetre.raisonLisible(raison)
+        if var d = modele.depot { d.etape = .aide(t); modele.depot = d }
+        if var g = modele.gestion { g.etape = .aide(t); modele.gestion = g }
         if !NSApp.isActive { NSApp.requestUserAttention(.criticalRequest) }
-        NSLog("RetroRevente : Le Bon Coin à l'écran (%@)", raison)
+        NSLog("RetroRevente : coulisses en attente (%@)", raison)
+    }
+    static func raisonLisible(_ r: String) -> String {
+        let n = r.lowercased()
+        if n.contains("connexion") { return "Le Bon Coin te demande de te connecter. Ouvre-le une fois pour te connecter, puis réessaie." }
+        if n.contains("vérification") || n.contains("verification") { return "Le Bon Coin veut vérifier que tu n'es pas un robot. Ouvre-le pour valider la vérification, puis réessaie." }
+        if n.contains("trop long") || n.contains("ne répond") { return "Le Bon Coin met trop de temps à répondre." }
+        if n.hasPrefix("page ") { return "Le Bon Coin a ouvert une page inattendue." }
+        if n.contains("publication non confirmée") { return "Je n'ai pas vu la confirmation de Le Bon Coin. Regarde dans Mes annonces avant de republier." }
+        if n.contains("bouton final") { return "Je ne trouve pas le bouton de publication de Le Bon Coin." }
+        if n.contains("aide:raison") { return "Le Bon Coin demande la raison de la suppression." }
+        return r
     }
 
     /// Annuler depuis la feuille : la page reste remplie dans l'onglet « Déposer » si la personne veut la reprendre.
     func annulerCoulisses() { modele.depot = nil; modele.gestion = nil }
-    func voirCoulisses() { besoinDeToi("demandé") }
+    /// Seulement à la demande de la personne : Le Bon Coin à l'écran, là où en est le dépôt.
+    func voirCoulisses() {
+        let etait = enCoulisses
+        modele.depot = nil; modele.gestion = nil
+        if etait || lbcCharge { montrer(.lbc); montrerFenetre() }
+    }
+    /// « Réessayer » : on reprend le dépôt ou la gestion depuis le début, toujours en coulisses.
+    func reessayerCoulisses() {
+        if let d = modele.depot, let a = modele.parId(d.id) { modele.depot = nil; deposerEnCoulisses(a) }
+        else if let g = modele.gestion, let a = modele.parId(g.id) { modele.gestion = nil; g.action == .modifier ? modifierEnCoulisses(a) : supprimerEnCoulisses(a) }
+    }
 
     /// Signal du panneau (alerte « À toi ») pendant un dépôt en coulisses. Vrai s'il a été pris en charge.
     func signalCoulisses(titre: String, texte: String) -> Bool {
@@ -68,7 +92,7 @@ extension Fenetre {
         case "Annonce publiée !":
             return true
         default:   // « RetroRevente a besoin de toi », « Prix à vérifier »…
-            besoinDeToi(titre)
+            besoinDeToi(texte.isEmpty ? titre : texte)
             return true
         }
     }
@@ -90,6 +114,7 @@ extension Fenetre {
     func verifierCoulisses() {
         if enCoulisses, modele.gestion != nil { return }   // la veille de la gestion s'en charge (Gestion.swift)
         guard enCoulisses, let d = modele.depot else { return }
+        if case .aide = d.etape { return }
         let url = lbc.url
         let hote = url?.host?.lowercased() ?? ""
         let chemin = url?.path.lowercased() ?? ""
