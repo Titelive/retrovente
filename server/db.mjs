@@ -83,6 +83,8 @@ const COLS = {
   test_plan: "TEXT NOT NULL DEFAULT ''",     // formule de test, prise en compte seulement pour les comptes de ADMIN_EMAILS
   email_ok: "INTEGER NOT NULL DEFAULT 0",    // adresse confirmée (lien reçu par e-mail) : requis pour l'essai gratuit de l'IA
   verif_token: "TEXT NOT NULL DEFAULT ''",   // empreinte du lien de confirmation d'adresse
+  teinte: "TEXT NOT NULL DEFAULT ''",        // couleur du site choisie par un Collectionneur (anis, menthe, lilas ; vide = or), voir plans.mjs
+  vendeur: "TEXT NOT NULL DEFAULT ''",       // profil de vendeur (JSON : rythme, remise, échanges, prix, ton, note), voir profil.mjs
 };
 const have = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
 for (const [c, def] of Object.entries(COLS)) if (!have.has(c)) db.exec(`ALTER TABLE users ADD COLUMN ${c} ${def}`);

@@ -28,6 +28,8 @@ h1,h2,h3{font-family:var(--titre);margin:0;letter-spacing:-.035em;line-height:1;
 
 /* boutons */
 .btn{--bg:var(--anis);--fg:var(--nuit);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;font:600 16px/1 var(--texte);text-decoration:none;border:0;border-radius:999px;padding:17px 26px;background:var(--bg);color:var(--fg);cursor:pointer;white-space:nowrap;transition:transform .25s var(--ease),box-shadow .25s var(--ease),background-color .2s,color .2s}
+/* Icône d'un bouton : taille par défaut et jamais écrasée quand la place manque (Safari réduisait le « + » de « Nouvel article » à quelques pixels) */
+.btn>svg{flex:none;width:18px;height:18px}
 .btn:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px rgba(150,200,40,.75)}
 .btn:active{transform:translateY(0) scale(.98)}
 .btn .fl{transition:transform .25s var(--ease)}
@@ -77,10 +79,20 @@ article.ed{width:min(740px,100% - 32px);margin:64px auto 96px}
 .pied-site{background:var(--nuit);color:#B8B8B0;padding:56px 0 44px;font-size:14px}
 .pied-site .wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;align-items:start}
 .pied-site img{height:28px;width:auto;margin-bottom:14px}
-.pied-site nav{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:flex-end}
-.pied-site a{text-decoration:none;color:#E6E6DF}.pied-site a:hover{color:var(--anis)}
+.pied-site a{text-decoration:none;color:#E6E6DF}
 .pied-site p{max-width:52ch}
-@media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}.pied-site nav{justify-content:flex-start}}
+/* liens du pied de page : des pastilles avec icône, à la couleur de la formule */
+.liens-pied{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.liens-pied a{display:flex;align-items:center;gap:11px;min-height:54px;padding:9px 14px 9px 9px;border-radius:18px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#E6E6DF;font:600 14.5px/1.22 var(--texte);letter-spacing:-.005em;transition:transform .3s var(--ease),background-color .25s,box-shadow .25s,color .2s}
+.liens-pied .i{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:12px;background:rgba(var(--anis-rgb),.13);color:var(--anis);transition:background-color .25s,color .25s,transform .35s var(--ease)}
+.liens-pied svg{width:19px;height:19px}
+.liens-pied a:hover{color:#fff;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(var(--anis-rgb),.55),0 14px 28px -18px rgba(var(--anis-rgb),.7);transform:translateY(-2px)}
+.liens-pied a:hover .i{background:var(--anis);color:var(--nuit);transform:rotate(-8deg) scale(1.06)}
+.liens-pied a:active{transform:scale(.98)}
+.liens-pied a[aria-current="page"]{color:#fff;background:rgba(var(--anis-rgb),.1);box-shadow:inset 0 0 0 1.5px rgba(var(--anis-rgb),.6)}
+.liens-pied a[aria-current="page"] .i{background:var(--anis);color:var(--nuit)}
+@media(max-width:720px){.pied-site .wrap{grid-template-columns:1fr}}
+@media(max-width:360px){.liens-pied{gap:8px}.liens-pied a{gap:9px;padding:8px 10px 8px 8px;font-size:13.5px}.liens-pied .i{width:32px;height:32px;border-radius:11px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 /* pages légales */
 .a-remplir{background:#FFE14D;color:#1A1A1A;padding:0 4px;border-radius:4px;font-weight:600}
@@ -221,7 +233,9 @@ ol.fil [aria-current]{color:var(--encre);font-weight:600;overflow:hidden;text-ov
 
 /* ---------- compte dans le menu ---------- */
 .nav-liens a.nav-moi{gap:9px}
-.av-mini{width:24px;height:24px;flex:none;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:inline-grid;place-items:center;font:700 12px/1 var(--texte);overflow:hidden}
+.av-mini{width:24px;height:24px;flex:none;border-radius:50%;background:var(--anis) center/cover no-repeat;color:var(--nuit);display:inline-grid;place-items:center;font:700 12px/1 var(--texte);overflow:visible;position:relative}
+/* niveau du vendeur (appli) : petite pastille pixel au coin de l'avatar */
+.av-mini[data-niv]::after{content:attr(data-niv);position:absolute;right:-8px;bottom:-6px;min-width:16px;height:14px;padding:0 3px;box-sizing:border-box;border-radius:4px;background:var(--nuit);color:var(--anis);font:400 9px/14px var(--pixel);text-align:center;box-shadow:0 0 0 1.5px var(--carte,#fff)}
 
 /* ---------- sans animations (réglage du compte) ---------- */
 html.sans-anim *,html.sans-anim *::before,html.sans-anim *::after{animation:none!important;transition:none!important}
@@ -279,10 +293,10 @@ html.sans-anim .lueurs i{animation:none}
 .badge-formule{font:400 9px/1 var(--pixel);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:7px;background:var(--anis);color:var(--nuit);margin-left:2px}
 html[data-formule="vendeur"] .av-mini{box-shadow:0 0 0 2px var(--anis)}
 html[data-formule="vendeur"] .logo-svg .eclair{filter:drop-shadow(0 0 4px rgba(var(--anis-rgb),.9))}
-html[data-formule="collectionneur"] .badge-formule{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:#2A1E00;box-shadow:0 0 12px rgba(247,215,116,.45)}
-html[data-formule="collectionneur"] .av-mini{box-shadow:0 0 0 2px var(--or-1),0 0 10px rgba(247,215,116,.6)}
-html[data-formule="collectionneur"] .nav{box-shadow:inset 0 -2px 0 rgba(247,215,116,.55)}
-html[data-formule="collectionneur"] .logo-svg .eclair{fill:var(--or-1)!important;filter:drop-shadow(0 0 5px rgba(247,215,116,.9))}
+html[data-formule="collectionneur"] .badge-formule{background:linear-gradient(135deg,var(--or-1),var(--or-2));color:var(--or-encre);box-shadow:0 0 12px rgba(var(--or-rgb),.45)}
+html[data-formule="collectionneur"] .av-mini{box-shadow:0 0 0 2px var(--or-1),0 0 10px rgba(var(--or-rgb),.6)}
+html[data-formule="collectionneur"] .nav{box-shadow:inset 0 -2px 0 rgba(var(--or-rgb),.55)}
+html[data-formule="collectionneur"] .logo-svg .eclair{fill:var(--or-1)!important;filter:drop-shadow(0 0 5px rgba(var(--or-rgb),.9))}
 html[data-formule="collectionneur"] .lecture{background:linear-gradient(90deg,var(--anis),var(--or-1))}
 html[data-formule="pass"] .badge-formule{background:var(--holo);background-size:300% 100%;color:var(--nuit);animation:holo 4s linear infinite}
 html[data-formule="pass"] .av-mini{box-shadow:0 0 0 2px transparent;background-clip:padding-box;outline:2px solid #B98CFF;outline-offset:1px}
@@ -293,7 +307,7 @@ html[data-formule="pass"] .logo-svg .eclair{filter:drop-shadow(0 0 5px rgba(185,
 /* ===== Couleurs du site selon la formule : l'accent (--anis) change pour tout le site =====
    Découverte : vert anis · Vendeur : menthe vive · Collectionneur : or éclatant · Pass : lilas vif */
 html[data-formule="vendeur"]{--anis:#5EF0C6;--anis-f:#2FD9A9;--anis-p:#DDFBF1;--anis-rgb:94,240,198;--anis-t:#0E6B50}
-html[data-formule="collectionneur"]{--anis:#FFD23F;--anis-f:#F5A90A;--anis-p:#FFF4CC;--anis-rgb:255,210,63;--anis-t:#8A5A00;--or-1:#FFE27A;--or-2:#F0A500;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
+html[data-formule="collectionneur"]{--anis:#FFD23F;--anis-f:#F5A90A;--anis-p:#FFF4CC;--anis-rgb:255,210,63;--anis-t:#8A5A00;--or-0:#FFF3B0;--or-1:#FFE27A;--or-2:#F0A500;--or-m:#FFB800;--or-rgb:247,215,116;--or-f-rgb:240,165,0;--or-encre:#2A1E00;--rose-p:#F9DCE4;--lilas-p:#E6DEFB}
 html[data-formule="pass"]{--anis:#C4A8FF;--anis-f:#A07BFF;--anis-p:#EEE6FF;--anis-rgb:196,168,255;--anis-t:#5B2FD0}
 @media (prefers-color-scheme:dark){
   html[data-formule="vendeur"]:not([data-theme="light"]){--anis-p:#12271F;--anis-t:var(--anis)}
@@ -303,16 +317,30 @@ html[data-formule="vendeur"][data-theme="dark"]{--anis-p:#12271F;--anis-t:var(--
 html[data-formule="collectionneur"][data-theme="dark"]{--anis-p:#2A2312;--anis-t:var(--anis)}
 html[data-formule="pass"][data-theme="dark"]{--anis-p:#211B35;--anis-t:var(--anis)}
 /* Collectionneur : boutons pastel bordés d'or, liseré doré */
-html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,#FFF3B0 0%,#FFD23F 38%,#FFB800 70%,#FFE27A 100%);background-size:200% 100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 1.5px rgba(240,165,0,.6),0 12px 28px -12px rgba(255,184,0,.75);transition:background-position .6s var(--ease),transform .2s}
+html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien){background:linear-gradient(135deg,var(--or-0) 0%,var(--anis) 38%,var(--or-m) 70%,var(--or-1) 100%);background-size:200% 100%;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 1.5px rgba(var(--or-f-rgb),.6),0 12px 28px -12px rgba(var(--or-f-rgb),.75);transition:background-position .6s var(--ease),transform .2s}
 html[data-formule="collectionneur"] .btn:not(.clair):not(.contour):not(.verre):not(.noir):not(.sombre):not(.lien):hover{background-position:100% 0}
-html[data-formule="collectionneur"] .heros h1 .vert{background:linear-gradient(100deg,#FFE27A,#FFC21A 40%,#FFF0A8 58%,#FFC21A 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+html[data-formule="collectionneur"] .heros h1 .vert{background:linear-gradient(100deg,var(--or-1),var(--or-m) 40%,var(--or-0) 58%,var(--or-m) 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
 html[data-formule="collectionneur"] .logo-svg .manette{color:inherit}
+/* Collectionneur : la couleur du site se choisit dans Mon compte (html[data-teinte], réglé par rr.js d'après /api/moi).
+   Les touches dorées ci-dessus passent par --or-* : elles prennent la couleur choisie. Sans data-teinte : l'or. */
+html[data-formule="collectionneur"][data-teinte="anis"]{--anis:#D4F57A;--anis-f:#BFE54C;--anis-p:#F1FCD0;--anis-rgb:212,245,122;--anis-t:#4A6410;--or-0:#F4FDD6;--or-1:#E4FA9C;--or-2:#9CCB2A;--or-m:#B5E03F;--or-rgb:212,245,122;--or-f-rgb:140,190,30;--or-encre:#1E2A05}
+html[data-formule="collectionneur"][data-teinte="menthe"]{--anis:#5EF0C6;--anis-f:#2FD9A9;--anis-p:#DDFBF1;--anis-rgb:94,240,198;--anis-t:#0E6B50;--or-0:#D6FDF0;--or-1:#9BF7DC;--or-2:#18BF8F;--or-m:#2FD9A9;--or-rgb:94,240,198;--or-f-rgb:24,191,143;--or-encre:#04261B}
+html[data-formule="collectionneur"][data-teinte="lilas"]{--anis:#C4A8FF;--anis-f:#A07BFF;--anis-p:#EEE6FF;--anis-rgb:196,168,255;--anis-t:#5B2FD0;--or-0:#F1EAFF;--or-1:#D9C8FF;--or-2:#A07BFF;--or-m:#B396FF;--or-rgb:196,168,255;--or-f-rgb:139,92,246;--or-encre:#1E0F45}
+@media (prefers-color-scheme:dark){
+  html[data-formule="collectionneur"][data-teinte="anis"]:not([data-theme="light"]){--anis-p:#232B12}
+  html[data-formule="collectionneur"][data-teinte="menthe"]:not([data-theme="light"]){--anis-p:#12271F}
+  html[data-formule="collectionneur"][data-teinte="lilas"]:not([data-theme="light"]){--anis-p:#211B35}}
+html[data-formule="collectionneur"][data-teinte="anis"][data-theme="dark"]{--anis-p:#232B12;--anis-t:var(--anis)}
+html[data-formule="collectionneur"][data-teinte="menthe"][data-theme="dark"]{--anis-p:#12271F;--anis-t:var(--anis)}
+html[data-formule="collectionneur"][data-teinte="lilas"][data-theme="dark"]{--anis-p:#211B35;--anis-t:var(--anis)}
+@media (prefers-color-scheme:dark){html[data-formule="collectionneur"][data-teinte]:not([data-theme="light"]){--anis-t:var(--anis)}}
 @keyframes holo{to{background-position:300% 0}}
 html.sans-anim .badge-formule,html.sans-anim .lecture{animation:none}
 
 /* Accents écrits en dur dans les SVG (traits, remplissages) : ils suivent aussi la couleur de la formule */
 svg[stroke="#D4F57A" i],svg [stroke="#D4F57A" i]{stroke:var(--anis)}
 svg[fill="#D4F57A" i],svg [fill="#D4F57A" i]{fill:var(--anis)}
-/* Menu : jamais sur deux lignes ; sur les écrans moyens, on retire les petites icônes pour faire de la place */
+/* Menu : jamais sur deux lignes ; sur les écrans moyens, les icônes restent et le menu se resserre pour faire de la place */
 .nav-liens a{white-space:nowrap}
-@media(min-width:1021px) and (max-width:1360px){.nav-liens a:not(.nav-cta) .i{display:none}.nav-liens a{padding:10px 10px}}
+@media(min-width:1021px) and (max-width:1360px){.nav-liens{gap:0}.nav-liens a{gap:6px;padding:10px 8px;font-size:14.5px}.nav-liens a .i{width:16px;height:16px}.nav-liens .nav-cta{margin-left:4px;padding:11px 14px}.nav .wrap{gap:10px}}
+@media(min-width:1021px) and (max-width:1120px){.nav-liens a{padding:10px 6px;font-size:14px}.nav-liens a.nav-moi .badge-formule{display:none}}

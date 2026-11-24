@@ -64,9 +64,18 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal((await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, d)).status, 404);
   const v = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40 } }, c);
   assert.equal(v.json.objet.statut, "vendu"); assert.ok(v.json.objet.dateVente);
-  assert.equal(v.json.objet.titre, "Zelda");
+  assert.equal(v.json.objet.titre, "Zelda"); assert.equal(v.json.objet.photo, true);   // changer seulement le statut garde le reste
+  const r2 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "en_vente" } }, c);
+  assert.equal(r2.json.objet.statut, "en_vente"); assert.equal(r2.json.objet.dateVente, "");
+  const r3 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40, dateVente: v.json.objet.dateVente } }, c);
+  assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
+  assert.equal(moi.json.bilan.annee.ventes, 1); assert.equal(moi.json.bilan.annee.montant, 40);
+  // remis en main propre : toujours vendu, mais hors des seuils de déclaration des plateformes
+  await call("PUT", "/api/objets/" + o.id, { objet: { remise: "main_propre" } }, c);
+  const moi2 = await call("GET", "/api/moi", null, c);
+  assert.equal(moi2.json.bilan.vendus, 1); assert.equal(moi2.json.bilan.annee.ventes, 0); assert.equal(moi2.json.bilan.annee.montant, 0);
   assert.equal((await call("DELETE", "/api/objets/" + o.id, null, c)).status, 200);
   assert.equal((await call("GET", "/api/objets", null, c)).json.objets.length, 0);
 });
@@ -86,7 +95,8 @@ test("IA simulée : identifier et cote comptent pour le temps gagné", async () 
   const r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
   assert.equal(r.json.objet.plateforme, "Nintendo 64");
   const k = await call("POST", "/api/ia/cote", { objet: r.json.objet }, c);
-  assert.equal(k.json.cote.conseille, 49);
+  assert.equal(k.json.cote.conseille, 53);   // vente probable 48 € (médiane pondérée) + 10 %, sous l'annonce concurrente à 60 €
+  assert.ok(k.json.cote.conseille < 60 && k.json.cote.rapide < k.json.cote.probable);
   assert.equal((await call("POST", "/api/ia/identifier", { photo: "pas une image" }, c)).status !== 200, true);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.usage.identifier, 1); assert.equal(moi.json.usage.cote, 1);
@@ -364,6 +374,52 @@ test("extension : lien de l'annonce publiée", async () => {
   assert.equal((await call("POST", "/api/extension/lien", { annonce: o.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890", prix: 35 }, "", h)).json.prixChange, false);
 });
 
+test("eBay : lien de l'annonce, depuis la fiche et depuis l'extension", async () => {
+  const { lienEbay } = await import("../server/api.mjs");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/Kirby-64-N64-PAL/204512345678?hash=item2f9&var=1"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("ebay.fr/itm/204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://m.ebay.com/itm/204512345678"), "https://www.ebay.com/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr/itm/?item=204512345678"), "https://www.ebay.fr/itm/204512345678");
+  assert.equal(lienEbay("https://www.ebay.fr.pirate.example/itm/204512345678"), "");
+  assert.equal(lienEbay("https://www.ebay.fr/usr/vendeur"), "");
+  const c = await compte("ebay@exemple.fr");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "Kirby 64", annonceEbay: "https://www.ebay.fr/sch/kirby" } }, c)).status, 400);
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64", prixDemande: 40, annonceEbay: "https://www.ebay.fr/itm/Kirby/204512345678?x=1" } }, c)).json.objet;
+  assert.equal(o.annonceEbay, "https://www.ebay.fr/itm/204512345678");
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o2 = (await call("POST", "/api/objets", { objet: { titre: "Conker", prixDemande: 150 } }, c)).json.objet;
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567890" }, "", h)).status, 400);
+  assert.equal((await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/204512345678" }, "", h)).status, 409);
+  const r = await call("POST", "/api/extension/lien", { site: "ebay", annonce: o2.id, url: "https://www.ebay.fr/itm/Conker/205599887766", prix: 145 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.url, "https://www.ebay.fr/itm/205599887766"); assert.equal(r.json.prix, 145);
+  const a = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a.url, ""); assert.equal(a.publiee, false);
+  // les deux liens cohabitent : Le Bon Coin ne remplace pas eBay
+  await call("POST", "/api/extension/lien", { annonce: o2.id, url: "https://www.leboncoin.fr/ad/jeux_video/2934567891" }, "", h);
+  const a2 = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o2.id);
+  assert.equal(a2.urlEbay, "https://www.ebay.fr/itm/205599887766"); assert.equal(a2.url, "https://www.leboncoin.fr/ad/jeux_video/2934567891");
+});
+
+test("eBay : l'extension reçoit l'annonce au format eBay", async () => {
+  const { titreEbay } = await import("../server/api.mjs");
+  assert.equal(titreEbay("Kirby 64 The Crystal Shards Nintendo 64 PAL complet en boîte avec notice CIB très bon état"), "Kirby 64 The Crystal Shards Nintendo 64 PAL complet en boîte avec notice CIB");
+  const c = await compte("ebay-format@exemple.fr");
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Kirby 64", plateforme: "Nintendo 64", region: "PAL", etat: "tres_bon", contenu: "complet", prixDemande: 85 } }, c)).json.objet;
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const e = (await call("GET", "/api/extension/annonces", null, "", h)).json.annonces.find((x) => x.id === o.id).ebay;
+  assert.equal(e.titre, "Kirby 64 Nintendo 64"); assert.equal(e.etat, "Très bon état"); assert.equal(e.prix, 85); assert.equal(e.plancher, 75);
+  assert.deepEqual(e.caracteristiques.map((x) => x.nom), ["Nom du jeu", "Plateforme", "Région", "Contenu"]);
+  assert.match(e.description, /Envoi soigné et rapide, avec suivi\./); assert.doesNotMatch(e.description, /main propre/);
+});
+
+test("eBay : réponse IA dans la messagerie eBay", async () => {
+  const c = await compte("ebay-rep@exemple.fr", true);
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 200 } }, c)).json.objet;
+  const r = await call("POST", "/api/extension/reponse", { site: "ebay", conversation: "kevin_64 : Offre de 120,00 EUR. Bonjour, possible à ce prix ?", annonce: o.id, offre: 120 }, "", h);
+  assert.equal(r.status, 200); assert.equal(r.json.reponses.length, 3); assert.equal(r.json.offre.offre, 120);
+});
+
 test("contenu d'un lot : chaque jeu retrouvé parmi les annonces", async () => {
   const { contenuLot } = await import("../server/ia.mjs");
   const autres = [
@@ -595,6 +651,15 @@ test("analyse d'une offre officielle : trop basse face au prix affiché", async 
   const b = analyseOffre(190, 175);
   assert.equal(b.basse, false); assert.equal(b.acceptable, true);
   assert.equal(analyseOffre(null, 140), null);
+  // Offre presque insultante (−39 %) : un tout petit geste seulement, jamais vers le plancher.
+  const c = analyseOffre(330, 200);
+  assert.equal(c.insultante, true); assert.equal(c.contre, 320); assert.equal(c.plancher, 320);
+});
+
+test("pseudo avec des chiffres : gardé tel quel, jamais coupé", async () => {
+  const { sansPrenomInvente } = await import("../server/ia.mjs");
+  assert.equal(sansPrenomInvente("Bonjour Jram76100, merci pour l'offre !", "Jram76100"), "Bonjour Jram76100, merci pour l'offre !");
+  assert.equal(sansPrenomInvente("Bonjour Kevin54, merci !", ""), "Bonjour, merci !");
 });
 
 test("fiche d'un jeu : infos (simulées) et ma note enregistrée", async () => {
@@ -643,4 +708,118 @@ test("pas de prénom inventé, pas de disponibilité répétée", async () => {
   assert.equal(sansPrenomInvente("Merci Garnier ! Le jeu part ce soir 🙂", "carter054"), "Merci ! Le jeu part ce soir 🙂");
   assert.equal(sansPrenomInvente("Bonjour Julien, oui 🙂", "Julien"), "Bonjour Julien, oui 🙂");
   assert.equal(sansDispoRepetee("Le jeu est toujours disponible 😊 À 18h15 au FoodLab, ça me va !"), "À 18h15 au FoodLab, ça me va !");
+});
+
+test("profil de vendeur : inscription, Mon compte, extension, prix plancher", async () => {
+  const r = await call("POST", "/api/inscription", { email: "profil@exemple.fr", motdepasse: "motdepasse123", cgv: true, vendeur: { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi\nle dimanche", pirate: "x" } });
+  assert.equal(r.status, 200);
+  const c = cookieOf(r);
+  db.prepare("UPDATE users SET email_ok = 1, plan = 'collectionneur', plan_status = 'active' WHERE email = ?").run("profil@exemple.fr");
+  const moi = (await call("GET", "/api/moi", null, c)).json;
+  assert.deepEqual(moi.vendeur, { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi le dimanche" });
+  // Valeur inconnue ignorée, profil modifiable ensuite.
+  const m = (await call("POST", "/api/compte/profil", { vendeur: { rythme: "rapide", prix: "n'importe quoi", ton: "humour" } }, c)).json;
+  assert.deepEqual(m.vendeur, { rythme: "rapide", ton: "humour" });
+  assert.deepEqual((await call("POST", "/api/compte/profil", { vendeur: {} }, c)).json.vendeur, {});
+  await call("POST", "/api/compte/profil", { vendeur: { prix: "ferme", ton: "diplomate" } }, c);
+  // L'extension reçoit le profil et l'IA ne propose plus de contre-offre.
+  const k = (await call("POST", "/api/extension/cle", null, c)).json.cle, h = { authorization: "Bearer " + k };
+  assert.deepEqual((await call("GET", "/api/extension/annonces", null, "", h)).json.profil.vendeur, { prix: "ferme", ton: "diplomate" });
+  const o = (await call("POST", "/api/objets", { objet: { titre: "Conker", plateforme: "Nintendo 64", statut: "en_vente", prixDemande: 190 } }, c)).json.objet;
+  const rep = (await call("POST", "/api/extension/reponse", { conversation: "Voici l'offre de mm : 140 €.", annonce: o.id, offre: 140 }, "", h)).json;
+  assert.equal(rep.offre.ferme, true); assert.equal(rep.offre.contre, 190);
+  assert.ok(rep.reponses.length && rep.reponses.every((x) => x.approche !== "contre_offre"));
+
+  const { partPlancher, consignesProfil } = await import("../server/profil.mjs");
+  assert.equal(partPlancher({}), 0.85); assert.equal(partPlancher({ rythme: "patient" }), 0.9); assert.equal(partPlancher({ rythme: "rapide", prix: "souple" }), 0.75);
+  assert.equal(consignesProfil({}), "");
+  assert.match(consignesProfil({ ton: "diplomate", echanges: "oui" }), /très diplomate et affable[\s\S]*ouvert aux échanges/);
+  const { analyseOffre } = await import("../server/ia.mjs");
+  assert.equal(analyseOffre(190, 170, 0.9).basse, true); assert.equal(analyseOffre(190, 170).basse, false);
+});
+
+test("photos : JPEG incomplet refusé, écriture sans fichier temporaire laissé", async () => {
+  const { jpegCoupe } = await import("../server/api.mjs");
+  const entier = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+  assert.equal(jpegCoupe(entier), false);
+  assert.equal(jpegCoupe(Buffer.concat([entier, Buffer.alloc(12)])), false);   // remplissage après la fin : accepté
+  assert.equal(jpegCoupe(entier.subarray(0, 6)), true);
+  assert.equal(jpegCoupe(Buffer.from("fausse image")), false);   // pas un JPEG : pas notre affaire
+  const c = await compte("photos-jpeg@test.fr");
+  const b64 = (b) => "data:image/jpeg;base64," + b.toString("base64");
+  const r = await call("POST", "/api/objets", { objet: { titre: "Donkey Kong 64" }, photo: b64(entier) }, c);
+  assert.equal(r.status, 200);
+  const id = r.json.objet.id;
+  assert.equal((await call("POST", `/api/objets/${id}/photos`, { photo: b64(entier.subarray(0, 6)) }, c)).status, 400);
+  const lu = await call("GET", `/api/photo/${id}`, null, c);
+  assert.deepEqual(Buffer.from(lu.body), entier);
+  const dossier = path.join(process.env.DATA_DIR, "photos");
+  const tous = fs.readdirSync(dossier, { recursive: true }).map(String);
+  assert.deepEqual(tous.filter((f) => f.endsWith(".tmp")), []);
+});
+
+test("caractéristiques eBay : valeurs sûres tirées de la fiche (lot compris)", async () => {
+  const { specifiquesSurs } = await import("../server/ia.mjs");
+  const champs = [{ nom: "Plateforme", multiple: true }, { nom: "Nom du jeu vidéo", multiple: true }, { nom: "Éditeur" }, { nom: "Code de région" }, { nom: "Quantité unitaire" }];
+  const seul = specifiquesSurs({ nom: "Kirby 64", plateforme: "Nintendo 64", region: "PAL" }, champs);
+  assert.deepEqual(seul, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Kirby 64", "Code de région": "PAL" });
+  const lot = specifiquesSurs({ nom: "Lot de 2 jeux", plateforme: "Nintendo 64", contient: ["a", "b"], jeux: ["Zelda", "Conker"] }, champs);
+  assert.deepEqual(lot, { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 jeux", "Quantité unitaire": "2" });   // jamais un jeu précis pour un lot
+  const { specifiquesEbay } = await import("../server/ia.mjs");
+  assert.deepEqual(await specifiquesEbay({ plateforme: "Nintendo 64", contient: ["a", "b"] }, [{ nom: "Plateforme" }, { nom: "Éditeur", suggestions: ["Nintendo"] }, { nom: "Nom du jeu vidéo", obligatoire: true }]), { Plateforme: "Nintendo 64", "Nom du jeu vidéo": "Lot de 2 articles" });
+  assert.deepEqual(specifiquesSurs({ contient: ["a", "b", "c"], jeux: ["Zelda", "Conker"], nbArticles: 3 }, [{ nom: "Nom du jeu vidéo" }, { nom: "Quantité unitaire" }]), { "Nom du jeu vidéo": "Lot de 2 jeux", "Quantité unitaire": "3" });   // l'accessoire ne compte pas dans les jeux
+});
+
+test("couleur du site : au choix pour un Collectionneur, imposée pour les autres formules", async () => {
+  const g = await compte("teinte-gratuit@exemple.fr"), c = await compte("teinte-collec@exemple.fr", true);
+  assert.equal((await call("GET", "/api/moi", null, g)).json.teinte, "");
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "lilas" }, g)).status, 403);
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "");                       // or par défaut
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "rouge" }, c)).status, 400);
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "menthe" }, c)).json.teinte, "menthe");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "menthe");                 // gardé sur le compte
+  assert.equal((await call("POST", "/api/compte/profil", { teinte: "or" }, c)).json.teinte, "");
+  await call("POST", "/api/compte/profil", { teinte: "lilas" }, c);
+  // L'abonnement se termine : la couleur de la formule reprend le dessus (le choix reste gardé pour un retour).
+  db.prepare("UPDATE users SET plan_status = 'canceled' WHERE email = ?").run("teinte-collec@exemple.fr");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "");
+  db.prepare("UPDATE users SET plan_status = 'active' WHERE email = ?").run("teinte-collec@exemple.fr");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.teinte, "lilas");
+});
+
+test("description eBay : l'envoi d'un lot se lit bien", async () => {
+  const { annonceEbay } = await import("../server/api.mjs");
+  const e = annonceEbay({ titre: "Lot", etat: "bon" }, { titre: "Lot", description: "Lot :\n- A\nRemise en main propre ou envoi soigné, en un seul colis.", prix: 100 });
+  assert.match(e.description, /Envoi soigné et rapide, avec suivi, en un seul colis\.$/);
+  assert.doesNotMatch(e.description, /suivi\. soigné/);
+});
+
+test("rareté des jeux : établie automatiquement (IA, cote, arrière-plan), suit le jeu, transmise à l'extension", async () => {
+  const c = await compte("rarete@exemple.fr", true);
+  const { annonceLbc, rareteFinie } = await import("../server/api.mjs");
+  // reconnaissance photo et recherche des prix donnent la rareté, que l'appli renvoie avec la fiche
+  const id = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+  assert.equal(id.json.objet.rareteJeu, "commun");
+  assert.equal((await call("POST", "/api/ia/cote", { objet: id.json.objet }, c)).json.cote.rarete, "peu_commun");
+  // fiche saisie à la main : estimée en arrière-plan, sans toucher à la date de modification
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Conker's Bad Fur Day", plateforme: "Nintendo 64" } }, c)).json.objet;
+  assert.equal(a.rareteJeu, "");
+  await rareteFinie();
+  let l = (await call("GET", "/api/objets", null, c)).json.objets;
+  const a2 = l.find((x) => x.id === a.id);
+  assert.equal(a2.rareteJeu, "rare"); assert.equal(a2.modifie, a.modifie);
+  assert.equal(annonceLbc(a2).rareteJeu, "rare");
+  // autre jeu sur la même fiche : la rareté est estimée à nouveau
+  const b = (await call("PUT", "/api/objets/" + a.id, { objet: { titre: "Little Samson", plateforme: "NES" } }, c)).json.objet;
+  assert.equal(b.rareteJeu, "");
+  await rareteFinie();
+  l = (await call("GET", "/api/objets", null, c)).json.objets;
+  assert.equal(l.find((x) => x.id === a.id).rareteJeu, "tres_rare");
+  // même jeu, autre détail (prix) : la rareté reste
+  assert.equal((await call("PUT", "/api/objets/" + a.id, { objet: { prixDemande: 900 } }, c)).json.objet.rareteJeu, "tres_rare");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "X", rareteJeu: "légendaire" } }, c)).json.objet.rareteJeu, "");
+  // une carte Pokémon garde sa rareté imprimée, sans la rareté des jeux
+  const k = (await call("POST", "/api/objets", { objet: { titre: "Dracaufeu", categorie: "cartes", rarete: "Holo rare", rareteJeu: "tres_rare" } }, c)).json.objet;
+  assert.equal(k.rarete, "Holo rare"); assert.equal(k.rareteJeu, undefined);
+  await rareteFinie();
 });

@@ -39,16 +39,20 @@
     }
 
     /* connecté : le lien « Connexion » devient le pseudo (et l'avatar) */
-    var lienCx = d.querySelector('.nav-liens a[href="/app/"]');
+    var lienCx = d.querySelector('.nav-liens a[href="/app/"]:not(.nav-co)');
     if (lienCx) lienCx.classList.add("nav-compte");
     window.rrMoi = function (m) {
       if (!m) return;
       // la formule change l'habillage (badge, touches dorées ou holographiques) : voir « Habillage selon la formule » dans rr.css
       var fid = (m.formule && m.formule.id) || "gratuit"; d.documentElement.setAttribute("data-formule", fid); try { localStorage.setItem("rr-formule", fid); } catch (e) {}
+      // Collectionneur : couleur du site choisie dans Mon compte (vide = l'or de la formule)
+      var te = fid === "collectionneur" && /^(anis|menthe|lilas)$/.test(m.teinte || "") ? m.teinte : "";
+      if (te) d.documentElement.setAttribute("data-teinte", te); else d.documentElement.removeAttribute("data-teinte");
+      try { te ? localStorage.setItem("rr-teinte", te) : localStorage.removeItem("rr-teinte"); } catch (e) {}
       if (!lienCx) return;
       var nom = m.nom || "Mon compte", av = d.createElement("span");
       av.className = "av-mini"; av.setAttribute("aria-hidden", "true");
-      if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase();
+      if (m.avatar) av.style.backgroundImage = "url(" + m.avatar + ")"; else av.textContent = nom.charAt(0).toUpperCase(); if (window.RR_NIV) av.dataset.niv = window.RR_NIV;
       lienCx.innerHTML = ""; lienCx.appendChild(av); var t = d.createElement("span"); t.textContent = nom; lienCx.appendChild(t);
       if (fid !== "gratuit") { var bd = d.createElement("span"); bd.className = "badge-formule"; bd.textContent = { vendeur: "Vendeur", collectionneur: "Collectionneur", pass: "Pass" }[fid] || ""; lienCx.appendChild(bd); }
       lienCx.classList.add("nav-moi"); lienCx.href = "/app/?compte"; lienCx.title = "Mon compte";
