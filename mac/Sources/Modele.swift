@@ -9,6 +9,22 @@ import SwiftUI
 struct Photo: Identifiable, Hashable { let id: String; var legende: String }
 
 extension Article {
+    /// Texte de l'annonce avec UNE seule section « Photos : » (une ligne par photo décrite) : toute liste numérotée
+    /// ou section photo écrite par l'IA est retirée d'abord, pour ne jamais avoir de doublon.
+    static func avecPhotos(_ texte: String, _ legendes: [String]) -> String {
+        let entete = try! NSRegularExpression(pattern: "^\\W*(d[ée]tail des |description des |les )?photos?\\b[^\\n]{0,40}:\\W*$", options: [.caseInsensitive])
+        let numero = try! NSRegularExpression(pattern: "^\\s*(photo\\s*)?\\d+\\s*[.):–-]\\s", options: [.caseInsensitive])
+        let garde = texte.components(separatedBy: "\n").filter { l in
+            let r = NSRange(l.startIndex..., in: l)
+            return entete.firstMatch(in: l, range: r) == nil && numero.firstMatch(in: l, range: r) == nil
+        }
+        var t = garde.joined(separator: "\n").replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let lignes = legendes.enumerated().filter { !$0.element.trimmingCharacters(in: .whitespaces).isEmpty }.map { "\($0.offset + 1). \($0.element)" }
+        if !lignes.isEmpty { t += "\n\nPhotos :\n" + lignes.joined(separator: "\n") }
+        return t
+    }
+
     /// Annonce simple composée à partir des champs (même modèle que le serveur quand l'annonce est vide).
     static func titreSimple(_ a: Article) -> String { String([a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: " ").prefix(100)) }
     static func texteSimple(_ a: Article) -> String {
@@ -530,9 +546,12 @@ final class Appli: ObservableObject {
     /// Légendes de chaque photo de l'article (l'IA regarde les photos une par une).
     func legender(_ a: Article) async -> [String] {
         var datas: [String] = []
+        // Le serveur refuse un envoi de plus de 4 Mo : toutes les photos ensemble doivent tenir dans ~3,2 Mo.
+        // (Avant, 8 photos à 900 Ko étaient refusées : l'IA n'avait aucune légende et inventait sa propre liste.)
+        let poids = min(450_000, 3_200_000 / max(1, min(8, a.photos.count)))
         for p in a.photos.prefix(8) {
             // Une photo illisible : on s'arrête là, pour que chaque légende reste en face de sa photo.
-            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: 900_000) else { break }
+            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: poids) else { break }
             datas.append(j)
         }
         guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return [] }
@@ -542,6 +561,7 @@ final class Appli: ObservableObject {
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
     func rediger(_ a: Article) async -> Redaction {
         let legendes = await legender(a)
+        if legendes.allSatisfy({ $0.isEmpty }), !a.photos.isEmpty { message = "Les photos n'ont pas pu être décrites cette fois : l'annonce est rédigée sans la liste des photos." }
         var fiche: [String: Any] = [:]
         let e = a.envoi
         for k in ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"] {
@@ -549,8 +569,9 @@ final class Appli: ObservableObject {
         }
         let liste = legendes.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
         var consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet."
+        consigne += " N'écris aucune liste des photos ni de section « Photos » : l'app l'ajoute elle-même à la fin."
         if !liste.isEmpty {
-            consigne += " Voici ce que montre chacune de mes photos :\n\(liste)\nLe texte décrit l'objet d'après ces photos, puis finit par une section « Photos : » qui reprend une ligne numérotée par photo. L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
+            consigne += " Voici ce que montre chacune de mes photos :\n\(liste)\nLe texte décrit l'objet d'après ces photos, sans les énumérer. L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
         }
         if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
         var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)
@@ -560,7 +581,7 @@ final class Appli: ObservableObject {
             if let d = ch["texteAnnonce"] as? String, !d.isEmpty { r.texte = d }
             if let et = ch["etat"] as? String, !et.isEmpty { r.etat = et }
         }
-        if !liste.isEmpty, !r.texte.contains("Photos :") { r.texte += "\n\nPhotos :\n" + liste }
+        r.texte = Article.avecPhotos(r.texte, legendes)
         return r
     }
 
@@ -579,8 +600,7 @@ final class Appli: ObservableObject {
         }
         let r = try await IALocale.rediger(fiche: lignes.joined(separator: "\n"), textesPhotos: textes, sansNotice: Libelles.sansNotice(a.plateforme))
         var red = Redaction(titre: r.titre.isEmpty ? Article.titreSimple(a) : r.titre, texte: r.texte.isEmpty ? Article.texteSimple(a) : r.texte, etat: nil, legendes: r.legendes)
-        let liste = r.legendes.enumerated().filter { !$0.element.isEmpty }.map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
-        if !liste.isEmpty, !red.texte.contains("Photos :") { red.texte += "\n\nPhotos :\n" + liste }
+        red.texte = Article.avecPhotos(red.texte, r.legendes)
         return red
     }
 
