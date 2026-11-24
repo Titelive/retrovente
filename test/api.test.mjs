@@ -834,3 +834,23 @@ test("adresse du vendeur : obligatoire à l'inscription, modifiable dans Mon com
   assert.equal(m.status, 200); assert.equal(m.json.adresse, "12 rue Stanislas 54000 Nancy");
   assert.equal((await call("POST", "/api/compte/profil", { adresse: "" }, c)).status, 400);
 });
+
+test("vues et favoris : relevé de l'app (cookie) et de l'extension (clé), gardés à l'enregistrement de la fiche", async () => {
+  const c = await compte("stats@retro.fr");
+  const lbc = "https://www.leboncoin.fr/ad/jeux_video/2874512345", eb = "https://www.ebay.fr/itm/123456789012";
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Super Mario 64", prixDemande: 45, annonce: lbc, annonceEbay: eb } }, c)).json.objet;
+  const b = (await call("POST", "/api/objets", { objet: { titre: "Zelda", prixDemande: 39 } }, c)).json.objet;
+  let r = await call("POST", "/api/stats", { site: "lbc", annonces: [{ id: "2874512345", vues: 128, favoris: 7 }, { id: "9999999", vues: 3 }] }, c);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.maj, 1);
+  const cle = (await call("POST", "/api/extension/cle", {}, c)).json.cle;
+  r = await call("POST", "/api/extension/stats", { site: "ebay", annonces: [{ id: "123456789012", vues: 40, favoris: 2 }] }, "", { authorization: "Bearer " + cle });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  let o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.stats.lbc.vues, 128); assert.equal(o.stats.lbc.favoris, 7); assert.equal(o.stats.ebay.vues, 40);
+  assert.equal((await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === b.id).stats, undefined);
+  // la fiche réécrite (même lien) garde ses stats ; le lien eBay retiré emporte les siennes
+  o = (await call("PUT", "/api/objets/" + a.id, { objet: { ...o, prixDemande: 49, annonceEbay: "" } }, c)).json.objet;
+  assert.equal(o.stats.lbc.vues, 128); assert.equal(o.stats.ebay, undefined);
+  assert.equal((await call("POST", "/api/stats", { site: "autre", annonces: [] }, c)).status, 400);
+});
