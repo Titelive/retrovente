@@ -62,12 +62,14 @@ struct EnTete<Boutons: View>: View {
                 Button(action: b) { Image(systemName: "sidebar.left") }
                     .boutonVerre().help("Cacher ou montrer la barre latérale (⌃⌘S)")
             }
+            // Titre et sous-titre sur une ligne chacun (tronqués si la fenêtre est étroite), boutons jamais repliés :
+            // un texte écrasé qui passe à la ligne à chaque lettre agrandissait toute la vue au-delà de la fenêtre.
             VStack(alignment: .leading, spacing: 2) {
-                Text(titre).font(.system(size: 26, weight: .heavy, design: .rounded)).lineLimit(1)
-                if !sousTitre.isEmpty { Text(sousTitre).font(.callout).foregroundStyle(.secondary) }
-            }
-            Spacer()
-            HStack(spacing: 8) { boutons() }
+                Text(titre).font(.system(size: 26, weight: .heavy, design: .rounded)).lineLimit(1).truncationMode(.tail)
+                if !sousTitre.isEmpty { Text(sousTitre).font(.callout).foregroundStyle(.secondary).lineLimit(1) }
+            }.frame(minWidth: 80, alignment: .leading)
+            Spacer(minLength: 8)
+            HStack(spacing: 8) { boutons() }.lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 6)
     }
@@ -198,6 +200,7 @@ struct Accueil: View {
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
         .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
         .sheet(item: $appli.gestion) { g in FeuilleGestion(appli: appli, gestion: g) }
+        .sheet(isPresented: $appli.choixDepot) { ChoixDepot(appli: appli) }
         .onChange(of: filtre) { _ in appli.selection = nil }
         .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
         .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }
@@ -292,6 +295,49 @@ struct Fiche: View {
     @State private var retirer = false
     @State private var original: Article? = nil
 
+    /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
+    private var bandeauAnnonceMorte: some View {
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill").font(.title2).foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Cette annonce n'est plus en ligne sur Le Bon Coin").font(.headline)
+                Text(article.estLot ? "Elle est désactivée, supprimée ou expirée. Redépose le lot : son titre accrocheur et son annonce sont refaits avec ses articles."
+                                    : "Elle est désactivée, supprimée ou expirée. Redépose-la, ou retrouve-la si tu l'as republiée sous un autre lien.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+          }
+          HStack(spacing: 8) {
+            Spacer(minLength: 0)
+            Menu {
+                Button("Retrouver dans Mes annonces") { Task { await oublierLien(); appli.fenetre?.aller(.annonces) } }
+                Button("Oublier le lien") { Task { await oublierLien() } }
+            } label: { Text("Autres choix") }.menuStyle(.button).boutonVerre().fixedSize()
+            Button { Task { await redeposer() } } label: { Label("Redéposer", systemImage: "paperplane.fill") }
+                .boutonVerre(principal: true).disabled(enCours || article.statut != "en_vente").fixedSize()
+          }
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.orange.opacity(0.5)))
+    }
+    private func oublierLien() async {
+        var n = article; n.annonce = ""
+        enCours = true; defer { enCours = false }
+        if let r = await appli.enregistrer(n) { article = r; original = r; appli.message = "Lien Le Bon Coin oublié." }
+    }
+    /// Redépose : lot = titre et annonce refaits d'abord ; puis le lien mort est oublié et le dépôt part en coulisses.
+    private func redeposer() async {
+        if article.estLot { await refaireAnnonceLot() }
+        var n = article; n.annonce = ""
+        enCours = true
+        let r = await appli.enregistrer(n)
+        enCours = false
+        guard let r = r else { return }
+        article = r; original = r
+        appli.deposer(r)
+    }
+
     /// Lot : titre accrocheur et annonce refaits par le serveur avec les articles du lot (comme « Mettre à jour l'annonce » du site).
     private func refaireAnnonceLot() async {
         enCours = true; defer { enCours = false }
@@ -341,13 +387,24 @@ struct Fiche: View {
                     .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || article == original)
             }
             ScrollView {
-                HStack(alignment: .top, spacing: 24) {
-                    galerie.frame(width: 340)
-                    champs.frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 16) {
+                    if article.annonceMorte(appli) { bandeauAnnonceMorte }
+                    HStack(alignment: .top, spacing: 24) {
+                        galerie.frame(minWidth: 220, idealWidth: 340, maxWidth: 340)
+                        champs.frame(minWidth: 380, maxWidth: .infinity)
+                    }
                 }.padding(24)
             }
+            .frame(minHeight: 0, maxHeight: .infinity)
         }
-        .onAppear { original = article; photo = article.photos.first }
+        .frame(minWidth: 0, minHeight: 0, alignment: .top)
+        .clipped()
+        // Fiches rechargées (site, autre Mac, lot refait) : la fiche ouverte suit, sauf si elle a des modifications en cours.
+        .onReceive(appli.$articles) { l in
+            guard let n = l.first(where: { $0.id == article.id }), n != original, article == original else { return }
+            article = n; original = n
+        }
+        .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
         } message: { Text("La fiche et ses photos seront effacées.") }

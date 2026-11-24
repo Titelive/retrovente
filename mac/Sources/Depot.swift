@@ -32,7 +32,6 @@ struct FeuilleDepot: View {
                 HStack {
                     Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
                     Spacer()
-                    Button { appli.fenetre?.voirCoulisses() } label: { Label("Voir sur Le Bon Coin", systemImage: "eye") }.boutonVerre()
                 }
             case .pret(let bouton, let payant):
                 Label("Ton annonce est prête", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrOr)
@@ -50,10 +49,21 @@ struct FeuilleDepot: View {
                 HStack {
                     Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
                     Spacer()
-                    Button { appli.fenetre?.voirCoulisses() } label: { Label("Vérifier sur Le Bon Coin", systemImage: "eye") }.boutonVerre()
                     Button { appli.fenetre?.publierEnCoulisses() } label: { Label("Publier", systemImage: "paperplane.fill") }
                         .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
                         .help("Clique « \(bouton) » sur Le Bon Coin")
+                }
+            case .aide(let t):
+                Label("Le Bon Coin a besoin de toi", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
+                Text(t).font(.callout).fixedSize(horizontal: false, vertical: true)
+                Text("Rien n'a été publié. Le Bon Coin reste caché : tu peux réessayer, ou l'ouvrir pour régler ça toi-même.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
+                    Spacer()
+                    Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()
+                    Button { appli.fenetre?.reessayerCoulisses() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }
+                        .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
                 }
             case .publication:
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Publication sur Le Bon Coin…").font(.headline) }
@@ -64,5 +74,59 @@ struct FeuilleDepot: View {
     private var titreAnnonce: String {
         let t = article?.titreAnnonce ?? ""
         return t.isEmpty ? (article?.titre ?? depot.titre) : t
+    }
+}
+
+/// « Déposer » : choisir l'article à mettre en ligne. Le dépôt se fait en coulisses, Le Bon Coin ne s'affiche pas.
+struct ChoixDepot: View {
+    @ObservedObject var appli: Appli
+    @State private var recherche = ""
+    var body: some View {
+        let l = appli.articles.filter { $0.statut == "en_vente" && $0.annonce.isEmpty && !(appli.lotDe($0)?.vendu ?? false) }
+            .filter { recherche.isEmpty || ($0.titre + " " + $0.plateforme).localizedCaseInsensitiveContains(recherche) }
+            .sorted { $0.cree > $1.cree }
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Déposer une annonce").font(.title2.weight(.heavy))
+                Text("Choisis l'article : l'annonce se remplit en coulisses, tu la relis puis tu publies, sans voir Le Bon Coin.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Chercher un article", text: $recherche).textFieldStyle(.plain)
+            }.padding(.horizontal, 10).padding(.vertical, 7).verre(Capsule())
+            if l.isEmpty {
+                Text(recherche.isEmpty ? "Tous tes articles en vente sont déjà sur Le Bon Coin." : "Aucun article ne correspond.")
+                    .foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 30)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 6) {
+                        ForEach(l) { a in
+                            Button { appli.choixDepot = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { appli.deposer(a) } } label: {
+                                HStack(spacing: 12) {
+                                    Vignette(article: a).frame(width: 46, height: 46).clipShape(RoundedRectangle(cornerRadius: 10))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(a.titre).font(.callout.weight(.semibold)).lineLimit(1)
+                                        Text(a.estLot ? "Lot · \(appli.membres(a).count) articles" : a.ligne).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                    Spacer()
+                                    Text(Libelles.prix(a.prixDemande)).font(.callout.weight(.heavy).monospacedDigit())
+                                    Image(systemName: "paperplane.fill").foregroundStyle(Color.rrOr)
+                                }
+                                .padding(8).contentShape(Rectangle())
+                                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }.frame(maxHeight: 380)
+            }
+            HStack {
+                Button("Ouvrir le dépôt Le Bon Coin") { appli.choixDepot = false; appli.fenetre?.allerSurLeSite(.deposer) }.buttonStyle(.link)
+                    .help("Pour déposer à la main un objet qui n'a pas de fiche")
+                Spacer()
+                Button("Fermer") { appli.choixDepot = false }.keyboardShortcut(.cancelAction).boutonVerre()
+            }
+        }
+        .padding(24).frame(width: 520)
     }
 }

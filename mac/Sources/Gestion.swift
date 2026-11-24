@@ -46,6 +46,7 @@ extension Fenetre {
     func etapeGestion(final: Bool = false) {
         guard enCoulisses, let g = modele.gestion else { return }
         if case .fait = g.etape { return }
+        if case .aide = g.etape { return }
         if lbc.isLoading && !final { return }
         let limite: TimeInterval = g.etape == .envoi ? Fenetre.delaiPublication : Fenetre.delaiGestion
         if case .pret = g.etape {} else if Date().timeIntervalSince(g.etape == .envoi ? etapeDepuis : debutCoulisses) > limite {
@@ -221,6 +222,16 @@ struct FeuilleGestion: View {
                 boutons(principal: AnyView(
                     Button { appli.fenetre?.validerGestion() } label: { Label("Enregistrer", systemImage: "checkmark") }
                         .boutonVerre(principal: true).keyboardShortcut(.defaultAction).help("Clique « \(b) » sur Le Bon Coin")))
+            case .aide(let t):
+                Label("Le Bon Coin a besoin de toi", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
+                Text(t).font(.callout).fixedSize(horizontal: false, vertical: true)
+                Text("Rien n'a été envoyé. Le Bon Coin reste caché : tu peux réessayer, ou l'ouvrir pour régler ça toi-même.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                boutons(principal: AnyView(HStack {
+                    Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()
+                    Button { appli.fenetre?.reessayerCoulisses() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }
+                        .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
+                }))
             case .envoi:
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text(gestion.action == .modifier ? "Envoi à Le Bon Coin…" : "Suppression sur Le Bon Coin…").font(.headline) }
             case .fait(let t):
@@ -234,7 +245,6 @@ struct FeuilleGestion: View {
         HStack {
             Button("Annuler") { appli.gestion = nil }.keyboardShortcut(.cancelAction).boutonVerre()
             Spacer()
-            Button { appli.fenetre?.voirCoulisses() } label: { Label("Voir sur Le Bon Coin", systemImage: "eye") }.boutonVerre()
             if let p = principal { p }
         }
     }

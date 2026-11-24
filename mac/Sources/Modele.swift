@@ -263,6 +263,7 @@ final class Images {
 struct DepotEnCours: Identifiable, Equatable {
     enum Etape: Equatable {
         case remplissage(String)                 // message de progression
+        case aide(String)                        // Le Bon Coin demande quelque chose : rien n'est montré sans l'accord
         case pret(bouton: String, payant: Bool)  // écran final atteint : on attend « Publier »
         case publication
     }
@@ -275,6 +276,7 @@ struct GestionAnnonce: Identifiable, Equatable {
     enum Action: Equatable { case modifier, supprimer }
     enum Etape: Equatable {
         case travail(String)       // message de progression
+        case aide(String)          // Le Bon Coin demande quelque chose
         case pret(bouton: String)  // modification : écran final atteint, on attend « Enregistrer »
         case envoi
         case fait(String)
@@ -295,6 +297,7 @@ final class Appli: ObservableObject {
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
+    @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
@@ -316,6 +319,11 @@ final class Appli: ObservableObject {
     @Published var focusRecherche = 0          // ⌘K : place le curseur dans la recherche
     @Published var message: String? = nil      // petit message de confirmation (statut changé, lot créé…)
     var dernierChargement = Date.distantPast
+    /// Annonces Le Bon Coin vues désactivées (article → lien vérifié), gardées d'une ouverture à l'autre.
+    @Published var annoncesMortes: [String: String] = UserDefaults.standard.dictionary(forKey: "annoncesMortes") as? [String: String] ?? [:] {
+        didSet { UserDefaults.standard.set(annoncesMortes, forKey: "annoncesMortes") }
+    }
+    let verif = VerifAnnonces()
     @Published var gestion: GestionAnnonce? = nil {
         didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
@@ -323,7 +331,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -331,7 +339,7 @@ final class Appli: ObservableObject {
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
                 ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789"],
-                ["id": "l1", "titre": "Lot Nintendo 64 : 2 jeux", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
+                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
                 ["id": "a8", "titre": "Perfect Dark", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 22, "prixVente": 20, "statut": "recu", "remise": "envoi", "transporteur": "colissimo", "suivi": "6A12345678901", "livreLe": "2026-11-18", "dateVente": "2026-11-14", "modifie": "0", "cree": "2026-10-02", "rareteJeu": "peu_commun"],
                 ["id": "a9", "titre": "Conker's Bad Fur Day", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 185, "statut": "en_vente", "modifie": "0", "cree": "2026-11-10", "rareteJeu": "tres_rare"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
@@ -341,8 +349,11 @@ final class Appli: ObservableObject {
                 ["id": "a6", "titre": "Manette DualShock 2", "categorie": "accessoires", "plateforme": "PlayStation 2", "prixDemande": 15, "statut": "en_vente", "modifie": "1"],
             ]
             articles = ex.map(Article.init); etat = .connecte
-            if d == "fiche" { selection = "a1" }
+            if d == "fiche" { selection = "a1"; annoncesMortes = ["a1": articles.first { $0.id == "a1" }?.annonce ?? ""] }
+            else if d == "fichelot" { selection = "l1"; annoncesMortes = ["l1": articles.first { $0.id == "l1" }?.annonce ?? ""] }
+            else { annoncesMortes = [:] }
             if d == "nouveau" { nouveauOuvert = true }
+            if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
@@ -360,6 +371,7 @@ final class Appli: ObservableObject {
             articles = (j["objets"] as? [[String: Any]] ?? []).map(Article.init)
                 .sorted { $0.modifie > $1.modifie }
             dernierChargement = Date()
+            verif.appli = self; verif.planifier(articles)
         } catch { signaler(error) }
     }
     func connecter(email: String, motdepasse: String) async throws {
