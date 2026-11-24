@@ -231,6 +231,12 @@ struct Accueil: View {
                 if appli.barreSurvol, !dansPanneau { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
             }
         }
+        .overlay {
+            if let v = appli.visionneuse, let a = appli.articles.first(where: { $0.id == v.article }) {
+                Visionneuse(article: a, index: Binding(get: { appli.visionneuse?.photo }, set: { n in appli.visionneuse = n.map { (v.article, $0) } }))
+                    .transition(.opacity)
+            }
+        }
         .overlay(alignment: .bottom) { Bandeau(appli: appli) }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
         .onChange(of: appli.focusRecherche) { _ in
@@ -350,7 +356,6 @@ struct Fiche: View {
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
     @State private var redaction = false
-    @State private var redactionLocale = false
     /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
     @State private var aRetirerDePhotos: [String] = []
 
@@ -398,15 +403,12 @@ struct Fiche: View {
     }
 
     /// Titre et texte de l'annonce par l'IA. Sans `forcer`, seulement si l'annonce est vide (et pas pour un lot, refait par le serveur).
-    private func rediger(forcer: Bool, local: Bool = false) async {
+    private func rediger(forcer: Bool) async {
         guard !redaction, !article.estLot, !article.titre.isEmpty else { return }
         guard forcer || article.texteAnnonce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         redaction = true; defer { redaction = false }
         let avant = article
-        let r: Appli.Redaction
-        if local {
-            do { r = try await appli.redigerLocal(article) } catch { appli.signaler(error); return }
-        } else { r = await appli.rediger(article) }
+        let r = await appli.rediger(article)
         guard article.id == avant.id, article.texteAnnonce == avant.texteAnnonce || forcer else { return }   // tapé entre-temps : on ne l'écrase pas
         if forcer || article.titreAnnonce.isEmpty { article.titreAnnonce = r.titre }
         article.texteAnnonce = r.texte
@@ -502,15 +504,31 @@ struct Fiche: View {
         } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera retirée de Le Bon Coin. Ta fiche RetroRevente est gardée.") }
     }
 
+    private func ouvrirVisionneuse(_ p: Photo?) {
+        guard !article.photos.isEmpty else { return }
+        let n = p.flatMap { x in article.photos.firstIndex(where: { $0.id == x.id }) } ?? 0
+        withAnimation(.easeOut(duration: 0.2)) { appli.visionneuse = (article.id, n) }
+    }
+
     private var galerie: some View {
         VStack(spacing: 12) {
             Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article, photo: photo, taille: .grande) }.clipShape(RoundedRectangle(cornerRadius: 22))
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.08)))
+                .overlay(alignment: .bottomTrailing) {
+                    if !article.photos.isEmpty {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right").font(.caption.weight(.bold)).foregroundStyle(.white)
+                            .padding(7).background(.black.opacity(0.45), in: Circle()).padding(10).allowsHitTesting(false)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { ouvrirVisionneuse(photo) }
+                .help("Cliquer pour voir la photo en grand (← → pour naviguer)")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(article.photos) { p in
                         Vignette(article: article, photo: p, taille: .mini).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrOr : .clear, lineWidth: 2))
+                            .onTapGesture(count: 2) { ouvrirVisionneuse(p) }
                             .onTapGesture { photo = p }
                             .contextMenu { Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } } }
                     }
@@ -582,24 +600,14 @@ struct Fiche: View {
                 HStack(spacing: 8) {
                     if redaction {
                         ProgressView().controlSize(.small)
-                        Text(redactionLocale ? "L'IA d'Apple lit chaque photo sur ton Mac et rédige ton annonce…" : "L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary)
+                        Text("L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    // Deux IA à comparer : celle du serveur (dorée, étincelles) et celle d'Apple, sur le Mac (violette, Apple Intelligence).
-                    Button { redactionLocale = false; Task { await rediger(forcer: true) } } label: {
+                    Button { Task { await rediger(forcer: true) } } label: {
                         Label(article.texteAnnonce.isEmpty ? "Rédiger avec l'IA" : "Réécrire avec l'IA", systemImage: "sparkles")
                     }
                     .buttonStyle(.borderedProminent).tint(.rrOr).foregroundStyle(Color.rrNuit)
                     .disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA RetroRevente, qui regarde chaque photo")
-                    Button { redactionLocale = true; Task { await rediger(forcer: true, local: true) } } label: {
-                        Label("IA d'Apple (sur le Mac)", systemImage: NSImage(systemSymbolName: "apple.intelligence", accessibilityDescription: nil) != nil ? "apple.intelligence" : "cpu")
-                    }
-                    .buttonStyle(.borderedProminent).tint(.purple)
-                    .disabled(redaction || article.estLot || IALocale.indisponible != nil)
-                    .help(IALocale.indisponible ?? "Titre et texte rédigés par Apple Intelligence, en local sur ton Mac : rien n'est envoyé")
-                }
-                if let r = IALocale.indisponible {
-                    Text("IA d'Apple : \(r)").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
                 champ("Texte de l'annonce") {
