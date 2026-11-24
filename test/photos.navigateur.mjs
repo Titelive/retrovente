@@ -42,7 +42,7 @@ try {
 
   // compte payant (articles et lots sans limite), adresse confirmée
   const email = "photos@test.fr";
-  assert.equal(await page.evaluate((e) => fetch("/api/inscription", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: e, motdepasse: "motdepasse123", cgv: true }) }).then((r) => r.status), email), 200);
+  assert.equal(await page.evaluate((e) => fetch("/api/inscription", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: e, motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" }) }).then((r) => r.status), email), 200);
   const base = new DatabaseSync(path.join(DATA, "retrorevente.db"));
   base.prepare("UPDATE users SET email_ok = 1, plan = 'collectionneur', plan_status = 'active' WHERE email = ?").run(email);
   base.close();

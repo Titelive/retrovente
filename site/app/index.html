@@ -1376,6 +1376,7 @@ html.sans-anim .vt-b.pousse{animation:none}
       <p id="aSous" style="color:var(--gris)">Connecte-toi pour retrouver tes articles.</p>
       <label class="f" id="lEmail">E-mail<input type="email" id="aEmail" autocomplete="email" required></label>
       <label class="f" id="lMdp">Mot de passe<input type="password" id="aMdp" autocomplete="current-password" minlength="8" required></label>
+      <label class="f" id="lAdr" hidden>Code postal et ville<input type="text" id="aAdr" maxlength="160" placeholder="ex. 54000 Nancy" autocomplete="postal-code"><small style="color:var(--gris)">Pour remplir l'adresse de tes annonces Le Bon Coin. Seule la ville est affichée aux acheteurs.</small></label>
       <label class="f" id="lLbc" hidden>Ta page Le Bon Coin (facultatif)<input type="url" id="aLbc" inputmode="url" placeholder="https://www.leboncoin.fr/profile/…" autocomplete="url"></label>
       <label class="case" id="lCgv" hidden><input type="checkbox" id="aCgv"><span>J'accepte les <a href="/cgv/" target="_blank">conditions générales</a> et la <a href="/confidentialite/" target="_blank">politique de confidentialité</a>.</span></label>
       <p class="err" id="aErr" role="alert"></p>
@@ -1657,6 +1658,8 @@ html.sans-anim .vt-b.pousse{animation:none}
       <div class="zone" style="flex:1;min-width:0">
         <label class="f">Pseudo (affiché dans le menu)<input type="text" id="pPseudo" maxlength="40" autocomplete="nickname" placeholder="ex. Titelive"></label>
         <div class="rangee"><button class="btn petit" type="button" id="pPseudoGo">Enregistrer le pseudo</button></div>
+        <label class="f">Code postal et ville (adresse de tes annonces Le Bon Coin)<input type="text" id="pAdr" maxlength="160" placeholder="ex. 54000 Nancy" autocomplete="postal-code"></label>
+        <div class="rangee"><button class="btn petit" type="button" id="pAdrGo">Enregistrer l'adresse</button></div>
         <label class="f">Ma page Le Bon Coin (facultatif)<input type="url" id="pLbc" inputmode="url" maxlength="300" placeholder="https://www.leboncoin.fr/profile/…"></label>
         <div class="rangee"><button class="btn petit" type="button" id="pLbcGo">Enregistrer le lien</button><a class="lien" id="pLbcVoir" target="_blank" rel="noopener" hidden>Ouvrir ma page ↗</a></div>
         <label class="f">Adresse e-mail<input type="email" id="pEmail" autocomplete="email"></label>
@@ -2308,7 +2311,7 @@ var MODE="cx";
 function auth(){montrer("auth");var q=new URLSearchParams(location.search);if(q.get("reinitialiser")){modeAuth("reset")}else modeAuth(q.has("inscription")?"ins":"cx")}
 function modeAuth(m){MODE=m;$("aErr").textContent="";
   $("tCx").setAttribute("aria-selected",m==="cx");$("tIns").setAttribute("aria-selected",m==="ins");
-  $("lCgv").hidden=m!=="ins";$("lLbc").hidden=m!=="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
+  $("lCgv").hidden=m!=="ins";$("lLbc").hidden=m!=="ins";$("lAdr").hidden=m!=="ins";$("aAdr").required=m==="ins";$("lMdp").hidden=m==="oubli";$("lEmail").hidden=m==="reset";$("aOubli").hidden=m!=="cx";
   $("aMdp").autocomplete=m==="cx"?"current-password":"new-password";
   var t={cx:["Content de te revoir","Connecte-toi pour retrouver tes articles.","Me connecter"],ins:["Crée ton compte","Ton premier article avec l'IA offert, sans carte bancaire.","Créer mon compte"],oubli:["Mot de passe oublié","On t'envoie un lien pour en choisir un nouveau.","Recevoir le lien"],reset:["Nouveau mot de passe","Choisis-en un d'au moins 8 caractères.","Enregistrer"]}[m];
   $("aTitre").textContent=t[0];$("aSous").textContent=t[1];$("aGo").textContent=t[2];
@@ -2316,7 +2319,7 @@ function modeAuth(m){MODE=m;$("aErr").textContent="";
 $("tCx").onclick=function(){modeAuth("cx")};$("tIns").onclick=function(){modeAuth("ins")};$("aOubli").onclick=function(){modeAuth("oubli")};
 $("fAuth").onsubmit=function(e){e.preventDefault();var b=$("aGo"),t=b.textContent,email=$("aEmail").value.trim(),mdp=$("aMdp").value,p;
   if(MODE==="cx")p=api("POST","/api/connexion",{email:email,motdepasse:mdp});
-  else if(MODE==="ins")p=api("POST","/api/inscription",{email:email,motdepasse:mdp,cgv:$("aCgv").checked,lbc:$("aLbc").value.trim()});
+  else if(MODE==="ins")p=api("POST","/api/inscription",{email:email,motdepasse:mdp,cgv:$("aCgv").checked,lbc:$("aLbc").value.trim(),adresse:$("aAdr").value.trim()});
   else if(MODE==="oubli")p=api("POST","/api/oubli",{email:email}).then(function(){toast("Si un compte existe avec cette adresse, le lien vient de partir.","ok");modeAuth("cx");return "stop"});
   else p=api("POST","/api/reinitialiser",{jeton:new URLSearchParams(location.search).get("reinitialiser"),motdepasse:mdp}).then(function(){history.replaceState(null,"",adresseSans(["inscription","offre","reinitialiser"]))});
   busy(b,true);
@@ -3162,7 +3165,7 @@ $("fRot")&&($("fRot").onclick=function(){});
 /* ===== Profil ===== */
 function initiale(){return (ME.nom||ME.email||"?").charAt(0).toUpperCase()}
 function peindreAvatar(el){if(ME.avatar){el.style.backgroundImage="url("+ME.avatar+")";el.textContent=""}else{el.style.backgroundImage="";el.textContent=initiale()}}
-function profil(){pvForm($("pvCompte"),ME.vendeur);$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
+function profil(){pvForm($("pvCompte"),ME.vendeur);$("pPseudo").value=ME.pseudo||"";$("pLbc").value=ME.lbc||"";$("pAdr").value=ME.adresse||"";$("pLbcVoir").hidden=!ME.lbc;if(ME.lbc)$("pLbcVoir").href=ME.lbc;$("pEmail").value=ME.email;peindreAvatar($("pAvatar"));$("pAvatarSuppr").hidden=!ME.avatar;
   $("pEmailTx").textContent=ME.emailEnAttente?"Confirmation envoyée à "+ME.emailEnAttente+" : clique sur le lien reçu pour valider.":"Utilisée pour te connecter et recevoir tes factures.";
   $("pAnim").checked=!document.documentElement.classList.contains("sans-anim");$("pDebugZone").hidden=!(ME&&ME.admin);$("pDebug").checked=DEBUG;$("pSombre").checked=document.documentElement.getAttribute("data-theme")==="dark";teintes()}
 /* Couleur du site : au choix pour un Collectionneur (enregistrée sur le compte), celle de la formule pour les autres */
@@ -3178,6 +3181,7 @@ $("pTeinte").addEventListener("click",function(e){var b=e.target.closest("[data-
 $("pTeinte").addEventListener("keydown",function(e){var b=e.target.closest("[data-teinte]");if(!b||b.disabled)return;var l=[].slice.call($("pTeinte").querySelectorAll("[data-teinte]")),i=l.indexOf(b),d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];
   if(!d)return;e.preventDefault();var n=l[(i+d+l.length)%l.length];n.focus();choisirTeinte(n.dataset.teinte)});
 function majMoi(m){ME=Object.assign(ME,m);entete();if(!$("compte").hidden){$("cEmail").textContent=ME.nom||ME.email;profil()}}
+$("pAdrGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{adresse:$("pAdr").value}).then(function(m){majMoi(m);toast("Adresse enregistrée : elle remplira tes prochains dépôts Le Bon Coin.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer l'adresse")})};
 $("pLbcGo").onclick=function(){var b=this;busy(b,true);api("POST","/api/compte/profil",{lbc:$("pLbc").value}).then(function(m){majMoi(m);toast(m.lbc?"Lien Le Bon Coin enregistré.":"Lien Le Bon Coin retiré.","ok")}).catch(function(e){erreur(e,"Enregistrement impossible.")}).then(function(){busy(b,false,"Enregistrer le lien")})};
 /* ===== Profil de vendeur ===== */
 var PV_Q=[

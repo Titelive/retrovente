@@ -68,6 +68,13 @@ extension Fenetre {
         modele.depot = nil; modele.gestion = nil
         if etait || lbcCharge { montrer(.lbc); montrerFenetre() }
     }
+    /// Adresse du bien donnée dans l'app : gardée pour les prochains dépôts, puis le dépôt reprend en coulisses.
+    func adresseCoulisses(_ adresse: String) {
+        let v = adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !v.isEmpty else { return }
+        Stockage.partage.ecrire(["adresse": v])
+        reessayerCoulisses()
+    }
     /// « Réessayer » : on reprend le dépôt ou la gestion depuis le début, toujours en coulisses.
     func reessayerCoulisses() {
         if let d = modele.depot, let a = modele.parId(d.id) { modele.depot = nil; deposerEnCoulisses(a) }
@@ -90,6 +97,11 @@ extension Fenetre {
             }
             return true
         case "Annonce publiée !":
+            return true
+        case "Adresse du bien":
+            veilleCoulisses?.invalidate(); veilleCoulisses = nil
+            d.etape = .adresse(texte); modele.depot = d
+            if !NSApp.isActive { NSApp.requestUserAttention(.criticalRequest) }
             return true
         default:   // « RetroRevente a besoin de toi », « Prix à vérifier »…
             besoinDeToi(texte.isEmpty ? titre : texte)
@@ -115,6 +127,7 @@ extension Fenetre {
         if enCoulisses, modele.gestion != nil { return }   // la veille de la gestion s'en charge (Gestion.swift)
         guard enCoulisses, let d = modele.depot else { return }
         if case .aide = d.etape { return }
+        if case .adresse = d.etape { return }
         let url = lbc.url
         let hote = url?.host?.lowercased() ?? ""
         let chemin = url?.path.lowercased() ?? ""

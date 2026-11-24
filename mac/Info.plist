@@ -15,6 +15,7 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key><string>13.0</string>
 	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPhotoLibraryUsageDescription</key><string>RetroRevente retire de Photos les photos que tu as ajoutées à tes articles, une fois envoyées (elles restent 30 jours dans « Supprimés récemment »).</string>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key><string>© RetroRevente</string>
 	<key>NSAppTransportSecurity</key>

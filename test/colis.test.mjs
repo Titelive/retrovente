@@ -17,7 +17,7 @@ async function call(method, p, body, cookie) {
   catch (e) { if (e instanceof HttpError) return { status: e.status, json: { error: e.message } }; throw e; }
 }
 async function compte(email) {
-  const r = await call("POST", "/api/inscription", { email, motdepasse: "motdepasse123", cgv: true });
+  const r = await call("POST", "/api/inscription", { email, motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" });
   db.prepare("UPDATE users SET email_ok = 1, plan = 'collectionneur', plan_status = 'active' WHERE email = ?").run(email);
   return /rr_session=([^;]+)/.exec(r.headers["Set-Cookie"])[0];
 }

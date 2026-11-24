@@ -166,14 +166,14 @@ enum Libelles {
 }
 
 struct Profil {
-    var email = "", nom = "", pseudo = "", avatar = "", lbc = "", cree = "", formule = "Découverte", formuleId = "gratuit"
+    var email = "", nom = "", pseudo = "", avatar = "", lbc = "", adresse = "", cree = "", formule = "Découverte", formuleId = "gratuit"
     var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
     var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
     var usageLbc = 0
     init() {}
     init(_ d: [String: Any]) {
         email = d["email"] as? String ?? ""; nom = d["nom"] as? String ?? email; avatar = d["avatar"] as? String ?? ""
-        pseudo = d["pseudo"] as? String ?? ""; lbc = d["lbc"] as? String ?? ""; cree = d["cree"] as? String ?? ""
+        pseudo = d["pseudo"] as? String ?? ""; lbc = d["lbc"] as? String ?? ""; adresse = d["adresse"] as? String ?? ""; cree = d["cree"] as? String ?? ""
         emailOk = d["emailOk"] as? Bool ?? true; emailEnAttente = d["emailEnAttente"] as? String ?? ""
         paiement = d["paiement"] as? Bool ?? false; client = d["client"] as? Bool ?? false
         usageLbc = ((d["usage"] as? [String: Any])?["lbc"] as? NSNumber)?.intValue ?? 0
@@ -264,6 +264,7 @@ struct DepotEnCours: Identifiable, Equatable {
     enum Etape: Equatable {
         case remplissage(String)                 // message de progression
         case aide(String)                        // Le Bon Coin demande quelque chose : rien n'est montré sans l'accord
+        case adresse(String)                     // Le Bon Coin demande où se trouve le bien : on la demande dans l'app
         case pret(bouton: String, payant: Bool)  // écran final atteint : on attend « Publier »
         case publication
     }
@@ -331,7 +332,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -355,6 +356,7 @@ final class Appli: ObservableObject {
             if d == "nouveau" { nouveauOuvert = true }
             if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
+            if d == "adresse" { selection = "a3"; depot = DepotEnCours(id: "a3", titre: articles.first { $0.id == "a3" }?.titre ?? "", etape: .adresse("")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
             if ["trophees", "bilan", "compte", "tous"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
@@ -413,9 +415,9 @@ final class Appli: ObservableObject {
         do { _ = try await API.json("DELETE", "/api/objets/\(a.id)"); articles.removeAll { $0.id == a.id }; if selection == a.id { selection = nil } }
         catch { signaler(error) }
     }
-    func ajouterPhoto(_ a: Article, _ data: String) async {
-        do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])) }
-        catch { signaler(error) }
+    @discardableResult func ajouterPhoto(_ a: Article, _ data: String) async -> Bool {
+        do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true }
+        catch { signaler(error); return false }
     }
     func retirerPhoto(_ a: Article, _ p: Photo) async {
         do {

@@ -174,6 +174,7 @@
       var cat = await choisirCategorie(a, force);
       if (cat) { etat.compte[k("cat")] = true; if (cat === "ok") fait.push("catégorie"); }
     }
+    if (champAdresse() && (await remplirAdresse(a, force)) === "ok") fait.push("adresse");
     var fic = photoFichier();
     if (fic && a.photo && (force || !etat.compte[k("photo")])) {
       etat.compte[k("photo")] = true;
@@ -430,6 +431,12 @@
       var tx = "Le prix sur Le Bon Coin (" + pf.lu + " €) n'est pas celui de ta fiche (" + pf.voulu + " €). Corrige-le, puis clique « Continuer ».";
       statut(tx, "bad"); aToi("prix:" + cle, "Prix à vérifier", tx, pf.champ); return;
     }
+    var ca = champAdresse();
+    if (ca && !String(ca.value || "").trim()) {
+      var tA = etat.adresse ? "Le Bon Coin n'a pas reconnu l'adresse « " + etat.adresse + " ». Choisis une suggestion dans le champ Adresse, puis clique « Continuer »."
+                            : "Le Bon Coin demande où se trouve le bien. Tape ta ville ou ton adresse, choisis une suggestion, puis clique « Continuer ».";
+      statut(tA, "bad"); aToi("adresse:" + cle, "Adresse du bien", tA, ca); return;
+    }
     if (obligatoireVide()) { bloque(cle, "Il reste un champ obligatoire à remplir sur cet écran, puis clique « Continuer »."); return; }
     if (erreurAffichee()) { bloque(cle, "Le Bon Coin signale un champ à corriger : corrige-le, puis clique « Continuer »."); return; }
     ecransPasses[cle] = true;
@@ -512,6 +519,51 @@
     }
     return "";
   }
+  /* ===== Remise du bien : « À quelle adresse se trouve le bien ? » =====
+     Le Bon Coin n'accepte qu'une adresse choisie dans ses suggestions. L'adresse (ou la ville) enregistrée une fois
+     dans RetroRevente est tapée, puis la suggestion qui lui correspond le mieux est choisie. */
+  function champAdresse() {
+    return [].find.call(document.querySelectorAll("input"), function (x) {
+      if (!visible(x) || x.disabled || x.readOnly || /^(hidden|file|radio|checkbox|password|email)$/.test(x.type) || x.closest("header, nav, footer")) return false;
+      var d = description(x) + " " + libelleDe(x);
+      return /adresse|localisation|ville ou code postal/.test(d) && !/mail|telephone/.test(d);
+    }) || null;
+  }
+  async function lireAdresse() {
+    if (etat.adresseCompte) return (etat.adresse = etat.adresseCompte);
+    try { var r = await RR.storage.local.get(["adresse"]); if (r && r.adresse) etat.adresse = String(r.adresse); } catch (e) {}
+    return etat.adresse || "";
+  }
+  async function remplirAdresse(a, force) {
+    var x = champAdresse(); if (!x) return "";
+    if (!force && String(x.value || "").trim()) return "deja";
+    var adr = await lireAdresse(); if (!adr) return "manque";
+    var k = a.id + ":adresse"; if (!force && (etat.compte[k] || 0) >= 3) return ""; etat.compte[k] = (etat.compte[k] || 0) + 1;
+    x.focus();
+    var set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    jeTape = true;
+    try { x.select(); if (!(document.execCommand && document.execCommand("insertText", false, adr)) || x.value !== adr) { set.call(x, adr); x.dispatchEvent(new Event("input", { bubbles: true })); } } catch (e) { set.call(x, adr); x.dispatchEvent(new Event("input", { bubbles: true })); }
+    jeTape = false;
+    var mots = norm(adr).split(/[\s,]+/).filter(function (m) { return m.length > 1; });
+    for (var i = 0; i < 16; i++) {
+      await attendre(300);
+      var opts = [].filter.call(document.querySelectorAll("[role=option], [role=listbox] li, [data-qa-id*=suggestion], [data-test-id*=suggestion]"), function (o) { return visible(o) && norm(o.textContent).length > 1; });
+      if (!opts.length) continue;
+      var score = function (o) { var t = norm(o.textContent); return mots.filter(function (m) { return t.indexOf(m) >= 0; }).length; };
+      var o = opts.slice().sort(function (p, q) { return score(q) - score(p); })[0];
+      cliquer(o); await attendre(400);
+      return "ok";
+    }
+    return "";
+  }
+  // Adresse choisie par la personne dans les suggestions : gardée pour les prochains dépôts.
+  document.addEventListener("click", function (e) {
+    if (!e.isTrusted || !DEPOT.test(location.pathname) || !e.target.closest || !e.target.closest("[role=option], [role=listbox] li")) return;
+    setTimeout(function () {
+      var x = champAdresse(), v = x && String(x.value || "").trim();
+      if (v && v.length > 3 && v !== etat.adresse) { etat.adresse = v; try { RR.storage.local.set({ adresse: v }); } catch (er) {} }
+    }, 500);
+  }, true);
   function ouvrirDeroulantEtat(a, force) { return ouvrirDeroulant(/^etat\b/, /^etat\s*\*?$/, force); }
   // Liste déroulante maison (pas un <select>) repérée par son libellé : on l'ouvre comme un clic de la personne.
   function deroulant(reDesc, reLibelle) {
@@ -868,6 +920,7 @@
       etat.annonces = j.annonces || [];
       // Profil de vendeur (Mon compte) : « Prix ferme, pas de marchandage » coche d'office « Pas de négociation possible ».
       etat.vendeur = (j.profil && j.profil.vendeur) || {};
+      if (j.profil && j.profil.adresse) etat.adresseCompte = String(j.profil.adresse);   // adresse de Mon compte : prioritaire
       if (!etat.sansNegoChoisi && etat.vendeur.prix === "ferme") etat.sansNego = true;
       var bx = ombre && ombre.querySelector(".b"); if (bx && j.profil && /^(vendeur|collectionneur|pass)$/.test(j.profil.formule || "")) bx.setAttribute("data-formule", j.profil.formule);
       if (mode() === "depot") await cibleDepot();

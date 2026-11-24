@@ -225,6 +225,7 @@ struct MonCompte: View {
     @ObservedObject var appli: Appli
     @State private var pseudo = ""
     @State private var lbc = ""
+    @State private var adresse = ""
     @State private var ancien = ""
     @State private var nouveau = ""
     @State private var email = ""
@@ -233,6 +234,7 @@ struct MonCompte: View {
     @State private var info = ""
     @State private var periode = "mois"
     @State private var confirmerSuppression = false
+    @AppStorage("retirerDePhotos") private var retirerDePhotos = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -252,9 +254,18 @@ struct MonCompte: View {
                                 }
                             }
                             TextField("Pseudo", text: $pseudo).textFieldStyle(.roundedBorder)
+                            TextField("Code postal et ville (ex. 54000 Nancy)", text: $adresse).textFieldStyle(.roundedBorder)
+                                .help("Remplit l'adresse de tes annonces Le Bon Coin. Seule la ville est affichée aux acheteurs.")
                             TextField("Ta page Le Bon Coin (facultatif)", text: $lbc).textFieldStyle(.roundedBorder)
-                            Button("Enregistrer le profil") { Task { if await appli.modifierProfil(["pseudo": pseudo, "lbc": lbc]) { info = "Profil enregistré." } } }
-                                .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc)
+                            Button("Enregistrer le profil") {
+                                var c: [String: Any] = ["pseudo": pseudo, "lbc": lbc]
+                                if adresse != appli.profil.adresse { c["adresse"] = adresse }
+                                Task { if await appli.modifierProfil(c) { info = "Profil enregistré." } }
+                            }
+                                .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc && adresse == appli.profil.adresse)
+                            if appli.profil.adresse.isEmpty {
+                                Text("Ajoute ton code postal et ta ville : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
+                            }
                         }
                         formule
                     }
@@ -282,6 +293,11 @@ struct MonCompte: View {
                         Text(branche ? "Branché : remplissage du dépôt et réponses IA aux acheteurs actifs." : "Pas encore branché.").font(.callout)
                         Button(branche ? "Rebrancher" : "Brancher maintenant") { Task { await appli.brancherLeBonCoin(force: true); info = "Le Bon Coin est branché." } }.boutonVerre()
                     }
+                    carte("App Photos", "photo.on.rectangle.angled") {
+                        Toggle("Retirer de Photos les photos ajoutées à un article", isOn: $retirerDePhotos)
+                        Text("Seulement une fois la photo bien envoyée. macOS te demande de confirmer, et elle reste 30 jours dans « Supprimés récemment ».")
+                            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
                     carte("Supprimer mon compte", "trash") {
                         Text("Tes articles et tes photos seront effacés définitivement.").font(.callout).foregroundStyle(.secondary)
                         HStack {
@@ -292,7 +308,8 @@ struct MonCompte: View {
                 }.padding(22)
             }
         }
-        .onAppear { pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; Task { try? await appli.chargerProfil(); pseudo = appli.profil.pseudo; lbc = appli.profil.lbc } }
+        .onAppear { pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; adresse = appli.profil.adresse
+            Task { try? await appli.chargerProfil(); pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; adresse = appli.profil.adresse } }
         .confirmationDialog("Supprimer définitivement ton compte RetroRevente ?", isPresented: $confirmerSuppression) {
             Button("Supprimer", role: .destructive) { Task { _ = await appli.supprimerCompte(motdepasse: mdpSuppr) } }
         }

@@ -65,6 +65,8 @@ struct FeuilleDepot: View {
                     Button { appli.fenetre?.reessayerCoulisses() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }
                         .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
                 }
+            case .adresse(let t):
+                ChampAdresse(appli: appli, explication: t)
             case .publication:
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Publication sur Le Bon Coin…").font(.headline) }
             }
@@ -128,5 +130,50 @@ struct ChoixDepot: View {
             }
         }
         .padding(24).frame(width: 520)
+    }
+}
+
+/// Le Bon Coin demande « À quelle adresse se trouve le bien ? » : on la demande ici une fois, elle sert ensuite à chaque dépôt.
+struct ChampAdresse: View {
+    @ObservedObject var appli: Appli
+    let explication: String
+    @State private var adresse = ""
+    @State private var erreur = ""
+    @State private var enCours = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Où se trouve le bien ?", systemImage: "mappin.and.ellipse").font(.headline).foregroundStyle(Color.rrOr)
+            Text(!explication.contains("pas reconnu") ? "Le Bon Coin demande l'adresse ou la ville où se trouve l'objet. Donne-la une fois : RetroRevente la remplira pour tous tes prochains dépôts."
+                                 : "Le Bon Coin n'a pas reconnu cette adresse. Corrige-la (une ville avec son code postal suffit), puis continue.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                .help(explication)
+            TextField("Ex. 54000 Nancy", text: $adresse).textFieldStyle(.roundedBorder).onSubmit(continuer)
+            if !erreur.isEmpty { Text(erreur).font(.callout).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+            Text("Elle est enregistrée dans Mon compte. Le Bon Coin n'affiche que la ville aux acheteurs. Rien n'a été publié.").font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
+                Spacer()
+                Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()
+                Button(action: continuer) { Label("Continuer", systemImage: "arrow.right") }
+                    .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
+                    .disabled(enCours || adresse.trimmingCharacters(in: .whitespaces).count < 5)
+            }
+        }
+        .onAppear {
+            adresse = appli.profil.adresse.isEmpty ? ((Stockage.partage.lire(["adresse"])["adresse"] as? String) ?? "") : appli.profil.adresse
+        }
+    }
+    /// Enregistrée dans Mon compte (le site, l'extension et l'app la reprennent), puis le dépôt reprend en coulisses.
+    private func continuer() {
+        let v = adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !enCours, !v.isEmpty else { return }
+        enCours = true; erreur = ""
+        Task {
+            do {
+                appli.profil = Profil(try await API.json("POST", "/api/compte/profil", ["adresse": v]))
+                appli.fenetre?.adresseCoulisses(v)
+            } catch { erreur = (error as? ErreurRR)?.message ?? "Enregistrement impossible. Réessaie." }
+            enCours = false
+        }
     }
 }
