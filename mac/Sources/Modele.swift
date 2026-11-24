@@ -12,9 +12,10 @@ struct Article: Identifiable, Hashable {
     var titre = "", categorie = "jeux", plateforme = "", region = "", etat = "", contenu = ""
     var prixAchat: Double? = nil, prixDemande: Double? = nil, prixVente: Double? = nil, frais: Double? = nil
     var statut = "en_vente", titreAnnonce = "", texteAnnonce = "", annonce = "", notes = ""
-    var dateMiseEnVente = "", dateVente = "", modifie = ""
+    var dateMiseEnVente = "", dateVente = "", modifie = "", cree = "", remise = ""
     var photos: [Photo] = []
     var ia = false
+    var cote: Cote? = nil
 
     init() {}
     init(_ d: [String: Any]) {
@@ -27,6 +28,8 @@ struct Article: Identifiable, Hashable {
         titreAnnonce = t("titreAnnonce"); texteAnnonce = t("texteAnnonce"); annonce = t("annonce"); notes = t("notes")
         dateMiseEnVente = t("dateMiseEnVente"); dateVente = t("dateVente"); modifie = t("modifie")
         ia = d["ia"] as? Bool ?? false
+        cree = t("cree"); remise = t("remise")
+        cote = (d["cote"] as? [String: Any]).flatMap(Cote.init)
         if let l = d["photos"] as? [[String: Any]] {
             photos = l.compactMap { p in (p["id"] as? String).map { Photo(id: $0, legende: p["legende"] as? String ?? "") } }
         } else if d["photo"] as? Bool == true { photos = [Photo(id: "p0", legende: "")] }
@@ -36,10 +39,31 @@ struct Article: Identifiable, Hashable {
         func p(_ x: Double?) -> Any { x.map { $0 as Any } ?? NSNull() }
         return ["titre": titre, "categorie": categorie, "plateforme": plateforme, "region": region, "etat": etat, "contenu": contenu,
                 "prixAchat": p(prixAchat), "prixDemande": p(prixDemande), "prixVente": p(prixVente), "frais": p(frais),
-                "statut": statut, "titreAnnonce": titreAnnonce, "texteAnnonce": texteAnnonce, "annonce": annonce, "notes": notes, "ia": ia]
+                "statut": statut, "titreAnnonce": titreAnnonce, "texteAnnonce": texteAnnonce, "annonce": annonce, "notes": notes, "ia": ia,
+                "remise": remise, "cote": cote?.brut ?? NSNull()]
     }
     var publiee: Bool { !annonce.isEmpty }
     var sousTitre: String { [plateforme, region].filter { !$0.isEmpty }.joined(separator: " · ") }
+}
+
+/// Cote estimée par l'IA (ventes conclues, annonces) : fourchette, prix conseillé, prix pour vendre vite, relevés.
+struct Cote: Hashable {
+    struct Releve: Hashable { let site: String, titre: String, prix: Double?, date: String, url: String }
+    let bas: Double?, haut: Double?, conseille: Double?, rapide: Double?
+    let resume: String, methode: String, date: String
+    let releves: [Releve]
+    let brut: NSDictionary
+    init?(_ d: [String: Any]) {
+        func n(_ k: String) -> Double? { (d[k] as? NSNumber)?.doubleValue }
+        bas = n("bas"); haut = n("haut"); conseille = n("conseille"); rapide = n("rapide")
+        guard bas != nil || conseille != nil else { return nil }
+        resume = d["resume"] as? String ?? ""; methode = d["methode"] as? String ?? ""; date = d["date"] as? String ?? ""
+        releves = (d["releves"] as? [[String: Any]] ?? []).map {
+            Releve(site: $0["site"] as? String ?? "", titre: $0["titre"] as? String ?? "", prix: ($0["prix"] as? NSNumber)?.doubleValue,
+                   date: $0["date"] as? String ?? "", url: $0["url"] as? String ?? "")
+        }
+        brut = d as NSDictionary
+    }
 }
 
 enum Libelles {
@@ -78,13 +102,23 @@ enum Libelles {
 }
 
 struct Profil {
-    var email = "", nom = "", avatar = "", formule = "Découverte", formuleId = "gratuit"
-    var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true
+    var email = "", nom = "", pseudo = "", avatar = "", lbc = "", cree = "", formule = "Découverte", formuleId = "gratuit"
+    var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
+    var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
+    var usageLbc = 0
     init() {}
     init(_ d: [String: Any]) {
         email = d["email"] as? String ?? ""; nom = d["nom"] as? String ?? email; avatar = d["avatar"] as? String ?? ""
-        emailOk = d["emailOk"] as? Bool ?? true
-        if let f = d["formule"] as? [String: Any] { formule = f["nom"] as? String ?? formule; formuleId = f["id"] as? String ?? formuleId }
+        pseudo = d["pseudo"] as? String ?? ""; lbc = d["lbc"] as? String ?? ""; cree = d["cree"] as? String ?? ""
+        emailOk = d["emailOk"] as? Bool ?? true; emailEnAttente = d["emailEnAttente"] as? String ?? ""
+        paiement = d["paiement"] as? Bool ?? false; client = d["client"] as? Bool ?? false
+        usageLbc = ((d["usage"] as? [String: Any])?["lbc"] as? NSNumber)?.intValue ?? 0
+        if let f = d["formule"] as? [String: Any] {
+            formule = f["nom"] as? String ?? formule; formuleId = f["id"] as? String ?? formuleId
+            fiscal = f["fiscal"] as? Bool ?? false; abonnement = f["abonnement"] as? String ?? ""
+            statutAbonnement = f["statut"] as? String ?? ""; finAbonnement = f["fin"] as? String ?? ""
+            resiliation = (f["resiliation"] as? Bool) ?? ((f["resiliation"] as? String).map { !$0.isEmpty } ?? false)
+        }
         if let q = d["quota"] as? [String: Any] { quotaMax = (q["max"] as? NSNumber)?.intValue; quotaUtilise = (q["utilise"] as? NSNumber)?.intValue ?? 0 }
     }
 }
@@ -168,6 +202,7 @@ final class Appli: ObservableObject {
     @Published var erreur: String? = nil
     @Published var fete: String? = nil        // titre de l'annonce publiée (confettis)
     @Published var compteOuvert = false
+    @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
     @Published var selection: String? = nil   // article ouvert
     weak var fenetre: Fenetre?
@@ -175,19 +210,23 @@ final class Appli: ObservableObject {
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
         if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte"].contains(d) {
-            profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "formule": ["nom": "Collectionneur", "id": "collectionneur"], "quota": ["max": 100, "utilise": 37]])
+            profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
+                             "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
-                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6"],
+                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6",
+                 "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
+                          "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
                 ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
                 ["id": "a4", "titre": "Dracaufeu holo 4/102", "categorie": "cartes", "plateforme": "Set de base", "prixDemande": 180, "statut": "en_vente", "modifie": "3"],
-                ["id": "a5", "titre": "Kirby 64: The Crystal Shards", "plateforme": "Nintendo 64", "prixDemande": 55, "prixVente": 52, "statut": "vendu", "modifie": "2"],
+                ["id": "a5", "titre": "Kirby 64: The Crystal Shards", "plateforme": "Nintendo 64", "prixDemande": 55, "prixVente": 55, "frais": 3, "statut": "vendu", "dateMiseEnVente": "2026-11-01", "dateVente": "2026-11-05", "modifie": "2"],
+                ["id": "a7", "titre": "Pokémon Stadium", "plateforme": "Nintendo 64", "prixDemande": 30, "prixVente": 28, "statut": "envoye", "remise": "envoi", "dateVente": "2026-10-12", "modifie": "0"],
                 ["id": "a6", "titre": "Manette DualShock 2", "categorie": "accessoires", "plateforme": "PlayStation 2", "prixDemande": 15, "statut": "en_vente", "modifie": "1"],
             ]
             articles = ex.map(Article.init); etat = .connecte
             if d == "fiche" { selection = "a1" }
             if d == "nouveau" { nouveauOuvert = true }
-            if d == "compte" { compteOuvert = true }
+            if ["trophees", "bilan", "compte"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
             return
         }
         do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger() }
@@ -257,6 +296,49 @@ final class Appli: ObservableObject {
         if let r = (j["objet"] as? [String: Any])?["remarques"] as? String, !r.isEmpty { a.notes = r }
         return a
     }
+    /// Cote IA de l'article, gardée dans sa fiche.
+    func estimerCote(_ a: Article) async -> Article? {
+        do {
+            let j = try await API.json("POST", "/api/ia/cote", ["objet": ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]])
+            guard let c = j["cote"] as? [String: Any] else { return nil }
+            var b = a; b.cote = Cote(c)
+            return await enregistrer(b)
+        } catch { signaler(error); return nil }
+    }
+
+    // Compte
+    func modifierProfil(_ champs: [String: Any]) async -> Bool {
+        do { profil = Profil(try await API.json("POST", "/api/compte/profil", champs)); return true } catch { signaler(error); return false }
+    }
+    func changerMotDePasse(ancien: String, nouveau: String) async -> Bool {
+        do { _ = try await API.json("POST", "/api/compte/motdepasse", ["ancien": ancien, "nouveau": nouveau]); return true } catch { signaler(error); return false }
+    }
+    func changerEmail(_ email: String, motdepasse: String) async -> String? {
+        do {
+            let j = try await API.json("POST", "/api/compte/email", ["email": email, "motdepasse": motdepasse])
+            try? await chargerProfil()
+            return (j["applique"] as? Bool) == true ? "Adresse changée." : "Ouvre le lien envoyé à \(email) pour confirmer."
+        } catch { signaler(error); return nil }
+    }
+    func renvoyerVerification() async { do { _ = try await API.json("POST", "/api/verifier/renvoyer") } catch { signaler(error) } }
+    /// Paiement et abonnement : pages sécurisées de Stripe, ouvertes dans le navigateur.
+    func payer(offre: String, periode: String) async {
+        do { if let u = (try await API.json("POST", "/api/paiement", ["offre": offre, "periode": periode]))["url"] as? String, let url = URL(string: u) { NSWorkspace.shared.open(url) } }
+        catch { signaler(error) }
+    }
+    func portail() async {
+        do { if let u = (try await API.json("POST", "/api/portail"))["url"] as? String, let url = URL(string: u) { NSWorkspace.shared.open(url) } }
+        catch { signaler(error) }
+    }
+    func supprimerCompte(motdepasse: String) async -> Bool {
+        do {
+            _ = try await API.json("POST", "/api/compte/supprimer", ["motdepasse": motdepasse])
+            Stockage.partage.effacer(["cle", "email"])
+            HTTPCookieStorage.shared.cookies(for: URL(string: API.serveur)!)?.forEach(HTTPCookieStorage.shared.deleteCookie)
+            articles = []; profil = Profil(); etat = .deconnecte; return true
+        } catch { signaler(error); return false }
+    }
+
     private func remplacer(_ n: Article) {
         guard !n.id.isEmpty else { return }
         if let i = articles.firstIndex(where: { $0.id == n.id }) { articles[i] = n } else { articles.insert(n, at: 0) }

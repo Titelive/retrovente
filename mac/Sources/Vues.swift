@@ -153,15 +153,19 @@ struct Accueil: View {
                         ligne(s.0, s.1, s.2, appli.articles.filter { $0.statut == s.0 }.count).tag(Optional(s.0))
                     }
                 }
-                Section("Sur le site") {
-                    Button { appli.ouvrirSurLeWeb("/app/?cote") } label: { Label("Cote et trophées", systemImage: "trophy") }
-                    Button { appli.ouvrirSurLeWeb("/app/?bilan") } label: { Label("Bilan des ventes", systemImage: "chart.bar") }
-                }.buttonStyle(.plain)
+                Section("Mon espace") {
+                    ligne("@trophees", "Trophées", "trophy", Trophees.liste(appli).filter { $0.ok }.count).tag(Optional("@trophees"))
+                    ligne("@bilan", "Bilan des ventes", "chart.bar", nil).tag(Optional("@bilan"))
+                    ligne("@compte", "Mon compte", "person.crop.circle", nil).tag(Optional("@compte"))
+                }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli).padding(10) }
         } detail: {
-            if let id = appli.selection, let a = appli.articles.first(where: { $0.id == id }) {
+            if filtre == "@trophees" { Trophees(appli: appli) }
+            else if filtre == "@bilan" { Bilan(appli: appli) }
+            else if filtre == "@compte" { MonCompte(appli: appli) }
+            else if let id = appli.selection, let a = appli.articles.first(where: { $0.id == id }) {
                 Fiche(appli: appli, article: a, fermer: { appli.selection = nil }).id(id)
             } else {
                 Grille(appli: appli, articles: visibles, titre: titre)
@@ -169,21 +173,23 @@ struct Accueil: View {
         }
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
-        .sheet(isPresented: $appli.compteOuvert) { Compte(appli: appli) }
         .onChange(of: filtre) { _ in appli.selection = nil }
+        .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
+        .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }
+        .onAppear { if let p = appli.page { filtre = "@" + p } }
     }
     private var titre: String { filtre.flatMap { f in Libelles.statuts.first { $0.0 == f }?.1 } ?? "Tous mes articles" }
     private var visibles: [Article] {
         appli.articles.filter { a in
-            (filtre == nil || a.statut == filtre) &&
+            (filtre == nil || filtre?.hasPrefix("@") == true || a.statut == filtre) &&
             (recherche.isEmpty || (a.titre + " " + a.plateforme + " " + a.titreAnnonce).localizedCaseInsensitiveContains(recherche))
         }
     }
-    private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int) -> some View {
+    private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int?) -> some View {
         HStack {
             Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
             Spacer()
-            Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary)
+            if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary) }
         }
     }
 }
@@ -242,7 +248,7 @@ struct Grille: View {
                     Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).controlSize(.large)
                 }.frame(maxWidth: .infinity).padding(.top, 120)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 18)], spacing: 18) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 18, alignment: .top)], alignment: .leading, spacing: 18) {
                     ForEach(articles) { a in
                         Button { appli.selection = a.id } label: { CarteArticle(article: a) }.buttonStyle(.plain)
                             .contextMenu {
@@ -264,7 +270,7 @@ struct CarteArticle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                Vignette(article: article).aspectRatio(1, contentMode: .fit).clipped()
+                Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article) }.clipped()
                 Text(Libelles.statut(article.statut)).font(.caption2.weight(.bold)).foregroundColor(.rrNuit)
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Libelles.couleurStatut(article.statut), in: Capsule()).padding(10)
@@ -292,11 +298,13 @@ struct Vignette: View {
     let article: Article; var photo: Photo? = nil
     @State private var image: NSImage? = nil
     var body: some View {
-        ZStack {
-            Rectangle().fill(LinearGradient(colors: [Color.rrOr.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        // La photo remplit le cadre sans jamais en sortir (le cadre fixe la taille, la photo est rognée).
+        Rectangle().fill(LinearGradient(colors: [Color.rrOr.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .overlay {
             if let i = image { Image(nsImage: i).resizable().scaledToFill() }
             else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrOr) }
         }
+        .clipped()
         .task(id: (photo ?? article.photos.first)?.id) {
             image = nil
             guard let p = photo ?? article.photos.first else { return }
@@ -343,7 +351,7 @@ struct Fiche: View {
 
     private var galerie: some View {
         VStack(spacing: 12) {
-            Vignette(article: article, photo: photo).aspectRatio(1, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 22))
+            Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article, photo: photo) }.clipShape(RoundedRectangle(cornerRadius: 22))
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.primary.opacity(0.08)))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -393,6 +401,7 @@ struct Fiche: View {
                     }
                 }
             }
+            BlocCote(appli: appli, article: $article, original: $original)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
                 champ("Texte de l'annonce") {
@@ -519,37 +528,6 @@ struct Nouveau: View {
             do { article = try await appli.identifier(d); etape = 2 }
             catch { message = (error as? ErreurRR)?.message ?? "Reconnaissance impossible."; etape = 0 }
         }
-    }
-}
-
-// MARK: Compte
-
-struct Compte: View {
-    @ObservedObject var appli: Appli
-    @Environment(\.dismiss) private var fermer
-    var body: some View {
-        VStack(spacing: 16) {
-            Avatar(profil: appli.profil, taille: 72)
-            Text(appli.profil.nom).font(.title2.weight(.bold))
-            Text(appli.profil.email).foregroundStyle(.secondary)
-            Text(appli.profil.formule.uppercased()).font(.caption.weight(.heavy)).tracking(1.2).foregroundColor(.rrNuit)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(LinearGradient(colors: [Color(red: 1, green: 0.89, blue: 0.48), Color(red: 0.94, green: 0.65, blue: 0)], startPoint: .topLeading, endPoint: .bottomTrailing), in: Capsule())
-            if let m = appli.profil.quotaMax {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Articles ce mois-ci : \(appli.profil.quotaUtilise) sur \(m)").font(.callout)
-                    ProgressView(value: Double(min(appli.profil.quotaUtilise, m)), total: Double(max(m, 1))).tint(.rrOr)
-                }.padding(14).verre(RoundedRectangle(cornerRadius: 16))
-            }
-            Label(Stockage.partage.texte("cle").map { _ in "Le Bon Coin est branché : remplissage et réponses IA actifs." } ?? "Le Bon Coin n'est pas encore branché.",
-                  systemImage: "bolt.fill").font(.callout).foregroundStyle(.secondary)
-            HStack {
-                Button("Gérer mon compte sur le site") { appli.ouvrirSurLeWeb("/app/?compte") }.boutonVerre()
-                Button("Me déconnecter", role: .destructive) { Task { await appli.deconnecter() } }.boutonVerre()
-            }
-            Button("Fermer") { fermer() }.keyboardShortcut(.cancelAction).buttonStyle(.link)
-        }
-        .padding(30).frame(width: 420)
     }
 }
 

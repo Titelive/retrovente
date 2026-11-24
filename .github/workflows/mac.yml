@@ -24,9 +24,9 @@ jobs:
         continue-on-error: true
         run: |
           APP=mac/build/RetroRevente.app
-          for demo in appli articles fiche nouveau compte deposer; do
-            open --env RR_DEMO=$demo "$APP"
-            case $demo in appli|deposer) sleep 22 ;; *) sleep 8 ;; esac
+          for demo in appli articles fiche nouveau trophees bilan compte deposer; do
+            case $demo in trophees|bilan|compte) open --env RR_DEMO=articles --env RR_DEMO_PAGE=$demo "$APP" ;; *) open --env RR_DEMO=$demo "$APP" ;; esac
+            case $demo in appli|deposer) sleep 22 ;; *) sleep 7 ;; esac
             pgrep -x RetroRevente
             screencapture -x mac/build/capture-$demo.png
             osascript -e 'tell application "RetroRevente" to quit' || pkill -x RetroRevente || true
