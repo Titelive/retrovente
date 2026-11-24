@@ -1224,7 +1224,8 @@
     return "";
   }
   function personnaliser(t, nom) {
-    if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t)) return t;
+    // Pseudo déjà en tête (« Bonjour Mick.8, … ») : on n'en remet pas un second.
+    if (!nom || /^Bonjour\s+\p{Lu}\p{Ll}/u.test(t) || t.slice(0, 20 + nom.length).indexOf(nom) >= 0) return t;
     return t.replace(/^Bonjour\s*([,!]?)\s*/u, function (x, p, i, tout) { var suite = tout.slice(x.length); return "Bonjour " + nom + (p === "!" ? " ! " : /^\p{L}/u.test(suite) ? ", " : " "); });
   }
   /* Vente conclue sur Le Bon Coin (« Vendu ! », offre acceptée, paiement fait) : les annonces de RetroRevente qu'elle concerne.
