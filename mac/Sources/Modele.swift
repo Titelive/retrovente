@@ -562,6 +562,26 @@ final class Appli: ObservableObject {
         return r
     }
 
+    /// Même rédaction, mais par l'IA d'Apple sur le Mac (Apple Intelligence) : Vision lit le texte de chaque photo,
+    /// le modèle local rédige titre, légendes et annonce. Rien ne part au serveur.
+    func redigerLocal(_ a: Article) async throws -> Redaction {
+        var textes: [String] = []
+        for p in a.photos.prefix(8) {
+            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d) else { break }
+            textes.append(await IALocale.lireTexte(i))
+        }
+        var lignes: [String] = []
+        let e = a.envoi
+        for k in ["titre", "plateforme", "region", "langues", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "edition", "annee"] {
+            if let v = e[k], !(v is NSNull), "\(v)" != "" { lignes.append("\(k) : \(v)") }
+        }
+        let r = try await IALocale.rediger(fiche: lignes.joined(separator: "\n"), textesPhotos: textes, sansNotice: Libelles.sansNotice(a.plateforme))
+        var red = Redaction(titre: r.titre.isEmpty ? Article.titreSimple(a) : r.titre, texte: r.texte.isEmpty ? Article.texteSimple(a) : r.texte, etat: nil, legendes: r.legendes)
+        let liste = r.legendes.enumerated().filter { !$0.element.isEmpty }.map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        if !liste.isEmpty, !red.texte.contains("Photos :") { red.texte += "\n\nPhotos :\n" + liste }
+        return red
+    }
+
     /// Cote IA de l'article, gardée dans sa fiche.
     func estimerCote(_ a: Article) async -> Article? {
         do {
