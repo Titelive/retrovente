@@ -2,6 +2,7 @@
 // Liquid Glass sur macOS 26 (barre latérale, capsules, boutons de verre), à la charte : or et anis sur nuit.
 import AppKit
 import SwiftUI
+import PhotosUI
 import UniformTypeIdentifiers
 
 extension Color {
@@ -294,6 +295,10 @@ struct Fiche: View {
     @State private var confirmer = false
     @State private var retirer = false
     @State private var original: Article? = nil
+    @State private var photosOuvert = false
+    @State private var choixPhotos: [PhotosPickerItem] = []
+    @State private var ajoutEnCours = 0
+    @State private var cibleGalerie = false
 
     /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
     private var bandeauAnnonceMorte: some View {
@@ -391,6 +396,8 @@ struct Fiche: View {
                     if article.annonceMorte(appli) { bandeauAnnonceMorte }
                     HStack(alignment: .top, spacing: 24) {
                         galerie.frame(minWidth: 220, idealWidth: 340, maxWidth: 340)
+                            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.rrOr, lineWidth: cibleGalerie ? 3 : 0))
+                            .onDrop(of: [.image, .fileURL], isTargeted: $cibleGalerie) { p in deposerPhotos(p) }
                         champs.frame(minWidth: 380, maxWidth: .infinity)
                     }
                 }.padding(24)
@@ -425,9 +432,29 @@ struct Fiche: View {
                             .onTapGesture { photo = p }
                             .contextMenu { Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } } }
                     }
-                    Button { choisirPhoto() } label: { Image(systemName: "plus").font(.title3).frame(width: 58, height: 58) }
-                        .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter une photo")
+                    if ajoutEnCours > 0 { ProgressView().controlSize(.small).frame(width: 58, height: 58) }
+                    Button { photosOuvert = true } label: { Image(systemName: "photo.on.rectangle.angled").font(.title3).frame(width: 58, height: 58) }
+                        .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter des photos depuis l'app Photos")
+                    Button { choisirPhoto() } label: { Image(systemName: "folder").font(.title3).frame(width: 58, height: 58) }
+                        .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter des photos depuis un dossier")
                 }.padding(2)
+            }
+            .photosPicker(isPresented: $photosOuvert, selection: $choixPhotos, maxSelectionCount: 20, selectionBehavior: .ordered,
+                          matching: .images, preferredItemEncoding: .automatic, photoLibrary: .shared())
+            .onChange(of: choixPhotos) { l in
+                guard !l.isEmpty else { return }
+                choixPhotos = []
+                ajoutEnCours += l.count
+                Task {
+                    var envoyees: [String] = []
+                    for it in l {
+                        if let d = try? await it.loadTransferable(type: Data.self), let i = NSImage(data: d), let j = jpegData(i),
+                           await appli.ajouterPhoto(article, j), let id = it.itemIdentifier { envoyees.append(id) }
+                        ajoutEnCours -= 1
+                    }
+                    recharger()
+                    await Phototheque.retirer(envoyees)
+                }
             }
             if article.publiee, let u = URL(string: article.annonce) {
                 Button { _ = u; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
@@ -494,6 +521,19 @@ struct Fiche: View {
             .overlay(alignment: .trailing) { Text("€").foregroundStyle(.secondary).padding(.trailing, 8) }
     }
     private func recharger() { if let n = appli.articles.first(where: { $0.id == article.id }) { article.photos = n.photos; original?.photos = n.photos; photo = n.photos.last } }
+    /// Photos glissées depuis l'app Photos, le Finder ou une page web.
+    private func deposerPhotos(_ fournis: [NSItemProvider]) -> Bool {
+        guard !fournis.isEmpty else { return false }
+        ajoutEnCours += fournis.count
+        Task {
+            for f in fournis {
+                if let i = await imageDe(f), let j = jpegData(i) { await appli.ajouterPhoto(article, j) }
+                ajoutEnCours -= 1
+            }
+            recharger()
+        }
+        return true
+    }
     private func choisirPhoto() {
         let o = NSOpenPanel(); o.allowedContentTypes = [.image]; o.allowsMultipleSelection = true
         guard o.runModal() == .OK else { return }
@@ -514,6 +554,9 @@ struct Nouveau: View {
     @State private var etape = 0   // 0 : photo, 1 : reconnaissance, 2 : fiche
     @State private var message = ""
     @State private var cible = false
+    @State private var photosOuvert = false
+    @State private var choixPhoto: PhotosPickerItem? = nil
+    @State private var idPhotos = ""   // photo venue de l'app Photos : retirée de la photothèque une fois l'article créé
 
     var body: some View {
         VStack(spacing: 18) {
@@ -531,7 +574,10 @@ struct Nouveau: View {
                             Image(systemName: "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrOr)
                             Text("Glisse une photo ici").font(.title3.weight(.semibold))
                             Text("L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
-                            Button("Choisir une photo…") { choisir() }.boutonVerre(principal: true).controlSize(.large)
+                            HStack(spacing: 10) {
+                                Button { photosOuvert = true } label: { Label("Depuis Photos…", systemImage: "photo.on.rectangle.angled") }.boutonVerre(principal: true).controlSize(.large)
+                                Button { choisir() } label: { Label("Un fichier…", systemImage: "folder") }.boutonVerre().controlSize(.large)
+                            }
                         }
                     }
                     if etape == 1 {
@@ -541,6 +587,12 @@ struct Nouveau: View {
                 }
                 .frame(height: 360)
                 .onDrop(of: [.fileURL, .image], isTargeted: $cible) { p in deposer(p) }
+                .photosPicker(isPresented: $photosOuvert, selection: $choixPhoto, matching: .images, preferredItemEncoding: .automatic, photoLibrary: .shared())
+                .onChange(of: choixPhoto) { it in
+                    guard let it = it else { return }
+                    choixPhoto = nil
+                    Task { if let d = try? await it.loadTransferable(type: Data.self), let i = NSImage(data: d) { idPhotos = it.itemIdentifier ?? ""; reconnaitre(i) } else { message = "Photo illisible." } }
+                }
                 if !message.isEmpty { Text(message).foregroundStyle(Color.rrOr).multilineTextAlignment(.center) }
                 HStack {
                     Button("Remplir à la main") { etape = 2 }.buttonStyle(.link)
@@ -563,7 +615,10 @@ struct Nouveau: View {
                     Button {
                         Task {
                             etape = 3
-                            if let n = await appli.creer(article, photo: image.flatMap { jpegData($0) }) { fermer(); appli.selection = n.id } else { etape = 2 }
+                            if let n = await appli.creer(article, photo: image.flatMap { jpegData($0) }) {
+                                let id = idPhotos; fermer(); appli.selection = n.id
+                                if !n.photos.isEmpty { await Phototheque.retirer([id]) }
+                            } else { etape = 2 }
                         }
                     } label: { Label("Créer l'article", systemImage: "checkmark") }
                     .boutonVerre(principal: true).controlSize(.large).keyboardShortcut(.defaultAction).disabled(article.titre.isEmpty || etape == 3)
@@ -574,15 +629,11 @@ struct Nouveau: View {
     }
     private func choisir() {
         let o = NSOpenPanel(); o.allowedContentTypes = [.image]
-        if o.runModal() == .OK, let u = o.url, let i = NSImage(contentsOf: u) { reconnaitre(i) }
+        if o.runModal() == .OK, let u = o.url, let i = NSImage(contentsOf: u) { idPhotos = ""; reconnaitre(i) }
     }
     private func deposer(_ fournis: [NSItemProvider]) -> Bool {
         guard let f = fournis.first else { return false }
-        if f.canLoadObject(ofClass: NSImage.self) {
-            _ = f.loadObject(ofClass: NSImage.self) { i, _ in if let i = i as? NSImage { DispatchQueue.main.async { reconnaitre(i) } } }
-            return true
-        }
-        _ = f.loadObject(ofClass: URL.self) { u, _ in if let u = u, let i = NSImage(contentsOf: u) { DispatchQueue.main.async { reconnaitre(i) } } }
+        Task { if let i = await imageDe(f) { idPhotos = ""; reconnaitre(i) } }
         return true
     }
     private func reconnaitre(_ i: NSImage) {
@@ -624,4 +675,18 @@ struct Fete: View {
             }.padding(30).verre(RoundedRectangle(cornerRadius: 28))
         }.onAppear { debut = Date() }
     }
+}
+
+/// Image d'un glisser-déposer : l'app Photos donne l'image elle-même (ou un fichier promis), le Finder une URL.
+func imageDe(_ f: NSItemProvider) async -> NSImage? {
+    if f.canLoadObject(ofClass: NSImage.self) {
+        let i: NSImage? = await withCheckedContinuation { c in _ = f.loadObject(ofClass: NSImage.self) { o, _ in c.resume(returning: o as? NSImage) } }
+        if let i = i { return i }
+    }
+    if f.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+        let d: Data? = await withCheckedContinuation { c in _ = f.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { d, _ in c.resume(returning: d) } }
+        if let d = d, let i = NSImage(data: d) { return i }
+    }
+    let u: URL? = await withCheckedContinuation { c in _ = f.loadObject(ofClass: URL.self) { u, _ in c.resume(returning: u) } }
+    return u.flatMap { NSImage(contentsOf: $0) }
 }

@@ -234,6 +234,7 @@ struct MonCompte: View {
     @State private var info = ""
     @State private var periode = "mois"
     @State private var confirmerSuppression = false
+    @AppStorage("retirerDePhotos") private var retirerDePhotos = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -291,6 +292,11 @@ struct MonCompte: View {
                         let branche = !(Stockage.partage.texte("cle") ?? "").isEmpty
                         Text(branche ? "Branché : remplissage du dépôt et réponses IA aux acheteurs actifs." : "Pas encore branché.").font(.callout)
                         Button(branche ? "Rebrancher" : "Brancher maintenant") { Task { await appli.brancherLeBonCoin(force: true); info = "Le Bon Coin est branché." } }.boutonVerre()
+                    }
+                    carte("App Photos", "photo.on.rectangle.angled") {
+                        Toggle("Retirer de Photos les photos ajoutées à un article", isOn: $retirerDePhotos)
+                        Text("Seulement une fois la photo bien envoyée. macOS te demande de confirmer, et elle reste 30 jours dans « Supprimés récemment ».")
+                            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     carte("Supprimer mon compte", "trash") {
                         Text("Tes articles et tes photos seront effacés définitivement.").font(.callout).foregroundStyle(.secondary)

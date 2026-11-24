@@ -415,9 +415,9 @@ final class Appli: ObservableObject {
         do { _ = try await API.json("DELETE", "/api/objets/\(a.id)"); articles.removeAll { $0.id == a.id }; if selection == a.id { selection = nil } }
         catch { signaler(error) }
     }
-    func ajouterPhoto(_ a: Article, _ data: String) async {
-        do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])) }
-        catch { signaler(error) }
+    @discardableResult func ajouterPhoto(_ a: Article, _ data: String) async -> Bool {
+        do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true }
+        catch { signaler(error); return false }
     }
     func retirerPhoto(_ a: Article, _ p: Photo) async {
         do {
