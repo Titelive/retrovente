@@ -304,8 +304,6 @@ struct CarteArticle: View {
             image
             texte
         }
-        // Toutes les cartes d'une rangée ont la même hauteur (prix et statut alignés en bas).
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(teinte?.fond ?? Color(nsColor: .controlBackgroundColor))
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -406,7 +404,6 @@ struct CarteArticle: View {
                 Label(c, systemImage: article.livreLe.isEmpty ? "shippingbox" : "checkmark.circle").font(.caption.weight(.medium))
                     .foregroundStyle(article.livreLe.isEmpty ? Color.secondary : Libelles.couleursStatut("recu").texte).lineLimit(1)
             }
-            Spacer(minLength: 0)
             HStack(alignment: .center, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize()
@@ -419,7 +416,7 @@ struct CarteArticle: View {
                 Spacer(minLength: 4)
                 if appli.choix == nil { BoutonStatut(appli: appli, article: article) }
             }
-        }.padding(12).frame(maxHeight: .infinity, alignment: .top)
+        }.padding(12)
     }
 
     private var colis: String? {
