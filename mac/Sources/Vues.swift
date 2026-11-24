@@ -241,6 +241,7 @@ struct Accueil: View {
         .environment(\.basculerBarre, { withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { appli.barreCachee.toggle() } })
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
+        .sheet(isPresented: $appli.cartesOuvert) { CartesPhoto(appli: appli) }
         .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
         .sheet(item: $appli.gestion) { g in FeuilleGestion(appli: appli, gestion: g) }
         .sheet(isPresented: $appli.choixDepot) { ChoixDepot(appli: appli) }
@@ -666,11 +667,12 @@ struct Nouveau: View {
     @State private var photosOuvert = false
     @State private var choixPhoto: PhotosPickerItem? = nil
     @State private var idPhotos = ""   // photo venue de l'app Photos : retirée de la photothèque une fois l'article créé
+    @State private var film = false    // ouvert depuis « Un film » : l'IA cherche un film sur la jaquette
 
     var body: some View {
         VStack(spacing: 18) {
             HStack {
-                Text(etape == 2 ? "Vérifie la fiche" : "Nouvel article").font(.title2.weight(.bold))
+                Text(etape == 2 ? "Vérifie la fiche" : film ? "Un film" : "Nouvel article").font(.title2.weight(.bold))
                 Spacer()
                 Button("Annuler") { fermer() }.keyboardShortcut(.cancelAction)
             }
@@ -680,9 +682,9 @@ struct Nouveau: View {
                     if let i = image { Image(nsImage: i).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18)).padding(14) }
                     else {
                         VStack(spacing: 12) {
-                            Image(systemName: "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrOr)
-                            Text("Glisse une photo ici").font(.title3.weight(.semibold))
-                            Text("L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
+                            Image(systemName: film ? "film" : "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrOr)
+                            Text(film ? "Glisse la photo de la jaquette ici" : "Glisse une photo ici").font(.title3.weight(.semibold))
+                            Text(film ? "Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA reconnaît le film et remplit la fiche." : "L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
                             HStack(spacing: 10) {
                                 Button { photosOuvert = true } label: { Label("Depuis Photos…", systemImage: "photo.on.rectangle.angled") }.boutonVerre(principal: true).controlSize(.large)
                                 Button { choisir() } label: { Label("Un fichier…", systemImage: "folder") }.boutonVerre().controlSize(.large)
@@ -690,7 +692,7 @@ struct Nouveau: View {
                         }
                     }
                     if etape == 1 {
-                        VStack(spacing: 10) { ProgressView().controlSize(.large); Text("Reconnaissance en cours…").font(.headline) }
+                        VStack(spacing: 10) { ProgressView().controlSize(.large); Text(film ? "Je lis la jaquette…" : "Reconnaissance en cours…").font(.headline) }
                             .padding(24).verre(RoundedRectangle(cornerRadius: 22))
                     }
                 }
@@ -735,6 +737,12 @@ struct Nouveau: View {
             }
         }
         .padding(26).frame(width: 560)
+        .onAppear {
+            film = appli.nouveauMode == "film"
+            if film { article.categorie = "films" }
+            if appli.nouveauMode == "main" { etape = 2 }
+            appli.nouveauMode = ""
+        }
     }
     private func choisir() {
         let o = NSOpenPanel(); o.allowedContentTypes = [.image]
@@ -749,7 +757,7 @@ struct Nouveau: View {
         image = i; etape = 1; message = ""
         Task {
             guard let d = jpegData(i, max: 1000, poids: 650_000) else { message = "Photo illisible."; etape = 0; return }
-            do { article = try await appli.identifier(d); etape = 2 }
+            do { article = try await appli.identifier(d, indice: film ? "films" : ""); if film && article.categorie.isEmpty { article.categorie = "films" }; etape = 2 }
             catch { message = (error as? ErreurRR)?.message ?? "Reconnaissance impossible."; etape = 0 }
         }
     }

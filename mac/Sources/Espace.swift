@@ -36,8 +36,7 @@ struct Trophees: View {
         let envois = v.filter { $0.statut == "envoye" || $0.statut == "recu" || $0.remise == "envoi" }.count
         let anc = Int(jours(appli.profil.cree, ISO8601DateFormatter().string(from: Date())) ?? 0)
         // Temps gagné (minutes par étape, valeurs par défaut de l'appli web).
-        let lbcN = min(appli.profil.usageLbc, o.filter { $0.statut != "retire" || $0.publiee }.count)
-        let minutes = photos * 3 + ia * 4 + o.filter { $0.cote != nil }.count * 4 + lbcN * 2 + v.count * 1
+        let minutes = TempsGagne.total(appli)   // même calcul que la tuile « Temps gagné » de l'accueil
         let t: [(String, String, String, Int, Int)] = [
             ("🕹️", "Insert Coin", "Ajoute ton tout premier article.", o.count, 1),
             ("📸", "Photographe", "10 articles avec une photo.", photos, 10),

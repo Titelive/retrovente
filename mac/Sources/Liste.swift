@@ -247,7 +247,7 @@ struct Grille: View {
             ScrollView {
                 // Pile paresseuse : seules les cartes visibles (et leurs photos) sont construites pendant le défilement.
                 LazyVStack(alignment: .leading, spacing: 26) {
-                    if appli.choix == nil, filtre == nil || filtre == "en_vente" { IdeesLots(appli: appli) }
+                    if appli.choix == nil, filtre == nil || filtre == "en_vente" { AccueilTableau(appli: appli); IdeesLots(appli: appli) }
                     if articles.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "shippingbox").font(.system(size: 44, weight: .light)).foregroundStyle(Color.rrOr)

@@ -36,6 +36,9 @@ extension Article {
     }
 }
 
+/// Lot dont l'annonce propose encore un article vendu : à supprimer sur les sites (comme l'encart de l'accueil du site).
+struct LotAEffacer: Hashable { var id, titre, annonce, annonceEbay: String; var defait: Bool }
+
 struct Article: Identifiable, Hashable {
     var id: String = ""
     var titre = "", categorie = "jeux", plateforme = "", region = "", etat = "", contenu = ""
@@ -54,6 +57,7 @@ struct Article: Identifiable, Hashable {
     var suivi = "", transporteur = "", livreLe = "", suiviLibelle = ""
     var coteLot = false                    // la cote conseille de vendre en lot
     var stats: [String: StatsSite] = [:]   // vues et favoris relevés sur les sites (« lbc », « ebay »), voir Stats.swift
+    var lotsAEffacer: [LotAEffacer] = []    // article vendu : les lots qui le proposent encore en ligne
 
     init() {}
     init(_ d: [String: Any]) {
@@ -84,6 +88,11 @@ struct Article: Identifiable, Hashable {
         suiviLibelle = (d["suiviEtat"] as? [String: Any])?["libelle"] as? String ?? ""
         coteLot = (d["cote"] as? [String: Any])?["lot"] as? Bool ?? false
         stats = Article.lireStats(d)
+        lotsAEffacer = (d["lotsAEffacer"] as? [[String: Any]] ?? []).compactMap { e in
+            guard let i = e["id"] as? String, !i.isEmpty else { return nil }
+            return LotAEffacer(id: i, titre: e["titre"] as? String ?? "", annonce: e["annonce"] as? String ?? "",
+                               annonceEbay: e["annonceEbay"] as? String ?? "", defait: e["defait"] as? Bool ?? false)
+        }
     }
     var estLot: Bool { membres != nil }
     var vendu: Bool { ["vendu", "envoye", "recu"].contains(statut) }
@@ -385,6 +394,8 @@ final class Appli: ObservableObject {
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
+    @Published var nouveauMode = ""        // « film » : photo de jaquette ; « main » : fiche vide
+    @Published var cartesOuvert = false    // plusieurs cartes Pokémon sur une photo
     @Published var messagesOuvert = false     // onglet Messages : la messagerie native (Messagerie.swift)
     let messagerie = Messagerie()
     @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
@@ -518,6 +529,20 @@ final class Appli: ObservableObject {
             try? await chargerProfil(); return n
         } catch { signaler(error); return nil }
     }
+    /// Fiche créée à partir de champs bruts (cartes repérées sur une photo de classeur).
+    func creerBrut(_ objet: [String: Any], photo: String?) async throws -> Article {
+        var corps: [String: Any] = ["objet": objet]
+        if let p = photo { corps["photo"] = p }
+        let j = try await API.json("POST", "/api/objets", corps)
+        let n = Article(j["objet"] as? [String: Any] ?? [:]); articles.insert(n, at: 0); return n
+    }
+    /// « C'est fait » : l'annonce du lot est supprimée sur les sites.
+    func lotEfface(article: String, lot: String) async {
+        do {
+            let j = try await API.json("PUT", "/api/objets/\(article)", ["objet": [String: Any](), "lotEfface": lot])
+            remplacer(Article(j["objet"] as? [String: Any] ?? [:])); message = "Noté : l'annonce du lot est effacée."
+        } catch { signaler(error) }
+    }
     func supprimer(_ a: Article) async {
         do { _ = try await API.json("DELETE", "/api/objets/\(a.id)"); articles.removeAll { $0.id == a.id }; if selection == a.id { selection = nil } }
         catch { signaler(error) }
@@ -532,8 +557,8 @@ final class Appli: ObservableObject {
             Images.oublier(API.urlPhoto(a.id, p.id)); remplacer(Article(j["objet"] as? [String: Any] ?? [:]))
         } catch { signaler(error) }
     }
-    func identifier(_ photo: String) async throws -> Article {
-        let j = try await API.json("POST", "/api/ia/identifier", ["photo": photo])
+    func identifier(_ photo: String, indice: String = "") async throws -> Article {
+        let j = try await API.json("POST", "/api/ia/identifier", indice.isEmpty ? ["photo": photo] : ["photo": photo, "indice": indice])
         let o = j["objet"] as? [String: Any] ?? [:]
         var a = Article(o); a.ia = true
         if let r = o["remarques"] as? String, !r.isEmpty { a.notes = r }
