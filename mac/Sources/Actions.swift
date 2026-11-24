@@ -36,8 +36,14 @@ final class Actions {
             case "photo": return try await photo(m)
             case "reponse": return try await reponse(m)
             case "lien":
-                let corps: [String: Any] = ["annonce": ou(m["annonce"], NSNull()), "url": ou(m["url"], NSNull()), "prix": ou(m["prix"], NSNull())]
+                let corps: [String: Any] = ["site": chaine(m["site"]) == "ebay" ? "ebay" : "lbc", "annonce": ou(m["annonce"], NSNull()), "url": ou(m["url"], NSNull()), "prix": ou(m["prix"], NSNull())]
                 return try JSONSerialization.jsonObject(with: try await appel("/api/extension/lien", corps: corps).0)
+            case "specifiques":
+                let corps: [String: Any] = ["annonce": ou(m["annonce"], NSNull()), "champs": m["champs"] as? [Any] ?? []]
+                return try JSONSerialization.jsonObject(with: try await appel("/api/extension/specifiques", corps: corps).0)
+            case "vendu":
+                let corps: [String: Any] = ["ids": m["ids"] as? [Any] ?? [], "prix": ou(m["prix"], NSNull()), "remise": chaine(m["remise"])]
+                return try JSONSerialization.jsonObject(with: try await appel("/api/extension/vendu", corps: corps).0)
             case "rempli":
                 _ = try await appel("/api/extension/rempli", methode: "POST"); return ["ok": true]
             case "son": return jouerSon(m["wav"] as? String)

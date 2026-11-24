@@ -308,7 +308,8 @@ final class Appli: ObservableObject {
     @Published var tri = UserDefaults.standard.string(forKey: "tri") ?? "recent" { didSet { UserDefaults.standard.set(tri, forKey: "tri") } }
     @Published var groupe = UserDefaults.standard.string(forKey: "groupe") ?? "" { didSet { UserDefaults.standard.set(groupe, forKey: "groupe") } }
     @Published var idees: [IdeeLot] = []
-    @Published var ideesIA = false, ideesCharge = false
+    @Published var ideesIA = false
+    @Published var ideesCharge = false
     var ideesCle = ""
     @Published var choix: [String]? = nil      // articles choisis pour un lot (nil : pas de composition en cours)
     @Published var choixTheme: IdeeLot? = nil
