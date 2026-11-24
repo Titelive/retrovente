@@ -344,6 +344,41 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     // MARK: Barre du haut (dans la barre de titre)
 
     private var boutonCompte: Bouton!
+    private var boutonApparence: Bouton!
+
+    // MARK: Mode clair / sombre (choix gardé ; sans choix, l'app suit macOS)
+
+    /// L'apparence affichée en ce moment : celle choisie, sinon celle de macOS.
+    private var sombreAffiche: Bool {
+        switch UserDefaults.standard.string(forKey: "apparence") {
+        case "sombre": return true
+        case "clair": return false
+        default: return NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        }
+    }
+    @objc func basculerApparence(_ s: Any?) {
+        UserDefaults.standard.set(sombreAffiche ? "clair" : "sombre", forKey: "apparence")
+        appliquerApparence()
+    }
+    @objc func suivreApparenceSysteme(_ s: Any?) {
+        UserDefaults.standard.removeObject(forKey: "apparence")
+        appliquerApparence()
+    }
+    private func appliquerApparence() {
+        let choix = UserDefaults.standard.string(forKey: "apparence")
+        let nouvelle: NSAppearance? = choix == "sombre" ? NSAppearance(named: .darkAqua) : choix == "clair" ? NSAppearance(named: .aqua) : nil
+        if let vue = fenetre.contentView, let image = vue.bitmapImageRepForCachingDisplay(in: vue.bounds) {
+            // Fondu entre les deux apparences : une image de l'écran actuel s'efface par-dessus la nouvelle.
+            vue.cacheDisplay(in: vue.bounds, to: image)
+            let voile = NSImageView(frame: vue.bounds); voile.image = NSImage(size: vue.bounds.size); voile.image?.addRepresentation(image)
+            voile.autoresizingMask = [.width, .height]
+            if fenetre.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { vue.addSubview(voile) }
+            NSApp.appearance = nouvelle
+            NSAnimationContext.runAnimationGroup({ c in c.duration = 0.35; voile.animator().alphaValue = 0 }, completionHandler: { voile.removeFromSuperview() })
+        } else { NSApp.appearance = nouvelle }
+        let sombre = sombreAffiche
+        boutonApparence?.changerSymbole(sombre ? "sun.max" : "moon", aide: sombre ? "Passer en mode clair (⇧⌘L)" : "Passer en mode sombre (⇧⌘L)")
+    }
     private var margeFeux: NSLayoutConstraint!
 
     private func installerBarre() {
@@ -364,7 +399,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
         var rubriques: NSView = pile(boutons, espace: 4)
-        var droite: NSView = pile([precedent, suivant, recharger], espace: 2)
+        boutonApparence = Bouton(symbole: "moon", titre: nil, aide: "") { [weak self] in self?.basculerApparence(nil) }
+        appliquerApparence()
+        var droite: NSView = pile([boutonApparence, precedent, suivant, recharger], espace: 2)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif
