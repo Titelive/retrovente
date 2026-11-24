@@ -56,13 +56,8 @@ extension EnvironmentValues {
 struct EnTete<Boutons: View>: View {
     let titre: String; var sousTitre: String = ""
     @ViewBuilder var boutons: () -> Boutons
-    @Environment(\.basculerBarre) private var basculerBarre
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            if let b = basculerBarre {
-                Button(action: b) { Image(systemName: "sidebar.left") }
-                    .boutonVerre().help("Cacher ou montrer la barre latérale (⌃⌘S)")
-            }
             // Titre et sous-titre sur une ligne chacun (tronqués si la fenêtre est étroite), boutons jamais repliés :
             // un texte écrasé qui passe à la ligne à chaque lettre agrandissait toute la vue au-delà de la fenêtre.
             VStack(alignment: .leading, spacing: 2) {
@@ -160,8 +155,11 @@ struct Accueil: View {
                 set: { v in appli.barreCachee = (v == .detailOnly) })
     }
 
-    var body: some View {
-        NavigationSplitView(columnVisibility: visibilite) {
+    /// Barre latérale masquée : elle glisse par-dessus la page quand la souris touche le bord gauche, et se recache quand elle s'en va.
+    @State private var recacher: DispatchWorkItem?
+    @State private var dansPanneau = false
+
+    @ViewBuilder private var barreLaterale: some View {
             List {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -181,8 +179,14 @@ struct Accueil: View {
                     ligne("@bilan", "Bilan des ventes", "chart.bar", nil)
                 }
             }
+            .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
+    }
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: visibilite) {
+            barreLaterale
         } detail: {
             if filtre == "@trophees" { Trophees(appli: appli) }
             else if filtre == "@bilan" { Bilan(appli: appli) }
@@ -192,6 +196,39 @@ struct Accueil: View {
             } else {
                 Grille(appli: appli, articles: appli.visibles(filtre?.hasPrefix("@") == true ? nil : filtre, recherche), titre: titre,
                        filtre: filtre?.hasPrefix("@") == true ? nil : filtre)
+            }
+        }
+        .overlay(alignment: .leading) {
+            // Comme l'app Claude : un panneau pleine hauteur, collé au bord gauche, qui apparaît en fondu et se retire de même.
+            if appli.barreCachee {
+                if appli.barreSurvol {
+                    barreLaterale.scrollContentBackground(.hidden)
+                        .padding(.top, 44)
+                        .frame(width: 250).frame(maxHeight: .infinity)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1) }
+                        .shadow(color: .black.opacity(0.35), radius: 16, x: 4)
+                        .ignoresSafeArea()
+                        .onHover { dedans in
+                            dansPanneau = dedans
+                            recacher?.cancel()
+                            guard !dedans else { return }
+                            let w = DispatchWorkItem { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
+                            recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
+                        }
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                } else {
+                    Color.clear.frame(width: 6).frame(maxHeight: .infinity).contentShape(Rectangle()).ignoresSafeArea()
+                        .onHover { if $0 { withAnimation(.easeOut(duration: 0.2)) { appli.barreSurvol = true } } }
+                }
+            }
+        }
+        .onChange(of: appli.barreCachee) { c in if !c { appli.barreSurvol = false } }
+        .onChange(of: appli.barreSurvol) { montre in
+            // Montrée depuis le bouton du haut sans que la souris entre dans le panneau : il se retire tout seul.
+            guard montre else { dansPanneau = false; return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                if appli.barreSurvol, !dansPanneau { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
             }
         }
         .overlay(alignment: .bottom) { Bandeau(appli: appli) }
@@ -313,6 +350,7 @@ struct Fiche: View {
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
     @State private var redaction = false
+    @State private var redactionLocale = false
     /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
     @State private var aRetirerDePhotos: [String] = []
 
@@ -360,15 +398,21 @@ struct Fiche: View {
     }
 
     /// Titre et texte de l'annonce par l'IA. Sans `forcer`, seulement si l'annonce est vide (et pas pour un lot, refait par le serveur).
-    private func rediger(forcer: Bool) async {
+    private func rediger(forcer: Bool, local: Bool = false) async {
         guard !redaction, !article.estLot, !article.titre.isEmpty else { return }
         guard forcer || article.texteAnnonce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         redaction = true; defer { redaction = false }
         let avant = article
-        let r = await appli.rediger(article)
+        let r: Appli.Redaction
+        if local {
+            do { r = try await appli.redigerLocal(article) } catch { appli.signaler(error); return }
+        } else { r = await appli.rediger(article) }
         guard article.id == avant.id, article.texteAnnonce == avant.texteAnnonce || forcer else { return }   // tapé entre-temps : on ne l'écrase pas
         if forcer || article.titreAnnonce.isEmpty { article.titreAnnonce = r.titre }
         article.texteAnnonce = r.texte
+        if let e = r.etat { article.etat = e }
+        // Chaque photo garde sa légende (même ordre que les photos envoyées).
+        for (i, l) in r.legendes.enumerated() where i < article.photos.count && !l.isEmpty { article.photos[i].legende = l }
         // Rédaction automatique d'une fiche sans autre modification en cours : enregistrée tout de suite.
         if !forcer, avant == original, let n = await appli.enregistrer(article) { article = n; original = n }
     }
@@ -536,10 +580,26 @@ struct Fiche: View {
             BlocStats(appli: appli, releve: appli.releve, article: article)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
                 HStack(spacing: 8) {
-                    if redaction { ProgressView().controlSize(.small); Text("L'IA rédige ton annonce…").font(.callout).foregroundStyle(.secondary) }
+                    if redaction {
+                        ProgressView().controlSize(.small)
+                        Text(redactionLocale ? "L'IA d'Apple lit chaque photo sur ton Mac et rédige ton annonce…" : "L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    Button { Task { await rediger(forcer: true) } } label: { Label(article.texteAnnonce.isEmpty ? "Rédiger l'annonce" : "Réécrire avec l'IA", systemImage: "sparkles") }
-                        .boutonVerre().disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA à partir de la fiche")
+                    // Deux IA à comparer : celle du serveur (dorée, étincelles) et celle d'Apple, sur le Mac (violette, Apple Intelligence).
+                    Button { redactionLocale = false; Task { await rediger(forcer: true) } } label: {
+                        Label(article.texteAnnonce.isEmpty ? "Rédiger avec l'IA" : "Réécrire avec l'IA", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.borderedProminent).tint(.rrOr).foregroundStyle(Color.rrNuit)
+                    .disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA RetroRevente, qui regarde chaque photo")
+                    Button { redactionLocale = true; Task { await rediger(forcer: true, local: true) } } label: {
+                        Label("IA d'Apple (sur le Mac)", systemImage: NSImage(systemSymbolName: "apple.intelligence", accessibilityDescription: nil) != nil ? "apple.intelligence" : "cpu")
+                    }
+                    .buttonStyle(.borderedProminent).tint(.purple)
+                    .disabled(redaction || article.estLot || IALocale.indisponible != nil)
+                    .help(IALocale.indisponible ?? "Titre et texte rédigés par Apple Intelligence, en local sur ton Mac : rien n'est envoyé")
+                }
+                if let r = IALocale.indisponible {
+                    Text("IA d'Apple : \(r)").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
                 champ("Texte de l'annonce") {

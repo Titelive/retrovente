@@ -92,7 +92,7 @@ struct Article: Identifiable, Hashable {
         return ["titre": titre, "categorie": categorie, "plateforme": plateforme, "region": region, "etat": etat, "contenu": contenu,
                 "prixAchat": p(prixAchat), "prixDemande": p(prixDemande), "prixVente": p(prixVente), "frais": p(frais),
                 "statut": statut, "titreAnnonce": titreAnnonce, "texteAnnonce": texteAnnonce, "annonce": annonce, "notes": notes, "ia": ia,
-                "remise": remise, "cote": cote?.brut ?? NSNull()]
+                "remise": remise, "cote": cote?.brut ?? NSNull(), "photos": photos.map { ["id": $0.id, "legende": $0.legende] }]
     }
     var publiee: Bool { !annonce.isEmpty }
     var sousTitre: String { [plateforme, region].filter { !$0.isEmpty }.joined(separator: " · ") }
@@ -374,6 +374,8 @@ final class Appli: ObservableObject {
     @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
+    /// Barre latérale masquée mais montrée par-dessus la page (souris sur le bord gauche ou sur le bouton de la barre).
+    @Published var barreSurvol = false
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
         didSet { UserDefaults.standard.set(barreCachee, forKey: "barreCachee") }
     }
@@ -524,19 +526,62 @@ final class Appli: ObservableObject {
     }
     /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche (comme le dialogue de la fiche sur le site).
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
-    func rediger(_ a: Article) async -> (titre: String, texte: String) {
+    struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String] }
+    /// Légendes de chaque photo de l'article (l'IA regarde les photos une par une).
+    func legender(_ a: Article) async -> [String] {
+        var datas: [String] = []
+        for p in a.photos.prefix(8) {
+            // Une photo illisible : on s'arrête là, pour que chaque légende reste en face de sa photo.
+            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: 900_000) else { break }
+            datas.append(j)
+        }
+        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return [] }
+        return (j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+    /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche ET de chaque photo, décrite une par une.
+    /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
+    func rediger(_ a: Article) async -> Redaction {
+        let legendes = await legender(a)
         var fiche: [String: Any] = [:]
         let e = a.envoi
         for k in ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"] {
             if let v = e[k], !(v is NSNull), "\(v)" != "" { fiche[k] = v }
         }
-        let consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet, à partir de la fiche uniquement."
+        let liste = legendes.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        var consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet."
+        if !liste.isEmpty {
+            consigne += " Voici ce que montre chacune de mes photos :\n\(liste)\nLe texte décrit l'objet d'après ces photos, puis finit par une section « Photos : » qui reprend une ligne numérotée par photo. L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
+        }
+        if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
+        var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)
         if let j = try? await API.json("POST", "/api/ia/dialoguer", ["messages": [["role": "vendeur", "texte": consigne]], "fiche": fiche]),
            let ch = j["changements"] as? [String: Any] {
-            let t = ch["titreAnnonce"] as? String ?? "", d = ch["texteAnnonce"] as? String ?? ""
-            if !t.isEmpty || !d.isEmpty { return (t.isEmpty ? Article.titreSimple(a) : t, d.isEmpty ? Article.texteSimple(a) : d) }
+            if let t = ch["titreAnnonce"] as? String, !t.isEmpty { r.titre = t }
+            if let d = ch["texteAnnonce"] as? String, !d.isEmpty { r.texte = d }
+            if let et = ch["etat"] as? String, !et.isEmpty { r.etat = et }
         }
-        return (Article.titreSimple(a), Article.texteSimple(a))
+        if !liste.isEmpty, !r.texte.contains("Photos :") { r.texte += "\n\nPhotos :\n" + liste }
+        return r
+    }
+
+    /// Même rédaction, mais par l'IA d'Apple sur le Mac (Apple Intelligence) : Vision lit le texte de chaque photo,
+    /// le modèle local rédige titre, légendes et annonce. Rien ne part au serveur.
+    func redigerLocal(_ a: Article) async throws -> Redaction {
+        var textes: [String] = []
+        for p in a.photos.prefix(8) {
+            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d) else { break }
+            textes.append(await IALocale.lireTexte(i))
+        }
+        var lignes: [String] = []
+        let e = a.envoi
+        for k in ["titre", "plateforme", "region", "langues", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "edition", "annee"] {
+            if let v = e[k], !(v is NSNull), "\(v)" != "" { lignes.append("\(k) : \(v)") }
+        }
+        let r = try await IALocale.rediger(fiche: lignes.joined(separator: "\n"), textesPhotos: textes, sansNotice: Libelles.sansNotice(a.plateforme))
+        var red = Redaction(titre: r.titre.isEmpty ? Article.titreSimple(a) : r.titre, texte: r.texte.isEmpty ? Article.texteSimple(a) : r.texte, etat: nil, legendes: r.legendes)
+        let liste = r.legendes.enumerated().filter { !$0.element.isEmpty }.map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        if !liste.isEmpty, !red.texte.contains("Photos :") { red.texte += "\n\nPhotos :\n" + liste }
+        return red
     }
 
     /// Cote IA de l'article, gardée dans sa fiche.

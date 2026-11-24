@@ -14,10 +14,17 @@ rm -rf "$SORTIE"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/extension"
 
 echo "Compilation (Apple Silicon et Intel)…"
+# IA d'Apple (FoundationModels, macOS 26) : liée « faible » sur Apple Silicon, pour que l'app se lance aussi sur les macOS plus anciens.
+SDK=$(xcrun --show-sdk-path)
 for a in arm64 x86_64; do
+  EN_PLUS=""
+  if [ "$a" = arm64 ] && [ -d "$SDK/System/Library/Frameworks/FoundationModels.framework" ]; then
+    EN_PLUS="-Xlinker -weak_framework -Xlinker FoundationModels"
+  fi
+  # shellcheck disable=SC2086
   xcrun swiftc -O -target "$a-apple-macos13.0" -module-name RetroRevente \
     -o "$SORTIE/RetroRevente-$a" mac/Sources/*.swift \
-    -framework AppKit -framework WebKit -framework UserNotifications -framework SwiftUI -framework PhotosUI -framework Photos
+    -framework AppKit -framework WebKit -framework UserNotifications -framework SwiftUI -framework PhotosUI -framework Photos -framework Vision $EN_PLUS
 done
 lipo -create -output "$APP/Contents/MacOS/RetroRevente" "$SORTIE/RetroRevente-arm64" "$SORTIE/RetroRevente-x86_64"
 rm "$SORTIE/RetroRevente-arm64" "$SORTIE/RetroRevente-x86_64"

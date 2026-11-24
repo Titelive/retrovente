@@ -1157,6 +1157,7 @@ Règles :
 - Réponds en français, en tutoyant, en une à trois phrases simples. Dis ce que tu as changé.
 - Ce que dit le vendeur sur son objet est vrai : reporte-le dans les champs concernés ET dans texteAnnonce, pour que tout reste cohérent.
 - Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ».
+- Sur Switch, Switch 2, PS5 et Xbox Series, il n'y a pas de notice papier : n'en parle jamais (ni « sans notice »).
 - Ne change jamais l'état et ne parle jamais de film plastique, de blister ou de « neuf » si le vendeur ne le dit pas.
 - Version d'un autre pays que la France (ex. region « PAL allemande ») : dis-le dans texteAnnonce (« version allemande ») ; si le vendeur ou la fiche dit qu'elle est en français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ».
 - Pour un conseil de prix, appuie-toi sur la cote si elle existe ; ne change prixDemande que si le vendeur le demande.

@@ -70,22 +70,83 @@ struct Trophees: View {
             EnTete(titre: "Ta salle des trophées", sousTitre: "\(n) trophée\(n > 1 ? "s" : "") débloqué\(n > 1 ? "s" : "") sur \(l.count)") { EmptyView() }
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(l) { t in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(t.ico).font(.system(size: 34)).grayscale(t.ok ? 0 : 1).opacity(t.ok ? 1 : 0.45)
-                                Spacer()
-                                if t.ok { Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrOr).font(.title3) }
-                            }
-                            Text(t.nom).font(.headline)
-                            Text(t.desc).font(.callout).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
-                            ProgressView(value: Double(t.val), total: Double(t.max)).tint(t.ok ? .rrOr : .secondary)
-                            Text("\(t.val) / \(t.max)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        .padding(16)
-                        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrOr : nil)
-                    }
+                    ForEach(Array(l.enumerated()), id: \.element.id) { i, t in CarteTrophee(t: t, rang: i) }
                 }.padding(22)
+            }
+        }
+    }
+}
+
+/// Carte d'un trophée, animée : apparition en cascade, barre qui se remplit, survol, éclat doré sur les trophées débloqués.
+/// « Réduire les animations » (Réglages Système › Accessibilité) : tout s'affiche directement, sans mouvement.
+struct CarteTrophee: View {
+    let t: Trophees.T; let rang: Int
+    @Environment(\.accessibilityReduceMotion) private var sansMouvement
+    @State private var visible = false
+    @State private var rempli = 0.0
+    @State private var survol = false
+    @State private var eclat: CGFloat = -0.6
+    @State private var rebond = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(t.ico).font(.system(size: 34)).grayscale(t.ok ? 0 : 1).opacity(t.ok ? 1 : 0.45)
+                    .scaleEffect(rebond ? 1.18 : 1).rotationEffect(.degrees(rebond ? -8 : 0))
+                Spacer()
+                if t.ok {
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrOr).font(.title3)
+                        .scaleEffect(visible ? 1 : 0.2).opacity(visible ? 1 : 0)
+                }
+            }
+            Text(t.nom).font(.headline)
+            Text(t.desc).font(.callout).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.12))
+                    Capsule().fill(t.ok ? Color.rrOr : Color.secondary)
+                        .frame(width: max(t.val > 0 ? 6 : 0, g.size.width * rempli))
+                }
+            }.frame(height: 6)
+            Text("\(t.val) / \(t.max)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .overlay {
+            // Éclat : un reflet doré qui traverse la carte de temps en temps.
+            if t.ok && !sansMouvement {
+                GeometryReader { g in
+                    LinearGradient(colors: [.clear, Color.white.opacity(0.28), .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: g.size.width * 0.45).rotationEffect(.degrees(20))
+                        .offset(x: g.size.width * eclat)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 22)).allowsHitTesting(false).blendMode(.plusLighter)
+            }
+        }
+        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrOr : nil)
+        .shadow(color: (t.ok ? Color.rrOr : Color.black).opacity(survol ? 0.35 : 0), radius: survol ? 14 : 0, y: survol ? 6 : 0)
+        .scaleEffect(sansMouvement ? 1 : (visible ? (survol ? 1.03 : 1) : 0.92))
+        .offset(y: sansMouvement || visible ? 0 : 18)
+        .opacity(visible ? 1 : 0)
+        .onHover { h in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { survol = h }
+            if h, t.ok, !sansMouvement {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.45)) { rebond = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) { rebond = false } }
+            }
+        }
+        .task {
+            let fraction = t.max > 0 ? min(1, Double(t.val) / Double(t.max)) : 0
+            if sansMouvement { visible = true; rempli = fraction; return }
+            let attente = Double(min(rang, 24)) * 0.04
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.78).delay(attente)) { visible = true }
+            withAnimation(.easeOut(duration: 0.9).delay(attente + 0.25)) { rempli = fraction }
+            guard t.ok else { return }
+            // Premier éclat juste après l'apparition, puis un toutes les quelques secondes, décalé d'une carte à l'autre.
+            try? await Task.sleep(nanoseconds: UInt64((attente + 0.9) * 1_000_000_000))
+            while !Task.isCancelled {
+                eclat = -0.6
+                withAnimation(.easeInOut(duration: 1.1)) { eclat = 1.3 }
+                try? await Task.sleep(nanoseconds: UInt64((5.5 + Double(rang % 5) * 0.7) * 1_000_000_000))
             }
         }
     }
