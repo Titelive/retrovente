@@ -92,6 +92,8 @@ final class Bouton: NSView {
         trackingAreas.forEach(removeTrackingArea)
         addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
     }
+    /// Change l'icône (bouton clair / sombre).
+    func changerSymbole(_ nom: String, aide: String) { icone.image = Charte.symbole(nom); toolTip = aide; majCouleurs() }
     /// Appelé quand la souris arrive sur le bouton (barre latérale : elle s'aperçoit au survol).
     var auSurvol: (() -> Void)?
     override func mouseEntered(with event: NSEvent) { survol = true; auSurvol?() }

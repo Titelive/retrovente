@@ -62,7 +62,9 @@ enum Menus {
             item("Tout sélectionner", #selector(NSText.selectAll(_:)), "a"),
         ])
         _ = menu("Présentation", [
-            item("Cacher ou montrer la barre latérale", #selector(Fenetre.basculerBarre(_:)), "s", [.command, .control], f), sep(),
+            item("Cacher ou montrer la barre latérale", #selector(Fenetre.basculerBarre(_:)), "s", [.command, .control], f),
+            item("Mode clair / sombre", #selector(Fenetre.basculerApparence(_:)), "l", [.command, .shift], f),
+            item("Suivre l'apparence de macOS", #selector(Fenetre.suivreApparenceSysteme(_:)), "", [], f), sep(),
             item("Recharger la page", #selector(Fenetre.rechargerPage(_:)), "r", .command, f), sep(),
             item("Taille réelle", #selector(Fenetre.tailleReelle(_:)), "0", .command, f),
             item("Agrandir", #selector(Fenetre.agrandir(_:)), "+", .command, f),
