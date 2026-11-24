@@ -31,7 +31,10 @@ func dateCourte(_ jour: String) -> String {
 }
 
 extension Appli {
-    func parId(_ id: String) -> Article? { articles.first { $0.id == id } }
+    func parId(_ id: String) -> Article? {
+        if let i = index[id], i < articles.count, articles[i].id == id { return articles[i] }
+        return articles.first { $0.id == id }
+    }
     /// Les lots qui contiennent vraiment cet article.
     func lotsDe(_ a: Article) -> [Article] { a.lots.compactMap(parId).filter { $0.estLot && ($0.membres ?? []).contains(a.id) } }
     /// Lots où l'article est proposé en ce moment (pas ceux retirés) : ce que compte le badge de la carte.
@@ -242,7 +245,8 @@ struct Grille: View {
                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).keyboardShortcut("n").help("Nouvel article (⌘N)")
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
+                // Pile paresseuse : seules les cartes visibles (et leurs photos) sont construites pendant le défilement.
+                LazyVStack(alignment: .leading, spacing: 26) {
                     if appli.choix == nil, filtre == nil || filtre == "en_vente" { IdeesLots(appli: appli) }
                     if articles.isEmpty {
                         VStack(spacing: 12) {
@@ -305,7 +309,10 @@ struct CarteArticle: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(contour, lineWidth: choisi || survol ? 2 : 1))
         .background(pile)
-        .shadow(color: .black.opacity(survol ? 0.18 : 0.07), radius: survol ? 14 : 5, y: survol ? 8 : 3)
+        // Ombre portée par une simple forme derrière la carte : bien moins coûteuse à dessiner pendant le défilement
+        // qu'une ombre calculée sur tout le contenu (photo, étiquettes, textes).
+        .background(RoundedRectangle(cornerRadius: 20).fill(Color(nsColor: .controlBackgroundColor))
+            .shadow(color: .black.opacity(survol ? 0.18 : 0.07), radius: survol ? 14 : 5, y: survol ? 8 : 3))
         .scaleEffect(survol && !grise ? 1.015 : 1)
         .opacity(grise ? 0.45 : 1)
         .animation(.spring(response: 0.25, dampingFraction: 0.8), value: survol)
@@ -424,8 +431,7 @@ struct Etiquette: View {
         }
         .foregroundStyle(texteCouleur)
         .padding(.horizontal, 9).padding(.vertical, 6)
-        .background(fond, in: Capsule())
-        .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
+        .background(Capsule().fill(fond).shadow(color: .black.opacity(0.25), radius: 5, y: 3))
     }
 }
 
@@ -470,8 +476,7 @@ struct BadgeRarete: View {
             }
             .foregroundStyle(texte)
             .padding(.horizontal, 8).frame(height: 22)
-            .background(fond, in: RoundedRectangle(cornerRadius: 7))
-            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+            .background(RoundedRectangle(cornerRadius: 7).fill(fond).shadow(color: .black.opacity(0.3), radius: 4, y: 2))
             .help("Rareté : " + nom)
         }
     }
@@ -577,7 +582,7 @@ struct CarteIdee: View {
             HStack(spacing: 12) {
                 ZStack {
                     ForEach(Array(m.prefix(3).enumerated()), id: \.offset) { i, a in
-                        Vignette(article: a).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 9))
+                        Vignette(article: a, taille: .mini).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 9))
                             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 2))
                             .rotationEffect(.degrees(Double(i - 1) * 7)).offset(x: CGFloat(i) * 14)
                     }

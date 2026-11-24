@@ -106,7 +106,7 @@ struct ChoixDepot: View {
                         ForEach(l) { a in
                             Button { appli.choixDepot = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { appli.deposer(a) } } label: {
                                 HStack(spacing: 12) {
-                                    Vignette(article: a).frame(width: 46, height: 46).clipShape(RoundedRectangle(cornerRadius: 10))
+                                    Vignette(article: a, taille: .mini).frame(width: 46, height: 46).clipShape(RoundedRectangle(cornerRadius: 10))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(a.titre).font(.callout.weight(.semibold)).lineLimit(1)
                                         Text(a.estLot ? "Lot · \(appli.membres(a).count) articles" : a.ligne).font(.caption).foregroundStyle(.secondary).lineLimit(1)

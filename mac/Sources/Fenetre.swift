@@ -148,6 +148,15 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         return v
     }
 
+    /// Navigateur caché de la messagerie native : mêmes cookies et scripts, sans panneau ni automatismes (__rrNatif).
+    func navigateurCache() -> WKWebView {
+        let conf = configuration()
+        conf.userContentController.addUserScript(WKUserScript(source: "window.__rrNatif = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Scripts.monde))
+        let v = creerNavigateur(conf)
+        v.uiDelegate = nil
+        return v
+    }
+
     /// Même réglages pour les deux navigateurs : cookies gardés, identité Safari, scripts RetroRevente.
     private func configuration() -> WKWebViewConfiguration {
         let conf = WKWebViewConfiguration()
@@ -199,6 +208,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
     func aller(_ r: Rubrique) {
         montrerFenetre()
+        // Messages : la messagerie native ; Le Bon Coin reste caché en fond.
+        if r == .messages, modele.etat == .connecte { modele.messagesOuvert = true; montrer(.appli); return }
+        modele.messagesOuvert = false
         if r == .appli { montrer(.appli); return }
         // Déposer : dans l'app, on choisit l'article ; Le Bon Coin travaille en coulisses, sans jamais s'afficher.
         if r == .deposer, modele.etat == .connecte { montrer(.appli); modele.selection = nil; modele.choixDepot = true; return }
@@ -207,6 +219,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     /// Le Bon Coin à l'écran (Messages, Mes annonces, ou le dépôt quand la personne le demande).
     func allerSurLeSite(_ r: Rubrique) {
         montrerFenetre()
+        modele.messagesOuvert = false
         // Déjà sur la bonne page Le Bon Coin : on la montre sans la recharger (un dépôt en cours n'est pas perdu).
         if !lbcCharge || Rubrique.de(lbc.url) != r { lbc.load(URLRequest(url: r.adresse)); lbcCharge = true }
         montrer(.lbc)
@@ -243,7 +256,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     }
 
     private func majBarre() {
-        let rubrique: Rubrique? = visible == .appli ? .appli : Rubrique.de(lbc.url)
+        let rubrique: Rubrique? = visible == .appli ? (modele.messagesOuvert ? .messages : .appli) : Rubrique.de(lbc.url)
         for (r, b) in onglets { b.actif = r == rubrique }
         let web = visible == .lbc
         precedent?.disponible = web && lbc.canGoBack
