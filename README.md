@@ -80,6 +80,16 @@ Sur la fiche, le bouton **eBay** (à côté de « Le Bon Coin ») ouvre l'annonc
 
 Chaque article a un **lien eBay** à part (`annonceEbay`, onglet L'annonce), à côté du lien Le Bon Coin : un article peut être en ligne sur les deux. Seule une adresse d'objet eBay est acceptée (`ebay.fr/itm/<numéro>`, ramenée à sa forme courte). L'extension (1.10.0) le remplit toute seule depuis « Mes ventes » / Seller Hub, et propose les réponses IA dans la **messagerie eBay** (voir `extension/README.md`).
 
+## Vues et favoris des annonces
+
+Chaque carte en vente affiche ses **vues** (œil) et ses **mises en favori** (cœur), Le Bon Coin et eBay additionnés (le détail par site en bulle d'aide). Dans la fiche, onglet « L'annonce », un bloc donne pour chaque site les vues, les favoris (eBay : les observateurs), ce qui a bougé en 7 jours (« +36 vues, 3 favoris en 7 jours ») et l'heure du relevé.
+
+D'où viennent les chiffres : de « Mes annonces » sur Le Bon Coin et de Seller Hub (annonces en cours) sur eBay, avec la session de la personne.
+- **App Mac** : relevé en arrière-plan, sans montrer les sites (vue web cachée, comme le dépôt en coulisses), au démarrage puis toutes les 2 heures au plus, et « Actualiser » dans la fiche. Une page de connexion ou de vérification arrête le relevé sans rien demander (la fiche dit de se connecter dans l'app).
+- **Extension** (1.14.0) : quand la personne passe sur « Mes annonces » ou Seller Hub, et toutes les 3 heures au plus depuis une autre page du site (cadre invisible, si le site l'accepte).
+- La lecture (`extension/stats.js`, le même code pour l'app et l'extension) réunit le texte affiché sur chaque annonce (« 128 vues », icône œil ou cœur suivie d'un nombre, colonnes « Vues » et « Observateurs » d'eBay) et les réponses JSON que la page reçoit déjà (`extension/stats-page.js`, aucune requête en plus).
+- Le serveur (`POST /api/stats` avec la session, `POST /api/extension/stats` avec la clé) range les chiffres dans la fiche dont le lien d'annonce a le même numéro (`stats.lbc`, `stats.ebay`, avec une valeur par jour sur 30 jours). Un relevé ne change pas la date de modification de la fiche, et les chiffres partent avec le lien si celui-ci change. Le site relit les chiffres toutes les 10 minutes.
+
 ## Suivi des colis
 
 Sur la fiche d'une vente envoyée (onglet Suivi), on note le transporteur (Colissimo, Mondial Relay, Relais Colis, Chronopost / Shop2Shop, Lettre suivie, DPD, UPS, GLS) et le numéro de suivi : le transporteur est deviné d'après le numéro, l'article passe en « Envoyé », un bouton ouvre la page de suivi du transporteur et un autre copie un message prêt à coller dans la conversation Le Bon Coin. « Colis livré » se coche à la main ; la date s'affiche aussi sur la carte dans Mes articles. Le colis d'un lot vaut pour tous ses articles.

@@ -506,6 +506,7 @@ struct Fiche: View {
                 }
             }
             BlocCote(appli: appli, article: $article, original: $original)
+            BlocStats(appli: appli, releve: appli.releve, article: article)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
                 champ("Texte de l'annonce") {

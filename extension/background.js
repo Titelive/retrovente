@@ -106,6 +106,12 @@ var ACTIONS = {
     var r = await appel("/api/extension/vendu", { method: "POST", headers: await entetes(), body: JSON.stringify({ ids: m.ids || [], prix: m.prix || null, remise: m.remise || "" }) });
     return r.json();
   },
+  // Vues et favoris lus sur « Mes annonces » (Le Bon Coin) ou Seller Hub (eBay) : rangés dans les fiches liées.
+  stats: async function (m) {
+    var l = (Array.isArray(m.annonces) ? m.annonces : []).slice(0, 500).map(function (x) { return { id: String((x && x.id) || ""), vues: x && x.vues != null ? x.vues : null, favoris: x && x.favoris != null ? x.favoris : null }; });
+    var r = await appel("/api/extension/stats", { method: "POST", headers: await entetes(), body: JSON.stringify({ site: m.site === "ebay" ? "ebay" : "lbc", annonces: l }) });
+    return r.json();
+  },
   rempli: async function () { await appel("/api/extension/rempli", { method: "POST" }); return { ok: true }; },
 };
 

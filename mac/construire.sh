@@ -26,7 +26,7 @@ sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" mac/Info.plist > "$APP
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
 # Extension embarquée (mêmes fichiers que pour Safari, Chrome, Firefox) et pont vers l'app.
-cp extension/manifest.json extension/commun.js extension/lbc.js extension/appli.js extension/popup.html extension/popup.js "$APP/Contents/Resources/extension/"
+cp extension/manifest.json extension/commun.js extension/lbc.js extension/stats.js extension/stats-page.js extension/appli.js extension/popup.html extension/popup.js "$APP/Contents/Resources/extension/"
 cp -R extension/img extension/icones extension/polices "$APP/Contents/Resources/extension/"
 cp mac/pont.js mac/cookies.js mac/bloqueur.json "$APP/Contents/Resources/"
 

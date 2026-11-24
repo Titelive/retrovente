@@ -395,6 +395,7 @@ struct CarteArticle: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(article.titre).font(.headline).lineLimit(2, reservesSpace: true)
             Text(sousTitre.isEmpty ? " " : sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            StatsCarte(article: article)
             if let c = colis {
                 Label(c, systemImage: article.livreLe.isEmpty ? "shippingbox" : "checkmark.circle").font(.caption.weight(.medium))
                     .foregroundStyle(article.livreLe.isEmpty ? Color.secondary : Libelles.couleursStatut("recu").texte).lineLimit(1)
