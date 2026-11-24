@@ -154,7 +154,7 @@ struct Accueil: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: visibilite) {
-            List(selection: $filtre) {
+            List {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     TextField("Chercher un article (⌘K)", text: $recherche).textFieldStyle(.plain).focused($champRecherche)
@@ -163,19 +163,18 @@ struct Accueil: View {
                 .padding(.horizontal, 10).padding(.vertical, 7).verre(Capsule())
                 .listRowSeparator(.hidden)
                 Section("Mes articles") {
-                    ligne(nil, "Tous", "square.grid.2x2", appli.visibles(nil).count).tag(String?.none)
+                    ligne(nil, "Tous", "square.grid.2x2", appli.visibles(nil).count)
                     ForEach(Libelles.statuts, id: \.0) { s in
-                        ligne(s.0, s.1, s.2, appli.visibles(s.0).count).tag(Optional(s.0))
+                        ligne(s.0, s.1, s.2, appli.visibles(s.0).count)
                     }
                 }
                 Section("Mon espace") {
-                    ligne("@trophees", "Trophées", "trophy", Trophees.liste(appli).filter { $0.ok }.count).tag(Optional("@trophees"))
-                    ligne("@bilan", "Bilan des ventes", "chart.bar", nil).tag(Optional("@bilan"))
-                    ligne("@compte", "Mon compte", "person.crop.circle", nil).tag(Optional("@compte"))
+                    ligne("@trophees", "Trophées", "trophy", Trophees.liste(appli).filter { $0.ok }.count)
+                    ligne("@bilan", "Bilan des ventes", "chart.bar", nil)
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
-            .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli).padding(10) }
+            .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
         } detail: {
             if filtre == "@trophees" { Trophees(appli: appli) }
             else if filtre == "@bilan" { Bilan(appli: appli) }
@@ -205,17 +204,28 @@ struct Accueil: View {
         .onAppear { if let p = appli.page { filtre = p == "tous" ? nil : "@" + p } }
     }
     private var titre: String { filtre.flatMap { f in Libelles.statuts.first { $0.0 == f }?.1 } ?? "Tous mes articles" }
+    /// Une ligne de la barre latérale : un vrai bouton (la sélection de List ne prenait pas « Tous » ni « Mon espace »).
     private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int?) -> some View {
-        HStack {
-            Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
-            Spacer()
-            if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary) }
+        let actif = filtre == id
+        return Button { filtre = id; appli.selection = nil; appli.choix = nil } label: {
+            HStack {
+                Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(actif ? Color.white : Color.rrOr) }
+                Spacer()
+                if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(actif ? Color.white.opacity(0.85) : Color.secondary) }
+            }
+            .foregroundStyle(actif ? Color.white : Color.primary)
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(actif ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
     }
 }
 
 struct CarteCompte: View {
     @ObservedObject var appli: Appli
+    var actif = false
     var body: some View {
         Button { appli.compteOuvert = true } label: {
             HStack(spacing: 10) {
@@ -229,7 +239,9 @@ struct CarteCompte: View {
             }.padding(10).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .verre(RoundedRectangle(cornerRadius: 16), interactif: true)
+        .verre(RoundedRectangle(cornerRadius: 16), teinte: actif ? .rrOr : nil, interactif: true)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(actif ? Color.rrOr : .clear, lineWidth: 2))
+        .help("Mon compte (⇧⌘K)")
     }
 }
 

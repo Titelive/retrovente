@@ -305,7 +305,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
         var rubriques: NSView = pile(boutons, espace: 4)
-        var droite: NSView = pile([precedent, suivant, recharger, separateur(), boutonCompte], espace: 2)
+        var droite: NSView = pile([precedent, suivant, recharger], espace: 2)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif
