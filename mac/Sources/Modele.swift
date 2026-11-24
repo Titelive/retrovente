@@ -8,6 +8,17 @@ import SwiftUI
 
 struct Photo: Identifiable, Hashable { let id: String; var legende: String }
 
+extension Article {
+    /// Annonce simple composée à partir des champs (même modèle que le serveur quand l'annonce est vide).
+    static func titreSimple(_ a: Article) -> String { String([a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: " ").prefix(100)) }
+    static func texteSimple(_ a: Article) -> String {
+        let etats = ["neuf": "Neuf.", "tres_bon": "Très bon état.", "bon": "Bon état.", "correct": "État correct.", "pieces": "Pour pièces."]
+        let contenus = ["seul": "Cartouche ou disque seul.", "boite": "En boîte, sans notice.", "complet": "Complet : boîte et notice.", "boite_vide": "Boîte seule, sans le jeu."]
+        let l1 = [a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: ", ") + "."
+        return [l1, a.region.isEmpty ? nil : "Version " + a.region + ".", etats[a.etat], contenus[a.contenu], "Remise en main propre ou envoi."].compactMap { $0 }.joined(separator: "\n")
+    }
+}
+
 struct Article: Identifiable, Hashable {
     var id: String = ""
     var titre = "", categorie = "jeux", plateforme = "", region = "", etat = "", contenu = ""
@@ -496,10 +507,31 @@ final class Appli: ObservableObject {
     }
     func identifier(_ photo: String) async throws -> Article {
         let j = try await API.json("POST", "/api/ia/identifier", ["photo": photo])
-        var a = Article(j["objet"] as? [String: Any] ?? [:]); a.ia = true
-        if let r = (j["objet"] as? [String: Any])?["remarques"] as? String, !r.isEmpty { a.notes = r }
+        let o = j["objet"] as? [String: Any] ?? [:]
+        var a = Article(o); a.ia = true
+        if let r = o["remarques"] as? String, !r.isEmpty { a.notes = r }
+        // L'IA rédige le titre et le texte de l'annonce (« annonce » et « description ») : on les garde dans la fiche.
+        if a.titreAnnonce.isEmpty, let t = o["annonce"] as? String { a.titreAnnonce = t }
+        if a.texteAnnonce.isEmpty, let d = o["description"] as? String { a.texteAnnonce = d }
         return a
     }
+    /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche (comme le dialogue de la fiche sur le site).
+    /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
+    func rediger(_ a: Article) async -> (titre: String, texte: String) {
+        var fiche: [String: Any] = [:]
+        let e = a.envoi
+        for k in ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"] {
+            if let v = e[k], !(v is NSNull), "\(v)" != "" { fiche[k] = v }
+        }
+        let consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet, à partir de la fiche uniquement."
+        if let j = try? await API.json("POST", "/api/ia/dialoguer", ["messages": [["role": "vendeur", "texte": consigne]], "fiche": fiche]),
+           let ch = j["changements"] as? [String: Any] {
+            let t = ch["titreAnnonce"] as? String ?? "", d = ch["texteAnnonce"] as? String ?? ""
+            if !t.isEmpty || !d.isEmpty { return (t.isEmpty ? Article.titreSimple(a) : t, d.isEmpty ? Article.texteSimple(a) : d) }
+        }
+        return (Article.titreSimple(a), Article.texteSimple(a))
+    }
+
     /// Cote IA de l'article, gardée dans sa fiche.
     func estimerCote(_ a: Article) async -> Article? {
         do {

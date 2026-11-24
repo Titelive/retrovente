@@ -312,6 +312,7 @@ struct Fiche: View {
     @State private var choixPhotos: [PhotosPickerItem] = []
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
+    @State private var redaction = false
 
     /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
     private var bandeauAnnonceMorte: some View {
@@ -354,6 +355,20 @@ struct Fiche: View {
         guard let r = r else { return }
         article = r; original = r
         appli.deposer(r)
+    }
+
+    /// Titre et texte de l'annonce par l'IA. Sans `forcer`, seulement si l'annonce est vide (et pas pour un lot, refait par le serveur).
+    private func rediger(forcer: Bool) async {
+        guard !redaction, !article.estLot, !article.titre.isEmpty else { return }
+        guard forcer || article.texteAnnonce.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        redaction = true; defer { redaction = false }
+        let avant = article
+        let r = await appli.rediger(article)
+        guard article.id == avant.id, article.texteAnnonce == avant.texteAnnonce || forcer else { return }   // tapé entre-temps : on ne l'écrase pas
+        if forcer || article.titreAnnonce.isEmpty { article.titreAnnonce = r.titre }
+        article.texteAnnonce = r.texte
+        // Rédaction automatique d'une fiche sans autre modification en cours : enregistrée tout de suite.
+        if !forcer, avant == original, let n = await appli.enregistrer(article) { article = n; original = n }
     }
 
     /// Lot : titre accrocheur et annonce refaits par le serveur avec les articles du lot (comme « Mettre à jour l'annonce » du site).
@@ -425,6 +440,8 @@ struct Fiche: View {
             article = n; original = n
         }
         .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
+        // Annonce vide : l'IA la rédige tout de suite (il reste à enregistrer).
+        .task(id: article.id) { await rediger(forcer: false) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
         } message: { Text("La fiche et ses photos seront effacées.") }
@@ -508,6 +525,12 @@ struct Fiche: View {
             BlocCote(appli: appli, article: $article, original: $original)
             BlocStats(appli: appli, releve: appli.releve, article: article)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
+                HStack(spacing: 8) {
+                    if redaction { ProgressView().controlSize(.small); Text("L'IA rédige ton annonce…").font(.callout).foregroundStyle(.secondary) }
+                    Spacer()
+                    Button { Task { await rediger(forcer: true) } } label: { Label(article.texteAnnonce.isEmpty ? "Rédiger l'annonce" : "Réécrire avec l'IA", systemImage: "sparkles") }
+                        .boutonVerre().disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA à partir de la fiche")
+                }
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
                 champ("Texte de l'annonce") {
                     TextEditor(text: $article.texteAnnonce).font(.body).frame(minHeight: 120).scrollContentBackground(.hidden)
