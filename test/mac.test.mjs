@@ -28,3 +28,12 @@ test("le pont fournit les API d'extension utilisées par les scripts", () => {
     for (const m of lire("extension/" + f).matchAll(/RR\.(storage\.local|runtime)\.(\w+)/g)) utilisees.add(m[2]);
   for (const nom of utilisees) assert.match(pont, new RegExp(`\\b${nom}:`), `browser.*.${nom} manque dans mac/pont.js`);
 });
+
+test("vues et favoris : l'app embarque stats.js et stats-page.js, valides seuls (vue cachée, sans pont)", () => {
+  const e = (p) => lire("extension/" + p);
+  assert.doesNotThrow(() => new Function(e("stats.js")));
+  assert.doesNotThrow(() => new Function(e("stats-page.js")));
+  const c = lire("mac/construire.sh");
+  for (const f of ["stats.js", "stats-page.js"]) assert.match(c, new RegExp("extension/" + f.replace(".", "\\.")), f + " absent de construire.sh");
+  assert.match(lire("mac/Sources/Stats.swift"), /Extension\.texte\("stats\.js"\)/);
+});

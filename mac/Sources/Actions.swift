@@ -44,6 +44,9 @@ final class Actions {
             case "vendu":
                 let corps: [String: Any] = ["ids": m["ids"] as? [Any] ?? [], "prix": ou(m["prix"], NSNull()), "remise": chaine(m["remise"])]
                 return try JSONSerialization.jsonObject(with: try await appel("/api/extension/vendu", corps: corps).0)
+            case "stats":
+                let corps: [String: Any] = ["site": chaine(m["site"]) == "ebay" ? "ebay" : "lbc", "annonces": m["annonces"] as? [Any] ?? []]
+                return try JSONSerialization.jsonObject(with: try await appel("/api/extension/stats", corps: corps).0)
             case "rempli":
                 _ = try await appel("/api/extension/rempli", methode: "POST"); return ["ok": true]
             case "son": return jouerSon(m["wav"] as? String)

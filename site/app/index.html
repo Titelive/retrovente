@@ -708,6 +708,21 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .site.lbc-s{background:#EC5A13}.site.ebay-s{background:#0064D2}
 a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid var(--anis);outline-offset:2px}
 .jeu .im .sites{position:absolute;left:10px;bottom:10px;z-index:2}
+/* ===== Vues et favoris des annonces (relevés sur Mes annonces / Seller Hub) : ligne de la carte, bloc de la fiche ===== */
+.jeu .ln.stats{justify-content:flex-start;gap:12px;font:700 12.5px/1 var(--texte,inherit);color:var(--gris);font-variant-numeric:tabular-nums}
+.stats span{display:inline-flex;align-items:center;gap:4px}
+.stats svg,.stats-fiche svg{width:14px;height:14px;flex:none}
+.stats .sf svg{color:#E0457B}
+.stats-fiche{display:grid;gap:8px;margin:2px 0 14px;padding:12px 14px;border-radius:14px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait)}
+.stats-fiche .lg{display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--gris)}
+.stats-fiche .lg>span{display:inline-flex;align-items:center;gap:5px}
+.stats-fiche .lg svg{color:var(--gris)}
+.stats-fiche .lg b{font:800 18px/1 var(--titre);color:var(--encre);font-variant-numeric:tabular-nums}
+.stats-fiche .lg .gain{font-weight:700;font-size:12.5px;color:#1F5410;background:#DDF3CF;border-radius:7px;padding:3px 7px}
+:root[data-theme="dark"] .stats-fiche .lg .gain{color:#B5F09A;background:#1D3A14}
+.stats-fiche .lg .quand{margin-left:auto;font-size:12.5px}
+.stats-fiche .lg .fav svg{color:#E0457B}
+.stats-fiche .vide{font-size:13.5px;color:var(--gris)}
 /* ===== Rareté d'un jeu : badge sur la carte (une à trois gemmes), champ de la fiche ===== */
 .jeu .im .rar{position:absolute;right:10px;bottom:10px;z-index:2;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:7px;font:800 11px/1 var(--titre);letter-spacing:-.1px;text-transform:none;color:var(--rar-tx);background:var(--rar-bg);box-shadow:0 0 0 1.5px var(--carte),0 4px 10px -4px rgba(0,0,0,.45);white-space:nowrap}
 .jeu .im .rar span{font:inherit;color:inherit;letter-spacing:inherit;text-transform:none}
@@ -1558,6 +1573,7 @@ html.sans-anim .vt-b.pousse{animation:none}
       <section class="carte bloc" data-onglet="annonce">
         <header><h3>L'annonce</h3><span id="fSitesM"></span><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
         <div class="lot-alerte" id="fLotAnnonce" role="status" hidden></div>
+        <div class="stats-fiche" id="fStats" aria-live="polite" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
         <label class="f">Lien de l'annonce Le Bon Coin une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
@@ -1883,6 +1899,31 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 /* Sites où l'annonce est en ligne, d'après ses liens : une pastille par site, cliquable vers l'annonce. */
 function sitesHtml(lbc,ebay,lien){var p=function(u,c,t,n){return u?(lien?'<a class="site '+c+'" href="'+esc(u)+'" target="_blank" rel="noopener" title="Voir l\'annonce sur '+n+'" aria-label="Voir l\'annonce sur '+n+'">'+t+'</a>':'<span class="site '+c+'" title="En ligne sur '+n+'">'+t+'</span>'):""};
   var h=p(lbc,"lbc-s","LBC","Le Bon Coin")+p(ebay,"ebay-s","eBay","eBay");return h?'<span class="sites">'+h+'</span>':""}
+/* Vues et favoris relevés sur les sites (o.stats.lbc / o.stats.ebay, voir server/stats.mjs) */
+var OEIL_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  COEUR_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.7 4.5c2.1 0 3.5 1.1 4.3 2.4h2c.8-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.7 4.3 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+var SITES_STATS=[["lbc","Le Bon Coin","annonce"],["ebay","eBay","annonceEbay"]];
+function statsDe(o){var st=o&&o.stats||{};return SITES_STATS.filter(function(s){return st[s[0]]&&o[s[2]]&&st[s[0]].url===o[s[2]]}).map(function(s){return {site:s[0],nom:s[1],e:st[s[0]]}})}
+function nbStat(n){return n>=10000?(Math.round(n/100)/10).toLocaleString("fr-FR")+" k":n.toLocaleString("fr-FR")}
+function ilYa(iso){var m=Math.round((Date.now()-new Date(iso))/6e4);return !(m>=0)?"":m<2?"à l'instant":m<60?"il y a "+m+" min":m<2880?"il y a "+Math.round(m/60)+" h":"il y a "+Math.round(m/1440)+" jours"}
+function gain7(e){var h=e.hist||[];if(h.length<2)return null;var lim=new Date(Date.now()-7*864e5).toISOString().slice(0,10),b=h.filter(function(x){return x.j>=lim})[0];if(!b||b===h[h.length-1])return null;
+  return {v:e.vues!=null&&b.v!=null?e.vues-b.v:null,f:e.favoris!=null&&b.f!=null?e.favoris-b.f:null}}
+function statsHtml(o){if(vendu(o))return"";var l=statsDe(o);if(!l.length)return"";
+  var v=null,f=null;l.forEach(function(x){if(x.e.vues!=null)v=(v||0)+x.e.vues;if(x.e.favoris!=null)f=(f||0)+x.e.favoris});if(v==null&&f==null)return"";
+  var t=l.map(function(x){return x.nom+" : "+(x.e.vues!=null?pluriel(x.e.vues,"vue"):"vues ?")+", "+(x.e.favoris!=null?pluriel(x.e.favoris,x.site==="ebay"?"observateur":"favori"):"favoris ?")+" ("+ilYa(x.e.at)+")"}).join("\n");
+  return '<div class="ln stats" title="'+esc(t)+'">'+(v!=null?'<span class="sv" aria-label="'+pluriel(v,"vue")+'">'+OEIL_SVG+nbStat(v)+'</span>':'')+(f!=null?'<span class="sf" aria-label="'+pluriel(f,"favori")+'">'+COEUR_SVG+nbStat(f)+'</span>':'')+'</div>'}
+function majStatsFiche(o){var b=$("fStats");if(!b)return;var sites=o&&!vendu(o)?SITES_STATS.filter(function(s){return o[s[2]]}):[];b.hidden=!sites.length;if(!sites.length){b.innerHTML="";return}
+  var l=statsDe(o),par={};l.forEach(function(x){par[x.site]=x});
+  b.innerHTML=sites.map(function(s){var x=par[s[0]],badge='<span class="site '+(s[0]==="lbc"?"lbc-s":"ebay-s")+'">'+(s[0]==="lbc"?"LBC":"eBay")+'</span>';
+    if(!x)return '<div class="lg">'+badge+'<span class="vide">Vues et favoris pas encore relevés : l\'app Mac les lit toute seule, l\'extension quand tu passes sur '+(s[0]==="lbc"?"« Mes annonces »":"Seller Hub")+'.</span></div>';
+    var g=gain7(x.e),mot=s[0]==="ebay"?"observateur":"favori";
+    return '<div class="lg">'+badge+'<span>'+OEIL_SVG+' <b>'+(x.e.vues!=null?nbStat(x.e.vues):"—")+'</b>'+(x.e.vues>1?"vues":"vue")+'</span><span class="fav">'+COEUR_SVG+' <b>'+(x.e.favoris!=null?nbStat(x.e.favoris):"—")+'</b>'+mot+(x.e.favoris>1?"s":"")+'</span>'+
+      (g&&(g.v>0||g.f>0)?'<span class="gain">+'+[g.v>0?pluriel(g.v,"vue"):"",g.f>0?pluriel(g.f,mot):""].filter(Boolean).join(", ")+' en 7 jours</span>':'')+'<span class="quand">Relevé '+ilYa(x.e.at)+'</span></div>'}).join("")}
+/* Rafraîchissement : toutes les 10 minutes (onglet visible), seules les stats des fiches sont reprises. */
+var STATS_T=0;function rafraichirStats(){if(document.hidden||!ME||Date.now()-STATS_T<5*6e4)return;STATS_T=Date.now();
+  api("GET","/api/objets").then(function(j){var chg=false;(j.objets||[]).forEach(function(n){var o=parId(n.id);if(o&&JSON.stringify(o.stats||null)!==JSON.stringify(n.stats||null)){o.stats=n.stats;chg=true}});
+    if(chg){dessiner();if(ED&&!$("fiche").hidden){var e=parId(ED.id);if(e){ED.stats=e.stats;majStatsFiche(ED)}}}}).catch(function(){})}
+setInterval(rafraichirStats,10*6e4);document.addEventListener("visibilitychange",rafraichirStats);
 function eur(n){n=n||0;return n.toLocaleString("fr-FR",{maximumFractionDigits:Math.round(n)===n?0:2})+" €"}
 function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+String(r).padStart(2,"0"):"")}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -2149,7 +2190,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
     return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+badgeRarete(o)+'</div>'+
-      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+statsHtml(o)+
       ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
   $("liste").innerHTML=gs.map(function(g){
@@ -2912,7 +2953,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOri
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:urlPhoto(o.id,x.id,o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();majStatsFiche(o);CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -3497,7 +3538,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
   return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
-    '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
+    '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+statsHtml(o)+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
 /* --- idées de lots à thème --- */

@@ -25,6 +25,7 @@ struct Article: Identifiable, Hashable {
     var alerteVendus = 0                   // lot : articles vendus à part
     var suivi = "", transporteur = "", livreLe = "", suiviLibelle = ""
     var coteLot = false                    // la cote conseille de vendre en lot
+    var stats: [String: StatsSite] = [:]   // vues et favoris relevés sur les sites (« lbc », « ebay »), voir Stats.swift
 
     init() {}
     init(_ d: [String: Any]) {
@@ -54,6 +55,7 @@ struct Article: Identifiable, Hashable {
         suivi = t("suivi"); transporteur = t("transporteur"); livreLe = t("livreLe")
         suiviLibelle = (d["suiviEtat"] as? [String: Any])?["libelle"] as? String ?? ""
         coteLot = (d["cote"] as? [String: Any])?["lot"] as? Bool ?? false
+        stats = Article.lireStats(d)
     }
     var estLot: Bool { membres != nil }
     var vendu: Bool { ["vendu", "envoye", "recu"].contains(statut) }
@@ -378,6 +380,7 @@ final class Appli: ObservableObject {
         didSet { UserDefaults.standard.set(annoncesMortes, forKey: "annoncesMortes") }
     }
     let verif = VerifAnnonces()
+    let releve = ReleveStats()                 // vues et favoris des annonces, relevés en arrière-plan
     @Published var gestion: GestionAnnonce? = nil {
         didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
@@ -390,10 +393,13 @@ final class Appli: ObservableObject {
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
                 ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6", "cree": "2026-11-20", "rareteJeu": "peu_commun", "lots": ["l1"], "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000001",
+                 "stats": ["lbc": ["vues": 128, "favoris": 7, "at": demoIl(2), "hist": [["j": demoJour(6), "v": 96, "f": 4], ["j": demoJour(0), "v": 128, "f": 7]]]],
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
-                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789"],
-                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
+                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789",
+                 "stats": ["ebay": ["vues": 54, "favoris": 3, "at": demoIl(3), "hist": [["j": demoJour(5), "v": 41, "f": 2], ["j": demoJour(0), "v": 54, "f": 3]]]]],
+                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"],
+                 "stats": ["lbc": ["vues": 342, "favoris": 19, "at": demoIl(1), "hist": [["j": demoJour(7), "v": 250, "f": 12], ["j": demoJour(0), "v": 342, "f": 19]]]]],
                 ["id": "a8", "titre": "Perfect Dark", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 22, "prixVente": 20, "statut": "recu", "remise": "envoi", "transporteur": "colissimo", "suivi": "6A12345678901", "livreLe": "2026-11-18", "dateVente": "2026-11-14", "modifie": "0", "cree": "2026-10-02", "rareteJeu": "peu_commun"],
                 ["id": "a9", "titre": "Conker's Bad Fur Day", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 185, "statut": "en_vente", "modifie": "0", "cree": "2026-11-10", "rareteJeu": "tres_rare"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
@@ -428,6 +434,7 @@ final class Appli: ObservableObject {
             if n != articles { articles = n }   // rien de changé : la grille n'est pas redessinée
             dernierChargement = Date()
             verif.appli = self; verif.planifier(articles)
+            releve.appli = self; releve.planifier(articles)
         } catch { signaler(error) }
     }
     func connecter(email: String, motdepasse: String) async throws {
