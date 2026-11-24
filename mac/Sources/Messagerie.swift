@@ -62,6 +62,11 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     private var vue: WKWebView?
     private var minuterie: Timer?
     private var charge = false
+    /// Début du chargement en cours : passé `delaiMax` sans conversation lue, on affiche une erreur claire.
+    private var debut: Date? = nil
+    private let delaiMax: TimeInterval = 35
+    private var garde: Task<Void, Never>? = nil
+    private var derniereErreur = ""
 
     /// À l'ouverture de l'onglet Messages : la messagerie se charge en fond (une fois), puis se relit régulièrement.
     func demarrer(_ f: Fenetre) {
@@ -102,29 +107,70 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     func recharger() {
         guard let v = vue else { return }
-        etat = .chargement; charge = true
+        NSLog("RetroRevente messagerie : chargement de la messagerie Le Bon Coin (en fond)")
+        etat = .chargement; charge = true; debut = Date(); derniereErreur = ""
         v.load(URLRequest(url: URL(string: "https://www.leboncoin.fr/messages")!))
+        // Garde-fou : relit toutes les 3 s jusqu'au délai maximum, puis erreur claire (plus de roue sans fin).
+        garde?.cancel()
+        garde = Task { [weak self] in
+            while let s = self, s.debut != nil {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard !Task.isCancelled, let s = self, let d = s.debut else { return }
+                await s.lire()
+                if s.debut != nil, Date().timeIntervalSince(d) > s.delaiMax {
+                    s.debut = nil
+                    await s.diagnostiquer("delai")
+                    s.etat = .erreur("La messagerie Le Bon Coin ne s'est pas chargée." + (s.derniereErreur.isEmpty ? "" : "\n(" + s.derniereErreur + ")"))
+                    return
+                }
+            }
+        }
     }
 
     func webView(_ v: WKWebView, didFinish n: WKNavigation!) {
         Task { for d in [1.0, 2.5, 5.0] { try? await Task.sleep(nanoseconds: UInt64(d * 1e9)); await lire(); if !conversations.isEmpty { break } } }
     }
-    func webView(_ v: WKWebView, didFail n: WKNavigation!, withError e: Error) { etat = .erreur("Le Bon Coin ne répond pas.") }
-    func webView(_ v: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) { etat = .erreur("Le Bon Coin ne répond pas. Vérifie ta connexion.") }
+    func webView(_ v: WKWebView, didFail n: WKNavigation!, withError e: Error) { echec("Le Bon Coin ne répond pas.", e) }
+    func webView(_ v: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) { echec("Le Bon Coin ne répond pas. Vérifie ta connexion.", e) }
+    private func echec(_ t: String, _ e: Error) {
+        if (e as NSError).code == NSURLErrorCancelled { return }   // navigation remplacée par une autre (redirection) : pas une erreur
+        NSLog("RetroRevente messagerie : échec de chargement %@", e.localizedDescription)
+        debut = nil; garde?.cancel(); etat = .erreur(t); derniereErreur = e.localizedDescription
+        Task { await diagnostiquer("echec") }
+    }
 
     private func appel(_ js: String, _ args: [String: Any] = [:]) async -> [String: Any]? {
         guard let v = vue else { return nil }
-        let r = try? await v.callAsyncJavaScript("if (!window.rrMessagerie) return null; " + js, arguments: args, in: nil, in: Scripts.monde)
-        return r as? [String: Any]
+        do {
+            let r = try await v.callAsyncJavaScript("if (!window.rrMessagerie) return { absent: true }; " + js, arguments: args, in: nil, in: Scripts.monde)
+            return r as? [String: Any] ?? ["erreur": "Réponse vide de la page"]
+        } catch {
+            NSLog("RetroRevente messagerie : erreur JavaScript %@", String(describing: error))
+            return ["erreur": "Erreur JavaScript", "pile": String(describing: error)]
+        }
     }
 
     /// Relit la liste (et le fil ouvert) sans rien toucher sur la page.
     func lire() async {
-        guard let r = await appel("return window.rrMessagerie.liste();") else { return }
-        if (r["connexion"] as? Bool) == true { etat = .connexion; return }
+        guard let r = await appel("return await window.rrMessagerie.liste();") else { return }
+        if (r["absent"] as? Bool) == true { derniereErreur = "RetroRevente n'est pas encore chargé dans la page"; return }
+        if let e = r["erreur"] as? String {
+            derniereErreur = e
+            NSLog("RetroRevente messagerie : %@ %@", e, r["pile"] as? String ?? "")
+            return
+        }
+        if (r["connexion"] as? Bool) == true {
+            if debut != nil { debut = nil; await diagnostiquer("connexion") }
+            etat = .connexion; return
+        }
         let l = (r["conversations"] as? [[String: Any]] ?? []).map(ConversationLbc.init)
         if l != conversations { conversations = l }
-        if !l.isEmpty || charge { etat = .pret }
+        if !l.isEmpty {
+            if debut != nil { debut = nil; await diagnostiquer("ok") }
+            etat = .pret
+        } else if (r["vide"] as? Bool) == true {
+            debut = nil; etat = .pret   // la page dit qu'il n'y a aucune conversation
+        }
         if ouverte != nil, let f = r["fil"] as? [String: Any] {
             let n = FilLbc(f)
             if n.cle == fil.cle, n != fil {
@@ -133,6 +179,43 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
                 if nouveau && !n.dernierMoi { reponses = []; Task { await proposer() } }
             }
         }
+    }
+
+    /// Diagnostic sans contenu privé (structure de la page, pas les messages) : ~/Library/Application Support/RetroRevente/diag-messagerie.json
+    func diagnostiquer(_ raison: String) async {
+        guard let v = vue else { return }
+        let js = """
+        var D = /il y a|\\bhier\\b|aujourd'hui|^\\d{1,2}[:h]\\d{2}$|^\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?$|^(lun|mar|mer|jeu|ven|sam|dim)\\w*\\.?$|^\\d{1,2} \\p{L}+\\.?( \\d{4})?$/iu;
+        var masque = function (t) { return String(t || '').replace(/\\p{L}/gu, 'x').replace(/\\d/g, '9').slice(0, 80); };
+        var chemin = function (e) { var l = []; for (var k = 0; e && e !== document.body && k < 9; e = e.parentElement, k++) { var r = e.getBoundingClientRect(); l.push(e.tagName.toLowerCase() + (e.getAttribute('role') ? '[role=' + e.getAttribute('role') + ']' : '') + (e.getAttribute('data-qa-id') ? '[qa=' + e.getAttribute('data-qa-id') + ']' : '') + (e.getAttribute('data-test-id') ? '[test=' + e.getAttribute('data-test-id') + ']' : '') + (typeof e.className === 'string' && e.className ? '.' + e.className.trim().split(/\\s+/).slice(0, 3).join('.') : '') + ' ' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' t' + (e.innerText || '').length); } return l; };
+        var dates = [], w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n;
+        while ((n = w.nextNode()) && dates.length < 12) { var t = (n.nodeValue || '').trim(); if (t && t.length < 30 && D.test(t)) dates.push({ texte: t, chemin: chemin(n.parentElement) }); }
+        var main = document.querySelector('main');
+        return JSON.stringify({
+          url: location.href.replace(/\\d{4,}/g, '#'), titre: document.title.replace(/\\d/g, '9'), etat: document.readyState,
+          rrMessagerie: !!window.rrMessagerie, rrNatif: !!window.__rrNatif, fenetre: innerWidth + 'x' + innerHeight, visibilite: document.visibilityState,
+          texteBody: (document.body && document.body.innerText || '').length, texteMain: main ? main.innerText.length : -1,
+          iframes: [].map.call(document.querySelectorAll('iframe'), function (f) { try { var u = new URL(f.src, location.href); return u.host + u.pathname.replace(/\\d{4,}/g, '#') + ' ' + f.offsetWidth + 'x' + f.offsetHeight; } catch (e) { return '?'; } }).slice(0, 10),
+          liens: [].map.call(document.querySelectorAll('a[href*=messag]'), function (a) { return a.getAttribute('href').replace(/[0-9a-f-]{8,}/gi, '#'); }).slice(0, 15),
+          compte: { a: document.querySelectorAll('a[href]').length, li: document.querySelectorAll('li').length, listitem: document.querySelectorAll('[role=listitem]').length, boutons: document.querySelectorAll('button,[role=button]').length, textarea: document.querySelectorAll('textarea').length, editable: document.querySelectorAll('[contenteditable]').length, motDePasse: document.querySelectorAll('input[type=password]').length, img: document.querySelectorAll('img').length },
+          dates: dates, esquisse: masque((main || document.body).innerText.replace(/\\s+/g, ' ')).slice(0, 600)
+        });
+        """
+        var d: [String: Any] = ["raison": raison, "quand": ISO8601DateFormatter().string(from: Date()), "derniereErreur": derniereErreur,
+                                "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?", "conversations": conversations.count]
+        do {
+            let r = try await v.evaluateJavaScript(js, in: nil, in: Scripts.monde)
+            if let t = r as? String, let o = try? JSONSerialization.jsonObject(with: Data(t.utf8)) { d["page"] = o }
+        } catch { d["erreurDiagnostic"] = String(describing: error) }
+        if let l = await appel("return await window.rrMessagerie.liste();") {
+            d["liste"] = ["cles": Array(l.keys), "erreur": l["erreur"] ?? "", "pile": l["pile"] ?? "", "n": (l["conversations"] as? [Any])?.count ?? -1]
+        }
+        let dossier = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("RetroRevente")
+        try? FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        if let data = try? JSONSerialization.data(withJSONObject: d, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: dossier.appendingPathComponent("diag-messagerie.json"))
+        }
+        NSLog("RetroRevente messagerie : diagnostic %@ (%d conversations)", raison, conversations.count)
     }
 
     func ouvrir(_ c: ConversationLbc) async {

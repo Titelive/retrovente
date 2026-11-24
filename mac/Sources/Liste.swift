@@ -273,7 +273,7 @@ struct Grille: View {
                             }
                         }
                     }
-                }.padding(.horizontal, 24).padding(.top, 8).padding(.bottom, appli.choix != nil ? 110 : 28)
+                }.padding(.horizontal, 24).padding(.top, 14).padding(.bottom, appli.choix != nil ? 110 : 28)
             }
             .overlay(alignment: .bottom) { if appli.choix != nil { BarreLot(appli: appli).padding(18).transition(.move(edge: .bottom).combined(with: .opacity)) } }
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.choix != nil)
@@ -394,17 +394,23 @@ struct CarteArticle: View {
     private var texte: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(article.titre).font(.headline).lineLimit(2, reservesSpace: true)
-            Text(sousTitre.isEmpty ? " " : sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            // Une seule ligne (sous-titre, puis vues et favoris à droite) : toutes les cartes gardent la même mise en page.
+            HStack(spacing: 8) {
+                Text(sousTitre.isEmpty ? " " : sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
+                StatsCarte(article: article).lineLimit(1).fixedSize()
+            }
             if let c = colis {
                 Label(c, systemImage: article.livreLe.isEmpty ? "shippingbox" : "checkmark.circle").font(.caption.weight(.medium))
                     .foregroundStyle(article.livreLe.isEmpty ? Color.secondary : Libelles.couleursStatut("recu").texte).lineLimit(1)
             }
             HStack(alignment: .center, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit())
+                    Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize()
                     if article.estLot, !article.vendu, let px = article.prixAffiche {
                         let som = appli.membres(article).reduce(0) { $0 + ($1.valeur ?? 0) }
-                        if som > px { Text(Libelles.prix(som.rounded())).font(.caption).strikethrough().foregroundStyle(.secondary) }
+                        // Prix barré : seulement s'il tient sans repousser la pastille de statut.
+                        if som > px { Text(Libelles.prix(som.rounded())).font(.caption).strikethrough().foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1) }
                     }
                 }
                 Spacer(minLength: 4)
@@ -503,9 +509,10 @@ struct BoutonStatut: View {
             HStack(spacing: 4) {
                 if article.statut == "en_vente" { Circle().fill(Color(nsColor: NSColor(hex: 0x3E8E1E))).frame(width: 6, height: 6) }
                 else { Image(systemName: Libelles.symboleStatut(article.statut)).font(.system(size: 9, weight: .bold)) }
-                Text(Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold))
+                Text(Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold)).lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
+            .fixedSize()   // la pastille reste sur une ligne, quelle que soit la largeur de la carte
             .foregroundStyle(c.texte).padding(.horizontal, 9).padding(.vertical, 5)
             .background(c.fond, in: Capsule()).overlay(Capsule().stroke(c.texte.opacity(0.25), lineWidth: 1))
         }

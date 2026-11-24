@@ -1949,7 +1949,7 @@
              messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
   }
   window.rrMessagerie = {
-    liste: function () { return { page: location.pathname, connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: entreesConversations().map(lireEntree).slice(0, 80), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
+    liste: function () { return { page: location.pathname, vide: /\baucun(e)? (message|conversation)|pas (encore )?de (message|conversation)/i.test(norm((document.querySelector("main") || document.body).innerText).slice(0, 3000)), connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: entreesConversations().map(lireEntree).slice(0, 80), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
     fil: function () { return filActuel(); },
     ouvrir: async function (cle) {
       var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
@@ -1990,6 +1990,14 @@
       return { ok: true, incertain: true, fil: filActuel() };
     },
   };
+  // Une erreur dans la page ne doit jamais laisser l'app attendre : chaque fonction renvoie { erreur } au lieu de lever.
+  Object.keys(window.rrMessagerie).forEach(function (k) {
+    var f = window.rrMessagerie[k];
+    window.rrMessagerie[k] = async function () {
+      try { return await f.apply(null, arguments); }
+      catch (e) { return { erreur: "Lecture impossible (" + k + ")", pile: String((e && (e.stack || e.message)) || e).slice(0, 1500) }; }
+    };
+  });
 
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";

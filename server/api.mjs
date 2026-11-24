@@ -15,6 +15,7 @@ import * as stripe from "./stripe.mjs";
 import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, majPhrasePrix, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 import { normaliserProfil, lireProfil } from "./profil.mjs";
+import { SITES_STATS, idAnnonce, lignesStats, majStats, garderStats } from "./stats.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "recu", "retire"];
@@ -74,7 +75,35 @@ function nettoyer(v, avant) {
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
     // Lots quittés à la vente de l'article : leurs annonces sont à effacer sur les sites (encart, jusqu'à « C'est fait »)
     ...(avant && Array.isArray(avant.lotsAEffacer) && avant.lotsAEffacer.length ? { lotsAEffacer: avant.lotsAEffacer } : {}),
+    // Vues et favoris relevés sur les sites : ils ne s'écrivent que par /api/stats, et suivent le lien de l'annonce.
+    ...statsGardees(avant, v),
   };
+}
+function statsGardees(avant, v) {
+  const s = avant && garderStats(avant.stats, lien(v.annonce), ebayOuErreur(v.annonceEbay));
+  return s ? { stats: s } : {};
+}
+/** Vues et favoris relevés sur un site (« Mes annonces », Seller Hub) : rangés dans les fiches dont le lien correspond. */
+function enregistrerStats(uid, b) {
+  const site = SITES_STATS.includes(b && b.site) ? b.site : "", l = lignesStats(b && b.annonces);
+  if (!site) fail(400, "Site inconnu.");
+  const champ = site === "ebay" ? "annonceEbay" : "annonce", parId = new Map(l.map((x) => [x.id, x]));
+  const quand = new Date(), faits = [];
+  tx(() => {
+    for (const r of db.prepare("SELECT id, data FROM items WHERE user_id = ?").all(uid)) {
+      const d = JSON.parse(r.data), url = d[champ], x = url && parId.get(idAnnonce(site, url));
+      if (!x) continue;
+      const st = d.stats && typeof d.stats === "object" ? d.stats : {}, avant = st[site];
+      const n = majStats(avant, url, x, quand);
+      // rien de changé et relevé récent (moins d'une heure) : on n'écrit pas
+      if (avant && avant.url === url && avant.vues === n.vues && avant.favoris === n.favoris && quand - new Date(avant.at) < 3600e3) { faits.push(r.id); continue; }
+      d.stats = { ...st, [site]: n };
+      // pas de « updated » : un relevé de stats ne compte pas comme une modification de la fiche
+      db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), r.id, uid);
+      faits.push(r.id);
+    }
+  });
+  return { ok: true, site, recus: l.length, maj: faits.length, ids: faits };
 }
 /* ===== Rareté des jeux, établie automatiquement =====
    Elle vient de l'IA : à la reconnaissance photo, puis de la recherche des prix (plus juste, d'après le marché) ; l'appli
@@ -566,6 +595,11 @@ export async function handleApi(req) {
       if (!it || !f || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
     }
+    // Vues et favoris lus par l'extension sur « Mes annonces » (Le Bon Coin) ou Seller Hub (eBay).
+    if (p === "/api/extension/stats" && method === "POST") {
+      if (!allow("stats:" + eu.id, 120, 3600)) return { status: 429, json: { error: "Trop de relevés, réessaie dans un moment." }, headers: CORS };
+      return { status: 200, json: enregistrerStats(eu.id, body()), headers: CORS };
+    }
     if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
     // Lien de l'annonce publiée, repéré par l'extension sur Le Bon Coin : seul champ que la clé peut écrire.
     if (p === "/api/extension/lien" && method === "POST") {
@@ -782,6 +816,11 @@ function adresseVendeur(t) {
   }
 
   /* --- fiches --- */
+  // Vues et favoris relevés par l'app Mac (même format que /api/extension/stats).
+  if (p === "/api/stats" && method === "POST") {
+    if (!allow("stats:" + u.id, 120, 3600)) fail(429, "Trop de relevés, réessaie dans un moment.");
+    return ok(enregistrerStats(u.id, body()));
+  }
   if (p === "/api/objets" && method === "GET") { const t = listItems(u.id); if (t.some((x) => estLot(x) && !VENDU(x.statut))) tx(() => t.forEach((x) => { if (estLot(x)) reparerLot(u.id, x); })); t.filter(SANS_RARETE).slice(0, 8).forEach((x) => rareteAuto(u.id, x.id)); return ok({ objets: t.some((x) => estLot(x)) ? listItems(u.id) : t }); }
   if (p === "/api/objets" && method === "POST") {
     const b = body();
