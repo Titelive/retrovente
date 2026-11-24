@@ -10,6 +10,8 @@ echo "Téléchargement de RetroRevente pour Mac…"
 curl -fL --progress-bar "$URL" -o "$TMP/RetroRevente.zip"
 ditto -x -k "$TMP/RetroRevente.zip" "$TMP"
 osascript -e 'tell application "RetroRevente" to quit' >/dev/null 2>&1 || true
+# Attendre que l'ancienne version soit bien fermée (sinon macOS refuse de rouvrir l'app : erreur -600).
+i=0; while pgrep -x RetroRevente >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
 DEST=/Applications
 [ -w "$DEST" ] || DEST="$HOME/Applications"
 mkdir -p "$DEST"
@@ -18,4 +20,4 @@ mv "$TMP/RetroRevente.app" "$DEST/"
 xattr -dr com.apple.quarantine "$DEST/RetroRevente.app" 2>/dev/null || true
 rm -rf "$TMP"
 echo "RetroRevente est installée dans $DEST. Ouverture…"
-open "$DEST/RetroRevente.app"
+open "$DEST/RetroRevente.app" 2>/dev/null || { sleep 2; open "$DEST/RetroRevente.app"; }
