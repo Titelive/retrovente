@@ -10,6 +10,14 @@ enum Charte {
     static let orClair = rvb(0xFFE27A)
     static let encre = rvb(0xF4F4EE)
     static let gris = rvb(0xA6A69E)
+    /// Liquid Glass (macOS 26) : la barre devient du verre posé sur la page.
+    static var verre: Bool { if #available(macOS 26.0, *) { return true }; return false }
+    /// Texte de la barre : blanc sur la barre nuit ; sur le verre, la couleur du système (lisible en clair et en sombre).
+    static var texte: NSColor { verre ? .labelColor : encre }
+    /// Or des icônes : plus soutenu sur verre clair pour rester lisible.
+    static let orIcone = NSColor(name: nil) { a in
+        a.bestMatch(from: [.aqua, .darkAqua]) == .aqua ? rvb(0xB98200) : rvb(0xF5C542)
+    }
 
     static func police(_ taille: CGFloat, _ graisse: NSFont.Weight = .semibold) -> NSFont {
         let f = NSFont.systemFont(ofSize: taille, weight: graisse)
@@ -57,12 +65,18 @@ final class Bouton: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     private func majCouleurs() {
-        icone.contentTintColor = actif ? Charte.orClair : Charte.or
-        texte?.textColor = actif ? Charte.orClair : Charte.encre
+        if Charte.verre {
+            icone.contentTintColor = Charte.orIcone
+            texte?.textColor = .labelColor
+            texte?.font = Charte.police(13, actif ? .bold : .semibold)
+        } else {
+            icone.contentTintColor = actif ? Charte.orClair : Charte.or
+            texte?.textColor = actif ? Charte.orClair : Charte.encre
+        }
     }
     override func draw(_ dirtyRect: NSRect) {
         let fond: NSColor? = actif ? Charte.or.withAlphaComponent(appui ? 0.26 : 0.18)
-            : appui ? NSColor.white.withAlphaComponent(0.14) : survol && disponible ? NSColor.white.withAlphaComponent(0.08) : nil
+            : appui ? Bouton.voile.withAlphaComponent(0.14) : survol && disponible ? Bouton.voile.withAlphaComponent(0.08) : nil
         guard let f = fond else { return }
         f.setFill()
         NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
@@ -72,6 +86,7 @@ final class Bouton: NSView {
             p.lineWidth = 1; p.stroke()
         }
     }
+    private static var voile: NSColor { Charte.verre ? .labelColor : .white }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
@@ -92,6 +107,7 @@ final class Bouton: NSView {
 /// Fond de la barre du haut : nuit, avec un filet en bas. Les zones vides déplacent la fenêtre (comme une barre de titre).
 final class BarreHaut: NSView {
     override func draw(_ dirtyRect: NSRect) {
+        if Charte.verre { return }   // macOS 26 : rien derrière, la page passe sous le verre
         Charte.nuit.setFill(); bounds.fill()
         NSColor.white.withAlphaComponent(0.07).setFill()
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
@@ -107,8 +123,8 @@ final class Logo: NSView {
         let image = NSImageView(image: NSApp.applicationIconImage ?? NSImage())
         image.imageScaling = .scaleProportionallyUpOrDown
         let nom = NSTextField(labelWithAttributedString: {
-            let a = NSMutableAttributedString(string: "Retro", attributes: [.font: Charte.police(15, .bold), .foregroundColor: Charte.encre])
-            a.append(NSAttributedString(string: "Revente", attributes: [.font: Charte.police(15, .bold), .foregroundColor: Charte.or]))
+            let a = NSMutableAttributedString(string: "Retro", attributes: [.font: Charte.police(15, .bold), .foregroundColor: Charte.texte])
+            a.append(NSAttributedString(string: "Revente", attributes: [.font: Charte.police(15, .bold), .foregroundColor: Charte.verre ? Charte.orIcone : Charte.or]))
             return a
         }())
         let pile = NSStackView(views: [image, nom])
@@ -133,3 +149,23 @@ final class Chargement: NSView {
         NSRect(x: 0, y: 0, width: bounds.width * CGFloat(max(0.08, progression)), height: bounds.height).fill()
     }
 }
+
+#if compiler(>=6.2)
+/// Une capsule de verre Liquid Glass autour de `vue` (macOS 26).
+@available(macOS 26.0, *)
+func capsuleDeVerre(_ vue: NSView, marge: CGFloat = 4) -> NSView {
+    let dedans = NSView()
+    vue.translatesAutoresizingMaskIntoConstraints = false
+    dedans.addSubview(vue)
+    NSLayoutConstraint.activate([
+        vue.leadingAnchor.constraint(equalTo: dedans.leadingAnchor, constant: marge),
+        vue.trailingAnchor.constraint(equalTo: dedans.trailingAnchor, constant: -marge),
+        vue.topAnchor.constraint(equalTo: dedans.topAnchor, constant: marge),
+        vue.bottomAnchor.constraint(equalTo: dedans.bottomAnchor, constant: -marge),
+    ])
+    let verre = NSGlassEffectView()
+    verre.contentView = dedans
+    verre.cornerRadius = 19
+    return verre
+}
+#endif

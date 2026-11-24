@@ -64,6 +64,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
         appli = creerNavigateur()
         lbc = creerNavigateur()
+        // macOS 26 : les pages passent sous la barre de verre.
+        if Charte.verre { fenetre.styleMask.insert(.fullSizeContentView) }
         let contenu = NSView()
         for v in [appli!, lbc!] { v.translatesAutoresizingMaskIntoConstraints = false; contenu.addSubview(v) }
         chargement.translatesAutoresizingMaskIntoConstraints = false
@@ -74,9 +76,14 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
                   v.topAnchor.constraint(equalTo: contenu.topAnchor), v.bottomAnchor.constraint(equalTo: contenu.bottomAnchor)]
         }
         c += [chargement.leadingAnchor.constraint(equalTo: contenu.leadingAnchor), chargement.trailingAnchor.constraint(equalTo: contenu.trailingAnchor),
-              chargement.topAnchor.constraint(equalTo: contenu.topAnchor), chargement.heightAnchor.constraint(equalToConstant: 2)]
+              chargement.heightAnchor.constraint(equalToConstant: 2)]
         NSLayoutConstraint.activate(c)
         fenetre.contentView = contenu
+        if Charte.verre, let guide = fenetre.contentLayoutGuide as? NSLayoutGuide {
+            chargement.topAnchor.constraint(equalTo: guide.topAnchor).isActive = true
+        } else {
+            chargement.topAnchor.constraint(equalTo: contenu.topAnchor).isActive = true
+        }
         fenetre.setFrameAutosaveName("RetroRevente")
         if !fenetre.setFrameUsingName("RetroRevente") { fenetre.center() }
 
@@ -86,6 +93,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
             observations.append(v.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in Task { @MainActor in self?.majBarre() } })
         }
         installerBarre()
+        ajusterSousLeVerre()
         appli.load(URLRequest(url: Rubrique.appli.adresse))
         montrer(.appli)
         // Captures automatiques (GitHub) : RR_DEMO=deposer|messages|annonces|compte.
@@ -257,8 +265,11 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         suivant = Bouton(symbole: "chevron.right", titre: nil, aide: "Page suivante (⌘])") { [weak self] in self?.suivante(nil) }
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
-        let rubriques = pile(boutons, espace: 4)
-        let droite = pile([precedent, suivant, recharger, separateur(), boutonCompte], espace: 2)
+        var rubriques: NSView = pile(boutons, espace: 4)
+        var droite: NSView = pile([precedent, suivant, recharger, separateur(), boutonCompte], espace: 2)
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
+        #endif
         for v in [logo, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
         margeFeux = logo.leadingAnchor.constraint(equalTo: barre.leadingAnchor, constant: 84)
         let centre = rubriques.centerXAnchor.constraint(equalTo: barre.centerXAnchor); centre.priority = .defaultHigh
@@ -283,14 +294,29 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         return p
     }
     private func separateur() -> NSView {
-        let v = NSBox(); v.boxType = .custom; v.borderWidth = 0; v.fillColor = NSColor.white.withAlphaComponent(0.14)
+        let v = NSBox(); v.boxType = .custom; v.borderWidth = 0; v.fillColor = (Charte.verre ? NSColor.labelColor : NSColor.white).withAlphaComponent(0.14)
         v.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([v.widthAnchor.constraint(equalToConstant: 1), v.heightAnchor.constraint(equalToConstant: 18)])
         return v
     }
     // Plein écran : plus de feux à gauche.
     func windowWillEnterFullScreen(_ n: Notification) { margeFeux?.constant = 16 }
-    func windowDidExitFullScreen(_ n: Notification) { margeFeux?.constant = 84 }
+    func windowDidExitFullScreen(_ n: Notification) { margeFeux?.constant = 84; ajusterSousLeVerre() }
+    func windowDidEnterFullScreen(_ n: Notification) { ajusterSousLeVerre() }
+    func windowDidResize(_ n: Notification) { ajusterSousLeVerre() }
+
+    /// macOS 26 : la page commence sous la barre de verre (elle y défile, et le haut de page reste visible).
+    private func ajusterSousLeVerre() {
+        guard appli != nil, lbc != nil else { return }
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            let haut = max(0, fenetre.frame.height - fenetre.contentLayoutRect.height)
+            for v in [appli!, lbc!] where v.obscuredContentInsets.top != haut {
+                v.obscuredContentInsets = NSEdgeInsets(top: haut, left: 0, bottom: 0, right: 0)
+            }
+        }
+        #endif
+    }
 
     // MARK: Navigation
 
