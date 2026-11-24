@@ -17,7 +17,7 @@ echo "Compilation (Apple Silicon et Intel)…"
 for a in arm64 x86_64; do
   xcrun swiftc -O -target "$a-apple-macos13.0" -module-name RetroRevente \
     -o "$SORTIE/RetroRevente-$a" mac/Sources/*.swift \
-    -framework AppKit -framework WebKit -framework UserNotifications
+    -framework AppKit -framework WebKit -framework UserNotifications -framework SwiftUI
 done
 lipo -create -output "$APP/Contents/MacOS/RetroRevente" "$SORTIE/RetroRevente-arm64" "$SORTIE/RetroRevente-x86_64"
 rm "$SORTIE/RetroRevente-arm64" "$SORTIE/RetroRevente-x86_64"

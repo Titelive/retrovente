@@ -4,6 +4,7 @@
 // - « lbc » : leboncoin.fr (avec lbc.js : remplissage du dépôt, panneau IA des messages, synchro de « Mes annonces »).
 import AppKit
 import WebKit
+import SwiftUI
 
 enum Vue { case appli, lbc }
 
