@@ -96,13 +96,60 @@ export function resumeLot(articles) {
   return { categorie: cats[0] || "autres", par, cats, plateforme: commun, etat: etats.length ? ORDRE_ETAT[Math.max(...etats)] : "" };
 }
 
-/** Titre du lot : « Lot de 3 jeux Nintendo 64 », « Lot de 5 films Blu-Ray », « Lot Nintendo 64 : 1 console et 4 jeux ». */
+/* ===== Titre accrocheur : les articles rares ou recherchés d'abord =====
+   Sur Le Bon Coin, on cherche un jeu par son nom : un titre qui cite Conker's Bad Fur Day et Paper Mario se trouve,
+   « Lot de 11 jeux » non. Les vedettes sont les articles marqués rares (champ « rarete ») et ceux qui valent nettement
+   plus que les autres. Un accessoire recherché (Expansion Pak, Transfer Pak…) est cité à part, après « + ». */
+const COURT = { "Nintendo 64": "N64", "PlayStation": "PS1", "PlayStation 1": "PS1", "PlayStation 2": "PS2", "PlayStation 3": "PS3", "PlayStation 4": "PS4", "PlayStation 5": "PS5", "Game Boy Advance": "GBA" };
+const TITRE_MAX = 100, VEDETTE_MIN = 20;
+/** Rareté d'un jeu ou d'un accessoire : 2 très rare, 1 rare ou recherché, 0 sinon (les cartes ont leur propre rareté). */
+export function rangRarete(o) {
+  if (!o || o.categorie === "cartes") return 0;
+  const r = String(o.rarete || "").toLowerCase();
+  return /tr[eè]s rare|ultra|extr[eê]mement|introuvable/.test(r) ? 2 : /rare|recherch|culte|collector/.test(r) ? 1 : 0;
+}
+/** Nom court pour un titre : « The Legend of Zelda: Majora's Mask » → « Majora's Mask », « Kirby 64: The Crystal Shards » → « Kirby 64 ». */
+export function nomCourt(t) {
+  let n = String(t || "").replace(/\s+/g, " ").trim().replace(/^the legend of zelda\s*[:-]\s*/i, "").replace(/^the legend of /i, "");
+  if (/^conker'?s bad fur day$/i.test(n)) return "Conker";
+  const i = n.indexOf(":");
+  if (i > 0) n = n.length > 24 && i >= 5 ? n.slice(0, i) : n.slice(0, i) + n.slice(i + 1);
+  return n.replace(/\s+/g, " ").trim();
+}
+/** Les vedettes du lot, de la plus rare à la moins chère : rareté d'abord, puis valeur. */
+export function vedettesLot(articles) {
+  const l = articles.filter((o) => o && o.categorie !== "consoles"), vals = l.map(valeurArticle).filter((v) => v != null && v > 0).sort((a, b) => a - b);
+  // plus cher que l'article médian du lot (et 20 € au moins) ; un accessoire de 20 € et plus est déjà recherché
+  const med = vals.length ? vals[Math.floor(vals.length / 2)] : 0, seuil = Math.max(VEDETTE_MIN, med);
+  return l.filter((o) => rangRarete(o) > 0 || (o.categorie === "accessoires" ? (valeurArticle(o) ?? 0) >= VEDETTE_MIN : (valeurArticle(o) ?? 0) > seuil))
+    .sort((a, b) => rangRarete(b) - rangRarete(a) || (valeurArticle(b) ?? 0) - (valeurArticle(a) ?? 0));
+}
+
+/** Titre du lot : « Lot de 3 jeux Nintendo 64 », « Lot de 5 films Blu-Ray », « Lot Nintendo 64 : 1 console et 4 jeux ».
+    Avec des vedettes : « Lot 11 jeux N64 : Conker's Bad Fur Day, Paper Mario, Banjo-Tooie + Expansion Pak ».
+    Jamais « Lot N64 » seul pour des jeux : on croirait la console dedans. */
 export function titreLot(articles, theme = null) {
   const r = resumeLot(articles), n = articles.filter(Boolean).length;
+  const v = n >= 3 ? vedettesLot(articles) : [];
+  if (v.length) {
+    const acc = v.filter((o) => o.categorie === "accessoires"), jeux = v.filter((o) => o.categorie !== "accessoires");
+    const par = { ...r.par }; for (const o of acc) par.accessoires--;
+    const parts = r.cats.filter((c) => par[c] > 0).map((c) => `${par[c]} ${NOMS[c] ? NOMS[c][par[c] > 1 ? 1 : 0] : "objets"}`);
+    const plat = r.plateforme ? " " + (COURT[r.plateforme] || r.plateforme) : "";
+    // plusieurs vedettes : c'est le lot qui a des raretés, pas un seul de ses articles
+    const tete = `Lot ${theme && theme.nom && !["petits prix", "support"].includes(theme.type) ? theme.nom + (theme.complet ? " (série complète)" : "") + " " : ""}${et(parts)}${plat}${v.length >= 2 ? " avec raretés" : ""}`;
+    const plus = acc.length ? " + " + et(acc.map((o) => nomCourt(o.titre))) : "";
+    // autant de vedettes que le titre en tient (100 caractères sur Le Bon Coin), les plus rares d'abord
+    for (let k = jeux.length; k >= 0; k--) {
+      const t = `${tete} : ${jeux.slice(0, k).map((o) => nomCourt(o.titre)).join(", ")}${plus}`.replace(" : + ", " + ");
+      if (t.length <= TITRE_MAX && (k || plus)) return t;
+    }
+  }
   const part = (c) => `${r.par[c]} ${NOMS[c] ? NOMS[c][r.par[c] > 1 ? 1 : 0] : "objets"}`;
   // Lot à thème : le thème d'abord, c'est lui qu'on cherche sur Le Bon Coin (« Lot Banjo », « Lot Rareware »).
   if (theme && theme.nom && !["petits prix", "support"].includes(theme.type)) return `Lot ${theme.nom}${theme.complet ? " (série complète)" : ""} : ${et(r.cats.map(part))}${r.plateforme ? " " + r.plateforme : ""}`.slice(0, 100);
-  const t = r.cats.length === 1 ? `Lot de ${part(r.cats[0])}${r.plateforme ? " " + r.plateforme : ""}` : `Lot${r.plateforme ? " " + r.plateforme : ""} : ${et(r.cats.map(part))}`;
+  // « Lot Nintendo 64 : … » seulement avec une console dedans ; sinon « Lot 11 jeux et 1 accessoire Nintendo 64 »
+  const t = r.cats.length === 1 ? `Lot de ${part(r.cats[0])}${r.plateforme ? " " + r.plateforme : ""}` : r.par.consoles ? `Lot${r.plateforme ? " " + r.plateforme : ""} : ${et(r.cats.map(part))}` : `Lot ${et(r.cats.map(part))}${r.plateforme ? " " + r.plateforme : ""}`;
   return (n ? t : "Lot").slice(0, 100);
 }
 
@@ -130,6 +177,13 @@ export function majPhrasePrix(texte, somme, prixLot) {
 }
 
 /** Annonce du lot sans l'IA : liste des articles, valeur à l'unité, un seul envoi. Sert aussi de secours à l'IA. */
+/** « Les raretés du lot : Paper Mario, Conker's Bad Fur Day et Banjo-Tooie, avec l'Expansion Pak. » (2 vedettes au moins) */
+function raretes(l) {
+  const v = l.length >= 3 ? vedettesLot(l) : [];
+  if (v.length < 2) return "";
+  const jeux = v.filter((o) => o.categorie !== "accessoires").map((o) => o.titre), acc = v.filter((o) => o.categorie === "accessoires").map((o) => o.titre);
+  return `Les raretés du lot : ${et(jeux.length ? jeux : acc)}${jeux.length && acc.length ? `, avec ${acc.length > 1 ? "les accessoires" : "l'accessoire"} ${et(acc)}` : ""}.`;
+}
 export function annonceLotSimple(articles, prixLot, theme = null) {
   const l = articles.filter(Boolean), r = resumeLot(l), c = coteLot(l);
   const titre = titreLot(l, theme);
@@ -138,6 +192,7 @@ export function annonceLotSimple(articles, prixLot, theme = null) {
     `${titre}${l.length <= 40 ? " :" : "."}`,
     ...l.slice(0, 40).map((o) => "- " + ligneArticle(o, r.plateforme)),
     "",
+    raretes(l),
     theme && theme.complet ? `La série complète${r.plateforme ? " sur " + r.plateforme : ""}, réunie dans un seul lot.` : "",
     retro && l.every((o) => (o.origine || "origine") === "origine") ? "Tout est d'origine, testé et fonctionnel." : "",
     c.somme && prixLot && prixLot < c.somme ? `Vendus séparément, ils valent environ ${eur(Math.round(c.somme))} : le lot est à ${eur(prixLot)}.` : "",

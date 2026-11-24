@@ -1158,7 +1158,7 @@ ${theme && theme.nom ? `Thème du lot : ${theme.nom}${theme.complet ? " (la sér
 ${px != null ? `Prix du lot : ${px} €.` : ""}
 
 Règles :
-- Titre (100 caractères au plus) : commence par « Lot », puis le thème ou ce qui se cherche le plus (licence, studio, console), puis le nombre d'articles. Pas d'émoji, pas de majuscules criardes.
+- Titre (100 caractères au plus) : commence par « Lot », puis le nombre d'articles et le support (« Lot 11 jeux N64 »), puis les articles rares ou recherchés par leur nom, les plus recherchés d'abord (« Lot 11 jeux N64 avec raretés : Paper Mario, Conker, Banjo-Tooie + Expansion Pak »). Un accessoire recherché se cite après « + ». « avec raretés » qualifie le lot entier : n'écris jamais « rare » après un seul article. N'écris jamais « Lot N64 » ou « Lot Nintendo 64 » seul si le lot n'a pas de console : on croirait la console incluse. Pas d'émoji, pas de majuscules criardes. Titre écrit sans IA pour ce lot, à garder ou améliorer : « ${simple.titre} ».
 - Description : une phrase d'accroche sur le lot, puis la liste des articles, un par ligne commençant par « - », avec ce qui compte pour chacun (complet, loose, état, édition). Termine par la remise en main propre ou l'envoi soigné en un seul colis.
 - N'ajoute aucune information que les fiches ne donnent pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ». Ne parle pas du prix dans la description.
 Réponds uniquement par un objet JSON : {"titre": "…", "description": "…"}`, { max: 2500, timeout: 60000 }).catch(() => null);
