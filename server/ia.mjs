@@ -14,7 +14,25 @@ export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
 // ont leur propre rareté imprimée (champ « rarete », texte libre) ; celle-ci est une échelle fixe, champ « rareteJeu ».
 export const RARETES_JEU = ["commun", "peu_commun", "rare", "tres_rare"];
 export const LIB_RARETE_JEU = { commun: "Commun", peu_commun: "Peu commun", rare: "Rare", tres_rare: "Très rare" };
-const CONSIGNE_RARETE = `« commun » (tiré à des millions d'exemplaires, des dizaines d'annonces en ligne en permanence, ex. Mario Kart 64, FIFA), « peu_commun » (se trouve sans peine en cherchant un peu), « rare » (peu d'annonces, recherché des collectionneurs, ex. Conker's Bad Fur Day PAL), « tres_rare » (quasi introuvable : petit tirage, édition limitée, jeu retiré de la vente, ex. Little Samson, Kizuna Encounter AES) ; la rareté dépend de la version (région, édition) et du contenu (un complet en boîte peut être rare quand le loose est commun)`;
+/* Version du calcul : une rareté d'une version plus ancienne est estimée à nouveau (v2 : la rareté est celle du jeu,
+   pas de la boîte seule, et passe par rareteVraisemblable). */
+export const RARETE_V = 2;
+/* Garde-fous : l'IA peut confondre « peu d'annonces » et « rare » (boîte seule, jeu tout juste sorti, jeu inconnu d'elle).
+   La rareté ne dépasse jamais ce que le prix, le contenu et la console rendent vraisemblable. */
+const CONSOLES_ACTUELLES = /\b(ps ?[45]|playstation ?[45]|xbox ?(one|series)|switch)\b/i;
+const EDITION_LIMITEE = /collector|limit|strictly|special reserve|super rare games|signature|numérot|steelbook|premium|deluxe box/i;
+export function rareteVraisemblable(r, v = {}) {
+  if (!RARETES_JEU.includes(r)) return "";
+  let max = 3;
+  const limitee = EDITION_LIMITEE.test([v.titre, v.particularites, v.titreAnnonce, v.edition].filter(Boolean).join(" "));
+  if (CONSOLES_ACTUELLES.test(String(v.plateforme || "")) && !limitee) max = Math.min(max, 1);
+  if (v.contenu === "boite_vide") max = Math.min(max, 1);
+  const px = [v.prixDemande, v.prixVente, v.cote && v.cote.conseille, v.cote && v.cote.probable].map(prix).find((x) => x != null);
+  if (px != null) max = Math.min(max, px < 15 ? 0 : px < 40 ? 1 : px < 80 ? 2 : 3);
+  return RARETES_JEU[Math.min(RARETES_JEU.indexOf(r), max)];
+}
+const CONSIGNE_RARETE = `« commun » (tiré à des millions d'exemplaires, des dizaines d'annonces en ligne en permanence, ex. Mario Kart 64, FIFA, Grand Theft Auto V), « peu_commun » (se trouve sans peine en cherchant un peu), « rare » (peu d'annonces, recherché des collectionneurs, ex. Conker's Bad Fur Day PAL), « tres_rare » (quasi introuvable : petit tirage, édition limitée, jeu retiré de la vente, ex. Little Samson, Kizuna Encounter AES).
+La rareté est celle du JEU dans cette version (région, édition), jamais celle de la façon dont il est vendu : une boîte seule, un loose ou un complet du même jeu ont la même rareté que le jeu. Peu d'annonces pour une boîte seule ou un jeu sorti récemment ne veut pas dire rare. Un jeu récent (PS4, PS5, Xbox One, Xbox Series, Switch, Switch 2) d'un grand éditeur, vendu partout en magasin, est « commun », sauf édition limitée ou collector (Limited Run, Strictly Limited…). Un objet qui vaut quelques euros n'est presque jamais rare`;
 export const MAX_PHOTO = 2_100_000;   // data URL ; photos en haute définition (2000 à 2400 px) pour la retouche et la galerie
 
 export const txt = (v, n) => String(v ?? "").replace(/\u0000/g, "").trim().slice(0, n);
@@ -195,7 +213,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
     ...(sansNotice(o.plateforme) && o.contenu === "boite" ? { contenu: "complet" } : {}),
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
-    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : { rareteJeu: parmi(o.rareteJeu, RARETES_JEU, ""), ...jaunissement(o) }),
+    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : { rareteJeu: rareteVraisemblable(o.rareteJeu, o), ...jaunissement(o) }),
   };
 }
 // Plastique jauni (cartouche, console, manette) : dit honnêtement dans les remarques et les particularités, et l'état ne peut pas être « comme neuf ».
@@ -289,16 +307,17 @@ const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", 
 const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)", boite_vide: "boîte seule, sans le jeu (code déjà utilisé ou disque absent)" };
 /* Rareté établie automatiquement pour une fiche saisie à la main (ou d'avant la rareté) : le modèle s'appuie sur ce
    qu'il sait du jeu et de son édition. La recherche des prix (estimerCote) la précise ensuite d'après le marché. */
-const RARETE_FAKE = [[/little samson|kizuna|panzer dragoon saga|earthbound/i, "tres_rare"], [/conker|rez\b|ikaruga|snatcher/i, "rare"], [/banjo|zelda|metroid/i, "peu_commun"]];
+// « Grand Theft Auto VI » : l'erreur constatée en vrai (boîte seule classée « très rare »), que les garde-fous doivent corriger
+const RARETE_FAKE = [[/little samson|kizuna|panzer dragoon saga|earthbound|grand theft auto vi\b/i, "tres_rare"], [/conker|rez\b|ikaruga|snatcher/i, "rare"], [/banjo|zelda|metroid/i, "peu_commun"]];
 export async function estimerRarete(v = {}) {
   const titre = txt(v.titre, 160);
   if (!titre) return "";
-  if (FAKE()) return (RARETE_FAKE.find(([re]) => re.test(titre)) || [0, "commun"])[1];
-  const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30), LIB_CONTENU[v.contenu]].filter(Boolean).join(", ");
+  if (FAKE()) return rareteVraisemblable((RARETE_FAKE.find(([re]) => re.test(titre)) || [0, "commun"])[1], v);
+  const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30)].filter(Boolean).join(", ");
   const o = await claude(`Objet d'occasion vendu par un particulier en France : ${quoi} (${{ consoles: "console", accessoires: "accessoire" }[v.categorie] || "jeu vidéo"}).
-Quelle est sa rareté sur le marché de l'occasion en France aujourd'hui ? Choisis l'une de ${CONSIGNE_RARETE}. Si tu ne connais pas cet objet, réponds "".
+Quelle est sa rareté sur le marché de l'occasion en France aujourd'hui ? Choisis l'une de ${CONSIGNE_RARETE}. Si tu ne connais pas cet objet (par exemple un jeu sorti après tes connaissances), réponds "" plutôt que de deviner.
 Réponds uniquement par un objet JSON : {"rarete": "…"}`, { max: 600, timeout: 30000 });
-  return parmi(o && o.rarete, RARETES_JEU, "");
+  return rareteVraisemblable(o && o.rarete, v);
 }
 
 export async function estimerCote(v) {
