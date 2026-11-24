@@ -94,8 +94,13 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
         installerBarre()
         ajusterSousLeVerre()
-        appli.load(URLRequest(url: Rubrique.appli.adresse))
         montrer(.appli)
+        // Bloqueur de pubs prêt avant la première page.
+        Bloqueur.preparer { [weak self] liste in
+            guard let self = self else { return }
+            if let l = liste { for v in [self.appli!, self.lbc!] { v.configuration.userContentController.add(l) } }
+            if self.appli.url == nil { self.appli.load(URLRequest(url: Rubrique.appli.adresse)) }
+        }
         // Captures automatiques (GitHub) : RR_DEMO=deposer|messages|annonces|compte.
         if let demo = ProcessInfo.processInfo.environment["RR_DEMO"] {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
@@ -131,6 +136,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         conf.setURLSchemeHandler(ressources, forURLScheme: "rrext")
         conf.userContentController.addScriptMessageHandler(pont, contentWorld: Scripts.monde, name: "rr")
         Scripts.pages().forEach(conf.userContentController.addUserScript)
+        conf.userContentController.addUserScript(Scripts.cookies())
         return conf
     }
 

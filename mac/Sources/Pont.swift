@@ -150,8 +150,29 @@ enum Scripts {
         ]
     }
 
+    /// Fenêtres de cookies refusées toutes seules (« Continuer sans accepter »), sur tous les sites.
+    static func cookies() -> WKUserScript {
+        let source = (try? String(contentsOf: Bundle.main.resourceURL!.appendingPathComponent("cookies.js"), encoding: .utf8)) ?? ""
+        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: monde)
+    }
+
     /// Le panneau « Compte » (popup.html de l'extension) : la page elle-même utilise le pont.
     static func panneau() -> WKUserScript {
         WKUserScript(source: pont, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page)
+    }
+}
+
+/// Bloqueur de pubs (règles WebKit « content blocker » de bloqueur.json) : domaines publicitaires bloqués,
+/// emplacements de pub masqués. Compilé une fois, gardé par WebKit entre deux lancements.
+@MainActor
+enum Bloqueur {
+    static func preparer(_ fini: @escaping (WKContentRuleList?) -> Void) {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent("bloqueur.json"),
+              let regles = try? String(contentsOf: url, encoding: .utf8) else { fini(nil); return }
+        let id = "RetroRevente-pubs-" + String(regles.utf8.count)
+        WKContentRuleListStore.default().compileContentRuleList(forIdentifier: id, encodedContentRuleList: regles) { liste, erreur in
+            if let erreur = erreur { NSLog("RetroRevente : bloqueur de pubs indisponible : \(erreur.localizedDescription)") }
+            DispatchQueue.main.async { fini(liste) }
+        }
     }
 }

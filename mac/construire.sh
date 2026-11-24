@@ -28,7 +28,7 @@ plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # Extension embarquée (mêmes fichiers que pour Safari, Chrome, Firefox) et pont vers l'app.
 cp extension/manifest.json extension/commun.js extension/lbc.js extension/appli.js extension/popup.html extension/popup.js "$APP/Contents/Resources/extension/"
 cp -R extension/img extension/icones extension/polices "$APP/Contents/Resources/extension/"
-cp mac/pont.js "$APP/Contents/Resources/"
+cp mac/pont.js mac/cookies.js mac/bloqueur.json "$APP/Contents/Resources/"
 
 # Icône de l'app (celle du site).
 SET="$SORTIE/AppIcon.iconset"; mkdir -p "$SET"
