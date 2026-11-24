@@ -151,8 +151,12 @@ struct Accueil: View {
     @State private var recherche = ""
     @FocusState private var champRecherche: Bool
     private var visibilite: Binding<NavigationSplitViewVisibility> {
-        Binding(get: { appli.barreCachee ? .detailOnly : .all },
-                set: { v in appli.barreCachee = (v == .detailOnly) })
+        // Barre masquée mais montrée au survol : la vraie colonne s'ouvre et la page se décale (rien n'est recouvert).
+        Binding(get: { appli.barreCachee && !appli.barreSurvol ? .detailOnly : .all },
+                set: { v in
+                    if v == .detailOnly { appli.barreSurvol = false; appli.barreCachee = true }
+                    else if !appli.barreSurvol { appli.barreCachee = false }
+                })
     }
 
     /// Barre latérale masquée : elle glisse par-dessus la page quand la souris touche le bord gauche, et se recache quand elle s'en va.
@@ -182,6 +186,14 @@ struct Accueil: View {
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
+            .onHover { dedans in
+                // Ouverte au survol : elle se referme quand la souris la quitte.
+                dansPanneau = dedans
+                recacher?.cancel()
+                guard !dedans, appli.barreSurvol else { return }
+                let w = DispatchWorkItem { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { appli.barreSurvol = false } }
+                recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: w)
+            }
     }
 
     var body: some View {
@@ -199,28 +211,10 @@ struct Accueil: View {
             }
         }
         .overlay(alignment: .leading) {
-            // Comme l'app Claude : un panneau pleine hauteur, collé au bord gauche, qui apparaît en fondu et se retire de même.
-            if appli.barreCachee {
-                if appli.barreSurvol {
-                    barreLaterale.scrollContentBackground(.hidden)
-                        .padding(.top, 44)
-                        .frame(width: 250).frame(maxHeight: .infinity)
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1) }
-                        .shadow(color: .black.opacity(0.35), radius: 16, x: 4)
-                        .ignoresSafeArea()
-                        .onHover { dedans in
-                            dansPanneau = dedans
-                            recacher?.cancel()
-                            guard !dedans else { return }
-                            let w = DispatchWorkItem { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
-                            recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
-                        }
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                } else {
-                    Color.clear.frame(width: 6).frame(maxHeight: .infinity).contentShape(Rectangle()).ignoresSafeArea()
-                        .onHover { if $0 { withAnimation(.easeOut(duration: 0.2)) { appli.barreSurvol = true } } }
-                }
+            // Barre masquée : la souris sur le bord gauche (ou sur le bouton du haut) l'ouvre, la page se décale.
+            if appli.barreCachee && !appli.barreSurvol {
+                Color.clear.frame(width: 6).frame(maxHeight: .infinity).contentShape(Rectangle()).ignoresSafeArea()
+                    .onHover { if $0 { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { appli.barreSurvol = true } } }
             }
         }
         .onChange(of: appli.barreCachee) { c in if !c { appli.barreSurvol = false } }
@@ -228,7 +222,7 @@ struct Accueil: View {
             // Montrée depuis le bouton du haut sans que la souris entre dans le panneau : il se retire tout seul.
             guard montre else { dansPanneau = false; return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                if appli.barreSurvol, !dansPanneau { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
+                if appli.barreSurvol, !dansPanneau { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { appli.barreSurvol = false } }
             }
         }
         .overlay {
