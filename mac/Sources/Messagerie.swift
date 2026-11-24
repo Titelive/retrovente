@@ -107,6 +107,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     func recharger() {
         guard let v = vue else { return }
+        NSLog("RetroRevente messagerie : chargement de la messagerie Le Bon Coin (en fond)")
         etat = .chargement; charge = true; debut = Date(); derniereErreur = ""
         v.load(URLRequest(url: URL(string: "https://www.leboncoin.fr/messages")!))
         // Garde-fou : relit toutes les 3 s jusqu'au délai maximum, puis erreur claire (plus de roue sans fin).
@@ -134,7 +135,8 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     private func echec(_ t: String, _ e: Error) {
         if (e as NSError).code == NSURLErrorCancelled { return }   // navigation remplacée par une autre (redirection) : pas une erreur
         NSLog("RetroRevente messagerie : échec de chargement %@", e.localizedDescription)
-        debut = nil; garde?.cancel(); etat = .erreur(t)
+        debut = nil; garde?.cancel(); etat = .erreur(t); derniereErreur = e.localizedDescription
+        Task { await diagnostiquer("echec") }
     }
 
     private func appel(_ js: String, _ args: [String: Any] = [:]) async -> [String: Any]? {
@@ -157,7 +159,10 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
             NSLog("RetroRevente messagerie : %@ %@", e, r["pile"] as? String ?? "")
             return
         }
-        if (r["connexion"] as? Bool) == true { debut = nil; etat = .connexion; return }
+        if (r["connexion"] as? Bool) == true {
+            if debut != nil { debut = nil; await diagnostiquer("connexion") }
+            etat = .connexion; return
+        }
         let l = (r["conversations"] as? [[String: Any]] ?? []).map(ConversationLbc.init)
         if l != conversations { conversations = l }
         if !l.isEmpty {

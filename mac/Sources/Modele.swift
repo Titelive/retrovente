@@ -422,7 +422,7 @@ final class Appli: ObservableObject {
             if ["trophees", "bilan", "compte", "tous"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
             return
         }
-        do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger() }
+        do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger(); prechaufferMessages() }
         catch let e as ErreurRR where e.status == 401 { etat = .deconnecte }
         catch { etat = .deconnecte; erreur = (error as? ErreurRR)?.message ?? "Pas de connexion à RetroRevente." }
     }
@@ -440,7 +440,15 @@ final class Appli: ObservableObject {
     func connecter(email: String, motdepasse: String) async throws {
         _ = try await API.json("POST", "/api/connexion", ["email": email, "motdepasse": motdepasse])
         try await chargerProfil(); etat = .connecte
-        await brancherLeBonCoin(force: true); await recharger()
+        await brancherLeBonCoin(force: true); await recharger(); prechaufferMessages()
+    }
+    /// La messagerie Le Bon Coin se charge en fond (cachée) dès la connexion : l'onglet Messages s'ouvre déjà prêt.
+    func prechaufferMessages() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard etat == .connecte, !messagesOuvert, let f = fenetre else { return }
+            messagerie.demarrer(f); messagerie.arreter()   // un chargement, sans relecture périodique
+        }
     }
     func oubli(email: String) async throws { _ = try await API.json("POST", "/api/oubli", ["email": email]) }
     func deconnecter() async {
