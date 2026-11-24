@@ -147,6 +147,12 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
     }
 
+    /// Clé WebCrypto donnée par l'app (voir CleWebCrypto.swift) : plus de mot de passe du trousseau après une mise à jour.
+    @objc(_webCryptoMasterKeyForWebView:) func cleMaitresse(_ w: WKWebView) -> NSData? { CleWebCrypto.cle as NSData }
+    @objc(_webCryptoMasterKeyForWebView:completionHandler:) func cleMaitresse(_ w: WKWebView, completionHandler: @escaping (NSData?) -> Void) {
+        completionHandler(CleWebCrypto.cle as NSData)
+    }
+
     private func creerNavigateur(_ conf: WKWebViewConfiguration? = nil) -> WKWebView {
         let conf = conf ?? configuration()
         let v = WKWebView(frame: .zero, configuration: conf)
@@ -163,7 +169,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let conf = configuration()
         conf.userContentController.addUserScript(WKUserScript(source: "window.__rrNatif = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Scripts.monde))
         let v = creerNavigateur(conf)
-        v.uiDelegate = nil
+        v.uiDelegate = DelegueWebCrypto.partage   // pas de fenêtres surgissantes, mais la clé WebCrypto sans trousseau
         return v
     }
 
