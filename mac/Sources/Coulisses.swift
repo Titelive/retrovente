@@ -29,22 +29,25 @@ extension Fenetre {
     /// Fin des coulisses (publiée, annulée ou passée à l'écran). Appelée quand `modele.depot` redevient nil.
     func finCoulisses() {
         veilleCoulisses?.invalidate(); veilleCoulisses = nil
+        retablirAuto()
         guard enCoulisses else { return }
         enCoulisses = false
+        if modele.depot != nil { modele.depot = nil }
+        if modele.gestion != nil { modele.gestion = nil }
         montrer(visible)
     }
 
     /// Montre Le Bon Coin : la personne reprend la main (le panneau RetroRevente y explique quoi faire).
     func besoinDeToi(_ raison: String) {
         guard enCoulisses else { return }
-        modele.depot = nil
+        modele.depot = nil; modele.gestion = nil
         montrer(.lbc); montrerFenetre()
         if !NSApp.isActive { NSApp.requestUserAttention(.criticalRequest) }
         NSLog("RetroRevente : Le Bon Coin à l'écran (%@)", raison)
     }
 
     /// Annuler depuis la feuille : la page reste remplie dans l'onglet « Déposer » si la personne veut la reprendre.
-    func annulerCoulisses() { modele.depot = nil }
+    func annulerCoulisses() { modele.depot = nil; modele.gestion = nil }
     func voirCoulisses() { besoinDeToi("demandé") }
 
     /// Signal du panneau (alerte « À toi ») pendant un dépôt en coulisses. Vrai s'il a été pris en charge.
@@ -85,6 +88,7 @@ extension Fenetre {
 
     /// Veille : connexion, vérification anti-robot, page inattendue ou attente trop longue → Le Bon Coin à l'écran.
     func verifierCoulisses() {
+        if enCoulisses, modele.gestion != nil { return }   // la veille de la gestion s'en charge (Gestion.swift)
         guard enCoulisses, let d = modele.depot else { return }
         let url = lbc.url
         let hote = url?.host?.lowercased() ?? ""

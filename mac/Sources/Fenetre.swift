@@ -42,6 +42,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     var enCoulisses = false
     var veilleCoulisses: Timer?
     var debutCoulisses = Date(), etapeDepuis = Date()
+    var reglageAuto: Any? = nil, autoSuspendu = false
     private var onglets: [Rubrique: Bouton] = [:]
     private var precedent: Bouton!, suivant: Bouton!, recharger: Bouton!
     private let chargement = Chargement()

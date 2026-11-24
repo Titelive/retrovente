@@ -189,6 +189,7 @@ struct Accueil: View {
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
         .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
+        .sheet(item: $appli.gestion) { g in FeuilleGestion(appli: appli, gestion: g) }
         .onChange(of: filtre) { _ in appli.selection = nil }
         .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
         .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }
@@ -338,7 +339,18 @@ struct Fiche: View {
     @State private var photo: Photo? = nil
     @State private var enCours = false
     @State private var confirmer = false
+    @State private var retirer = false
     @State private var original: Article? = nil
+
+    /// Enregistre la fiche si besoin, puis reporte titre, description et prix sur l'annonce Le Bon Coin.
+    private func mettreAJour() async {
+        if article != original {
+            enCours = true; defer { enCours = false }
+            guard let n = await appli.enregistrer(article) else { return }
+            article = n; original = n
+        }
+        appli.fenetre?.modifierEnCoulisses(article)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -347,8 +359,19 @@ struct Fiche: View {
                 Spacer()
             }.padding(.horizontal, 24).padding(.top, 14)
             EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
-                Button { appli.deposer(article) } label: { Label("Déposer sur Le Bon Coin", systemImage: "paperplane") }.boutonVerre()
-                    .help("Ouvre le dépôt Le Bon Coin : le panneau remplit l'annonce avec cette fiche").disabled(article.statut != "en_vente")
+                if let url = URL(string: article.annonce), !article.annonce.isEmpty {
+                    Menu {
+                        Button { appli.fenetre?.ouvrir(url) } label: { Label("Voir l'annonce", systemImage: "eye") }
+                        Button { Task { await mettreAJour() } } label: { Label("Mettre à jour l'annonce", systemImage: "arrow.triangle.2.circlepath") }
+                        Divider()
+                        Button(role: .destructive) { retirer = true } label: { Label("Supprimer de Le Bon Coin…", systemImage: "trash") }
+                    } label: { Label("Le Bon Coin", systemImage: "storefront") }
+                    .menuStyle(.button).boutonVerre().fixedSize()
+                    .help("Voir, mettre à jour ou supprimer l'annonce Le Bon Coin")
+                } else {
+                    Button { appli.deposer(article) } label: { Label("Déposer sur Le Bon Coin", systemImage: "paperplane") }.boutonVerre()
+                        .help("Remplit l'annonce Le Bon Coin en coulisses : tu la relis et tu publies dans l'app").disabled(article.statut != "en_vente")
+                }
                 Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
                     .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || article == original)
             }
@@ -363,6 +386,9 @@ struct Fiche: View {
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
         } message: { Text("La fiche et ses photos seront effacées.") }
+        .confirmationDialog("Supprimer l'annonce de Le Bon Coin ?", isPresented: $retirer) {
+            Button("Supprimer de Le Bon Coin", role: .destructive) { appli.fenetre?.supprimerEnCoulisses(article) }
+        } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera retirée de Le Bon Coin. Ta fiche RetroRevente est gardée.") }
     }
 
     private var galerie: some View {

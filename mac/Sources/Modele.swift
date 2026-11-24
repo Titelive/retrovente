@@ -204,6 +204,20 @@ struct DepotEnCours: Identifiable, Equatable {
     var etape: Etape
 }
 
+/// Modifier ou supprimer une annonce Le Bon Coin en coulisses (voir Gestion.swift).
+struct GestionAnnonce: Identifiable, Equatable {
+    enum Action: Equatable { case modifier, supprimer }
+    enum Etape: Equatable {
+        case travail(String)       // message de progression
+        case pret(bouton: String)  // modification : écran final atteint, on attend « Enregistrer »
+        case envoi
+        case fait(String)
+    }
+    let id: String; let titre: String; let action: Action
+    var etape: Etape
+    var envoye = false   // le bouton final a été cliqué
+}
+
 @MainActor
 final class Appli: ObservableObject {
     enum Etat { case chargement, deconnecte, connecte }
@@ -224,15 +238,18 @@ final class Appli: ObservableObject {
     @Published var depot: DepotEnCours? = nil {
         didSet { if depot == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
+    @Published var gestion: GestionAnnonce? = nil {
+        didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
+    }
     weak var fenetre: Fenetre?
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
-                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6",
+                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000001",
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
                 ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5"],
@@ -245,6 +262,7 @@ final class Appli: ObservableObject {
             articles = ex.map(Article.init); etat = .connecte
             if d == "fiche" { selection = "a1" }
             if d == "nouveau" { nouveauOuvert = true }
+            if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
             if ["trophees", "bilan", "compte"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
