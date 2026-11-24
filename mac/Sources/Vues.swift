@@ -155,8 +155,11 @@ struct Accueil: View {
                 set: { v in appli.barreCachee = (v == .detailOnly) })
     }
 
-    var body: some View {
-        NavigationSplitView(columnVisibility: visibilite) {
+    /// Barre latérale masquée : elle glisse par-dessus la page quand la souris touche le bord gauche, et se recache quand elle s'en va.
+    @State private var survolBord = false
+    @State private var recacher: DispatchWorkItem?
+
+    @ViewBuilder private var barreLaterale: some View {
             List {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -176,8 +179,14 @@ struct Accueil: View {
                     ligne("@bilan", "Bilan des ventes", "chart.bar", nil)
                 }
             }
+            .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
+    }
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: visibilite) {
+            barreLaterale
         } detail: {
             if filtre == "@trophees" { Trophees(appli: appli) }
             else if filtre == "@bilan" { Bilan(appli: appli) }
@@ -189,6 +198,29 @@ struct Accueil: View {
                        filtre: filtre?.hasPrefix("@") == true ? nil : filtre)
             }
         }
+        .overlay(alignment: .leading) {
+            if appli.barreCachee {
+                if survolBord {
+                    barreLaterale.scrollContentBackground(.hidden)
+                        .frame(width: 250).frame(maxHeight: .infinity)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08)))
+                        .shadow(color: .black.opacity(0.3), radius: 18, x: 4)
+                        .padding(.vertical, 8).padding(.leading, 8)
+                        .onHover { dedans in
+                            recacher?.cancel()
+                            guard !dedans else { return }
+                            let w = DispatchWorkItem { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { survolBord = false } }
+                            recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: w)
+                        }
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                } else {
+                    Color.clear.frame(width: 8).frame(maxHeight: .infinity).contentShape(Rectangle())
+                        .onHover { if $0 { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { survolBord = true } } }
+                }
+            }
+        }
+        .onChange(of: appli.barreCachee) { c in if !c { survolBord = false } }
         .overlay(alignment: .bottom) { Bandeau(appli: appli) }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
         .onChange(of: appli.focusRecherche) { _ in
