@@ -369,6 +369,9 @@ struct Fiche: View {
         guard article.id == avant.id, article.texteAnnonce == avant.texteAnnonce || forcer else { return }   // tapé entre-temps : on ne l'écrase pas
         if forcer || article.titreAnnonce.isEmpty { article.titreAnnonce = r.titre }
         article.texteAnnonce = r.texte
+        if let e = r.etat { article.etat = e }
+        // Chaque photo garde sa légende (même ordre que les photos envoyées).
+        for (i, l) in r.legendes.enumerated() where i < article.photos.count && !l.isEmpty { article.photos[i].legende = l }
         // Rédaction automatique d'une fiche sans autre modification en cours : enregistrée tout de suite.
         if !forcer, avant == original, let n = await appli.enregistrer(article) { article = n; original = n }
     }
@@ -536,7 +539,7 @@ struct Fiche: View {
             BlocStats(appli: appli, releve: appli.releve, article: article)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
                 HStack(spacing: 8) {
-                    if redaction { ProgressView().controlSize(.small); Text("L'IA rédige ton annonce…").font(.callout).foregroundStyle(.secondary) }
+                    if redaction { ProgressView().controlSize(.small); Text("L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary) }
                     Spacer()
                     Button { Task { await rediger(forcer: true) } } label: { Label(article.texteAnnonce.isEmpty ? "Rédiger l'annonce" : "Réécrire avec l'IA", systemImage: "sparkles") }
                         .boutonVerre().disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA à partir de la fiche")
