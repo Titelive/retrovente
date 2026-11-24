@@ -158,7 +158,7 @@ Réponds uniquement par un objet JSON avec les clés :
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (version précise, déduite de la boîte, de l'étiquette ou du code produit : le suffixe du code donne le pays (-FRA France, -GER ou -NOE Allemagne, -UKV Royaume-Uni, -ITA Italie, -ESP Espagne, -HOL Pays-Bas, -SCN Scandinavie, -EUR Europe, -USA, -JPN), la classification aussi (USK : Allemagne, PEGI : Europe, ESRB : États-Unis, CERO : Japon), et la langue des textes de la jaquette. Écris « PAL FR » pour une version française, « PAL allemande », « PAL UK », « PAL italienne »… pour une version d'un autre pays d'Europe, « PAL EUR » si seul « Europe » est sûr, « NTSC-U » ou « NTSC-J » ; "" si inconnue),
 "langues" (langues du jeu lues sur la boîte, ex. « EN, DE, FR, ES, IT, JA » ; "" si illisibles),
-"etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
+"etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; « neuf » seulement si le film plastique d'origine (blister) se voit clairement (plis, bords soudés, bande de scellage) : un boîtier brillant ou des reflets ne sont pas un blister, et un jeu sans blister est au mieux « tres_bon » ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
 "jauni" (couleur du plastique de la cartouche, de la console ou de la manette : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps (UV) ; compare avec la couleur normale de ce modèle et avec les parties à l'abri : « non », « leger » ou « net » ; « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer ou si c'est impossible à dire),
 "contenu" (« seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice, « boite_vide » si c'est une boîte sans le jeu (édition à code, disque absent) ; "" si sans objet),
 "rareteJeu" (pour un jeu, une console ou un accessoire : sa rareté sur le marché de l'occasion en France, l'une de ${CONSIGNE_RARETE} ; "" si tu ne sais pas ou pour une carte Pokémon ou un film),
@@ -172,7 +172,7 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo ; pour une version d'un autre pays que la France, dis-le (« version allemande ») et, si les langues lues sur la boîte comprennent le français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ». Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas). Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo ; pour une version d'un autre pays que la France, dis-le (« version allemande ») et, si les langues lues sur la boîte comprennent le français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ». Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas ; ne parle de jaunissement que pour une cartouche, une console ou une manette, jamais pour un boîtier). Ne parle de film plastique, de blister ou de « neuf » que si le blister se voit clairement. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
 ${consigneCarte()}
 ${consigneFilm()}${indice === "films" ? `
 Le vendeur a précisé que c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD ou VHS) : la catégorie est « films », sauf si la photo montre clairement autre chose.` : ""}`;
@@ -311,7 +311,10 @@ export async function estimerCote(v) {
       { site: "eBay", titre: "Autre vente conclue", prix: 52, date: "2026-10-20", url: "https://www.ebay.fr/itm/2", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "Le Bon Coin", titre: "Annonce en ligne", prix: 60, date: "2026-11-10", url: "https://www.leboncoin.fr/ad/1", type: "annonce", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/", type: "cote", contenu: cible.contenu || "complet" }] }, cible);
-  const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30), LIB_CONTENU[v.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
+  // Version importée (allemande, UK, US…) : on cherche la cote du jeu de base (version française ou européenne),
+  // puis on propose un peu moins, parce qu'une version étrangère se vend moins bien en France.
+  const region = txt(v.region, 30), importe = estImport(region);
+  const quoi = [titre, txt(v.plateforme, 60), importe ? "" : region, LIB_CONTENU[v.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
   const o = await claude(`Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
 Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Note pour chaque prix l'état et ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro. Ne calcule pas de prix conseillé : le calcul est fait ensuite à partir de tes relevés.
 Réponds uniquement par un objet JSON avec les clés :
@@ -329,7 +332,19 @@ Réponds uniquement par un objet JSON avec les clés :
   // on ne garde que les liens qui sont vraiment sortis de la recherche web
   const c = coteCalculee(o, cible, o && o._vus);
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
-  return c;
+  return importe ? coteImport(c, region) : c;
+}
+// Version d'un autre pays que la France (« PAL allemande », « PAL UK », « NTSC-U »…). « PAL EUR » ou « PAL FR » n'en sont pas.
+export function estImport(region) {
+  const r = String(region || "").toLowerCase();
+  return /allem|german|\bger\b|\buk\b|angl|brit|ital|espa|spain|holl|pays-bas|scand|nordi|autrich|ntsc|usa|\bus\b|japon|\bjp\b|asia|kor/.test(r);
+}
+const DECOTE_IMPORT = 0.85;
+export function coteImport(c, region) {
+  const r = (x) => (x == null ? x : Math.max(1, Math.round(x * DECOTE_IMPORT)));
+  return coteDe({ ...c, bas: r(c.bas), haut: r(c.haut), probable: r(c.probable), conseille: r(c.conseille), rapide: r(c.rapide),
+    resume: `Cote du jeu en version française, puis environ 15 % de moins pour cette version ${region}. ` + (c.resume || ""),
+    methode: (c.methode ? c.methode + " " : "") + `Version ${region} : prix de la version française diminués d'environ 15 %.` });
 }
 
 /* Les relevés de l'IA passent par calculerCote (server/prix.mjs) : fourchette, prix probable, prix conseillé,
@@ -1119,6 +1134,7 @@ Règles :
 - Réponds en français, en tutoyant, en une à trois phrases simples. Dis ce que tu as changé.
 - Ce que dit le vendeur sur son objet est vrai : reporte-le dans les champs concernés ET dans texteAnnonce, pour que tout reste cohérent.
 - Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ».
+- Ne change jamais l'état et ne parle jamais de film plastique, de blister ou de « neuf » si le vendeur ne le dit pas.
 - Version d'un autre pays que la France (ex. region « PAL allemande ») : dis-le dans texteAnnonce (« version allemande ») ; si le vendeur ou la fiche dit qu'elle est en français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ».
 - Pour un conseil de prix, appuie-toi sur la cote si elle existe ; ne change prixDemande que si le vendeur le demande.
 - Si le message n'appelle aucun changement (question, remerciement), réponds sans rien changer.
