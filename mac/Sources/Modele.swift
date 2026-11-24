@@ -551,6 +551,83 @@ final class Appli: ObservableObject {
         do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true }
         catch { signaler(error); return false }
     }
+    // MARK: Retouche des photos (comme le bouton « Retoucher » du site)
+
+    /// Photo retouchée : l'original et la retouche, gardés le temps de la session pour revenir en arrière.
+    struct Retouche { var original: String; var retouchee: String; var voitOriginal = false }
+    @Published var retouches: [String: Retouche] = [:]          // « article/photo »
+    @Published var retoucheEnCours: Set<String> = []
+    static func cle(_ a: Article, _ p: Photo) -> String { a.id + "/" + p.id }
+
+    /// La photo telle qu'elle est sur le serveur, en JPEG « data: » (au plus 2400 px, comme le site).
+    private func donneesPhoto(_ a: Article, _ p: Photo) async -> String? {
+        guard let i = await Images.charger(API.urlPhoto(a.id, p.id, v: a.modifie), .pleine) else { return nil }
+        return jpegData(i, max: 2400, poids: 1_500_000)
+    }
+    @discardableResult private func remplacerPhoto(_ a: Article, _ p: Photo, _ data: String) async -> Bool {
+        do {
+            let j = try await API.json("PUT", "/api/objets/\(a.id)/photos/\(p.id)", ["photo": data])
+            Images.oublier(API.urlPhoto(a.id, p.id, v: a.modifie))
+            remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true
+        } catch { signaler(error); return false }
+    }
+    /// Retoucher : fond, lumière, cadrage, toujours depuis la photo d'origine. L'original reste à un clic.
+    func retoucher(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard !retoucheEnCours.contains(k) else { return }
+        retoucheEnCours.insert(k); defer { retoucheEnCours.remove(k) }
+        var source = retouches[k]?.original
+        if source == nil { source = await donneesPhoto(a, p) }
+        guard let base = source else { erreur = "Photo illisible."; return }
+        do {
+            let j = try await API.json("POST", "/api/ia/nettoyer", ["photo": base, "rotation": 0])
+            guard let nouvelle = j["photo"] as? String, !nouvelle.isEmpty else { erreur = "Retouche impossible."; return }
+            if await remplacerPhoto(a, p, nouvelle) {
+                retouches[k] = Retouche(original: base, retouchee: nouvelle)
+                message = "Photo retouchée. L'original est gardé : « Original » pour y revenir."
+            }
+        } catch { signaler(error) }
+    }
+    /// Original ⇄ retouchée.
+    func basculerOriginal(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard var r = retouches[k] else { return }
+        if await remplacerPhoto(a, p, r.voitOriginal ? r.retouchee : r.original) { r.voitOriginal.toggle(); retouches[k] = r }
+    }
+    /// Un quart de tour dans le sens des aiguilles d'une montre (l'original retouché tourne avec).
+    func pivoter(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard let cur = await donneesPhoto(a, p), let t = Appli.tourner(cur) else { erreur = "Rotation impossible."; return }
+        if await remplacerPhoto(a, p, t), var r = retouches[k] {
+            if let o = Appli.tourner(r.original), let n = Appli.tourner(r.retouchee) { r.original = o; r.retouchee = n; retouches[k] = r } else { retouches[k] = nil }
+        }
+    }
+    nonisolated static func tourner(_ data: String) -> String? {
+        guard let b = data.split(separator: ",").last, let d = Data(base64Encoded: String(b)), let i = NSImage(data: d),
+              let cg = i.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let ctx = CGContext(data: nil, width: cg.height, height: cg.width, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        // repère CoreGraphics (origine en bas à gauche) : quart de tour horaire
+        ctx.translateBy(x: 0, y: CGFloat(cg.width)); ctx.rotate(by: -.pi / 2)
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        guard let r = ctx.makeImage() else { return nil }
+        return jpegData(NSImage(cgImage: r, size: NSSize(width: r.width, height: r.height)), max: 2400, poids: 1_500_000)
+    }
+    /// Exporter les photos de l'article dans un dossier, en JPEG numérotés.
+    func exporterPhotos(_ a: Article) async {
+        let o = NSOpenPanel(); o.canChooseDirectories = true; o.canChooseFiles = false; o.canCreateDirectories = true; o.prompt = "Exporter ici"
+        o.message = "Choisis où enregistrer les \(a.photos.count) photo\(a.photos.count > 1 ? "s" : "") de « \(a.titre) »"
+        guard o.runModal() == .OK, let dossier = o.url else { return }
+        let nom = a.titre.replacingOccurrences(of: "[/:\\\\]", with: "-", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        var n = 0
+        for (i, p) in a.photos.enumerated() {
+            guard let img = await Images.charger(API.urlPhoto(a.id, p.id, v: a.modifie), .pleine), let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                  let d = NSBitmapImageRep(cgImage: cg).representation(using: .jpeg, properties: [.compressionFactor: 0.92]) else { continue }
+            if (try? d.write(to: dossier.appendingPathComponent("\(nom.isEmpty ? "Photo" : nom) \(i + 1).jpg"))) != nil { n += 1 }
+        }
+        message = n > 0 ? "\(n) photo\(n > 1 ? "s" : "") exportée\(n > 1 ? "s" : "") dans « \(dossier.lastPathComponent) »." : "Aucune photo exportée."
+        if n > 0 { NSWorkspace.shared.activateFileViewerSelecting([dossier]) }
+    }
     func retirerPhoto(_ a: Article, _ p: Photo) async {
         do {
             let j = try await API.json("DELETE", "/api/objets/\(a.id)/photos/\(p.id)")

@@ -185,7 +185,17 @@ struct Accueil: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
-            .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
+            .safeAreaInset(edge: .bottom) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Le logo, en bas à gauche de la barre latérale (le haut reste aux feux et au bouton de la barre).
+                    HStack(spacing: 7) {
+                        Image(nsImage: NSApp.applicationIconImage ?? NSImage()).resizable().frame(width: 22, height: 22)
+                        (Text("Retro") + Text("Revente").foregroundColor(.rrOr)).font(.system(size: 14, weight: .bold))
+                    }
+                    .padding(.horizontal, 8).accessibilityHidden(true)
+                    CarteCompte(appli: appli, actif: filtre == "@compte")
+                }.padding(10)
+            }
             .onHover { dedans in
                 // Ouverte au survol : elle se referme quand la souris la quitte.
                 dansPanneau = dedans
@@ -551,11 +561,65 @@ struct Fiche: View {
                     aRetirerDePhotos += envoyees
                 }
             }
+            if !article.photos.isEmpty { outilsPhoto }
             if article.publiee, let u = URL(string: article.annonce) {
                 Button { _ = u; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
             }
             Button(role: .destructive) { confirmer = true } label: { Label("Supprimer l'article", systemImage: "trash").frame(maxWidth: .infinity) }.boutonVerre()
         }
+    }
+
+    /// Outils de la photo affichée, comme sur le site : Ajouter, Retoucher, Pivoter, Original, Exporter, Retirer.
+    private var outilsPhoto: some View {
+        let p = photo ?? article.photos.first
+        let k = p.map { Appli.cle(article, $0) } ?? ""
+        let r = appli.retouches[k], occupe = appli.retoucheEnCours.contains(k)
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+            outil("Ajouter", "photo.badge.plus", .blue) { photosOuvert = true }
+            outil(occupe ? "Retouche…" : "Retoucher", "sparkles", .rrOr, principal: true, enCours: occupe) {
+                guard let p = p else { return }
+                Task { await appli.retoucher(article, p); rafraichirPhotos(garder: p) }
+            }.help("Retoucher la photo : fond, lumière, cadrage. L'original est gardé.")
+            outil("Pivoter", "rotate.right", .pink) {
+                guard let p = p else { return }
+                Task { await appli.pivoter(article, p); rafraichirPhotos(garder: p) }
+            }.help("Tourner d'un quart de tour")
+            outil(r?.voitOriginal == true ? "Retouchée" : "Original", "rectangle.split.2x1", .purple) {
+                guard let p = p else { return }
+                Task { await appli.basculerOriginal(article, p); rafraichirPhotos(garder: p) }
+            }.disabled(r == nil).help(r == nil ? "Retouche d'abord la photo : l'original restera à un clic" : r!.voitOriginal ? "Revenir à la photo retouchée" : "Revoir l'original")
+            outil("Exporter", "square.and.arrow.down", .teal) { Task { await appli.exporterPhotos(article) } }
+                .help("Enregistrer les \(article.photos.count) photos dans un dossier")
+            outil("Retirer", "trash", .red) {
+                guard let p = p else { return }
+                Task { await appli.retirerPhoto(article, p); recharger() }
+            }.help("Retirer cette photo de la fiche")
+        }
+        .disabled(p == nil)
+    }
+    private func outil(_ nom: String, _ symbole: String, _ teinte: Color, principal: Bool = false, enCours: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                ZStack {
+                    if enCours { ProgressView().controlSize(.small) } else { Image(systemName: symbole).font(.system(size: 15, weight: .semibold)) }
+                }
+                .frame(width: 30, height: 30).foregroundStyle(principal ? Color.black.opacity(0.8) : teinte)
+                .background((principal ? Color.white.opacity(0.35) : teinte.opacity(0.14)), in: RoundedRectangle(cornerRadius: 9))
+                Text(nom).font(.caption.weight(.semibold)).lineLimit(1).foregroundStyle(principal ? Color.black.opacity(0.85) : .primary)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 9)
+            .background(principal ? AnyShapeStyle(LinearGradient(colors: [.rrOr, Color.rrOr.opacity(0.8)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(teinte.opacity(0.07)),
+                        in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(principal ? Color.clear : teinte.opacity(0.25)))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+        }.buttonStyle(.plain).disabled(enCours)
+    }
+    /// Après une retouche : la fiche reprend les photos et la date de modification (le lien des photos en dépend).
+    private func rafraichirPhotos(garder p: Photo) {
+        guard let n = appli.articles.first(where: { $0.id == article.id }) else { return }
+        article.photos = n.photos; article.modifie = n.modifie
+        original?.photos = n.photos; original?.modifie = n.modifie
+        photo = n.photos.first { $0.id == p.id } ?? n.photos.first
     }
 
     private var champs: some View {
