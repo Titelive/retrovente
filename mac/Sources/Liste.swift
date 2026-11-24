@@ -235,7 +235,9 @@ struct Grille: View {
                     }.pickerStyle(.inline)
                 } label: { Label("Trier", systemImage: "arrow.up.arrow.down") }
                 .menuStyle(.button).boutonVerre().fixedSize().help("Trier et grouper les articles")
-                Button { appli.commencerChoix() } label: { Label("Composer un lot", systemImage: "shippingbox") }.boutonVerre().disabled(appli.choix != nil)
+                if !(filtre == nil || filtre == "en_vente") || appli.articles.filter({ appli.libre($0) && $0.statut != "retire" }).count < 2 {
+                    Button { appli.commencerChoix() } label: { Label("Composer un lot", systemImage: "shippingbox") }.boutonVerre().disabled(appli.choix != nil)
+                }
                 Button { Task { await appli.recharger() } } label: { Image(systemName: "arrow.clockwise") }.boutonVerre().help("Actualiser (⌘R)")
                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).keyboardShortcut("n").help("Nouvel article (⌘N)")
             }

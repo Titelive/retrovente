@@ -346,7 +346,7 @@ final class Appli: ObservableObject {
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
-            if ["trophees", "bilan", "compte"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
+            if ["trophees", "bilan", "compte", "tous"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
             return
         }
         do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger() }

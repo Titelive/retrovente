@@ -202,7 +202,7 @@ struct Accueil: View {
         .onChange(of: filtre) { _ in appli.selection = nil }
         .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
         .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }
-        .onAppear { if let p = appli.page { filtre = "@" + p } }
+        .onAppear { if let p = appli.page { filtre = p == "tous" ? nil : "@" + p } }
     }
     private var titre: String { filtre.flatMap { f in Libelles.statuts.first { $0.0 == f }?.1 } ?? "Tous mes articles" }
     private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int?) -> some View {
