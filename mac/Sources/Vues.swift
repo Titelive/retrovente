@@ -86,7 +86,10 @@ struct Racine: View {
 
 struct Connexion: View {
     @ObservedObject var appli: Appli
-    @State private var email = "", mdp = "", message = "", enCours = false
+    @State private var email = ""
+    @State private var mdp = ""
+    @State private var message = ""
+    @State private var enCours = false
     var body: some View {
         ZStack {
             LinearGradient(colors: [Color.rrNuit, Color(red: 0.16, green: 0.17, blue: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -307,7 +310,8 @@ struct Fiche: View {
     @State var article: Article
     let fermer: () -> Void
     @State private var photo: Photo? = nil
-    @State private var enCours = false, confirmer = false
+    @State private var enCours = false
+    @State private var confirmer = false
     @State private var original: Article? = nil
 
     var body: some View {
