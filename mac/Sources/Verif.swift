@@ -58,12 +58,20 @@ final class VerifAnnonces: NSObject, WKNavigationDelegate {
             v.navigationDelegate = self
             vue = v
         }
+        if let v = vue, v.superview == nil { appli?.fenetre?.accueillirEnFond(v) }
         vue?.load(URLRequest(url: u))
         minuterie?.invalidate()
         minuterie = Timer.scheduledTimer(withTimeInterval: 25, repeats: false) { [weak self] _ in Task { @MainActor in self?.fini(nil) } }
     }
 
+    private var statutHTTP = 0
+    func webView(_ v: WKWebView, decidePolicyFor r: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        if r.isForMainFrame { statutHTTP = (r.response as? HTTPURLResponse)?.statusCode ?? 0 }
+        decisionHandler(.allow)
+    }
     func webView(_ v: WKWebView, didFinish n: WKNavigation!) {
+        // Annonce supprimée ou expirée : Le Bon Coin répond « introuvable » (404) ou « disparue » (410).
+        if statutHTTP == 404 || statutHTTP == 410 { fini("morte"); return }
         // Le Bon Coin dessine la page après le chargement : on lit un peu plus tard.
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self = self, self.actuel != nil else { return }
@@ -78,6 +86,8 @@ final class VerifAnnonces: NSObject, WKNavigationDelegate {
         minuterie?.invalidate(); minuterie = nil
         guard let a = actuel else { return }
         actuel = nil
+        NSLog("RetroRevente : vérification de l'annonce %@ → %@ (HTTP %d)", a.url, etat ?? "sans réponse", statutHTTP)
+        statutHTTP = 0
         if let e = etat, e == "morte" || e == "vivante" {
             vues[a.id + "|" + a.url] = Date()
             if let ap = appli, ap.parId(a.id)?.annonce == a.url {

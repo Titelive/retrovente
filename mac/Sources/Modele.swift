@@ -331,7 +331,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -339,7 +339,7 @@ final class Appli: ObservableObject {
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
                 ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789"],
-                ["id": "l1", "titre": "Lot Nintendo 64 : 2 jeux", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
+                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
                 ["id": "a8", "titre": "Perfect Dark", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 22, "prixVente": 20, "statut": "recu", "remise": "envoi", "transporteur": "colissimo", "suivi": "6A12345678901", "livreLe": "2026-11-18", "dateVente": "2026-11-14", "modifie": "0", "cree": "2026-10-02", "rareteJeu": "peu_commun"],
                 ["id": "a9", "titre": "Conker's Bad Fur Day", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 185, "statut": "en_vente", "modifie": "0", "cree": "2026-11-10", "rareteJeu": "tres_rare"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
@@ -349,7 +349,9 @@ final class Appli: ObservableObject {
                 ["id": "a6", "titre": "Manette DualShock 2", "categorie": "accessoires", "plateforme": "PlayStation 2", "prixDemande": 15, "statut": "en_vente", "modifie": "1"],
             ]
             articles = ex.map(Article.init); etat = .connecte
-            if d == "fiche" { selection = "a1"; annoncesMortes = ["a1": articles.first { $0.id == "a1" }?.annonce ?? ""] } else { annoncesMortes = [:] }
+            if d == "fiche" { selection = "a1"; annoncesMortes = ["a1": articles.first { $0.id == "a1" }?.annonce ?? ""] }
+            else if d == "fichelot" { selection = "l1"; annoncesMortes = ["l1": articles.first { $0.id == "l1" }?.annonce ?? ""] }
+            else { annoncesMortes = [:] }
             if d == "nouveau" { nouveauOuvert = true }
             if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }

@@ -62,12 +62,14 @@ struct EnTete<Boutons: View>: View {
                 Button(action: b) { Image(systemName: "sidebar.left") }
                     .boutonVerre().help("Cacher ou montrer la barre latérale (⌃⌘S)")
             }
+            // Titre et sous-titre sur une ligne chacun (tronqués si la fenêtre est étroite), boutons jamais repliés :
+            // un texte écrasé qui passe à la ligne à chaque lettre agrandissait toute la vue au-delà de la fenêtre.
             VStack(alignment: .leading, spacing: 2) {
-                Text(titre).font(.system(size: 26, weight: .heavy, design: .rounded)).lineLimit(1)
-                if !sousTitre.isEmpty { Text(sousTitre).font(.callout).foregroundStyle(.secondary) }
-            }
-            Spacer()
-            HStack(spacing: 8) { boutons() }
+                Text(titre).font(.system(size: 26, weight: .heavy, design: .rounded)).lineLimit(1).truncationMode(.tail)
+                if !sousTitre.isEmpty { Text(sousTitre).font(.callout).foregroundStyle(.secondary).lineLimit(1) }
+            }.frame(minWidth: 80, alignment: .leading)
+            Spacer(minLength: 8)
+            HStack(spacing: 8) { boutons() }.lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 6)
     }
@@ -295,21 +297,25 @@ struct Fiche: View {
 
     /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
     private var bandeauAnnonceMorte: some View {
-        HStack(alignment: .center, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(alignment: .top, spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill").font(.title2).foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cette annonce n'est plus en ligne sur Le Bon Coin").font(.headline)
                 Text(article.estLot ? "Elle est désactivée, supprimée ou expirée. Redépose le lot : son titre accrocheur et son annonce sont refaits avec ses articles."
                                     : "Elle est désactivée, supprimée ou expirée. Redépose-la, ou retrouve-la si tu l'as republiée sous un autre lien.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 8)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+          }
+          HStack(spacing: 8) {
+            Spacer(minLength: 0)
             Menu {
                 Button("Retrouver dans Mes annonces") { Task { await oublierLien(); appli.fenetre?.aller(.annonces) } }
                 Button("Oublier le lien") { Task { await oublierLien() } }
             } label: { Text("Autres choix") }.menuStyle(.button).boutonVerre().fixedSize()
             Button { Task { await redeposer() } } label: { Label("Redéposer", systemImage: "paperplane.fill") }
-                .boutonVerre(principal: true).disabled(enCours || article.statut != "en_vente")
+                .boutonVerre(principal: true).disabled(enCours || article.statut != "en_vente").fixedSize()
+          }
         }
         .padding(14)
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
@@ -380,13 +386,23 @@ struct Fiche: View {
                 Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
                     .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || article == original)
             }
-            if article.annonceMorte(appli) { bandeauAnnonceMorte.padding(.horizontal, 24).padding(.top, 8) }
             ScrollView {
-                HStack(alignment: .top, spacing: 24) {
-                    galerie.frame(width: 340)
-                    champs.frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 16) {
+                    if article.annonceMorte(appli) { bandeauAnnonceMorte }
+                    HStack(alignment: .top, spacing: 24) {
+                        galerie.frame(width: 340)
+                        champs.frame(maxWidth: .infinity)
+                    }
                 }.padding(24)
             }
+            .frame(minHeight: 0, maxHeight: .infinity)
+        }
+        .frame(minWidth: 0, minHeight: 0, alignment: .top)
+        .clipped()
+        // Fiches rechargées (site, autre Mac, lot refait) : la fiche ouverte suit, sauf si elle a des modifications en cours.
+        .onReceive(appli.$articles) { l in
+            guard let n = l.first(where: { $0.id == article.id }), n != original, article == original else { return }
+            article = n; original = n
         }
         .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
