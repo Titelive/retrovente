@@ -1201,7 +1201,10 @@
   function offreOfficielle() {
     var t = colonneConversation().innerText, m, r = null, re = /offre de [^:\n]{1,60}:\s*(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/gi;
     while ((m = re.exec(t))) r = entier(m[1]);
-    return r;
+    // « Vendu ! Recevez 15,00 € » : le montant de la vente conclue l'emporte sur l'offre.
+    var v = null, rv = /recevez\s+(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/gi;
+    while ((m = rv.exec(t))) { var x = parseFloat(m[1].replace(/\s/g, "").replace(",", ".")); if (isFinite(x) && x > 0) v = Math.round(x * 100) / 100; }
+    return v != null ? v : r;
   }
   // Prénom ou pseudo de l'acheteur : « Voici l'offre de Garnier », sinon le nom en tête de l'encadré.
   // Prénom de l'acheteur : « Voici l'offre de Garnier », sinon la signature de son message (« Cordialement, Evelyne »),

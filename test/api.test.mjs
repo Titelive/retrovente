@@ -69,6 +69,11 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal(r2.json.objet.statut, "en_vente"); assert.equal(r2.json.objet.dateVente, "");
   const r3 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40, dateVente: v.json.objet.dateVente } }, c);
   assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
+  // passé en vendu sans prix de vente : le prix demandé devient le prix de vente
+  const sp = (await call("POST", "/api/objets", { objet: { titre: "Diddy Kong Racing", prixDemande: 15 } }, c)).json.objet;
+  const spv = await call("PUT", "/api/objets/" + sp.id, { objet: { statut: "vendu" } }, c);
+  assert.equal(spv.json.objet.prixVente, 15);
+  await call("DELETE", "/api/objets/" + sp.id, null, c);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
   assert.equal(moi.json.bilan.annee.ventes, 1); assert.equal(moi.json.bilan.annee.montant, 40);
