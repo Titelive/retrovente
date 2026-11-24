@@ -127,7 +127,10 @@ final class Logo: NSView {
             a.append(NSAttributedString(string: "Revente", attributes: [.font: Charte.police(15, .bold), .foregroundColor: Charte.verre ? Charte.orIcone : Charte.or]))
             return a
         }())
+        nom.maximumNumberOfLines = 1; nom.lineBreakMode = .byClipping
+        nom.setContentCompressionResistancePriority(.required, for: .horizontal)
         let pile = NSStackView(views: [image, nom])
+        pile.setContentCompressionResistancePriority(.required, for: .horizontal)
         pile.spacing = 7; pile.translatesAutoresizingMaskIntoConstraints = false
         addSubview(pile)
         NSLayoutConstraint.activate([

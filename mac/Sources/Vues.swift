@@ -78,6 +78,7 @@ struct Racine: View {
         .alert("RetroRevente", isPresented: Binding(get: { appli.erreur != nil }, set: { if !$0 { appli.erreur = nil } })) {
             Button("OK") { appli.erreur = nil }
         } message: { Text(appli.erreur ?? "") }
+        .tint(Color.rrOr)
         .task { await appli.demarrer() }
     }
 }
@@ -166,6 +167,7 @@ struct Accueil: View {
                 Grille(appli: appli, articles: visibles, titre: titre)
             }
         }
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
         .sheet(isPresented: $appli.compteOuvert) { Compte(appli: appli) }
         .onChange(of: filtre) { _ in appli.selection = nil }

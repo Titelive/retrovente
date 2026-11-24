@@ -72,7 +72,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let contenu = NSView()
         // RetroRevente : écrans natifs (SwiftUI). La vue web « appli » ne sert plus qu'en secours.
         modele.fenetre = self
-        natif = NSHostingView(rootView: Racine(appli: modele))
+        let hote = NSHostingView(rootView: Racine(appli: modele))
+        hote.sizingOptions = []   // la fenêtre garde sa taille, quel que soit l'écran affiché
+        natif = hote
         appli.isHidden = true
         for v in [appli!, lbc!, natif!] { v.translatesAutoresizingMaskIntoConstraints = false; contenu.addSubview(v) }
         chargement.translatesAutoresizingMaskIntoConstraints = false
