@@ -92,7 +92,9 @@ final class Bouton: NSView {
         trackingAreas.forEach(removeTrackingArea)
         addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
     }
-    override func mouseEntered(with event: NSEvent) { survol = true }
+    /// Appelé quand la souris arrive sur le bouton (barre latérale : elle s'aperçoit au survol).
+    var auSurvol: (() -> Void)?
+    override func mouseEntered(with event: NSEvent) { survol = true; auSurvol?() }
     override func mouseExited(with event: NSEvent) { survol = false; appui = false }
     override func mouseDown(with event: NSEvent) { if disponible { appui = true } }
     override func mouseUp(with event: NSEvent) {

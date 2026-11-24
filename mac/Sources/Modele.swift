@@ -374,6 +374,8 @@ final class Appli: ObservableObject {
     @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
+    /// Barre latérale masquée mais montrée par-dessus la page (souris sur le bord gauche ou sur le bouton de la barre).
+    @Published var barreSurvol = false
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
         didSet { UserDefaults.standard.set(barreCachee, forKey: "barreCachee") }
     }

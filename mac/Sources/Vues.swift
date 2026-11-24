@@ -156,8 +156,8 @@ struct Accueil: View {
     }
 
     /// Barre latérale masquée : elle glisse par-dessus la page quand la souris touche le bord gauche, et se recache quand elle s'en va.
-    @State private var survolBord = false
     @State private var recacher: DispatchWorkItem?
+    @State private var dansPanneau = false
 
     @ViewBuilder private var barreLaterale: some View {
             List {
@@ -199,28 +199,38 @@ struct Accueil: View {
             }
         }
         .overlay(alignment: .leading) {
+            // Comme l'app Claude : un panneau pleine hauteur, collé au bord gauche, qui apparaît en fondu et se retire de même.
             if appli.barreCachee {
-                if survolBord {
+                if appli.barreSurvol {
                     barreLaterale.scrollContentBackground(.hidden)
+                        .padding(.top, 44)
                         .frame(width: 250).frame(maxHeight: .infinity)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08)))
-                        .shadow(color: .black.opacity(0.3), radius: 18, x: 4)
-                        .padding(.vertical, 8).padding(.leading, 8)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1) }
+                        .shadow(color: .black.opacity(0.35), radius: 16, x: 4)
+                        .ignoresSafeArea()
                         .onHover { dedans in
+                            dansPanneau = dedans
                             recacher?.cancel()
                             guard !dedans else { return }
-                            let w = DispatchWorkItem { withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { survolBord = false } }
-                            recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: w)
+                            let w = DispatchWorkItem { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
+                            recacher = w; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
                         }
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 } else {
-                    Color.clear.frame(width: 8).frame(maxHeight: .infinity).contentShape(Rectangle())
-                        .onHover { if $0 { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { survolBord = true } } }
+                    Color.clear.frame(width: 6).frame(maxHeight: .infinity).contentShape(Rectangle()).ignoresSafeArea()
+                        .onHover { if $0 { withAnimation(.easeOut(duration: 0.2)) { appli.barreSurvol = true } } }
                 }
             }
         }
-        .onChange(of: appli.barreCachee) { c in if !c { survolBord = false } }
+        .onChange(of: appli.barreCachee) { c in if !c { appli.barreSurvol = false } }
+        .onChange(of: appli.barreSurvol) { montre in
+            // Montrée depuis le bouton du haut sans que la souris entre dans le panneau : il se retire tout seul.
+            guard montre else { dansPanneau = false; return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                if appli.barreSurvol, !dansPanneau { withAnimation(.easeIn(duration: 0.18)) { appli.barreSurvol = false } }
+            }
+        }
         .overlay(alignment: .bottom) { Bandeau(appli: appli) }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
         .onChange(of: appli.focusRecherche) { _ in

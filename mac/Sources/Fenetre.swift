@@ -351,6 +351,10 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let logo = Logo()
         // Cacher / montrer la barre latérale : à côté du logo, comme dans les apps macOS (Notes, Mail…).
         let barreLaterale = Bouton(symbole: "sidebar.left", titre: nil, aide: "Cacher ou montrer la barre latérale (⌃⌘S)") { [weak self] in self?.basculerBarre(nil) }
+        barreLaterale.auSurvol = { [weak self] in
+            guard let m = self?.modele, m.barreCachee, self?.visible == .appli else { return }
+            withAnimation(.easeOut(duration: 0.2)) { m.barreSurvol = true }
+        }
         let boutons = Rubrique.allCases.map { r -> Bouton in
             let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
             onglets[r] = b; return b
