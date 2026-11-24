@@ -83,7 +83,12 @@ struct Racine: View {
             switch appli.etat {
             case .chargement: ProgressView().controlSize(.large)
             case .deconnecte: Connexion(appli: appli)
-            case .connecte: Accueil(appli: appli)
+            case .connecte:
+                // Mes articles reste construit sous la messagerie : on y revient sans rien perdre (filtre, défilement).
+                ZStack {
+                    Accueil(appli: appli).opacity(appli.messagesOuvert ? 0 : 1).allowsHitTesting(!appli.messagesOuvert)
+                    if appli.messagesOuvert { MessagesVue(appli: appli, m: appli.messagerie) }
+                }
             }
             if let t = appli.fete { Fete(titre: t).allowsHitTesting(false).transition(.opacity) }
         }

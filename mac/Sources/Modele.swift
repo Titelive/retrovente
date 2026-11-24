@@ -349,6 +349,8 @@ final class Appli: ObservableObject {
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
+    @Published var messagesOuvert = false     // onglet Messages : la messagerie native (Messagerie.swift)
+    let messagerie = Messagerie()
     @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
@@ -383,7 +385,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse", "messages"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -407,6 +409,7 @@ final class Appli: ObservableObject {
             if d == "nouveau" { nouveauOuvert = true }
             if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
+            if d == "messages" { messagesOuvert = true; messagerie.demo() }
             if d == "adresse" { selection = "a3"; depot = DepotEnCours(id: "a3", titre: articles.first { $0.id == "a3" }?.titre ?? "", etape: .adresse("")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"

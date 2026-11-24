@@ -24,7 +24,7 @@ jobs:
         continue-on-error: true
         run: |
           APP=mac/build/RetroRevente.app
-          for demo in appli articles tous sansbarre fiche fichelot depot adresse choixdepot gestion nouveau trophees bilan compte deposer; do
+          for demo in appli articles tous sansbarre fiche fichelot depot adresse choixdepot messages gestion nouveau trophees bilan compte deposer; do
             case $demo in trophees|bilan|compte|tous) open --env RR_DEMO=articles --env RR_DEMO_PAGE=$demo "$APP" ;; sansbarre) open --env RR_DEMO=articles --env RR_DEMO_BARRE=cachee "$APP" ;; *) open --env RR_DEMO=$demo "$APP" ;; esac
             case $demo in appli|deposer) sleep 22 ;; *) sleep 7 ;; esac
             pgrep -x RetroRevente

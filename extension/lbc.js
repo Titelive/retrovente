@@ -1894,9 +1894,107 @@
     remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); });
   }
 
+  /* ===== Messagerie native (app Mac) =====
+     L'app Mac garde la messagerie Le Bon Coin chargée dans un navigateur caché (window.__rrNatif) et la lit ou l'écrit
+     par ces fonctions : liste des conversations, fil d'une conversation, réponses de l'IA, envoi. Rien n'est envoyé sans
+     un clic « Envoyer » dans l'app. Pas de panneau ni d'IA automatique dans ce navigateur-là. */
+  var DATE_ENTREE = new RegExp(DATE_LISTE.source + "|\\b\\d{1,2}[:h]\\d{2}\\b|\\b\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?\\b|^(?:lun|mar|mer|jeu|ven|sam|dim)\\w*\\.?\\s*$|\\b\\d{1,2} (?:janv|févr|fevr|mars|avr|mai|juin|juil|août|aout|sept|oct|nov|déc|dec)", "im");
+  function entreesConversations() {
+    var cand = [].filter.call(document.querySelectorAll("a[href], li, [role=link], [role=listitem], [role=button], button"), function (x) {
+      if (!visible(x) || (hote && hote.contains(x)) || x.closest("header, nav, footer")) return false;
+      var r = x.getBoundingClientRect(); if (r.left > innerWidth * 0.5 || r.height < 36 || r.height > 260) return false;
+      var t = x.innerText || ""; return t.length > 3 && t.length < 700 && DATE_ENTREE.test(t);
+    });
+    return cand.filter(function (x) { return !cand.some(function (y) { return y !== x && y.contains(x); }); });
+  }
+  function cleEntree(x) {
+    var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
+    if (a && /messag/.test(a.getAttribute("href") || "")) return a.getAttribute("href");
+    return "t:" + norm(x.innerText || "").split(" ").slice(0, 12).join(" ");
+  }
+  function lireEntree(x) {
+    var lignes = (x.innerText || "").split("\n").map(function (l) { return l.replace(/\s+/g, " ").trim(); }).filter(Boolean).slice(0, 7);
+    var img = [].find.call(x.querySelectorAll("img"), function (i) { return i.src && !/^data:/.test(i.src); });
+    var gras = [].some.call(x.querySelectorAll("p, span, div"), function (e) { return e.childElementCount === 0 && (e.textContent || "").trim().length > 3 && +getComputedStyle(e).fontWeight >= 600; });
+    var pastille = !!x.querySelector("[aria-label*='non lu' i], [title*='non lu' i], [data-qa-id*=unread], [data-test-id*=unread]");
+    return { cle: cleEntree(x), lignes: lignes, image: img ? img.src : "", nonLu: pastille || gras, active: x.getAttribute("aria-current") === "page" || x.getAttribute("aria-selected") === "true" };
+  }
+  function bulleDe(e, col) {
+    for (var b = e, k = 0; b && b !== col && k < 6; b = b.parentElement, k++) {
+      var st = getComputedStyle(b);
+      if ((st.backgroundColor && !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(st.backgroundColor)) || parseFloat(st.borderTopLeftRadius) >= 8) return b;
+    }
+    return e;
+  }
+  var META = /^(?:\d{1,2}[:h]\d{2}|lu|vu|envoy[ée]|re[çc]u|distribu[ée]|lu à .*|vu à .*|envoy[ée] à .*)$/i;
+  function filActuel() {
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), sugg = blocsSuggestions(col), out = [];
+    var w = document.createTreeWalker(col, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) {
+      var t = (n.nodeValue || "").replace(/[ \t ]+/g, " ").trim(), e = n.parentElement;
+      if (!t || !e || !visible(e) || (hote && hote.contains(e))) continue;
+      if (z && (z === e || z.contains(e))) continue;
+      if (e.closest("button, [role=button], form, textarea, [contenteditable]")) continue;
+      if (sugg.some(function (b) { return b.contains(e); })) continue;
+      var b = bulleDe(e, col), r = b.getBoundingClientRect(); if (!r.width) continue;
+      var g = r.left - cr.left, d = cr.right - r.right;
+      var cote = r.width > cr.width * 0.88 || Math.abs(g - d) < 24 ? "centre" : g > d ? "moi" : "lui";
+      var der = out[out.length - 1];
+      if (META.test(t) && der) { der.meta = der.meta ? der.meta + " · " + t : t; continue; }
+      if (der && der.el === b) { der.texte += "\n" + t; continue; }
+      out.push({ el: b, cote: cote, texte: t, meta: "" });
+    }
+    var enc = texteEncadre().split("\n").map(function (l) { return l.trim(); }).filter(Boolean).slice(0, 6);
+    return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(),
+             messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
+  }
+  window.rrMessagerie = {
+    liste: function () { return { page: location.pathname, connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: entreesConversations().map(lireEntree).slice(0, 80), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
+    fil: function () { return filActuel(); },
+    ouvrir: async function (cle) {
+      var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
+      if (!x) return { erreur: "introuvable" };
+      var avant = idConversation(), cible = x.matches("a[href]") ? x : (x.querySelector("a[href]") || x);
+      cliquer(cible);
+      for (var i = 0; i < 40; i++) { await attendre(250); if (idConversation() !== avant && colonneConversation().innerText.trim().length > 40) break; }
+      await attendre(600);
+      return filActuel();
+    },
+    suggestions: async function (consigne) {
+      if (!etat.annonces) { try { var j = await rrDemander({ type: "annonces" }); etat.annonces = j.annonces || []; etat.vendeur = (j.profil && j.profil.vendeur) || {}; } catch (e) {} }
+      recaler(); if (!etat.choisie) etat.choisie = deviner(true) || deviner();
+      var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
+      try {
+        var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi(), dernierMoi: !consigne && dernierEstMoi(), refuserSansAvis: etat.refuserSansAvis !== false });
+        var qui = acheteurLu();
+        return { article: c.titre || "", resume: r.resume || "", offre: r.offre || null, version: r.version || null,
+                 reponses: (r.reponses || []).map(function (x) { return { approche: x.approche || "", titre: x.titre || "", texte: smiley(personnaliser(x.texte || "", qui)) }; }) };
+      } catch (e) { return { erreur: e.message || "Réponse impossible", status: e.status || 0 }; }
+    },
+    envoyer: async function (texte) {
+      var z = zoneMessage(); if (!z) return { erreur: "Zone de message introuvable" };
+      if (z instanceof HTMLTextAreaElement || z instanceof HTMLInputElement) { ecrire(z, texte); z.focus(); }
+      else { z.focus(); var sel = window.getSelection(); sel.selectAllChildren(z); if (!document.execCommand("insertText", false, texte)) z.textContent = texte; z.dispatchEvent(new Event("input", { bubbles: true })); }
+      await attendre(400);
+      var zone = z.closest("form") || z.parentElement && z.parentElement.parentElement && z.parentElement.parentElement.parentElement || document;
+      var b = [].find.call(zone.querySelectorAll("button, [role=button], input[type=submit]"), function (x) {
+        return visible(x) && !x.disabled && x.getAttribute("aria-disabled") !== "true" && /envoy|send|submit/.test(norm((x.getAttribute("aria-label") || "") + " " + (x.getAttribute("title") || "") + " " + (x.textContent || "") + " " + (x.type || "")));
+      });
+      if (!b) return { erreur: "Bouton Envoyer introuvable : le message est écrit, ouvre Le Bon Coin pour l'envoyer." };
+      cliquer(b);
+      for (var i = 0; i < 16; i++) {
+        await attendre(250);
+        var v = z.isConnected ? (z.value != null ? z.value : z.textContent) : "";
+        if (!String(v || "").trim()) return { ok: true, fil: filActuel() };
+      }
+      return { ok: true, incertain: true, fil: filActuel() };
+    },
+  };
+
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
+    if (window.__rrNatif) return;   // navigateur caché de la messagerie native : ni panneau ni automatismes
     guetterConfirmation().catch(function () {});
     try { placerBoutonVert(); } catch (e) {}
     if (location.pathname === vu) return;
