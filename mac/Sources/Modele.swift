@@ -392,6 +392,8 @@ final class Appli: ObservableObject {
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
     /// Barre latérale masquée mais montrée par-dessus la page (souris sur le bord gauche ou sur le bouton de la barre).
     @Published var barreSurvol = false
+    /// Visionneuse ouverte : l'article et la photo affichée (par-dessus toute la fenêtre).
+    @Published var visionneuse: (article: String, photo: Int)? = nil
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
         didSet { UserDefaults.standard.set(barreCachee, forKey: "barreCachee") }
     }
@@ -583,25 +585,6 @@ final class Appli: ObservableObject {
         }
         r.texte = Article.avecPhotos(r.texte, legendes)
         return r
-    }
-
-    /// Même rédaction, mais par l'IA d'Apple sur le Mac (Apple Intelligence) : Vision lit le texte de chaque photo,
-    /// le modèle local rédige titre, légendes et annonce. Rien ne part au serveur.
-    func redigerLocal(_ a: Article) async throws -> Redaction {
-        var textes: [String] = []
-        for p in a.photos.prefix(8) {
-            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d) else { break }
-            textes.append(await IALocale.lireTexte(i))
-        }
-        var lignes: [String] = []
-        let e = a.envoi
-        for k in ["titre", "plateforme", "region", "langues", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "edition", "annee"] {
-            if let v = e[k], !(v is NSNull), "\(v)" != "" { lignes.append("\(k) : \(v)") }
-        }
-        let r = try await IALocale.rediger(fiche: lignes.joined(separator: "\n"), textesPhotos: textes, sansNotice: Libelles.sansNotice(a.plateforme))
-        var red = Redaction(titre: r.titre.isEmpty ? Article.titreSimple(a) : r.titre, texte: r.texte.isEmpty ? Article.texteSimple(a) : r.texte, etat: nil, legendes: r.legendes)
-        red.texte = Article.avecPhotos(red.texte, r.legendes)
-        return red
     }
 
     /// Cote IA de l'article, gardée dans sa fiche.
