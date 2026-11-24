@@ -74,7 +74,13 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
                 Task { @MainActor in if let s = self, let a = s.appli { s.planifier(a.articles) } }
             }
         }
-        for s in sites(articles) where Date().timeIntervalSince(derniere(s)) > ReleveStats.intervalle && !file.contains(s) && enCours != s { file.append(s) }
+        // Une annonce liée sans aucun chiffre (lien ajouté depuis le dernier relevé) : relevé dès 10 minutes.
+        let actifs = articles.filter { ["en_vente", "reserve"].contains($0.statut) }
+        for s in sites(articles) {
+            let manque = actifs.contains { (s == "lbc" ? !$0.annonce.isEmpty : !$0.annonceEbay.isEmpty) && $0.stats[s] == nil }
+            let delai = manque ? 600 : ReleveStats.intervalle
+            if Date().timeIntervalSince(derniere(s)) > delai && !file.contains(s) && enCours != s { file.append(s) }
+        }
         suivant()
     }
     /// « Actualiser » : tous les sites liés, tout de suite.
@@ -101,7 +107,8 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
             v.navigationDelegate = self
             vue = v
         }
-        if let v = vue, v.superview == nil { appli?.fenetre?.accueillirEnFond(v) }
+        // Taille fixe : Le Bon Coin montre « Mes annonces » en grand (avec les vues et favoris), quelle que soit la fenêtre.
+        if let v = vue, v.superview == nil { appli?.fenetre?.accueillirEnFond(v, taille: NSSize(width: 1440, height: 1000)) }
         vue?.load(URLRequest(url: u))
         minuterie?.invalidate()
         minuterie = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in Task { @MainActor in self?.fin() } }
