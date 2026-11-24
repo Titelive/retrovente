@@ -105,6 +105,7 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
             uc.addUserScript(WKUserScript(source: Extension.texte("stats.js"), injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: Scripts.monde))
             let v = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 1000), configuration: conf)
             v.navigationDelegate = self
+            v.uiDelegate = DelegueWebCrypto.partage
             vue = v
         }
         // Taille fixe : Le Bon Coin montre « Mes annonces » en grand (avec les vues et favoris), quelle que soit la fenêtre.

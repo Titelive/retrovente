@@ -57,6 +57,7 @@ final class VerifAnnonces: NSObject, WKNavigationDelegate {
             conf.applicationNameForUserAgent = Fenetre.identiteSafari
             let v = WKWebView(frame: NSRect(x: 0, y: 0, width: 1200, height: 900), configuration: conf)
             v.navigationDelegate = self
+            v.uiDelegate = DelegueWebCrypto.partage
             vue = v
         }
         if let v = vue, v.superview == nil { appli?.fenetre?.accueillirEnFond(v, taille: NSSize(width: 1440, height: 1000)) }
