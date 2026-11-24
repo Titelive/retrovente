@@ -675,7 +675,7 @@ final class Appli: ObservableObject {
         var consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet."
         consigne += " N'écris aucune liste des photos ni de section « Photos » : l'app l'ajoute elle-même à la fin."
         if !liste.isEmpty {
-            consigne += " Voici ce que montre chacune de mes photos :\n\(liste)\nLe texte décrit l'objet d'après ces photos, sans les énumérer. L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
+            consigne += " La description tient en 3 ou 4 lignes courtes : nom, console, version et langue ; contenu et état général en une seule phrase ; une particularité seulement si elle compte pour l'acheteur ; « Remise en main propre ou envoi. ». Ne reprends pas, même reformulé, le détail photo par photo (face avant, dos, tranche, contacts…) et ne parle ni des couleurs ni du décor imprimé. Pour info, voici ce que montrent mes photos :\n\(liste)\n L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
         }
         if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
         var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)

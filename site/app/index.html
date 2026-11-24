@@ -2762,12 +2762,14 @@ $("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial(
 $("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
 $("dTexte").addEventListener("input",taille);
 $("dSug").addEventListener("click",function(e){var b=e.target.closest("button");if(b)envoyerDial(b.textContent)});
+/* Consigne de la réécriture : un résumé court ; le détail photo par photo est dans le bloc « Photos : », jamais repris dans le texte. */
+var REECRIRE="La description tient en 3 ou 4 lignes courtes : 1) nom, console, version et langue ; 2) contenu (boîte, notice, cartouche ou disque) et état général en une seule phrase ; 3) une particularité seulement si elle compte pour l'acheteur ; 4) « Remise en main propre ou envoi. ». Ne reprends pas, même reformulé, le détail des photos (face avant, dos, tranche, contacts…) : il est ajouté à la fin dans le bloc « Photos », une ligne par photo. Ne parle ni des couleurs ni du décor imprimé.";
 /* Réécrire avec l'IA : chaque photo est d'abord décrite (légendes), puis l'IA réécrit titre et description ;
    le bloc « Photos : » (une ligne par photo) est remis à la fin. */
 $("fReecrire").onclick=function(){var b=this,t=b.innerHTML;if(b.disabled)return;busy(b,true,"Je décris les photos…");
   (GAL.length?decrire(false,0,true):Promise.resolve()).then(function(){busy(b,true,"Je réécris…");
     var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende:""}).filter(Boolean).join("\n");
-    return envoyerDial("Réécris toute l'annonce, titre et description, d'après la fiche"+(l?" et ce que montre chacune de mes photos :\n"+l+"\n":". ")+"Ne liste pas les photos dans le texte : le bloc « Photos » est ajouté à la fin, une ligne par photo.")})
+    return envoyerDial("Réécris toute l'annonce : titre et description."+(l?" Pour info, voici ce que montrent mes photos :\n"+l+"\n":" ")+REECRIRE)})
     .then(function(){if(GAL.some(function(g){return g.legende}))majDescPhotos()}).catch(function(e){erreur(e,"Réécriture impossible.")}).then(function(){busy(b,false,t);b.innerHTML=t})};
 $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-annule]");if(!b)return;var m=DIAL[+b.dataset.annule];if(!m||!m.avant)return;poser(m.avant);m.avant=null;dessinerDial();toast("Changements annulés.","ok")});
 
