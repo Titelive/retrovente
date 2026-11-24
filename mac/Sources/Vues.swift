@@ -292,6 +292,17 @@ struct Fiche: View {
     @State private var retirer = false
     @State private var original: Article? = nil
 
+    /// Lot : titre accrocheur et annonce refaits par le serveur avec les articles du lot (comme « Mettre à jour l'annonce » du site).
+    private func refaireAnnonceLot() async {
+        enCours = true; defer { enCours = false }
+        do {
+            let j = try await API.json("POST", "/api/lots/\(article.id)/annonce", ["simple": true, "prixDemande": article.prixDemande.map { $0 as Any } ?? NSNull()])
+            if let t = j["titre"] as? String, !t.isEmpty { article.titre = t; article.titreAnnonce = t }
+            if let d = j["description"] as? String, !d.isEmpty { article.texteAnnonce = d }
+            appli.message = "Titre et annonce refaits avec les \(appli.membres(article).count) articles du lot. Enregistre, puis mets à jour l'annonce sur Le Bon Coin."
+        } catch { appli.signaler(error) }
+    }
+
     /// Enregistre la fiche si besoin, puis reporte titre, description et prix sur l'annonce Le Bon Coin.
     private func mettreAJour() async {
         if article != original {
@@ -309,9 +320,13 @@ struct Fiche: View {
                 Spacer()
             }.padding(.horizontal, 24).padding(.top, 14)
             EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
+                if article.estLot {
+                    Button { Task { await refaireAnnonceLot() } } label: { Label("Refaire l'annonce", systemImage: "sparkles") }.boutonVerre()
+                        .help("Nouveau titre accrocheur et annonce à jour avec les articles du lot").disabled(enCours)
+                }
                 if let url = URL(string: article.annonce), !article.annonce.isEmpty {
                     Menu {
-                        Button { appli.fenetre?.ouvrir(url) } label: { Label("Voir l'annonce", systemImage: "eye") }
+                        Button { _ = url; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce", systemImage: "eye") }
                         Button { Task { await mettreAJour() } } label: { Label("Mettre à jour l'annonce", systemImage: "arrow.triangle.2.circlepath") }
                         Divider()
                         Button(role: .destructive) { retirer = true } label: { Label("Supprimer de Le Bon Coin…", systemImage: "trash") }
@@ -358,7 +373,7 @@ struct Fiche: View {
                 }.padding(2)
             }
             if article.publiee, let u = URL(string: article.annonce) {
-                Button { appli.fenetre?.ouvrir(u) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
+                Button { _ = u; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
             }
             Button(role: .destructive) { confirmer = true } label: { Label("Supprimer l'article", systemImage: "trash").frame(maxWidth: .infinity) }.boutonVerre()
         }

@@ -43,6 +43,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     var veilleCoulisses: Timer?
     var debutCoulisses = Date(), etapeDepuis = Date()
     var reglageAuto: Any? = nil, autoSuspendu = false
+    var annonceAVerifier: String? = nil   // article dont on ouvre l'annonce : on vérifie qu'elle est encore en ligne
     private var onglets: [Rubrique: Bouton] = [:]
     private var precedent: Bouton!, suivant: Bouton!, recharger: Bouton!
     private let chargement = Chargement()
@@ -370,7 +371,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
         decisionHandler(.allow)
     }
-    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
+    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses(); verifierAnnonce() } }
     func webView(_ v: WKWebView, didCommit n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
     func webViewWebContentProcessDidTerminate(_ v: WKWebView) { v.reload() }
 
