@@ -16,6 +16,14 @@ struct Article: Identifiable, Hashable {
     var photos: [Photo] = []
     var ia = false
     var cote: Cote? = nil
+    // Comme sur le site : rareté, sites, lots, colis, champs des cartes et des films
+    var rareteJeu = "", annonceEbay = "", numero = "", gradation = "", edition = "", annee = ""
+    var membres: [String]? = nil          // lot : ses articles (nil pour un article)
+    var lots: [String] = []                // article : les lots qui le contiennent
+    var themeNom = "", themeType = ""
+    var alerteVendus = 0                   // lot : articles vendus à part
+    var suivi = "", transporteur = "", livreLe = "", suiviLibelle = ""
+    var coteLot = false                    // la cote conseille de vendre en lot
 
     init() {}
     init(_ d: [String: Any]) {
@@ -33,6 +41,35 @@ struct Article: Identifiable, Hashable {
         if let l = d["photos"] as? [[String: Any]] {
             photos = l.compactMap { p in (p["id"] as? String).map { Photo(id: $0, legende: p["legende"] as? String ?? "") } }
         } else if d["photo"] as? Bool == true { photos = [Photo(id: "p0", legende: "")] }
+        if d["photo"] as? Bool == false { photos = [] }
+        rareteJeu = t("rareteJeu"); annonceEbay = t("annonceEbay"); numero = t("numero"); gradation = t("gradation")
+        edition = t("edition"); annee = t("annee")
+        membres = d["articles"] as? [String]
+        var l = d["lots"] as? [String] ?? []
+        if let x = d["lot"] as? String, !x.isEmpty, !l.contains(x) { l.append(x) }
+        lots = l
+        if let th = d["theme"] as? [String: Any] { themeNom = th["nom"] as? String ?? ""; themeType = th["type"] as? String ?? "" }
+        alerteVendus = ((d["alerte"] as? [String: Any])?["vendus"] as? [Any])?.count ?? 0
+        suivi = t("suivi"); transporteur = t("transporteur"); livreLe = t("livreLe")
+        suiviLibelle = (d["suiviEtat"] as? [String: Any])?["libelle"] as? String ?? ""
+        coteLot = (d["cote"] as? [String: Any])?["lot"] as? Bool ?? false
+    }
+    var estLot: Bool { membres != nil }
+    var vendu: Bool { ["vendu", "envoye", "recu"].contains(statut) }
+    /// Prix affiché : le prix de vente une fois vendu, sinon le prix demandé.
+    var prixAffiche: Double? { vendu ? prixVente : prixDemande }
+    /// Valeur à l'unité : le prix demandé, sinon le prix conseillé de la cote.
+    var valeur: Double? { prixDemande ?? cote?.conseille }
+    var rangRarete: Int { categorie == "cartes" || categorie == "films" || estLot ? 0 : (["commun": 1, "peu_commun": 2, "rare": 3, "tres_rare": 4][rareteJeu] ?? 0) }
+    /// Ligne sous le titre, comme sur le site.
+    var ligne: String {
+        let l: [String]
+        switch categorie {
+        case "cartes": l = [numero, plateforme, gradation]
+        case "films": l = [Libelles.formatCourt(plateforme), edition.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? "", annee]
+        default: l = [plateforme, Libelles.contenuCourt[contenu] ?? ""]
+        }
+        return l.filter { !$0.isEmpty }.joined(separator: " · ")
     }
     /// Champs envoyés au serveur (il fusionne avec la fiche existante).
     var envoi: [String: Any] {
@@ -66,23 +103,50 @@ struct Cote: Hashable {
     }
 }
 
-enum Libelles {
-    static let statuts: [(String, String, String)] = [   // id, nom, symbole
-        ("en_vente", "En vente", "tag"), ("reserve", "Réservés", "hand.raised"), ("vendu", "Vendus", "checkmark.seal"),
-        ("envoye", "Envoyés", "shippingbox"), ("retire", "Retirés", "archivebox"),
-    ]
-    static func statut(_ s: String) -> String {
-        ["en_vente": "En vente", "reserve": "Réservé", "vendu": "Vendu", "envoye": "Envoyé", "retire": "Retiré"][s] ?? s
+extension NSColor {
+    convenience init(hex: UInt32) {
+        self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
     }
-    static func couleurStatut(_ s: String) -> Color {
+}
+
+enum Libelles {
+    /// Filtres de la liste, comme sur le site (« Vendus » réunit vendus, envoyés et reçus).
+    static let statuts: [(String, String, String)] = [   // id, nom, symbole
+        ("en_vente", "En vente", "tag"), ("reserve", "Réservés", "clock"), ("vendu", "Vendus", "checkmark.seal"),
+        ("retire", "Retirés", "archivebox"),
+    ]
+    /// Le parcours d'une vente (menu de statut des cartes et de la fiche).
+    static let ordreStatuts = ["en_vente", "reserve", "vendu", "envoye", "recu", "retire"]
+    static func statut(_ s: String) -> String {
+        ["en_vente": "En vente", "reserve": "Réservé", "vendu": "Vendu", "envoye": "Envoyé", "recu": "Reçu", "retire": "Retiré"][s] ?? s
+    }
+    static func aideStatut(_ s: String) -> String {
+        ["en_vente": "Annonce en ligne, en attente d'un acheteur", "reserve": "Un acheteur s'est engagé, pas encore payé",
+         "vendu": "Payé, reste à le remettre ou l'envoyer", "envoye": "Colis parti ou remis en main propre",
+         "recu": "L'acheteur l'a bien reçu, vente bouclée", "retire": "Plus en vente, gardé dans ta liste"][s] ?? ""
+    }
+    static func symboleStatut(_ s: String) -> String {
+        ["en_vente": "tag", "reserve": "clock", "vendu": "checkmark", "envoye": "shippingbox", "recu": "house", "retire": "archivebox"][s] ?? "tag"
+    }
+    /// Couleurs des statuts du site (fond, texte), claires ou sombres selon l'apparence.
+    static func couleursStatut(_ s: String) -> (fond: Color, texte: Color) {
+        func c(_ clair: UInt32, _ sombre: UInt32) -> Color { Color(nsColor: NSColor(name: nil) { a in a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(hex: sombre) : NSColor(hex: clair) }) }
         switch s {
-        case "en_vente": return Color(red: 0.83, green: 0.96, blue: 0.48)
-        case "reserve": return Color(red: 1.0, green: 0.82, blue: 0.25)
-        case "vendu": return Color(red: 0.37, green: 0.94, blue: 0.78)
-        case "envoye": return Color(red: 0.77, green: 0.66, blue: 1.0)
-        default: return Color.gray.opacity(0.5)
+        case "en_vente": return (c(0xDDF3CF, 0x1D3A14), c(0x1F5410, 0xB5F09A))
+        case "reserve": return (c(0xFFEDBF, 0x3A2E0E), c(0x6A4B00, 0xFFD873))
+        case "vendu": return (c(0x1A1A1A, 0xF4F4EE), c(0xE8F9B5, 0x1A1A1A))
+        case "envoye": return (c(0xE3EBFF, 0x16223F), c(0x1F3F8F, 0xA9C1FF))
+        case "recu": return (c(0xD2F1EA, 0x0F3531), c(0x0B5A4E, 0x8EE3CF))
+        default: return (Color.primary.opacity(0.07), Color.primary.opacity(0.8))
         }
     }
+    static func couleurStatut(_ s: String) -> Color { couleursStatut(s).fond }
+    static let rarete = ["commun": "Commun", "peu_commun": "Peu commun", "rare": "Rare", "tres_rare": "Très rare"]
+    static let rareteGroupe = ["commun": "Communs", "peu_commun": "Peu communs", "rare": "Rares", "tres_rare": "Très rares"]
+    static let contenuCourt = ["seul": "Jeu en loose", "boite": "En boîte", "complet": "Complet (CIB)", "boite_vide": "Boîte seule"]
+    static let nomsCategories = ["jeux": "Jeux vidéo", "consoles": "Consoles", "accessoires": "Accessoires", "cartes": "Cartes Pokémon", "films": "Films", "autres": "Autres"]
+    static let typesTheme = ["licence": "Licence", "série": "Série", "studio": "Studio", "lignée": "Lignée", "univers": "Univers", "genre": "Genre", "petits prix": "Petits prix", "support": "Même console"]
+    static func formatCourt(_ f: String) -> String { ["Blu-Ray 4K UHD": "4K UHD", "Blu-Ray 4K UHD + Blu-Ray": "4K UHD + Blu-Ray"][f] ?? f }
     static let categories: [(String, String)] = [("jeux", "Jeu vidéo"), ("consoles", "Console"), ("accessoires", "Accessoire"),
                                                  ("cartes", "Carte Pokémon"), ("films", "Film"), ("autres", "Autre")]
     static func symboleCategorie(_ c: String) -> String {
@@ -152,7 +216,9 @@ enum API {
         }
         return d
     }
-    static func urlPhoto(_ article: String, _ photo: String) -> URL { URL(string: "\(serveur)/api/photo/\(article)/\(photo)")! }
+    static func urlPhoto(_ article: String, _ photo: String, v: String = "") -> URL {
+        URL(string: "\(serveur)/api/photo/\(article)/\(photo)" + (v.isEmpty ? "" : "?v=" + (v.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")))!
+    }
 }
 
 /// Une image choisie par la personne, en JPEG « data: » (format attendu par l'API), au plus `max` pixels de côté.
@@ -238,6 +304,17 @@ final class Appli: ObservableObject {
     @Published var depot: DepotEnCours? = nil {
         didSet { if depot == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
+    // Liste, comme sur le site : tri et regroupement (gardés), idées de lots, composition d'un lot, recherche (⌘K)
+    @Published var tri = UserDefaults.standard.string(forKey: "tri") ?? "recent" { didSet { UserDefaults.standard.set(tri, forKey: "tri") } }
+    @Published var groupe = UserDefaults.standard.string(forKey: "groupe") ?? "" { didSet { UserDefaults.standard.set(groupe, forKey: "groupe") } }
+    @Published var idees: [IdeeLot] = []
+    @Published var ideesIA = false, ideesCharge = false
+    var ideesCle = ""
+    @Published var choix: [String]? = nil      // articles choisis pour un lot (nil : pas de composition en cours)
+    @Published var choixTheme: IdeeLot? = nil
+    @Published var focusRecherche = 0          // ⌘K : place le curseur dans la recherche
+    @Published var message: String? = nil      // petit message de confirmation (statut changé, lot créé…)
+    var dernierChargement = Date.distantPast
     @Published var gestion: GestionAnnonce? = nil {
         didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
@@ -249,14 +326,17 @@ final class Appli: ObservableObject {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
-                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000001",
+                ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6", "cree": "2026-11-20", "rareteJeu": "peu_commun", "lots": ["l1"], "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000001",
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
-                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5"],
+                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789"],
+                ["id": "l1", "titre": "Lot Nintendo 64 : 2 jeux", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
+                ["id": "a8", "titre": "Perfect Dark", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 22, "prixVente": 20, "statut": "recu", "remise": "envoi", "transporteur": "colissimo", "suivi": "6A12345678901", "livreLe": "2026-11-18", "dateVente": "2026-11-14", "modifie": "0", "cree": "2026-10-02", "rareteJeu": "peu_commun"],
+                ["id": "a9", "titre": "Conker's Bad Fur Day", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 185, "statut": "en_vente", "modifie": "0", "cree": "2026-11-10", "rareteJeu": "tres_rare"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
                 ["id": "a4", "titre": "Dracaufeu holo 4/102", "categorie": "cartes", "plateforme": "Set de base", "prixDemande": 180, "statut": "en_vente", "modifie": "3"],
                 ["id": "a5", "titre": "Kirby 64: The Crystal Shards", "plateforme": "Nintendo 64", "prixDemande": 55, "prixVente": 55, "frais": 3, "statut": "vendu", "dateMiseEnVente": "2026-11-01", "dateVente": "2026-11-05", "modifie": "2"],
-                ["id": "a7", "titre": "Pokémon Stadium", "plateforme": "Nintendo 64", "prixDemande": 30, "prixVente": 28, "statut": "envoye", "remise": "envoi", "dateVente": "2026-10-12", "modifie": "0"],
+                ["id": "a7", "titre": "Pokémon Stadium", "plateforme": "Nintendo 64", "prixDemande": 30, "prixVente": 28, "statut": "envoye", "remise": "envoi", "transporteur": "mondial_relay", "suivi": "12345678", "dateVente": "2026-10-12", "modifie": "0", "cree": "2026-10-01"],
                 ["id": "a6", "titre": "Manette DualShock 2", "categorie": "accessoires", "plateforme": "PlayStation 2", "prixDemande": 15, "statut": "en_vente", "modifie": "1"],
             ]
             articles = ex.map(Article.init); etat = .connecte
@@ -278,6 +358,7 @@ final class Appli: ObservableObject {
             let j = try await API.json("GET", "/api/objets")
             articles = (j["objets"] as? [[String: Any]] ?? []).map(Article.init)
                 .sorted { $0.modifie > $1.modifie }
+            dernierChargement = Date()
         } catch { signaler(error) }
     }
     func connecter(email: String, motdepasse: String) async throws {

@@ -57,7 +57,7 @@ extension Fenetre {
             "action": g.action == .modifier ? "modifier" : "supprimer",
             "titre": titre, "texte": a.texteAnnonce,
             "prix": a.prixDemande.map { String(Int($0.rounded())) } ?? "",
-            "vendu": ["vendu", "envoye"].contains(a.statut),
+            "vendu": a.vendu,
             "final": final || g.etape == .envoi || g.action == .supprimer,
             "apres": g.envoye,
         ]

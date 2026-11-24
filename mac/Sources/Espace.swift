@@ -23,7 +23,7 @@ struct Trophees: View {
     @ObservedObject var appli: Appli
 
     static func liste(_ appli: Appli) -> [T] {
-        let o = appli.articles, v = o.filter { ["vendu", "envoye"].contains($0.statut) }
+        let o = appli.articles.filter { !$0.estLot }, v = o.filter { $0.vendu }
         let enc = v.reduce(0) { $0 + ($1.prixVente ?? 0) }
         let plat = Set(o.filter { !["cartes", "films"].contains($0.categorie) }.map { $0.plateforme.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })
         let n64 = o.filter { $0.plateforme.contains("64") && ($0.plateforme + " ").range(of: "nintendo|n64", options: [.regularExpression, .caseInsensitive]) != nil }.count
@@ -33,7 +33,7 @@ struct Trophees: View {
         let eclair = v.filter { a in jours(a.dateMiseEnVente, a.dateVente).map { $0 <= 7 } ?? false }.count
         let plein = v.filter { a in (a.prixDemande ?? 0) > 0 && (a.prixVente ?? 0) >= (a.prixDemande ?? 0) }.count
         let rare = v.filter { ($0.prixVente ?? 0) >= 100 }.count
-        let envois = v.filter { $0.statut == "envoye" || $0.remise == "envoi" }.count
+        let envois = v.filter { $0.statut == "envoye" || $0.statut == "recu" || $0.remise == "envoi" }.count
         let anc = Int(jours(appli.profil.cree, ISO8601DateFormatter().string(from: Date())) ?? 0)
         // Temps gagné (minutes par étape, valeurs par défaut de l'appli web).
         let lbcN = min(appli.profil.usageLbc, o.filter { $0.statut != "retire" || $0.publiee }.count)
@@ -96,7 +96,7 @@ struct Trophees: View {
 struct Bilan: View {
     @ObservedObject var appli: Appli
     var body: some View {
-        let o = appli.articles, v = o.filter { ["vendu", "envoye"].contains($0.statut) }
+        let o = appli.articles.filter { !$0.estLot }, v = o.filter { $0.vendu }
         let encaisse = v.reduce(0) { $0 + ($1.prixVente ?? 0) }
         let net = v.reduce(0) { $0 + ($1.prixVente ?? 0) - ($1.frais ?? 0) }
         let achats = v.reduce(0) { $0 + ($1.prixAchat ?? 0) }

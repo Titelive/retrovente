@@ -77,6 +77,13 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let contenu = NSView()
         // RetroRevente : écrans natifs (SwiftUI). La vue web « appli » ne sert plus qu'en secours.
         modele.fenetre = self
+        // Données à jour : au retour dans l'app, et toutes les 90 s pendant qu'elle est au premier plan.
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.modele.rafraichir() }
+        }
+        Timer.scheduledTimer(withTimeInterval: 90, repeats: true) { [weak self] _ in
+            Task { @MainActor in if NSApp.isActive { self?.modele.rafraichir(apres: 80) } }
+        }
         let hote = NSHostingView(rootView: Racine(appli: modele))
         hote.sizingOptions = []   // la fenêtre garde sa taille, quel que soit l'écran affiché
         natif = hote
@@ -254,6 +261,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     @objc func rechargerPage(_ s: Any?) { if visible == .lbc { lbc.reload() } else { Task { await modele.recharger() } } }
     @objc func nouvelArticle(_ s: Any?) { aller(.appli); if modele.etat == .connecte { modele.nouveauOuvert = true } }
     @objc func basculerBarre(_ s: Any?) { aller(.appli); modele.barreCachee.toggle() }
+    @objc func chercherArticle(_ s: Any?) { aller(.appli); modele.selection = nil; modele.focusRecherche += 1 }
     @objc func siteWeb(_ s: Any?) { modele.ouvrirSurLeWeb() }
     @objc func tailleReelle(_ s: Any?) { actuel.pageZoom = 1 }
     @objc func agrandir(_ s: Any?) { actuel.pageZoom = min(3, actuel.pageZoom + 0.1) }

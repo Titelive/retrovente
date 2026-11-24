@@ -78,6 +78,7 @@ enum Menus {
             item("Déposer une annonce", #selector(Fenetre.allerDeposer(_:)), "2", .command, f),
             item("Messages", #selector(Fenetre.allerMessages(_:)), "3", .command, f),
             item("Mes annonces", #selector(Fenetre.allerAnnonces(_:)), "4", .command, f), sep(),
+            item("Chercher un article", #selector(Fenetre.chercherArticle(_:)), "k", .command, f),
             item("Chercher l'article à déposer", #selector(Fenetre.ouvrirRecherche(_:)), "r", [.command, .option], f),
             item("Mon compte RetroRevente", #selector(Fenetre.afficherCompte(_:)), "k", [.command, .shift], f), sep(),
             item("Page précédente", #selector(Fenetre.precedente(_:)), "[", .command, f),

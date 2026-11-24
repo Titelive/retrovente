@@ -146,6 +146,7 @@ struct Accueil: View {
     @ObservedObject var appli: Appli
     @State private var filtre: String? = "en_vente"
     @State private var recherche = ""
+    @FocusState private var champRecherche: Bool
     private var visibilite: Binding<NavigationSplitViewVisibility> {
         Binding(get: { appli.barreCachee ? .detailOnly : .all },
                 set: { v in appli.barreCachee = (v == .detailOnly) })
@@ -156,15 +157,15 @@ struct Accueil: View {
             List(selection: $filtre) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Chercher un article", text: $recherche).textFieldStyle(.plain)
+                    TextField("Chercher un article (⌘K)", text: $recherche).textFieldStyle(.plain).focused($champRecherche)
                     if !recherche.isEmpty { Button { recherche = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(.secondary) }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 7).verre(Capsule())
                 .listRowSeparator(.hidden)
                 Section("Mes articles") {
-                    ligne(nil, "Tous", "square.grid.2x2", appli.articles.count).tag(String?.none)
+                    ligne(nil, "Tous", "square.grid.2x2", appli.visibles(nil).count).tag(String?.none)
                     ForEach(Libelles.statuts, id: \.0) { s in
-                        ligne(s.0, s.1, s.2, appli.articles.filter { $0.statut == s.0 }.count).tag(Optional(s.0))
+                        ligne(s.0, s.1, s.2, appli.visibles(s.0).count).tag(Optional(s.0))
                     }
                 }
                 Section("Mon espace") {
@@ -182,9 +183,17 @@ struct Accueil: View {
             else if let id = appli.selection, let a = appli.articles.first(where: { $0.id == id }) {
                 Fiche(appli: appli, article: a, fermer: { appli.selection = nil }).id(id)
             } else {
-                Grille(appli: appli, articles: visibles, titre: titre)
+                Grille(appli: appli, articles: appli.visibles(filtre?.hasPrefix("@") == true ? nil : filtre, recherche), titre: titre,
+                       filtre: filtre?.hasPrefix("@") == true ? nil : filtre)
             }
         }
+        .overlay(alignment: .bottom) { Bandeau(appli: appli) }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
+        .onChange(of: appli.focusRecherche) { _ in
+            if appli.barreCachee { appli.barreCachee = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { champRecherche = true }
+        }
+        .onChange(of: appli.choix != nil) { c in if c, filtre != nil, filtre != "en_vente" { filtre = nil } }
         .environment(\.basculerBarre, { withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { appli.barreCachee.toggle() } })
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
@@ -196,12 +205,6 @@ struct Accueil: View {
         .onAppear { if let p = appli.page { filtre = "@" + p } }
     }
     private var titre: String { filtre.flatMap { f in Libelles.statuts.first { $0.0 == f }?.1 } ?? "Tous mes articles" }
-    private var visibles: [Article] {
-        appli.articles.filter { a in
-            (filtre == nil || filtre?.hasPrefix("@") == true || a.statut == filtre) &&
-            (recherche.isEmpty || (a.titre + " " + a.plateforme + " " + a.titreAnnonce).localizedCaseInsensitiveContains(recherche))
-        }
-    }
     private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int?) -> some View {
         HStack {
             Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
@@ -247,70 +250,6 @@ struct Avatar: View {
     }
 }
 
-struct Grille: View {
-    @ObservedObject var appli: Appli
-    let articles: [Article]; let titre: String
-    var body: some View {
-        VStack(spacing: 0) {
-        EnTete(titre: titre, sousTitre: articles.isEmpty ? "" : "\(articles.count) article\(articles.count > 1 ? "s" : "")") {
-            Button { Task { await appli.recharger() } } label: { Image(systemName: "arrow.clockwise") }.boutonVerre().help("Actualiser")
-            Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).keyboardShortcut("n").help("Nouvel article (⌘N)")
-        }
-        ScrollView {
-            if articles.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "shippingbox").font(.system(size: 44, weight: .light)).foregroundStyle(Color.rrOr)
-                    Text("Rien ici pour l'instant").font(.title3.weight(.semibold))
-                    Text("Ajoute un article : une photo suffit, l'IA s'occupe du reste.").foregroundStyle(.secondary)
-                    Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).controlSize(.large)
-                }.frame(maxWidth: .infinity).padding(.top, 120)
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 18, alignment: .top)], alignment: .leading, spacing: 18) {
-                    ForEach(articles) { a in
-                        Button { appli.selection = a.id } label: { CarteArticle(article: a) }.buttonStyle(.plain)
-                            .contextMenu {
-                                Button("Ouvrir la fiche") { appli.selection = a.id }
-                                Button("Déposer sur Le Bon Coin") { appli.deposer(a) }.disabled(a.statut != "en_vente")
-                                if a.publiee { Button("Voir l'annonce") { if let u = URL(string: a.annonce) { appli.fenetre?.ouvrir(u) } } }
-                            }
-                    }
-                }.padding(22)
-            }
-        }
-        }
-    }
-}
-
-struct CarteArticle: View {
-    let article: Article
-    @State private var survol = false
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article) }.clipped()
-                Text(Libelles.statut(article.statut)).font(.caption2.weight(.bold)).foregroundColor(.rrNuit)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Libelles.couleurStatut(article.statut), in: Capsule()).padding(10)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(article.titre).font(.headline).lineLimit(2, reservesSpace: true)
-                HStack {
-                    Text(article.sousTitre.isEmpty ? " " : article.sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer()
-                    Text(Libelles.prix(article.prixDemande)).font(.callout.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrOr)
-                }
-            }.padding(12)
-        }
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 20))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(survol ? Color.rrOr.opacity(0.7) : Color.primary.opacity(0.08), lineWidth: survol ? 2 : 1))
-        .shadow(color: .black.opacity(survol ? 0.18 : 0.08), radius: survol ? 14 : 6, y: survol ? 8 : 3)
-        .scaleEffect(survol ? 1.015 : 1)
-        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: survol)
-        .onHover { survol = $0 }
-    }
-}
-
 struct Vignette: View {
     let article: Article; var photo: Photo? = nil
     @State private var image: NSImage? = nil
@@ -322,10 +261,9 @@ struct Vignette: View {
             else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrOr) }
         }
         .clipped()
-        .task(id: (photo ?? article.photos.first)?.id) {
-            image = nil
-            guard let p = photo ?? article.photos.first else { return }
-            image = await Images.charger(API.urlPhoto(article.id, p.id))
+        .task(id: "\((photo ?? article.photos.first)?.id ?? "")|\(article.modifie)") {
+            guard let p = photo ?? article.photos.first else { image = nil; return }
+            image = await Images.charger(API.urlPhoto(article.id, p.id, v: article.modifie))
         }
     }
 }
@@ -432,12 +370,12 @@ struct Fiche: View {
             }
             bloc("Vente", "tag") {
                 champ("Statut") {
-                    Picker("", selection: $article.statut) { ForEach(Libelles.statuts, id: \.0) { Text(Libelles.statut($0.0)).tag($0.0) } }.labelsHidden().pickerStyle(.segmented)
+                    Picker("", selection: $article.statut) { ForEach(Libelles.ordreStatuts, id: \.self) { Text(Libelles.statut($0)).tag($0) } }.labelsHidden().pickerStyle(.segmented)
                 }
                 HStack {
                     champ("Prix demandé") { prix($article.prixDemande) }
                     champ("Prix d'achat") { prix($article.prixAchat) }
-                    if ["vendu", "envoye"].contains(article.statut) {
+                    if article.vendu {
                         champ("Vendu à") { prix($article.prixVente) }
                         champ("Frais") { prix($article.frais) }
                     }
