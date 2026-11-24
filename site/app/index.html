@@ -708,6 +708,28 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .site.lbc-s{background:#EC5A13}.site.ebay-s{background:#0064D2}
 a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid var(--anis);outline-offset:2px}
 .jeu .im .sites{position:absolute;left:10px;bottom:10px;z-index:2}
+/* ===== Rareté d'un jeu : badge sur la carte (une à trois gemmes), champ de la fiche ===== */
+.jeu .im .rar{position:absolute;right:10px;bottom:10px;z-index:2;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:7px;font:800 11px/1 var(--titre);letter-spacing:-.1px;text-transform:none;color:var(--rar-tx);background:var(--rar-bg);box-shadow:0 0 0 1.5px var(--carte),0 4px 10px -4px rgba(0,0,0,.45);white-space:nowrap}
+.jeu .im .rar span{font:inherit;color:inherit;letter-spacing:inherit;text-transform:none}
+.rar svg{width:8px;height:8px;fill:currentColor;flex:none}
+.rar svg:last-of-type{margin-right:2px}
+.r-peu_commun{--rar-bg:#DDF3CF;--rar-tx:#1F5410}
+.r-rare{--rar-bg:#DCE8FF;--rar-tx:#143F8F}
+.r-tres_rare{--rar-tx:#2A1E00;--rar-bg:linear-gradient(115deg,#F7D774,#FF9AD5 35%,#B98CFF 65%,#7AF5E4);background-size:220% 100%!important;animation:rar-holo 6s linear infinite alternate}
+@keyframes rar-holo{to{background-position:100% 0}}
+:root[data-theme="dark"] .r-peu_commun{--rar-bg:#21391A;--rar-tx:#BDE8A2}
+:root[data-theme="dark"] .r-rare{--rar-bg:#182B4D;--rar-tx:#A9C8FF}
+.sans-anim .r-tres_rare{animation:none}
+@media(prefers-reduced-motion:reduce){.r-tres_rare{animation:none}}
+@media(max-width:520px){.jeu .im .rar{right:7px;bottom:7px;padding:0 6px}.jeu .im .rar.r-peu_commun span{display:none}.jeu .im .rar.r-peu_commun svg{margin:0}}
+.rar-auto{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;box-sizing:border-box;height:42px;padding:0 14px;border-radius:14px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait)}
+.rar-auto small{font-size:12.5px;color:var(--gris);overflow:hidden;text-overflow:ellipsis}
+@media(max-width:520px){.rar-auto .rar+small{display:none}}
+.rar-auto .rar,.cote-rar .rar{display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 9px;border-radius:7px;font:800 12px/1 var(--titre);color:var(--rar-tx);background:var(--rar-bg)}
+.r-commun{--rar-bg:var(--carte);--rar-tx:var(--encre)}
+.r-commun{box-shadow:inset 0 0 0 1px var(--trait)}
+.cote-rar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 0;font-size:14px;color:var(--gris)}
+
 #fiche .haut h2{margin-right:0}#fSites{margin-right:auto;display:inline-flex}#fSitesM{display:none;margin-right:auto}#fSitesM .site{height:26px;padding:0 9px;font-size:12px}
 @media(max-width:700px){#fSites .sites{display:none}#fSitesM{display:inline-flex}}#fiche .haut .site{height:26px;padding:0 9px;font-size:12px}
 /* ===== Couleurs eBay ===== */
@@ -1432,8 +1454,8 @@ html.sans-anim .vt-b.pousse{animation:none}
     <button type="button" data-f="retire" aria-pressed="false">Retirés</button>
   </div>
   <div class="rangs">
-    <label class="rang"><span>Trier</span><select id="tri" aria-label="Trier les articles"><option value="recent">Plus récents</option><option value="ancien">Plus anciens</option><option value="prix_d">Prix décroissant</option><option value="prix_c">Prix croissant</option><option value="nom">Nom (A → Z)</option></select></label>
-    <label class="rang"><span>Grouper</span><select id="grp" aria-label="Grouper les articles"><option value="">Sans groupe</option><option value="console">Par support</option><option value="categorie">Par catégorie</option><option value="statut">Par statut</option></select></label>
+    <label class="rang"><span>Trier</span><select id="tri" aria-label="Trier les articles"><option value="recent">Plus récents</option><option value="ancien">Plus anciens</option><option value="prix_d">Prix décroissant</option><option value="prix_c">Prix croissant</option><option value="nom">Nom (A → Z)</option><option value="rarete">Plus rares d'abord</option></select></label>
+    <label class="rang"><span>Grouper</span><select id="grp" aria-label="Grouper les articles"><option value="">Sans groupe</option><option value="console">Par support</option><option value="categorie">Par catégorie</option><option value="statut">Par statut</option><option value="rarete">Par rareté</option></select></label>
   </div>
   </div>
   <p class="choix-aide" id="choixAide" hidden></p>
@@ -1500,6 +1522,7 @@ html.sans-anim .vt-b.pousse{animation:none}
           <label class="f l2 nopkm">Origine et fonctionnement<select id="f_origine"><option value="origine">D'origine, testé et fonctionnel</option><option value="non_teste">D'origine, non testé</option><option value="modifie">Modifié (je précise)</option><option value="repro">Reproduction (copie non officielle)</option><option value="hs">Ne fonctionne pas, pour pièces</option></select></label>
           <div class="f l2 partic"><label for="f_particularites">Particularités (ce qui est inclus ou non)</label><input type="text" id="f_particularites" maxlength="300" placeholder="ex. code de téléchargement déjà utilisé, poster inclus"><div class="puces-partic" id="fPartic" hidden></div></div>
           <label class="f l2" id="fModifZone" hidden>Ce qui a été modifié<input type="text" id="f_modif" maxlength="160" placeholder="ex. pile de sauvegarde changée, coque de remplacement, région dézonée"></label>
+          <label class="f nopkm rar-f">Rareté<input type="hidden" id="f_rareteJeu"><span class="rar-auto" id="fRar" aria-live="polite"></span></label>
           <label class="f">Prix d'achat (facultatif)<input type="number" id="f_prixAchat" min="0" step="0.01" inputmode="decimal"></label>
         </div>
         <div class="lot-bloc" id="fLotBloc" hidden></div>
@@ -1843,7 +1866,7 @@ function boutonSta(o){return CHOIX?'<span class="st '+o.statut+'">'+STA[o.statut
 function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","numero","rarete","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","transporteur","suivi","livreLe","notes","origine","modif","particularites","note","jeuRef"];
+var F=["titre","plateforme","region","categorie","numero","rarete","rareteJeu","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","transporteur","suivi","livreLe","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque article, une seule fois par article, pas les appels à l'IA
@@ -1886,7 +1909,7 @@ function montrer(v,titre){if(typeof fermerStatut==="function")fermerStatut();if(
   window.scrollTo(0,0)}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 /* depuisAdresse : au démarrage (et après connexion), on rouvre l'écran décrit par l'adresse (article, onglet, photo…) */
-function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();relireSuivis();try{majTrophNav()}catch(e){}
+function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();relireSuivis();RAR_SUIVI=0;suivreRaretes();try{majTrophNav()}catch(e){}
   var q=new URLSearchParams(location.search);
   if(depuisAdresse)return allerA(location.search,true).then(function(){if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}});
   if(q.has("compte")){compte()}else if(q.has("trophees")){trophees()}else montrer("accueil")})
@@ -2122,7 +2145,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     var px=prixArticle(o);
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
-    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
+    return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+badgeRarete(o)+'</div>'+
       '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
       ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
@@ -2224,6 +2247,7 @@ function trierArticles(l){
   var num=function(v){return v==null||v===""||isNaN(+v)?null:+v};
   return l.slice().sort(function(a,b){
     if(TRI==="nom")return NOMS.compare(a.titre||"",b.titre||"");
+    if(TRI==="rarete"){var r=rangRarete(b)-rangRarete(a);if(r)return r}
     if(TRI==="prix_d"||TRI==="prix_c"){var x=num(prixArticle(a)),y=num(prixArticle(b));
       if(x==null||y==null)return x==null&&y==null?0:x==null?1:-1;   // sans prix : à la fin
       return TRI==="prix_d"?y-x:x-y}
@@ -2231,6 +2255,23 @@ function trierArticles(l){
     return TRI==="ancien"?d:-d})}
 var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",films:"Films",autres:"Autres"};
 function formatCourt(f){return{"Blu-Ray 4K UHD":"4K UHD","Blu-Ray 4K UHD + Blu-Ray":"4K UHD + Blu-Ray"}[f]||f||""}
+/* Rareté des jeux, consoles et accessoires : badge sur la carte (sauf « commun »), tri et groupes */
+var RAR={commun:"Commun",peu_commun:"Peu commun",rare:"Rare",tres_rare:"Très rare"},RAR_GRP={commun:"Communs",peu_commun:"Peu communs",rare:"Rares",tres_rare:"Très rares"},RAR_N={commun:1,peu_commun:2,rare:3,tres_rare:4};
+function rangRarete(o){return o.categorie==="cartes"||o.categorie==="films"||estLot(o)?0:RAR_N[o.rareteJeu]||0}
+var GEMME='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1 11 6 6 11 1 6z"/></svg>';
+function badgeRarete(o){var n=rangRarete(o);if(n<2)return "";return '<span class="rar r-'+o.rareteJeu+'" title="Rareté : '+RAR[o.rareteJeu]+'">'+new Array(n).join(GEMME)+'<span>'+RAR[o.rareteJeu]+'</span></span>'}
+function pastilleRarete(r){return '<span class="rar r-'+r+'">'+new Array(RAR_N[r]).join(GEMME)+RAR[r]+'</span>'}
+/* Fiche : la rareté n'est pas à choisir, elle est établie par l'IA (reconnaissance, recherche des prix, ou en arrière-plan) */
+function majRarete(){var r=$("f_rareteJeu").value;$("fRar").innerHTML=RAR[r]?pastilleRarete(r)+'<small>établie par l\'IA</small>':'<small>'+(ED&&ED.titre&&!estLot(ED)?'L\'IA l\'estime…':'Établie par l\'IA à l\'enregistrement')+'</small>'}
+/* Fiches sans rareté (saisies à la main, ou d'avant) : le serveur l'estime en arrière-plan, on la récupère quelques secondes après */
+var RAR_SUIVI=0,RAR_T=0;
+function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(function(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&!o.rareteJeu})){RAR_SUIVI=0;return}
+  if(RAR_SUIVI>=6)return;RAR_T=setTimeout(function(){RAR_SUIVI++;api("GET","/api/objets").then(function(j){var nv={},chg=false;(j.objets||[]).forEach(function(x){nv[x.id]=x});
+    OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteJeu&&!o.rareteJeu){o.rareteJeu=x.rareteJeu;chg=true;
+      if(ED&&ED.id===o.id&&!$("f_rareteJeu").value&&cleFiche()===cleObj(o)){var propre=!sale();$("f_rareteJeu").value=o.rareteJeu;majRarete();if(propre)figer()}}});
+    if(chg)dessiner();suivreRaretes()}).catch(function(){})},RAR_SUIVI<2?5000:12000)}
+function cleObj(o){return [o.titre,o.plateforme,o.region,o.contenu].map(function(x){return String(x||"").trim().toLowerCase()}).join("|")}
+function cleFiche(){return cleObj({titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,contenu:$("f_contenu").value})}
 var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",recu:"Vendus",retire:"Retirés"};
 function grouperArticles(l){
   if(!GRP)return [{nom:"",l:l}];
@@ -2238,12 +2279,13 @@ function grouperArticles(l){
     if(estLot(o)&&GRP!=="statut")return GRP==="console"&&o.plateforme?o.plateforme.trim():"Lots";
     if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres";
     if(GRP==="statut")return STA_GRP[o.statut]||"Autres";
+    if(GRP==="rarete")return o.categorie==="cartes"?"Cartes Pokémon":o.categorie==="films"?"Films":RAR_GRP[o.rareteJeu]||"Rareté non indiquée";
     if(o.categorie==="cartes")return "Cartes Pokémon";
     if(o.categorie==="films")return "Films "+(/4K/i.test(o.plateforme||"")?"4K UHD":(o.plateforme||"").trim()||"sans format");   // un groupe par format : 4K, Blu-Ray, DVD…
     return (o.plateforme||"").trim()||"Sans console"};
   var par={},ordre=[];
   l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
-  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:null;
+  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:GRP==="rarete"?["Lots","Très rares","Rares","Peu communs","Communs","Rareté non indiquée","Cartes Pokémon","Films"]:null;
   return ordre.sort(function(a,b){
     if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
     var fin=function(g){return g.nom==="Lots"?-1:g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
@@ -2471,6 +2513,8 @@ function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g)
     .then(function(){if(GAL.length>1||GAL[0]&&!GAL[0].legende)return decrire(true)})
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
 function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});
+  /* rareté d'un jeu, d'une console ou d'un accessoire, devinée à la reconnaissance (le vendeur peut la changer) */
+  $("f_rareteJeu").value=o.categorie==="cartes"||o.categorie==="films"?"":o.rareteJeu||"";majRarete()
   ["annee","realisateur","edition"].forEach(function(k){if(o.categorie==="films")$("f_"+k).value=o[k]||"";else if(k!=="edition")$("f_"+k).value=""});modeCarte()}
 /* Remise à l'endroit : l'IA dit où pointe le haut du texte de l'étiquette ; on ne tourne que si, une fois la photo
    tournée, elle confirme que le texte est à l'endroit (sinon on laisse la photo telle quelle). */
@@ -2576,7 +2620,7 @@ function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").
   if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});return o}
 function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
-  return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;ME.usage.cote=(ME.usage.cote||0)+1})
+  return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;if(j.cote.rarete&&!estCarte()&&!estFilm()){$("f_rareteJeu").value=j.cote.rarete;majRarete()}ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
 /* Relevés de la cote : ceux qui entrent dans le calcul d'abord (avec leur nature, l'état, le contenu et ce qu'ils pèsent),
    puis, à part, les annonces encore en ligne et les prix trop différents, montrés pour comparer. */
@@ -2591,9 +2635,11 @@ function relevesCote(l){if(!l.length)return "";
   return bloc("Les prix que je compte",oui)+bloc("Pour comparer, non comptés",non,"hors")}
 function sourcesCote(l){var vus={},x=[];l.forEach(function(u){var h=u;try{h=new URL(u).hostname.replace(/^www\./,"")}catch(_){}if(!vus[h]){vus[h]=1;x.push([u,h])}});
   return x.length?'<div class="src"><span>Sources</span>'+x.map(function(p){return '<a class="src-p" href="'+esc(p[0])+'" target="_blank" rel="noopener noreferrer">'+esc(p[1])+'</a>'}).join("")+'</div>':""}
+/* Rareté vue pendant la recherche des prix (jeux, consoles, accessoires) : elle remplace celle de la fiche */
+function coteRarete(c){if(!c.rarete||!RAR[c.rarete]||estCarte()||estFilm())return "";return '<p class="cote-rar">Rareté constatée sur le marché '+pastilleRarete(c.rarete)+'</p>'}
 function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.innerHTML="";return}
   var fx=c.bas!=null&&c.haut!=null?(c.bas===c.haut?eur(c.bas):eur(c.bas)+" à "+eur(c.haut)):eur(c.conseille);
-  e.innerHTML='<div class="h"><b>'+fx+'</b><small>'+(c.probable!=null?'vente probable <strong>'+eur(c.probable)+'</strong> · ':"")+'prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+
+  e.innerHTML='<div class="h"><b>'+fx+'</b><small>'+(c.probable!=null?'vente probable <strong>'+eur(c.probable)+'</strong> · ':"")+'prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+coteRarete(c)+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
     relevesCote(c.releves||[])+
     (c.lot||c.conseille!=null&&c.conseille<5?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':estCarte()?'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).':'à ce prix, l\'article part plus vite dans un lot (les frais d\'envoi coûtent presque autant que lui).')+(ED&&!lotDe(ED)&&!vendu(ED)?' <button class="lien" type="button" data-faire-lot>Faire un lot avec '+(estFilm()?'d\'autres films':estCarte()?'d\'autres cartes':'d\'autres articles')+'</button>':'')+'</p>':"")+
@@ -2854,8 +2900,10 @@ $("f_statut").onchange=majVente;
 function majSites(){var a=$("f_annonce").value.trim(),e=$("f_annonceEbay").value.trim(),ok=function(u,re){return re.test(u)?u:""};
   $("fSites").innerHTML=$("fSitesM").innerHTML=sitesHtml(ok(a,/^https:\/\/(www\.)?leboncoin\.fr\//i),ok(e,/^https?:\/\/(www\.|m\.)?ebay\.[a-z.]+\/itm\//i),true)}
 ["f_annonce","f_annonceEbay"].forEach(function(id){$(id).addEventListener("input",majSites)});
+/* le jeu change (nom, console, région, contenu) : sa rareté sera estimée à nouveau */
+["f_titre","f_plateforme","f_region","f_contenu"].forEach(function(id){$(id).addEventListener(id==="f_contenu"?"change":"input",function(e){if(e.isTrusted&&$("f_rareteJeu").value){$("f_rareteJeu").value="";majRarete()}})});
 function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOrig").hidden=true;PHOTO_CHANGEE=false;IA_FAITE=false;
-  F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();PARTIC=[];puces();
+  F.forEach(function(k){var el=$("f_"+k);el.value=o&&o[k]!=null?o[k]:""});if(!$("f_origine").value)$("f_origine").value=o&&o.etat==="pieces"?"hs":"origine";if(!$("f_categorie").value)$("f_categorie").value="jeux";modeCarte();majRarete();PARTIC=[];puces();
   if(!o){$("f_categorie").value="jeux";$("f_statut").value="en_vente";$("f_dateMiseEnVente").value=today()}
   $("fTitre").textContent=o?o.titre:"Nouvel article";$("fSuppr").hidden=!o;
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
@@ -3539,7 +3587,7 @@ $("blOk").onclick=function(){if(!CHOIX||CHOIX.ids.length<2)return;var b=this;
 function themeChoix(){var t=CHOIX.theme;if(!t)return null;var b=CHOIX.base||[];
   if(CHOIX.ids.some(function(id){return b.indexOf(id)<0}))return null;
   return {nom:t.nom,type:t.type,complet:!!t.complet&&b.every(function(id){return CHOIX.ids.indexOf(id)>=0})}}
-function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner();majMosaiques()})}
+function rechargerObjets(){return api("GET","/api/objets").then(function(j){OBJ=j.objets||[];if(ED){var o=parId(ED.id);if(o)ED=o}dessiner();majMosaiques();RAR_SUIVI=0;suivreRaretes()})}
 /* Un article du lot vendu à l'unité : le serveur l'a retiré du lot et a baissé son prix ; la mosaïque, elle, se refait ici. */
 var MOSA_EN_COURS={};
 /* Mosaïque d'un lot reçue incomplète même après un nouvel essai : le fichier est abîmé, on la refait (une fois par visite). */
