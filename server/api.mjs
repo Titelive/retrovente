@@ -49,7 +49,7 @@ function nettoyer(v, avant) {
     // Films : plateforme = format (Blu-Ray 4K UHD, Blu-Ray, DVD…), region = langues et zone, edition = steelbook, collector…
     ...(film ? { annee: /^(18|19|20)\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", realisateur: txt(v.realisateur, 80), edition: txt(v.edition, 80) } : {}),
     // Jeux, consoles, accessoires : rareté sur le marché de l'occasion, établie automatiquement (voir rareteAuto).
-    ...(carte || film ? {} : { rareteJeu: rareteDe(v, avant, titre) }),
+    ...(carte || film ? {} : rareteDe(v, avant, titre)),
     plateforme: film ? formatFilm(txt(v.plateforme, 60)) : txt(v.plateforme, 60), region: txt(v.region, 30),
     etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
@@ -111,12 +111,18 @@ function enregistrerStats(uid, b) {
    Elle suit le jeu : nom, console, région ou contenu changés, elle est estimée à nouveau. */
 const cleJeu = (v) => [v.titre, v.plateforme, v.region, v.contenu].map((x) => String(x || "").trim().toLowerCase()).join("|");
 function rareteDe(v, avant, titre) {
-  const r = parmi(v.rareteJeu, ia.RARETES_JEU, "");
-  if (!avant || !avant.rareteJeu) return r;
-  const memeJeu = cleJeu({ ...v, titre }) === cleJeu(avant);
-  return memeJeu ? r || avant.rareteJeu : r !== avant.rareteJeu ? r : "";
+  let r = parmi(v.rareteJeu, ia.RARETES_JEU, "");
+  if (avant && avant.rareteJeu) {
+    const memeJeu = cleJeu({ ...v, titre }) === cleJeu(avant), ancienne = avant.rareteV !== ia.RARETE_V;
+    // la valeur renvoyée par l'appli est celle déjà enregistrée : gardée pour le même jeu (si elle vient du calcul actuel),
+    // sinon estimée à nouveau ; une valeur nouvelle (reconnaissance, cote) est prise telle quelle
+    if (r === avant.rareteJeu && (!memeJeu || ancienne)) r = "";
+    else if (!r && memeJeu && !ancienne) r = avant.rareteJeu;
+  }
+  r = ia.rareteVraisemblable(r, { ...v, titre });
+  return r ? { rareteJeu: r, rareteV: ia.RARETE_V } : { rareteJeu: "" };
 }
-const SANS_RARETE = (it) => it && !estLot(it) && it.categorie !== "cartes" && it.categorie !== "films" && !it.rareteJeu && it.titre;
+const SANS_RARETE = (it) => it && !estLot(it) && it.categorie !== "cartes" && it.categorie !== "films" && (!it.rareteJeu || it.rareteV !== ia.RARETE_V) && it.titre && it.rareteEssai !== ia.RARETE_V + "|" + cleJeu(it);
 const RARETE_FILE = [], RARETE_EN_COURS = new Set();
 let rareteActifs = 0;
 export function rareteAuto(uid, id) {
@@ -132,11 +138,12 @@ function rareteSuivante() {
       if (!SANS_RARETE(it)) return;
       const r = await ia.estimerRarete(it);
       const r2 = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(t.id, t.uid);
-      if (!r || !r2) return;
+      if (!r2) return;
       const d = JSON.parse(r2.data);
       // la fiche a changé pendant l'estimation (autre jeu, ou rareté déjà connue) : on n'y touche pas
-      if (d.rareteJeu || cleJeu(d) !== cleJeu(it)) return;
-      d.rareteJeu = r;   // sans changer la date de modification (elle sert aussi d'adresse aux photos)
+      if ((d.rareteJeu && d.rareteV === ia.RARETE_V) || cleJeu(d) !== cleJeu(it)) return;
+      // jeu inconnu de l'IA : pas de rareté plutôt qu'une devinette, et pas de nouvel essai tant que le jeu ne change pas
+      if (r) { d.rareteJeu = r; d.rareteV = ia.RARETE_V; delete d.rareteEssai; } else { d.rareteJeu = ""; delete d.rareteV; d.rareteEssai = ia.RARETE_V + "|" + cleJeu(d); }   // sans changer la date de modification (elle sert aussi d'adresse aux photos)
       db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), t.id, t.uid);
     })().catch((e) => console.error("rareté", e.message)).finally(() => { rareteActifs--; RARETE_EN_COURS.delete(t.k); rareteSuivante(); });
   }
@@ -175,7 +182,9 @@ function ordrePhotos(liste, avant) {
   return out;
 }
 const fichierPhoto = (uid, id, pid) => photoPath(uid, pid === "p0" ? id : id + "-" + pid);
-const itemOut = (r) => { const d = JSON.parse(r.data); const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
+const itemOut = (r) => { const d = JSON.parse(r.data);
+  // rareté d'un calcul plus ancien, en attendant sa nouvelle estimation : déjà ramenée à ce qui est vraisemblable
+  if (d.rareteJeu && d.rareteV !== ia.RARETE_V) d.rareteJeu = ia.rareteVraisemblable(d.rareteJeu, d); const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
 
@@ -1028,7 +1037,7 @@ function adresseVendeur(t) {
     catch (e) { console.error("infos film", e.message); fail(503, "Les infos du film sont momentanément indisponibles."); }
   }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
-  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
+  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const ob = body().objet || {}, c = await ia.estimerCote(ob); if (c && c.rarete) { c.rarete = ia.rareteVraisemblable(c.rarete, { ...ob, cote: c }); if (!c.rarete) delete c.rarete; } bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {
     iaAllowed(u, "dialogue", req);
     const b = body(); const out = await ia.dialoguer(b.messages, b.fiche || {}); bump(u.id, "dialogue"); return ok({ ok: true, ...out });

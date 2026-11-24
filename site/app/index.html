@@ -2309,10 +2309,13 @@ function pastilleRarete(r){return '<span class="rar r-'+r+'">'+new Array(RAR_N[r
 function majRarete(){var r=$("f_rareteJeu").value;$("fRar").innerHTML=RAR[r]?pastilleRarete(r)+'<small>établie par l\'IA</small>':'<small>'+(ED&&ED.titre&&!estLot(ED)?'L\'IA l\'estime…':'Établie par l\'IA à l\'enregistrement')+'</small>'}
 /* Fiches sans rareté (saisies à la main, ou d'avant) : le serveur l'estime en arrière-plan, on la récupère quelques secondes après */
 var RAR_SUIVI=0,RAR_T=0;
-function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(function(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&!o.rareteJeu})){RAR_SUIVI=0;return}
+/* RAR_V : version du calcul côté serveur ; une rareté plus ancienne est estimée à nouveau, on la reprend aussi */
+var RAR_V=2;
+function rareteAttendue(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&(!o.rareteJeu||o.rareteV!==RAR_V)}
+function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(rareteAttendue)){RAR_SUIVI=0;return}
   if(RAR_SUIVI>=6)return;RAR_T=setTimeout(function(){RAR_SUIVI++;api("GET","/api/objets").then(function(j){var nv={},chg=false;(j.objets||[]).forEach(function(x){nv[x.id]=x});
-    OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteJeu&&!o.rareteJeu){o.rareteJeu=x.rareteJeu;chg=true;
-      if(ED&&ED.id===o.id&&!$("f_rareteJeu").value&&cleFiche()===cleObj(o)){var propre=!sale();$("f_rareteJeu").value=o.rareteJeu;majRarete();if(propre)figer()}}});
+    OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteV===RAR_V&&(x.rareteJeu!==o.rareteJeu||o.rareteV!==RAR_V)){var avant=o.rareteJeu||"";o.rareteJeu=x.rareteJeu;o.rareteV=RAR_V;chg=true;
+      if(ED&&ED.id===o.id&&$("f_rareteJeu").value===avant&&cleFiche()===cleObj(o)){var propre=!sale();$("f_rareteJeu").value=o.rareteJeu;majRarete();if(propre)figer()}}});
     if(chg)dessiner();suivreRaretes()}).catch(function(){})},RAR_SUIVI<2?5000:12000)}
 function cleObj(o){return [o.titre,o.plateforme,o.region,o.contenu].map(function(x){return String(x||"").trim().toLowerCase()}).join("|")}
 function cleFiche(){return cleObj({titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,contenu:$("f_contenu").value})}

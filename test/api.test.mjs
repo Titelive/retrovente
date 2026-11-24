@@ -854,3 +854,41 @@ test("vues et favoris : relevé de l'app (cookie) et de l'extension (clé), gard
   assert.equal(o.stats.lbc.vues, 128); assert.equal(o.stats.ebay, undefined);
   assert.equal((await call("POST", "/api/stats", { site: "autre", annonces: [] }, c)).status, 400);
 });
+
+test("rareté vraisemblable : boîte seule, jeu récent, petit prix ; les anciennes raretés sont recalculées", async () => {
+  const { rareteVraisemblable, RARETE_V } = await import("../server/ia.mjs");
+  // GTA VI sur PS5, boîte seule à 12 € : jamais « très rare »
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", contenu: "boite_vide", prixDemande: 12 }), "commun");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Grand Theft Auto VI", plateforme: "PS5" }), "peu_commun");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Shantae Limited Run", plateforme: "Switch" }), "tres_rare");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Little Samson", plateforme: "NES", prixDemande: 1500 }), "tres_rare");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 60 }), "rare");
+  assert.equal(rareteVraisemblable("rare", { titre: "Jeu", plateforme: "Nintendo 64", contenu: "boite_vide" }), "peu_commun");
+  assert.equal(rareteVraisemblable("inconnu", {}), "");
+
+  const c = await compte("gta@exemple.fr", true);
+  const { rareteFinie } = await import("../server/api.mjs");
+  const { db } = await import("../server/db.mjs");
+  // l'IA se trompe (« très rare ») : la fiche enregistrée reste vraisemblable
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", contenu: "boite_vide", prixDemande: 12 } }, c)).json.objet;
+  await rareteFinie();
+  let o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun"); assert.equal(o.rareteV, RARETE_V);
+  // valeur renvoyée par l'appli après une reconnaissance qui s'est trompée : ramenée aussi
+  const b = (await call("POST", "/api/objets", { objet: { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", rareteJeu: "tres_rare", prixDemande: 70 } }, c)).json.objet;
+  assert.equal(b.rareteJeu, "peu_commun");
+  // une fiche classée avec l'ancien calcul : ramenée tout de suite à l'affichage, puis estimée à nouveau
+  const r = db.prepare("SELECT data FROM items WHERE id = ?").get(a.id), d = JSON.parse(r.data);
+  d.rareteJeu = "tres_rare"; delete d.rareteV; delete d.rareteEssai;
+  db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(d), a.id);
+  o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun");
+  await rareteFinie();
+  o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun"); assert.equal(o.rareteV, RARETE_V);
+  // enregistrer la fiche sans rien changer n'entérine pas une ancienne rareté
+  d.rareteJeu = "tres_rare"; delete d.rareteV; db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(d), a.id);
+  const e = (await call("PUT", "/api/objets/" + a.id, { objet: { rareteJeu: "commun" } }, c)).json.objet;
+  assert.equal(e.rareteJeu, ""); await rareteFinie();
+  assert.equal((await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id).rareteJeu, "commun");
+});
