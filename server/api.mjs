@@ -184,7 +184,9 @@ function ordrePhotos(liste, avant) {
 const fichierPhoto = (uid, id, pid) => photoPath(uid, pid === "p0" ? id : id + "-" + pid);
 const itemOut = (r) => { const d = JSON.parse(r.data);
   // rareté d'un calcul plus ancien, en attendant sa nouvelle estimation : déjà ramenée à ce qui est vraisemblable
-  if (d.rareteJeu && d.rareteV !== ia.RARETE_V) d.rareteJeu = ia.rareteVraisemblable(d.rareteJeu, d); const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
+  if (d.rareteJeu && d.rareteV !== ia.RARETE_V) d.rareteJeu = ia.rareteVraisemblable(d.rareteJeu, d);
+  if (d.contenu === "boite" && ia.sansNotice(d.plateforme)) d.contenu = "complet";   // Switch, PS5, Xbox Series : pas de notice papier
+  const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
 
