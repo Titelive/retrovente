@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+# Une seule compilation à la fois par branche : une plus ancienne, finie après coup, écrasait la release d'essai.
+concurrency:
+  group: mac-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 jobs:
   construire:
     runs-on: macos-latest
