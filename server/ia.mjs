@@ -10,6 +10,11 @@ export { ETATS_CARTE };
 export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
 export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
+// Rareté d'un jeu (ou d'une console, d'un accessoire) : à quel point on le trouve en vente d'occasion. Les cartes Pokémon
+// ont leur propre rareté imprimée (champ « rarete », texte libre) ; celle-ci est une échelle fixe, champ « rareteJeu ».
+export const RARETES_JEU = ["commun", "peu_commun", "rare", "tres_rare"];
+export const LIB_RARETE_JEU = { commun: "Commun", peu_commun: "Peu commun", rare: "Rare", tres_rare: "Très rare" };
+const CONSIGNE_RARETE = `« commun » (tiré à des millions d'exemplaires, des dizaines d'annonces en ligne en permanence, ex. Mario Kart 64, FIFA), « peu_commun » (se trouve sans peine en cherchant un peu), « rare » (peu d'annonces, recherché des collectionneurs, ex. Conker's Bad Fur Day PAL), « tres_rare » (quasi introuvable : petit tirage, édition limitée, jeu retiré de la vente, ex. Little Samson, Kizuna Encounter AES) ; la rareté dépend de la version (région, édition) et du contenu (un complet en boîte peut être rare quand le loose est commun)`;
 export const MAX_PHOTO = 2_100_000;   // data URL ; photos en haute définition (2000 à 2400 px) pour la retouche et la galerie
 
 export const txt = (v, n) => String(v ?? "").replace(/\u0000/g, "").trim().slice(0, n);
@@ -47,6 +52,7 @@ export function coteDe(c) {
       return x;
     }).filter((r) => r && r.url && r.prix != null).slice(0, 8) };
   const pb = prix(c.probable); if (pb != null) o.probable = pb;
+  if (RARETES_JEU.includes(c.rarete)) o.rarete = c.rarete;
   return o.conseille != null || o.bas != null ? o : null;
 }
 
@@ -143,7 +149,7 @@ const FILM_FAKE = { trouve: true, titre: "Dune : Deuxième partie", categorie: "
 export async function identifier(photo, indice) {
   if (FAKE() && process.env.IA_FAKE_OBJET === "film") { checkPhoto(photo); const o = FILM_FAKE; return { ...champsFilm(o), titre: o.titre, categorie: o.categorie, region: o.region, etat: o.etat, contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE() && process.env.IA_FAKE_OBJET === "carte") { checkPhoto(photo); const o = CARTE_FAKE; return { ...champsCarte(o), titre: o.titre, categorie: o.categorie, plateforme: o.plateforme, region: o.region, etat: ETAT_LBC_DE_CARTE[o.etatCarte], contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
-  if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
+  if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", rareteJeu: "commun", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
   const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire, une carte Pokémon ou un film en Blu-Ray, Blu-Ray 4K ou DVD). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
@@ -154,6 +160,7 @@ Réponds uniquement par un objet JSON avec les clés :
 "etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
 "jauni" (couleur du plastique de la cartouche, de la console ou de la manette : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps (UV) ; compare avec la couleur normale de ce modèle et avec les parties à l'abri : « non », « leger » ou « net » ; « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer ou si c'est impossible à dire),
 "contenu" (« seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice, « boite_vide » si c'est une boîte sans le jeu (édition à code, disque absent) ; "" si sans objet),
+"rareteJeu" (pour un jeu, une console ou un accessoire : sa rareté sur le marché de l'occasion en France, l'une de ${CONSIGNE_RARETE} ; "" si tu ne sais pas ou pour une carte Pokémon ou un film),
 "particularites" (liste de 0 à 5 points propres à CE jeu ou à cette édition qu'un acheteur voudrait savoir, sous forme d'options courtes à cocher par le vendeur, ex. pour un jeu vendu avec un code : « Code de téléchargement déjà utilisé », « Code non utilisé » ; pour une édition avec bonus : « Poster inclus », « Carte de la ville incluse », « Steelbook inclus », « Jaquette réversible » ; [] si rien de particulier),
 "remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, plastique jauni, éléments manquants… ; "" sinon),
 ${CADRE_CONSIGNE},
@@ -186,7 +193,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
     etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
-    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : jaunissement(o)),
+    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : { rareteJeu: parmi(o.rareteJeu, RARETES_JEU, ""), ...jaunissement(o) }),
   };
 }
 // Plastique jauni (cartouche, console, manette) : dit honnêtement dans les remarques et les particularités, et l'état ne peut pas être « comme neuf ».
@@ -278,13 +285,27 @@ Réponds uniquement par un objet JSON : {"sens": "haut"}` }], { max: 300, timeou
 
 const LIB_ETAT = { neuf: "neuf", tres_bon: "très bon état", bon: "bon état", correct: "état correct", pieces: "pour pièces" };
 const LIB_CONTENU = { seul: "jeu en loose (cartouche ou disque seul)", boite: "en boîte, sans notice", complet: "complet en boîte, CIB (boîte et notice)", boite_vide: "boîte seule, sans le jeu (code déjà utilisé ou disque absent)" };
+/* Rareté établie automatiquement pour une fiche saisie à la main (ou d'avant la rareté) : le modèle s'appuie sur ce
+   qu'il sait du jeu et de son édition. La recherche des prix (estimerCote) la précise ensuite d'après le marché. */
+const RARETE_FAKE = [[/little samson|kizuna|panzer dragoon saga|earthbound/i, "tres_rare"], [/conker|rez\b|ikaruga|snatcher/i, "rare"], [/banjo|zelda|metroid/i, "peu_commun"]];
+export async function estimerRarete(v = {}) {
+  const titre = txt(v.titre, 160);
+  if (!titre) return "";
+  if (FAKE()) return (RARETE_FAKE.find(([re]) => re.test(titre)) || [0, "commun"])[1];
+  const quoi = [titre, txt(v.plateforme, 60), txt(v.region, 30), LIB_CONTENU[v.contenu]].filter(Boolean).join(", ");
+  const o = await claude(`Objet d'occasion vendu par un particulier en France : ${quoi} (${{ consoles: "console", accessoires: "accessoire" }[v.categorie] || "jeu vidéo"}).
+Quelle est sa rareté sur le marché de l'occasion en France aujourd'hui ? Choisis l'une de ${CONSIGNE_RARETE}. Si tu ne connais pas cet objet, réponds "".
+Réponds uniquement par un objet JSON : {"rarete": "…"}`, { max: 600, timeout: 30000 });
+  return parmi(o && o.rarete, RARETES_JEU, "");
+}
+
 export async function estimerCote(v) {
   if (v && v.categorie === "cartes") return estimerCoteCarte(v);
   if (v && v.categorie === "films") return estimerCoteFilm(v);
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   const cible = { etat: parmi(v.etat, ETATS, ""), contenu: parmi(v.contenu, CONTENUS, "") };
-  if (FAKE()) return coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
+  if (FAKE()) return coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", rarete: "peu_commun", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
     releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/itm/1", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "eBay", titre: "Autre vente conclue", prix: 52, date: "2026-10-20", url: "https://www.ebay.fr/itm/2", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "Le Bon Coin", titre: "Annonce en ligne", prix: 60, date: "2026-11-10", url: "https://www.leboncoin.fr/ad/1", type: "annonce", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
@@ -301,6 +322,7 @@ Réponds uniquement par un objet JSON avec les clés :
   "contenu" (l'un de "seul" pour cartouche ou disque seul, "boite" pour en boîte sans notice, "complet" pour boîte et notice, "boite_vide", ou "" si la page ne le dit pas ; pour PriceCharting, « loose » = "seul", « CIB » = "complet"),
   "date" (AAAA-MM-JJ de la vente ou du relevé) et "url" (adresse exacte de la page où tu l'as lu, telle que donnée par la recherche ; n'invente jamais d'adresse)),
 "resume" (une phrase en français, sans chiffres : ce qui fait varier le prix de ce jeu (boîte, notice, édition, état…)),
+"rarete" (sa rareté d'après ce que ta recherche montre (nombre d'annonces et de ventes, prix), l'une de ${CONSIGNE_RARETE}),
 "sources" (2 à 4 adresses web consultées les plus utiles),
 "bas" et "haut" (fourchette des prix de vente constatés, en euros, utilisée seulement si aucun relevé n'est exploitable).`, { web: 5, max: 3500, timeout: 70000 });
   // on ne garde que les liens qui sont vraiment sortis de la recherche web
@@ -813,6 +835,8 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
     a.categorie === "films" ? [a.edition && `Édition : ${txt(a.edition, 80)}`, a.annee && `Année : ${txt(a.annee, 4)}`, a.realisateur && `Réalisateur : ${txt(a.realisateur, 80)}`, a.region && `Langues et zone : ${txt(a.region, 30)}`].filter(Boolean).join("\n") : "",
     a.categorie === "cartes" ? [a.numero && `Numéro : ${txt(a.numero, 20)}`, a.region && `Langue : ${txt(a.region, 30)}`, a.gradation ? `Gradée : ${txt(a.gradation, 30)}` : LIB_ETAT_CARTE[a.etatCarte] && `État collectionneur : ${LIB_ETAT_CARTE[a.etatCarte]}`].filter(Boolean).join("\n") : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
+    // Rareté donnée par le vendeur : un argument honnête si le jeu est rare, jamais pour un jeu courant.
+    a.categorie !== "cartes" && a.categorie !== "films" && LIB_RARETE_JEU[a.rareteJeu] ? `Rareté : ${LIB_RARETE_JEU[a.rareteJeu].toLowerCase()}${a.rareteJeu === "rare" || a.rareteJeu === "tres_rare" ? " (peu d'exemplaires en vente : argument possible, une seule fois dans la discussion)" : " (ne le présente jamais comme rare)"}` : "",
     px != null ? `Prix affiché : ${px} € (${ferme ? "le vendeur ne marchande pas : ne propose jamais d'autre prix" : `prix plancher conseillé : ${Math.min(px, rond(px * part, true))} €, ne jamais proposer moins`})` : "",
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
   ].filter(Boolean).join("\n");

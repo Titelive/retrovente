@@ -793,3 +793,33 @@ test("description eBay : l'envoi d'un lot se lit bien", async () => {
   assert.match(e.description, /Envoi soigné et rapide, avec suivi, en un seul colis\.$/);
   assert.doesNotMatch(e.description, /suivi\. soigné/);
 });
+
+test("rareté des jeux : établie automatiquement (IA, cote, arrière-plan), suit le jeu, transmise à l'extension", async () => {
+  const c = await compte("rarete@exemple.fr", true);
+  const { annonceLbc, rareteFinie } = await import("../server/api.mjs");
+  // reconnaissance photo et recherche des prix donnent la rareté, que l'appli renvoie avec la fiche
+  const id = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
+  assert.equal(id.json.objet.rareteJeu, "commun");
+  assert.equal((await call("POST", "/api/ia/cote", { objet: id.json.objet }, c)).json.cote.rarete, "peu_commun");
+  // fiche saisie à la main : estimée en arrière-plan, sans toucher à la date de modification
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Conker's Bad Fur Day", plateforme: "Nintendo 64" } }, c)).json.objet;
+  assert.equal(a.rareteJeu, "");
+  await rareteFinie();
+  let l = (await call("GET", "/api/objets", null, c)).json.objets;
+  const a2 = l.find((x) => x.id === a.id);
+  assert.equal(a2.rareteJeu, "rare"); assert.equal(a2.modifie, a.modifie);
+  assert.equal(annonceLbc(a2).rareteJeu, "rare");
+  // autre jeu sur la même fiche : la rareté est estimée à nouveau
+  const b = (await call("PUT", "/api/objets/" + a.id, { objet: { titre: "Little Samson", plateforme: "NES" } }, c)).json.objet;
+  assert.equal(b.rareteJeu, "");
+  await rareteFinie();
+  l = (await call("GET", "/api/objets", null, c)).json.objets;
+  assert.equal(l.find((x) => x.id === a.id).rareteJeu, "tres_rare");
+  // même jeu, autre détail (prix) : la rareté reste
+  assert.equal((await call("PUT", "/api/objets/" + a.id, { objet: { prixDemande: 900 } }, c)).json.objet.rareteJeu, "tres_rare");
+  assert.equal((await call("POST", "/api/objets", { objet: { titre: "X", rareteJeu: "légendaire" } }, c)).json.objet.rareteJeu, "");
+  // une carte Pokémon garde sa rareté imprimée, sans la rareté des jeux
+  const k = (await call("POST", "/api/objets", { objet: { titre: "Dracaufeu", categorie: "cartes", rarete: "Holo rare", rareteJeu: "tres_rare" } }, c)).json.objet;
+  assert.equal(k.rarete, "Holo rare"); assert.equal(k.rareteJeu, undefined);
+  await rareteFinie();
+});
