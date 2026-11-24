@@ -1905,19 +1905,37 @@
       var r = x.getBoundingClientRect(); if (r.left > innerWidth * 0.5 || r.height < 36 || r.height > 260) return false;
       var t = x.innerText || ""; return t.length > 3 && t.length < 700 && DATE_ENTREE.test(t);
     });
-    return cand.filter(function (x) { return !cand.some(function (y) { return y !== x && y.contains(x); }); });
+    // Rien dans la conversation ouverte (une bulle « Offre reçue · il y a 7 min » ressemble à une entrée de liste).
+    var z = zoneMessage(), col = z ? colonneConversation() : null;
+    var l = cand.filter(function (x) { return !cand.some(function (y) { return y !== x && y.contains(x); }) && !(col && (col.contains(x) || x.contains(col))); });
+    // Une conversation est ouverte : seules comptent les entrées qui mènent à une conversation (lien de messagerie ou
+    // vignette d'annonce). Les bulles de la conversation (« Merci. Au plaisir. 23:38 ») n'en ont pas.
+    if (col) l = l.filter(function (x) {
+      var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
+      return (a && /messag|conversation/i.test(a.getAttribute("href") || "")) || [].some.call(x.querySelectorAll("img"), function (i) { return i.getBoundingClientRect().width >= 28; });
+    });
+    // Les vraies entrées sont empilées dans une même colonne : même bord gauche et même largeur, à quelques pixels près.
+    // On garde la colonne la plus fournie, ce qui écarte les morceaux de page égarés.
+    var cles = {}, cle = function (x) { var r = x.getBoundingClientRect(); return Math.round(r.left / 8) + ":" + Math.round(r.width / 16); };
+    l.forEach(function (x) { var k = cle(x); cles[k] = (cles[k] || 0) + 1; });
+    var meilleure = Object.keys(cles).sort(function (a, b) { return cles[b] - cles[a]; })[0];
+    if (meilleure && cles[meilleure] >= 2) l = l.filter(function (x) { return cle(x) === meilleure; });
+    return l;
   }
+  // Conversations sans annonce (chatbot promotionnel de Le Bon Coin, « Discussion avec le Père Noël »…) : ignorées.
+  function horsAnnonce(e) { return /p[èe]re no[ëe]l|chatbot|assistant leboncoin|^discussion avec\b/i.test((e.lignes || []).slice(0, 2).join(" ")); }
   function cleEntree(x) {
     var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
     if (a && /messag/.test(a.getAttribute("href") || "")) return a.getAttribute("href");
     return "t:" + norm(x.innerText || "").split(" ").slice(0, 12).join(" ");
   }
   function lireEntree(x) {
-    var lignes = (x.innerText || "").split("\n").map(function (l) { return l.replace(/\s+/g, " ").trim(); }).filter(Boolean).slice(0, 7);
+    // Les pastilles posées sur la vignette (« 2 » pour un lot de 2 articles, « +3 ») ne sont pas le nom de l'acheteur.
+    var lignes = (x.innerText || "").split("\n").map(function (l) { return l.replace(/\s+/g, " ").trim(); }).filter(function (l) { return l && !/^\+?\d{1,3}$/.test(l); }).slice(0, 7);
     var img = [].find.call(x.querySelectorAll("img"), function (i) { return i.src && !/^data:/.test(i.src); });
     var gras = [].some.call(x.querySelectorAll("p, span, div"), function (e) { return e.childElementCount === 0 && (e.textContent || "").trim().length > 3 && +getComputedStyle(e).fontWeight >= 600; });
     var pastille = !!x.querySelector("[aria-label*='non lu' i], [title*='non lu' i], [data-qa-id*=unread], [data-test-id*=unread]");
-    return { cle: cleEntree(x), lignes: lignes, image: img ? img.src : "", nonLu: pastille || gras, active: x.getAttribute("aria-current") === "page" || x.getAttribute("aria-selected") === "true" };
+    return { cle: cleEntree(x), lignes: lignes, image: img ? img.src : "", nonLu: pastille, gras: gras, active: x.getAttribute("aria-current") === "page" || x.getAttribute("aria-selected") === "true" };
   }
   function bulleDe(e, col) {
     for (var b = e, k = 0; b && b !== col && k < 6; b = b.parentElement, k++) {
@@ -1948,9 +1966,38 @@
     return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(),
              messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
   }
+  // Liste des conversations, ou null quand la page ne montre que la conversation ouverte (mise en page étroite) :
+  // l'app garde alors la liste précédente au lieu de prendre les messages pour des conversations.
+  function listeConversations() {
+    var l = entreesConversations().map(lireEntree).filter(function (e) { return !horsAnnonce(e); }).slice(0, 80);
+    return !l.length && zoneMessage() ? null : l;
+  }
   window.rrMessagerie = {
-    liste: function () { return { page: location.pathname, vide: /\baucun(e)? (message|conversation)|pas (encore )?de (message|conversation)/i.test(norm((document.querySelector("main") || document.body).innerText).slice(0, 3000)), connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: entreesConversations().map(lireEntree).slice(0, 80), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
+    liste: function () { return { page: location.pathname, vide: /\baucun(e)? (message|conversation)|pas (encore )?de (message|conversation)/i.test(norm((document.querySelector("main") || document.body).innerText).slice(0, 3000)), connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: listeConversations(), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
     fil: function () { return filActuel(); },
+    // Supprime une conversation sur Le Bon Coin (après la confirmation demandée dans l'app) : on l'ouvre, on cherche
+    // « Supprimer » (au besoin dans le menu « … » de la conversation), puis on confirme. Rien d'autre n'est cliqué.
+    supprimer: async function (cle) {
+      var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
+      if (!x) return { erreur: "introuvable" };
+      cliquer(x.matches("a[href]") ? x : (x.querySelector("a[href]") || x));
+      await attendre(1500);
+      var boutons = function (racine) { return [].filter.call((racine || document).querySelectorAll("button, [role=button], [role=menuitem], a"), function (b) { return visible(b) && !(hote && hote.contains(b)); }); };
+      var nom = function (b) { return norm((b.getAttribute("aria-label") || "") + " " + (b.innerText || "") + " " + (b.getAttribute("title") || "")); };
+      var trouver = function (re, racine) { return boutons(racine).find(function (b) { return re.test(nom(b)); }); };
+      var sup = trouver(/supprimer (la |cette )?(conversation|discussion)/i);
+      if (!sup) {
+        var menu = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (menu) { cliquer(menu); await attendre(700); sup = trouver(/supprimer/i); }
+      }
+      if (!sup) return { erreur: "bouton" };
+      cliquer(sup); await attendre(900);
+      var dlg = document.querySelector("[role=dialog], [role=alertdialog], dialog[open]");
+      var ok = dlg && trouver(/^(supprimer|confirmer|oui)/i, dlg);
+      if (ok) { cliquer(ok); await attendre(1500); }
+      var reste = entreesConversations().some(function (e) { return cleEntree(e) === cle; });
+      return reste ? { erreur: "confirmation" } : { ok: true };
+    },
     ouvrir: async function (cle) {
       var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
       if (!x) return { erreur: "introuvable" };
