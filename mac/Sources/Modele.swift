@@ -264,6 +264,7 @@ struct DepotEnCours: Identifiable, Equatable {
     enum Etape: Equatable {
         case remplissage(String)                 // message de progression
         case aide(String)                        // Le Bon Coin demande quelque chose : rien n'est montré sans l'accord
+        case adresse(String)                     // Le Bon Coin demande où se trouve le bien : on la demande dans l'app
         case pret(bouton: String, payant: Bool)  // écran final atteint : on attend « Publier »
         case publication
     }
@@ -331,7 +332,7 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -355,6 +356,7 @@ final class Appli: ObservableObject {
             if d == "nouveau" { nouveauOuvert = true }
             if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
+            if d == "adresse" { selection = "a3"; depot = DepotEnCours(id: "a3", titre: articles.first { $0.id == "a3" }?.titre ?? "", etape: .adresse("")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
             if ["trophees", "bilan", "compte", "tous"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
