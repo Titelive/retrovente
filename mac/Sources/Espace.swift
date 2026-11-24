@@ -225,6 +225,7 @@ struct MonCompte: View {
     @ObservedObject var appli: Appli
     @State private var pseudo = ""
     @State private var lbc = ""
+    @State private var adresse = ""
     @State private var ancien = ""
     @State private var nouveau = ""
     @State private var email = ""
@@ -252,9 +253,18 @@ struct MonCompte: View {
                                 }
                             }
                             TextField("Pseudo", text: $pseudo).textFieldStyle(.roundedBorder)
+                            TextField("Code postal et ville (ex. 54000 Nancy)", text: $adresse).textFieldStyle(.roundedBorder)
+                                .help("Remplit l'adresse de tes annonces Le Bon Coin. Seule la ville est affichée aux acheteurs.")
                             TextField("Ta page Le Bon Coin (facultatif)", text: $lbc).textFieldStyle(.roundedBorder)
-                            Button("Enregistrer le profil") { Task { if await appli.modifierProfil(["pseudo": pseudo, "lbc": lbc]) { info = "Profil enregistré." } } }
-                                .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc)
+                            Button("Enregistrer le profil") {
+                                var c: [String: Any] = ["pseudo": pseudo, "lbc": lbc]
+                                if adresse != appli.profil.adresse { c["adresse"] = adresse }
+                                Task { if await appli.modifierProfil(c) { info = "Profil enregistré." } }
+                            }
+                                .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc && adresse == appli.profil.adresse)
+                            if appli.profil.adresse.isEmpty {
+                                Text("Ajoute ton code postal et ta ville : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
+                            }
                         }
                         formule
                     }
@@ -292,7 +302,8 @@ struct MonCompte: View {
                 }.padding(22)
             }
         }
-        .onAppear { pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; Task { try? await appli.chargerProfil(); pseudo = appli.profil.pseudo; lbc = appli.profil.lbc } }
+        .onAppear { pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; adresse = appli.profil.adresse
+            Task { try? await appli.chargerProfil(); pseudo = appli.profil.pseudo; lbc = appli.profil.lbc; adresse = appli.profil.adresse } }
         .confirmationDialog("Supprimer définitivement ton compte RetroRevente ?", isPresented: $confirmerSuppression) {
             Button("Supprimer", role: .destructive) { Task { _ = await appli.supprimerCompte(motdepasse: mdpSuppr) } }
         }

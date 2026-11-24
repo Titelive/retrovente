@@ -442,7 +442,7 @@ function me(u) {
   return {
     suiviAuto: !!process.env.LAPOSTE_API_KEY,   // l'état des colis La Poste se lit tout seul
     ...(isAdmin(u) ? { admin: true, formuleTest: u.test_plan || "" } : {}),
-    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", vendeur: lireProfil(u.vendeur), teinte: teinteDe(u), emailEnAttente: u.email_until > now() ? u.email_new : "",
+    email: u.email, cree: u.created, pseudo: u.pseudo || "", nom: u.pseudo || u.email.split("@")[0], avatar: u.avatar || "", lbc: u.lbc || "", adresse: u.adresse || "", vendeur: lireProfil(u.vendeur), teinte: teinteDe(u), emailEnAttente: u.email_until > now() ? u.email_new : "",
     formule: { id: r.id, nom: r.nom, fiscal: r.fiscal, export: r.export, abonnement: u.plan !== "gratuit" ? u.plan : "", statut: u.plan_status, periode: u.plan_period, fin: u.plan_end, pass: u.pass_until, resiliation: u.plan_cancel, retractable: retractableJusqua(u), contrat: u.plan !== "gratuit" || u.achat_at ? contratDe(u) : "" },
     quota: quota(u), usage: usageTotal(u.id), mois: month(), ia: iaEtat(u), emailOk: !!u.email_ok,
     bilan: bilan(u.id), paiement: stripe.stripeReady(), client: !!u.stripe_customer, extension: countExtKeys(u.id),
@@ -557,7 +557,7 @@ export async function handleApi(req) {
     if (p === "/api/extension/annonces" && method === "GET") {
       const l = avecContenu(eu.id, listItems(eu.id).filter((v) => v.statut === "en_vente"));
       const r = rights(eu);
-      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom, vendeur: lireProfil(eu.vendeur) }, annonces: l }, headers: CORS };
+      return { status: 200, json: { email: eu.email, profil: { nom: eu.pseudo || eu.email.split("@")[0], avatar: eu.avatar || "", formule: r.id, formuleNom: r.nom, vendeur: lireProfil(eu.vendeur), adresse: eu.adresse || "" }, annonces: l }, headers: CORS };
     }
     const mx = /^\/api\/extension\/photo\/([a-f0-9]{16})(?:\/(p0|[a-f0-9]{8}))?$/.exec(p);
     if (mx && method === "GET") {
@@ -643,6 +643,12 @@ function lienLbc(v) {
   u.protocol = "https:"; u.hash = "";
   return u.toString().slice(0, 300);
 }
+// Code postal et ville (ou adresse complète) : Le Bon Coin l'exige au dépôt (« À quelle adresse se trouve le bien ? »).
+function adresseVendeur(t) {
+  const a = String(t == null ? "" : t).replace(/\s+/g, " ").trim().slice(0, 160);
+  if (!/(^|\D)\d{5}(\D|$)/.test(a)) fail(400, "Indique au moins ton code postal (5 chiffres) et ta ville, par exemple « 54000 Nancy » : il sert à remplir l'adresse de tes annonces Le Bon Coin.");
+  return a;
+}
   if (p === "/api/inscription" && method === "POST") {
     if (!allow("ins:" + ip, 10, 3600) || !allow("insj:" + ip, 20, 86400)) fail(429, "Trop d'inscriptions depuis cette connexion, réessaie plus tard.");
     const b = body(), email = txt(b.email, 254).toLowerCase(), mdp = String(b.motdepasse || "");
@@ -650,11 +656,12 @@ function lienLbc(v) {
     if (jetable(email)) fail(400, "Les adresses e-mail jetables ne sont pas acceptées : utilise ta vraie adresse.");
     if (mdp.length < 8) fail(400, "Choisis un mot de passe d'au moins 8 caractères.");
     if (!b.cgv) fail(400, "Accepte les conditions générales pour créer ton compte.");
-    const lbc = lienLbc(b.lbc);
+    const lbc = lienLbc(b.lbc), adresse = adresseVendeur(b.adresse);
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Un compte existe déjà avec cette adresse. Connecte-toi.");
     const r = db.prepare("INSERT INTO users(email, pass, created, cgv_at, cgv_version) VALUES (?, ?, ?, ?, ?)").run(email, hashPass(mdp), now(), now(), CGV_VERSION);
     const uid = Number(r.lastInsertRowid), t = createSession(uid);
     if (lbc) db.prepare("UPDATE users SET lbc = ? WHERE id = ?").run(lbc, uid);
+    db.prepare("UPDATE users SET adresse = ? WHERE id = ?").run(adresse, uid);
     const pv = normaliserProfil(b.vendeur);
     if (Object.keys(pv).length) db.prepare("UPDATE users SET vendeur = ? WHERE id = ?").run(JSON.stringify(pv), uid);
     envoyerVerif(uid, email).catch(() => {});
@@ -716,6 +723,7 @@ function lienLbc(v) {
       maj.pseudo = ps;
     }
     if (b.lbc !== undefined) maj.lbc = lienLbc(b.lbc);
+    if (b.adresse !== undefined) maj.adresse = adresseVendeur(b.adresse);
     if (b.teinte !== undefined) {
       if (rights(u).id !== "collectionneur") fail(403, "Le choix de la couleur du site est réservé à la formule Collectionneur.");
       if (!TEINTES.includes(b.teinte)) fail(400, "Couleur inconnue.");

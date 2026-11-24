@@ -137,25 +137,43 @@ struct ChoixDepot: View {
 struct ChampAdresse: View {
     @ObservedObject var appli: Appli
     let explication: String
-    @State private var adresse = (Stockage.partage.lire(["adresse"])["adresse"] as? String) ?? ""
+    @State private var adresse = ""
+    @State private var erreur = ""
+    @State private var enCours = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Où se trouve le bien ?", systemImage: "mappin.and.ellipse").font(.headline).foregroundStyle(Color.rrOr)
-            Text(adresse.isEmpty ? "Le Bon Coin demande l'adresse ou la ville où se trouve l'objet. Donne-la une fois : RetroRevente la remplira pour tous tes prochains dépôts."
+            Text(!explication.contains("pas reconnu") ? "Le Bon Coin demande l'adresse ou la ville où se trouve l'objet. Donne-la une fois : RetroRevente la remplira pour tous tes prochains dépôts."
                                  : "Le Bon Coin n'a pas reconnu cette adresse. Corrige-la (une ville avec son code postal suffit), puis continue.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 .help(explication)
             TextField("Ex. 54000 Nancy", text: $adresse).textFieldStyle(.roundedBorder).onSubmit(continuer)
-            Text("Le Bon Coin n'affiche que la ville aux acheteurs. Rien n'a été publié.").font(.caption).foregroundStyle(.secondary)
+            if !erreur.isEmpty { Text(erreur).font(.callout).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+            Text("Elle est enregistrée dans Mon compte. Le Bon Coin n'affiche que la ville aux acheteurs. Rien n'a été publié.").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
                 Spacer()
                 Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()
                 Button(action: continuer) { Label("Continuer", systemImage: "arrow.right") }
                     .boutonVerre(principal: true).keyboardShortcut(.defaultAction)
-                    .disabled(adresse.trimmingCharacters(in: .whitespaces).count < 3)
+                    .disabled(enCours || adresse.trimmingCharacters(in: .whitespaces).count < 5)
             }
         }
+        .onAppear {
+            adresse = appli.profil.adresse.isEmpty ? ((Stockage.partage.lire(["adresse"])["adresse"] as? String) ?? "") : appli.profil.adresse
+        }
     }
-    private func continuer() { appli.fenetre?.adresseCoulisses(adresse) }
+    /// Enregistrée dans Mon compte (le site, l'extension et l'app la reprennent), puis le dépôt reprend en coulisses.
+    private func continuer() {
+        let v = adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !enCours, !v.isEmpty else { return }
+        enCours = true; erreur = ""
+        Task {
+            do {
+                appli.profil = Profil(try await API.json("POST", "/api/compte/profil", ["adresse": v]))
+                appli.fenetre?.adresseCoulisses(v)
+            } catch { erreur = (error as? ErreurRR)?.message ?? "Enregistrement impossible. Réessaie." }
+            enCours = false
+        }
+    }
 }

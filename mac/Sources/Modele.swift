@@ -166,14 +166,14 @@ enum Libelles {
 }
 
 struct Profil {
-    var email = "", nom = "", pseudo = "", avatar = "", lbc = "", cree = "", formule = "Découverte", formuleId = "gratuit"
+    var email = "", nom = "", pseudo = "", avatar = "", lbc = "", adresse = "", cree = "", formule = "Découverte", formuleId = "gratuit"
     var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
     var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
     var usageLbc = 0
     init() {}
     init(_ d: [String: Any]) {
         email = d["email"] as? String ?? ""; nom = d["nom"] as? String ?? email; avatar = d["avatar"] as? String ?? ""
-        pseudo = d["pseudo"] as? String ?? ""; lbc = d["lbc"] as? String ?? ""; cree = d["cree"] as? String ?? ""
+        pseudo = d["pseudo"] as? String ?? ""; lbc = d["lbc"] as? String ?? ""; adresse = d["adresse"] as? String ?? ""; cree = d["cree"] as? String ?? ""
         emailOk = d["emailOk"] as? Bool ?? true; emailEnAttente = d["emailEnAttente"] as? String ?? ""
         paiement = d["paiement"] as? Bool ?? false; client = d["client"] as? Bool ?? false
         usageLbc = ((d["usage"] as? [String: Any])?["lbc"] as? NSNumber)?.intValue ?? 0

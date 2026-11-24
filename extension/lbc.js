@@ -530,6 +530,7 @@
     }) || null;
   }
   async function lireAdresse() {
+    if (etat.adresseCompte) return (etat.adresse = etat.adresseCompte);
     try { var r = await RR.storage.local.get(["adresse"]); if (r && r.adresse) etat.adresse = String(r.adresse); } catch (e) {}
     return etat.adresse || "";
   }
@@ -919,6 +920,7 @@
       etat.annonces = j.annonces || [];
       // Profil de vendeur (Mon compte) : « Prix ferme, pas de marchandage » coche d'office « Pas de négociation possible ».
       etat.vendeur = (j.profil && j.profil.vendeur) || {};
+      if (j.profil && j.profil.adresse) etat.adresseCompte = String(j.profil.adresse);   // adresse de Mon compte : prioritaire
       if (!etat.sansNegoChoisi && etat.vendeur.prix === "ferme") etat.sansNego = true;
       var bx = ombre && ombre.querySelector(".b"); if (bx && j.profil && /^(vendeur|collectionneur|pass)$/.test(j.profil.formule || "")) bx.setAttribute("data-formule", j.profil.formule);
       if (mode() === "depot") await cibleDepot();

@@ -27,7 +27,7 @@ async function call(method, p, body, cookie, extra = {}) {
 }
 const cookieOf = (r) => /rr_session=([^;]+)/.exec(r.headers["Set-Cookie"])[0];
 async function compte(email, payant = false) {
-  const r = await call("POST", "/api/inscription", { email, motdepasse: "motdepasse123", cgv: true });
+  const r = await call("POST", "/api/inscription", { email, motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" });
   assert.equal(r.status, 200, JSON.stringify(r.json));
   // Adresse confirmée (lien e-mail) ; « payant » : formule Collectionneur active, l'IA sans limite d'essai.
   db.prepare("UPDATE users SET email_ok = 1" + (payant ? ", plan = 'collectionneur', plan_status = 'active'" : "") + " WHERE email = ?").run(email.toLowerCase());
@@ -36,13 +36,13 @@ async function compte(email, payant = false) {
 
 test("inscription, connexion, refus sans session", async () => {
   assert.equal((await call("GET", "/api/moi")).status, 401);
-  assert.equal((await call("POST", "/api/inscription", { email: "a@b.fr", motdepasse: "court", cgv: true })).status, 400);
+  assert.equal((await call("POST", "/api/inscription", { email: "a@b.fr", motdepasse: "court", cgv: true, adresse: "54000 Nancy" })).status, 400);
   assert.equal((await call("POST", "/api/inscription", { email: "a@b.fr", motdepasse: "motdepasse123" })).status, 400);   // CGV
   const c = await compte("Alice@Exemple.fr");
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.email, "alice@exemple.fr");
   assert.equal(moi.json.formule.id, "gratuit");
-  assert.equal((await call("POST", "/api/inscription", { email: "alice@exemple.fr", motdepasse: "motdepasse123", cgv: true })).status, 409);
+  assert.equal((await call("POST", "/api/inscription", { email: "alice@exemple.fr", motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" })).status, 409);
   assert.equal((await call("POST", "/api/connexion", { email: "alice@exemple.fr", motdepasse: "mauvais!!" })).status, 401);
   assert.equal((await call("POST", "/api/connexion", { email: "ALICE@exemple.fr", motdepasse: "motdepasse123" })).status, 200);
 });
@@ -597,9 +597,9 @@ test("cartes Pokémon : photo d'un classeur, cartes de valeur à part, le reste 
 test("IA en formule Découverte : un seul essai, e-mail confirmé, pas de comptes en série", async () => {
   const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
   // adresse jetable refusée à l'inscription
-  assert.equal((await call("POST", "/api/inscription", { email: "x@yopmail.com", motdepasse: "motdepasse123", cgv: true })).status, 400);
+  assert.equal((await call("POST", "/api/inscription", { email: "x@yopmail.com", motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" })).status, 400);
   // adresse pas encore confirmée : refus explicite
-  const r0 = await call("POST", "/api/inscription", { email: "jean.dupont+a@gmail.com", motdepasse: "motdepasse123", cgv: true });
+  const r0 = await call("POST", "/api/inscription", { email: "jean.dupont+a@gmail.com", motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy" });
   const c = cookieOf(r0);
   let r = await call("POST", "/api/ia/identifier", { photo: PHOTO }, c);
   assert.equal(r.status, 403); assert.equal(r.json.verif, true);
@@ -711,7 +711,7 @@ test("pas de prénom inventé, pas de disponibilité répétée", async () => {
 });
 
 test("profil de vendeur : inscription, Mon compte, extension, prix plancher", async () => {
-  const r = await call("POST", "/api/inscription", { email: "profil@exemple.fr", motdepasse: "motdepasse123", cgv: true, vendeur: { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi\nle dimanche", pirate: "x" } });
+  const r = await call("POST", "/api/inscription", { email: "profil@exemple.fr", motdepasse: "motdepasse123", cgv: true, adresse: "54000 Nancy", vendeur: { rythme: "patient", remise: "main_propre", echanges: "non", prix: "ferme", ton: "diplomate", note: "Pas d'envoi\nle dimanche", pirate: "x" } });
   assert.equal(r.status, 200);
   const c = cookieOf(r);
   db.prepare("UPDATE users SET email_ok = 1, plan = 'collectionneur', plan_status = 'active' WHERE email = ?").run("profil@exemple.fr");
@@ -822,4 +822,15 @@ test("rareté des jeux : établie automatiquement (IA, cote, arrière-plan), sui
   const k = (await call("POST", "/api/objets", { objet: { titre: "Dracaufeu", categorie: "cartes", rarete: "Holo rare", rareteJeu: "tres_rare" } }, c)).json.objet;
   assert.equal(k.rarete, "Holo rare"); assert.equal(k.rareteJeu, undefined);
   await rareteFinie();
+});
+
+test("adresse du vendeur : obligatoire à l'inscription, modifiable dans Mon compte, transmise à l'extension", async () => {
+  const sans = await call("POST", "/api/inscription", { email: "sansadr@exemple.fr", motdepasse: "motdepasse123", cgv: true });
+  assert.equal(sans.status, 400); assert.match(sans.json.error, /code postal/);
+  assert.equal((await call("POST", "/api/inscription", { email: "sansadr@exemple.fr", motdepasse: "motdepasse123", cgv: true, adresse: "Nancy" })).status, 400);
+  const c = await compte("adresse@exemple.fr");
+  assert.equal((await call("GET", "/api/moi", null, c)).json.adresse, "54000 Nancy");
+  const m = await call("POST", "/api/compte/profil", { adresse: "  12 rue Stanislas   54000 Nancy " }, c);
+  assert.equal(m.status, 200); assert.equal(m.json.adresse, "12 rue Stanislas 54000 Nancy");
+  assert.equal((await call("POST", "/api/compte/profil", { adresse: "" }, c)).status, 400);
 });
