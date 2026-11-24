@@ -193,6 +193,17 @@ final class Images {
 
 // MARK: État de l'appli
 
+/// Dépôt « en coulisses » : Le Bon Coin est rempli sans être affiché, la personne valide dans l'app.
+struct DepotEnCours: Identifiable, Equatable {
+    enum Etape: Equatable {
+        case remplissage(String)                 // message de progression
+        case pret(bouton: String, payant: Bool)  // écran final atteint : on attend « Publier »
+        case publication
+    }
+    let id: String; let titre: String
+    var etape: Etape
+}
+
 @MainActor
 final class Appli: ObservableObject {
     enum Etat { case chargement, deconnecte, connecte }
@@ -205,11 +216,19 @@ final class Appli: ObservableObject {
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
     @Published var nouveauOuvert = false
     @Published var selection: String? = nil   // article ouvert
+    /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
+    @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
+        didSet { UserDefaults.standard.set(barreCachee, forKey: "barreCachee") }
+    }
+    /// Dépôt en coulisses en cours (feuille de suivi). Le remettre à nil arrête les coulisses.
+    @Published var depot: DepotEnCours? = nil {
+        didSet { if depot == nil, oldValue != nil { fenetre?.finCoulisses() } }
+    }
     weak var fenetre: Fenetre?
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
@@ -226,6 +245,8 @@ final class Appli: ObservableObject {
             articles = ex.map(Article.init); etat = .connecte
             if d == "fiche" { selection = "a1" }
             if d == "nouveau" { nouveauOuvert = true }
+            if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
+            barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
             if ["trophees", "bilan", "compte"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
             return
         }
@@ -349,7 +370,10 @@ final class Appli: ObservableObject {
     }
 
     /// « Déposer sur Le Bon Coin » : le panneau de l'extension reprend cet article sur la page de dépôt.
-    func deposer(_ a: Article) {
+    /// Dépôt en coulisses : Le Bon Coin se remplit sans s'afficher, puis l'app demande « Publier ».
+    func deposer(_ a: Article) { fenetre?.deposerEnCoulisses(a) }
+    /// Dépôt à l'écran, comme avec l'extension (la personne suit et publie sur Le Bon Coin).
+    func deposerAVue(_ a: Article) {
         Stockage.partage.ecrire(["aDeposer": ["id": a.id, "at": Date().timeIntervalSince1970 * 1000]])
         fenetre?.ouvrir(URL(string: "https://www.leboncoin.fr/deposer-une-annonce#rr=\(a.id)")!)
     }

@@ -45,12 +45,23 @@ func verreDe(_ teinte: Color?, _ interactif: Bool) -> Glass {
 }
 #endif
 
+/// Action « cacher / montrer la barre latérale », transmise aux en-têtes de la partie détail.
+struct CleBarre: EnvironmentKey { static let defaultValue: (() -> Void)? = nil }
+extension EnvironmentValues {
+    var basculerBarre: (() -> Void)? { get { self[CleBarre.self] } set { self[CleBarre.self] = newValue } }
+}
+
 /// En-tête d'écran (titre, sous-titre, boutons), à la place d'une barre d'outils.
 struct EnTete<Boutons: View>: View {
     let titre: String; var sousTitre: String = ""
     @ViewBuilder var boutons: () -> Boutons
+    @Environment(\.basculerBarre) private var basculerBarre
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            if let b = basculerBarre {
+                Button(action: b) { Image(systemName: "sidebar.left") }
+                    .boutonVerre().help("Cacher ou montrer la barre latérale (⌃⌘S)")
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(titre).font(.system(size: 26, weight: .heavy, design: .rounded)).lineLimit(1)
                 if !sousTitre.isEmpty { Text(sousTitre).font(.callout).foregroundStyle(.secondary) }
@@ -135,10 +146,13 @@ struct Accueil: View {
     @ObservedObject var appli: Appli
     @State private var filtre: String? = "en_vente"
     @State private var recherche = ""
-    @State private var visibilite = NavigationSplitViewVisibility.all
+    private var visibilite: Binding<NavigationSplitViewVisibility> {
+        Binding(get: { appli.barreCachee ? .detailOnly : .all },
+                set: { v in appli.barreCachee = (v == .detailOnly) })
+    }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $visibilite) {
+        NavigationSplitView(columnVisibility: visibilite) {
             List(selection: $filtre) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -171,8 +185,10 @@ struct Accueil: View {
                 Grille(appli: appli, articles: visibles, titre: titre)
             }
         }
+        .environment(\.basculerBarre, { withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { appli.barreCachee.toggle() } })
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
+        .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
         .onChange(of: filtre) { _ in appli.selection = nil }
         .onChange(of: appli.compteOuvert) { o in if o { filtre = "@compte"; appli.compteOuvert = false } }
         .onChange(of: appli.selection) { id in if id != nil, filtre?.hasPrefix("@") == true { filtre = nil } }

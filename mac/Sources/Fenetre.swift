@@ -35,9 +35,13 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     let modele = Appli()
     private var natif: NSView!
     private var appli: WKWebView!
-    private var lbc: WKWebView!
-    private var visible: Vue = .appli
-    private var lbcCharge = false
+    var lbc: WKWebView!
+    private(set) var visible: Vue = .appli
+    var lbcCharge = false
+    /// Dépôt en coulisses : Le Bon Coin travaille sous la vue native (voir Coulisses.swift).
+    var enCoulisses = false
+    var veilleCoulisses: Timer?
+    var debutCoulisses = Date(), etapeDepuis = Date()
     private var onglets: [Rubrique: Bouton] = [:]
     private var precedent: Bouton!, suivant: Bouton!, recharger: Bouton!
     private let chargement = Chargement()
@@ -175,12 +179,13 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     func montrer(_ vue: Vue) {
         visible = vue
         natif.isHidden = vue != .appli
-        lbc.isHidden = vue != .lbc
+        // En coulisses, Le Bon Coin reste « affiché » sous la vue native : WebKit ne le met pas en veille.
+        lbc.isHidden = vue != .lbc && !enCoulisses
         fenetre.makeFirstResponder(vue == .appli ? natif : lbc)
         majBarre()
     }
 
-    func estVisible(_ v: WKWebView) -> Bool { fenetre.isVisible && !fenetre.isMiniaturized && !v.isHidden && v === lbc }
+    func estVisible(_ v: WKWebView) -> Bool { fenetre.isVisible && !fenetre.isMiniaturized && visible == .lbc && v === lbc }
     private var actuel: WKWebView { lbc }
 
     func aller(_ r: Rubrique) {
@@ -224,6 +229,12 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     // MARK: Après une publication : retour sur l'appli, qui fait la fête (confettis)
 
     func publiee(id: String, titre: String, url: String) {
+        // Publiée depuis l'app (en coulisses) : la fête tout de suite, Le Bon Coin n'a jamais été à l'écran.
+        if enCoulisses || modele.depot != nil {
+            modele.depot = nil
+            montrer(.appli); modele.publiee(titre: titre)
+            return
+        }
         // Le temps de voir « Annonce envoyée » et d'entendre les confettis sur Le Bon Coin, puis la fête dans l'app.
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
             guard let self = self else { return }
@@ -241,6 +252,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     @objc func suivante(_ s: Any?) { if visible == .lbc { lbc.goForward() } }
     @objc func rechargerPage(_ s: Any?) { if visible == .lbc { lbc.reload() } else { Task { await modele.recharger() } } }
     @objc func nouvelArticle(_ s: Any?) { aller(.appli); if modele.etat == .connecte { modele.nouveauOuvert = true } }
+    @objc func basculerBarre(_ s: Any?) { aller(.appli); modele.barreCachee.toggle() }
     @objc func siteWeb(_ s: Any?) { modele.ouvrirSurLeWeb() }
     @objc func tailleReelle(_ s: Any?) { actuel.pageZoom = 1 }
     @objc func agrandir(_ s: Any?) { actuel.pageZoom = min(3, actuel.pageZoom + 0.1) }
@@ -349,8 +361,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
         decisionHandler(.allow)
     }
-    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre() }
-    func webView(_ v: WKWebView, didCommit n: WKNavigation!) { majBarre() }
+    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
+    func webView(_ v: WKWebView, didCommit n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
     func webViewWebContentProcessDidTerminate(_ v: WKWebView) { v.reload() }
 
     // MARK: Fenêtres, dialogues, fichiers

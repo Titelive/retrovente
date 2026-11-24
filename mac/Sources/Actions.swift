@@ -135,6 +135,12 @@ final class Actions {
 
     /// Notification système quand la personne doit agir, si elle regarde ailleurs.
     private func alerte(titre: String, texte: String, depuis vue: WKWebView?) -> Any {
+        var titre = titre, texte = texte
+        // Dépôt en coulisses : l'app prend le relais (récapitulatif, ou Le Bon Coin à l'écran s'il a besoin de toi).
+        if fenetre?.signalCoulisses(titre: titre, texte: texte) == true {
+            if NSApp.isActive { return ["ok": true, "via": "app Mac"] }
+            if titre == "À toi de finaliser l'annonce" { titre = "Ton annonce est prête"; texte = "Reviens dans RetroRevente pour la relire et la publier." }
+        }
         if NSApp.isActive, let vue = vue, fenetre?.estVisible(vue) == true { return ["ok": true, "via": "déjà sous les yeux"] }
         NSApp.requestUserAttention(.informationalRequest)
         let centre = UNUserNotificationCenter.current()
