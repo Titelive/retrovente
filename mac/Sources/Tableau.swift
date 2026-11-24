@@ -5,7 +5,7 @@ import PhotosUI
 // MARK: Accueil : comme l'accueil du site (raccourcis d'ajout, lots à effacer, chiffres, graphique des ventes)
 
 /// Temps gagné : minutes économisées par étape (valeurs du site, réglables dans « Voir le calcul »).
-enum TempsGagne {
+@MainActor enum TempsGagne {
     static let cles = ["photos", "texte", "prix", "lbc", "suivi"]
     static let defaut: [String: Int] = ["photos": 3, "texte": 4, "prix": 4, "lbc": 2, "suivi": 1]
     static let libelles: [String: (String, String)] = [
