@@ -319,7 +319,7 @@ struct CarteArticle: View {
             Button("Ouvrir la fiche") { appli.selection = article.id }
             Menu("Statut") { ForEach(Libelles.ordreStatuts, id: \.self) { s in Button(Libelles.statut(s)) { Task { await appli.changerStatut(article, s) } }.disabled(s == article.statut) } }
             if !article.estLot, !article.publiee { Button("Déposer sur Le Bon Coin") { appli.deposer(article) }.disabled(article.statut != "en_vente") }
-            if let u = URL(string: article.annonce), article.publiee { Button("Voir l'annonce Le Bon Coin") { appli.fenetre?.ouvrir(u) } }
+            if article.publiee { Button("Voir l'annonce Le Bon Coin") { appli.fenetre?.voirAnnonce(article) } }
             if let u = URL(string: article.annonceEbay), !article.annonceEbay.isEmpty { Button("Voir l'annonce eBay") { NSWorkspace.shared.open(u) } }
         }
         .help(article.titre)
@@ -434,8 +434,8 @@ struct Sites: View {
     let article: Article; let appli: Appli
     var body: some View {
         HStack(spacing: 4) {
-            if let u = URL(string: article.annonce), !article.annonce.isEmpty {
-                pastille("LBC", Color(nsColor: NSColor(hex: 0xEC5A13))) { appli.fenetre?.ouvrir(u) }.help("Voir l'annonce sur Le Bon Coin")
+            if !article.annonce.isEmpty {
+                pastille("LBC", Color(nsColor: NSColor(hex: 0xEC5A13))) { appli.fenetre?.voirAnnonce(article) }.help("Voir l'annonce sur Le Bon Coin")
             }
             if let u = URL(string: article.annonceEbay), !article.annonceEbay.isEmpty {
                 pastille("eBay", Color(nsColor: NSColor(hex: 0x0064D2))) { NSWorkspace.shared.open(u) }.help("Voir l'annonce sur eBay")

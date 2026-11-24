@@ -154,7 +154,7 @@ struct Accueil: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: visibilite) {
-            List(selection: $filtre) {
+            List {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     TextField("Chercher un article (⌘K)", text: $recherche).textFieldStyle(.plain).focused($champRecherche)
@@ -163,19 +163,18 @@ struct Accueil: View {
                 .padding(.horizontal, 10).padding(.vertical, 7).verre(Capsule())
                 .listRowSeparator(.hidden)
                 Section("Mes articles") {
-                    ligne(nil, "Tous", "square.grid.2x2", appli.visibles(nil).count).tag(String?.none)
+                    ligne(nil, "Tous", "square.grid.2x2", appli.visibles(nil).count)
                     ForEach(Libelles.statuts, id: \.0) { s in
-                        ligne(s.0, s.1, s.2, appli.visibles(s.0).count).tag(Optional(s.0))
+                        ligne(s.0, s.1, s.2, appli.visibles(s.0).count)
                     }
                 }
                 Section("Mon espace") {
-                    ligne("@trophees", "Trophées", "trophy", Trophees.liste(appli).filter { $0.ok }.count).tag(Optional("@trophees"))
-                    ligne("@bilan", "Bilan des ventes", "chart.bar", nil).tag(Optional("@bilan"))
-                    ligne("@compte", "Mon compte", "person.crop.circle", nil).tag(Optional("@compte"))
+                    ligne("@trophees", "Trophées", "trophy", Trophees.liste(appli).filter { $0.ok }.count)
+                    ligne("@bilan", "Bilan des ventes", "chart.bar", nil)
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
-            .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli).padding(10) }
+            .safeAreaInset(edge: .bottom) { CarteCompte(appli: appli, actif: filtre == "@compte").padding(10) }
         } detail: {
             if filtre == "@trophees" { Trophees(appli: appli) }
             else if filtre == "@bilan" { Bilan(appli: appli) }
@@ -205,17 +204,28 @@ struct Accueil: View {
         .onAppear { if let p = appli.page { filtre = p == "tous" ? nil : "@" + p } }
     }
     private var titre: String { filtre.flatMap { f in Libelles.statuts.first { $0.0 == f }?.1 } ?? "Tous mes articles" }
+    /// Une ligne de la barre latérale : un vrai bouton (la sélection de List ne prenait pas « Tous » ni « Mon espace »).
     private func ligne(_ id: String?, _ nom: String, _ symbole: String, _ n: Int?) -> some View {
-        HStack {
-            Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
-            Spacer()
-            if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary) }
+        let actif = filtre == id
+        return Button { filtre = id; appli.selection = nil; appli.choix = nil } label: {
+            HStack {
+                Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(actif ? Color.white : Color.rrOr) }
+                Spacer()
+                if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(actif ? Color.white.opacity(0.85) : Color.secondary) }
+            }
+            .foregroundStyle(actif ? Color.white : Color.primary)
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(actif ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
     }
 }
 
 struct CarteCompte: View {
     @ObservedObject var appli: Appli
+    var actif = false
     var body: some View {
         Button { appli.compteOuvert = true } label: {
             HStack(spacing: 10) {
@@ -229,7 +239,9 @@ struct CarteCompte: View {
             }.padding(10).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .verre(RoundedRectangle(cornerRadius: 16), interactif: true)
+        .verre(RoundedRectangle(cornerRadius: 16), teinte: actif ? .rrOr : nil, interactif: true)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(actif ? Color.rrOr : .clear, lineWidth: 2))
+        .help("Mon compte (⇧⌘K)")
     }
 }
 
@@ -280,6 +292,17 @@ struct Fiche: View {
     @State private var retirer = false
     @State private var original: Article? = nil
 
+    /// Lot : titre accrocheur et annonce refaits par le serveur avec les articles du lot (comme « Mettre à jour l'annonce » du site).
+    private func refaireAnnonceLot() async {
+        enCours = true; defer { enCours = false }
+        do {
+            let j = try await API.json("POST", "/api/lots/\(article.id)/annonce", ["simple": true, "prixDemande": article.prixDemande.map { $0 as Any } ?? NSNull()])
+            if let t = j["titre"] as? String, !t.isEmpty { article.titre = t; article.titreAnnonce = t }
+            if let d = j["description"] as? String, !d.isEmpty { article.texteAnnonce = d }
+            appli.message = "Titre et annonce refaits avec les \(appli.membres(article).count) articles du lot. Enregistre, puis mets à jour l'annonce sur Le Bon Coin."
+        } catch { appli.signaler(error) }
+    }
+
     /// Enregistre la fiche si besoin, puis reporte titre, description et prix sur l'annonce Le Bon Coin.
     private func mettreAJour() async {
         if article != original {
@@ -297,9 +320,13 @@ struct Fiche: View {
                 Spacer()
             }.padding(.horizontal, 24).padding(.top, 14)
             EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
+                if article.estLot {
+                    Button { Task { await refaireAnnonceLot() } } label: { Label("Refaire l'annonce", systemImage: "sparkles") }.boutonVerre()
+                        .help("Nouveau titre accrocheur et annonce à jour avec les articles du lot").disabled(enCours)
+                }
                 if let url = URL(string: article.annonce), !article.annonce.isEmpty {
                     Menu {
-                        Button { appli.fenetre?.ouvrir(url) } label: { Label("Voir l'annonce", systemImage: "eye") }
+                        Button { _ = url; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce", systemImage: "eye") }
                         Button { Task { await mettreAJour() } } label: { Label("Mettre à jour l'annonce", systemImage: "arrow.triangle.2.circlepath") }
                         Divider()
                         Button(role: .destructive) { retirer = true } label: { Label("Supprimer de Le Bon Coin…", systemImage: "trash") }
@@ -346,7 +373,7 @@ struct Fiche: View {
                 }.padding(2)
             }
             if article.publiee, let u = URL(string: article.annonce) {
-                Button { appli.fenetre?.ouvrir(u) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
+                Button { _ = u; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
             }
             Button(role: .destructive) { confirmer = true } label: { Label("Supprimer l'article", systemImage: "trash").frame(maxWidth: .infinity) }.boutonVerre()
         }

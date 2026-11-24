@@ -43,6 +43,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     var veilleCoulisses: Timer?
     var debutCoulisses = Date(), etapeDepuis = Date()
     var reglageAuto: Any? = nil, autoSuspendu = false
+    var annonceAVerifier: String? = nil   // article dont on ouvre l'annonce : on vérifie qu'elle est encore en ligne
     private var onglets: [Rubrique: Bouton] = [:]
     private var precedent: Bouton!, suivant: Bouton!, recharger: Bouton!
     private let chargement = Chargement()
@@ -305,7 +306,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
         var rubriques: NSView = pile(boutons, espace: 4)
-        var droite: NSView = pile([precedent, suivant, recharger, separateur(), boutonCompte], espace: 2)
+        var droite: NSView = pile([precedent, suivant, recharger], espace: 2)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif
@@ -370,7 +371,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
         decisionHandler(.allow)
     }
-    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
+    func webView(_ v: WKWebView, didFinish n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses(); verifierAnnonce() } }
     func webView(_ v: WKWebView, didCommit n: WKNavigation!) { majBarre(); if v === lbc { verifierCoulisses() } }
     func webViewWebContentProcessDidTerminate(_ v: WKWebView) { v.reload() }
 
