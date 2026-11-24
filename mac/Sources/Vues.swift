@@ -513,7 +513,9 @@ struct Fiche: View {
                 HStack {
                     champ("État") { Picker("", selection: $article.etat) { ForEach(Libelles.etats, id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
                     if !["cartes", "films"].contains(article.categorie) {
-                        champ("Contenu") { Picker("", selection: $article.contenu) { ForEach(Libelles.contenus, id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
+                        champ("Contenu") { Picker("", selection: $article.contenu) { ForEach(Libelles.contenus(pour: article.plateforme), id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
+                            .onAppear { if Libelles.sansNotice(article.plateforme), article.contenu == "boite" { article.contenu = "complet" } }
+                            .onChange(of: article.plateforme) { p in if Libelles.sansNotice(p), article.contenu == "boite" { article.contenu = "complet" } }
                     }
                 }
             }
@@ -651,7 +653,7 @@ struct Nouveau: View {
                     TextField("Région", text: $article.region)
                     Picker("État", selection: $article.etat) { ForEach(Libelles.etats, id: \.0) { Text($0.1).tag($0.0) } }
                     if !["cartes", "films"].contains(article.categorie) {
-                        Picker("Contenu", selection: $article.contenu) { ForEach(Libelles.contenus, id: \.0) { Text($0.1).tag($0.0) } }
+                        Picker("Contenu", selection: $article.contenu) { ForEach(Libelles.contenus(pour: article.plateforme), id: \.0) { Text($0.1).tag($0.0) } }
                     }
                     TextField("Prix demandé (€)", value: $article.prixDemande, format: .number)
                 }.formStyle(.grouped)

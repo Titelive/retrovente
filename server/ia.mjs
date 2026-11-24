@@ -160,7 +160,7 @@ Réponds uniquement par un objet JSON avec les clés :
 "langues" (langues du jeu lues sur la boîte, ex. « EN, DE, FR, ES, IT, JA » ; "" si illisibles),
 "etat" (d'après la photo : « neuf », « tres_bon », « bon », « correct » ou « pieces » ; "" si impossible à dire ; « neuf » seulement si le film plastique d'origine (blister) se voit clairement (plis, bords soudés, bande de scellage) : un boîtier brillant ou des reflets ne sont pas un blister, et un jeu sans blister est au mieux « tres_bon » ; jamais « neuf » ni « tres_bon » si le plastique est nettement jauni),
 "jauni" (couleur du plastique de la cartouche, de la console ou de la manette : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps (UV) ; compare avec la couleur normale de ce modèle et avec les parties à l'abri : « non », « leger » ou « net » ; « non » si la lumière de la photo (chaude, jaune) suffit à l'expliquer ou si c'est impossible à dire),
-"contenu" (« seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice, « boite_vide » si c'est une boîte sans le jeu (édition à code, disque absent) ; "" si sans objet),
+"contenu" (sur Switch, Switch 2, PS5 et Xbox Series il n'y a plus de notice papier : un jeu en boîte y est « complet », ne parle jamais de notice ; « seul » si jeu en loose, c'est-à-dire cartouche ou disque sans boîte, « boite » si boîte sans notice visible, « complet » si boîte et notice, « boite_vide » si c'est une boîte sans le jeu (édition à code, disque absent) ; "" si sans objet),
 "rareteJeu" (pour un jeu, une console ou un accessoire : sa rareté sur le marché de l'occasion en France, l'une de ${CONSIGNE_RARETE} ; "" si tu ne sais pas ou pour une carte Pokémon ou un film),
 "particularites" (liste de 0 à 5 points propres à CE jeu ou à cette édition qu'un acheteur voudrait savoir, sous forme d'options courtes à cocher par le vendeur, ex. pour un jeu vendu avec un code : « Code de téléchargement déjà utilisé », « Code non utilisé » ; pour une édition avec bonus : « Poster inclus », « Carte de la ville incluse », « Steelbook inclus », « Jaquette réversible » ; [] si rien de particulier),
 "remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, plastique jauni, éléments manquants… ; "" sinon),
@@ -192,6 +192,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
     ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
     etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
+    ...(sansNotice(o.plateforme) && o.contenu === "boite" ? { contenu: "complet" } : {}),
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
     ...(o.categorie === "cartes" || o.categorie === "films" ? {} : { rareteJeu: parmi(o.rareteJeu, RARETES_JEU, ""), ...jaunissement(o) }),
@@ -306,6 +307,7 @@ export async function estimerCote(v) {
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   const cible = { etat: parmi(v.etat, ETATS, ""), contenu: parmi(v.contenu, CONTENUS, "") };
+  if (sansNotice(v.plateforme) && cible.contenu === "boite") cible.contenu = "complet";   // pas de notice sur ces consoles
   if (FAKE()) return coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", rarete: "peu_commun", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
     releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/itm/1", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "eBay", titre: "Autre vente conclue", prix: 52, date: "2026-10-20", url: "https://www.ebay.fr/itm/2", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
@@ -314,7 +316,7 @@ export async function estimerCote(v) {
   // Version importée (allemande, UK, US…) : on cherche la cote du jeu de base (version française ou européenne),
   // puis on propose un peu moins, parce qu'une version étrangère se vend moins bien en France.
   const region = txt(v.region, 30), importe = estImport(region);
-  const quoi = [titre, txt(v.plateforme, 60), importe ? "" : region, LIB_CONTENU[v.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
+  const quoi = [titre, txt(v.plateforme, 60), importe ? "" : region, sansNotice(v.plateforme) && cible.contenu === "complet" ? "en boîte (la console n'a pas de notice papier)" : LIB_CONTENU[cible.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
   const o = await claude(`Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
 Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Note pour chaque prix l'état et ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro. Ne calcule pas de prix conseillé : le calcul est fait ensuite à partir de tes relevés.
 Réponds uniquement par un objet JSON avec les clés :
@@ -334,6 +336,8 @@ Réponds uniquement par un objet JSON avec les clés :
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
   return importe ? coteImport(c, region) : c;
 }
+// Consoles récentes sans notice papier : un jeu en boîte y est complet.
+export const sansNotice = (plateforme) => /switch|ps5|playstation 5|xbox series/i.test(String(plateforme || ""));
 // Version d'un autre pays que la France (« PAL allemande », « PAL UK », « NTSC-U »…). « PAL EUR » ou « PAL FR » n'en sont pas.
 export function estImport(region) {
   const r = String(region || "").toLowerCase();

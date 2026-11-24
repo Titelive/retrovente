@@ -496,7 +496,7 @@ export function annonceLbc(v) {
     ? [`Film ${v.titre}${v.annee ? ` (${v.annee})` : ""}${v.realisateur ? " de " + v.realisateur : ""}${v.plateforme ? ", en " + v.plateforme : ""}${v.edition ? ", " + editionTexte(v.edition) : ""}.`, v.region ? v.region.replace(/^./, (c) => c.toUpperCase()) + "." : "", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
     : v.categorie === "cartes"
     ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
-    : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
+    : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], /switch|ps5|playstation 5|xbox series/i.test(v.plateforme || "") && (v.contenu === "boite" || v.contenu === "complet") ? "Complet en boîte (pas de notice papier sur cette console)." : CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
   return {
     id: v.id, nom: v.titre, titre: (v.titreAnnonce || nom).slice(0, 100), description,
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,

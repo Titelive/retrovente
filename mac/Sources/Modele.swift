@@ -15,7 +15,8 @@ extension Article {
         let etats = ["neuf": "Neuf.", "tres_bon": "Très bon état.", "bon": "Bon état.", "correct": "État correct.", "pieces": "Pour pièces."]
         let contenus = ["seul": "Cartouche ou disque seul.", "boite": "En boîte, sans notice.", "complet": "Complet : boîte et notice.", "boite_vide": "Boîte seule, sans le jeu."]
         let l1 = [a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: ", ") + "."
-        return [l1, a.region.isEmpty ? nil : "Version " + a.region + ".", etats[a.etat], contenus[a.contenu], "Remise en main propre ou envoi."].compactMap { $0 }.joined(separator: "\n")
+        let contenu = Libelles.sansNotice(a.plateforme) && ["boite", "complet"].contains(a.contenu) ? "Complet en boîte (pas de notice papier sur cette console)." : contenus[a.contenu]
+        return [l1, a.region.isEmpty ? nil : "Version " + a.region + ".", etats[a.etat], contenu, "Remise en main propre ou envoi."].compactMap { $0 }.joined(separator: "\n")
     }
 }
 
@@ -171,6 +172,12 @@ enum Libelles {
                                             ("correct", "État correct"), ("pieces", "Pour pièces")]
     static let contenus: [(String, String)] = [("", "Non précisé"), ("seul", "Jeu seul"), ("boite", "En boîte, sans notice"),
                                                ("complet", "Complet (boîte et notice)"), ("boite_vide", "Boîte seule")]
+    /// Consoles récentes sans notice papier (Switch, PS5, Xbox Series) : un jeu en boîte est complet.
+    static func sansNotice(_ plateforme: String) -> Bool { plateforme.range(of: #"switch|ps5|playstation 5|xbox series"#, options: [.regularExpression, .caseInsensitive]) != nil }
+    static func contenus(pour plateforme: String) -> [(String, String)] {
+        guard sansNotice(plateforme) else { return contenus }
+        return [("", "Non précisé"), ("seul", "Jeu seul"), ("complet", "Complet en boîte"), ("boite_vide", "Boîte seule")]
+    }
     static func prix(_ x: Double?) -> String {
         guard let x = x else { return "—" }
         let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = "EUR"; f.locale = Locale(identifier: "fr_FR")
