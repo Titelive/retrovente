@@ -1,7 +1,7 @@
 name: App Mac
+# Mac de GitHub facturés à la minute (le plus cher des runners) : une seule compilation par version, sur main
+# (choix de Titelive, 25/11/2026). Une PR ne compile plus : doublon de main, qui ne publie rien s'il échoue.
 on:
-  pull_request:
-    paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
   push:
     branches: [main]
     paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
@@ -25,6 +25,8 @@ jobs:
           lipo -info mac/build/RetroRevente.app/Contents/MacOS/RetroRevente
           codesign -dv mac/build/RetroRevente.app 2>&1 | head -5
       - name: Lancer l'app et prendre des captures
+        # 3 à 4 minutes de Mac : seulement quand on les demande (lancement manuel du workflow).
+        if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
         run: |
           APP=mac/build/RetroRevente.app
