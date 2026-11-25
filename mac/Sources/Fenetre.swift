@@ -358,6 +358,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
     private var boutonCompte: Bouton!
     private var boutonApparence: Bouton!
+    private var cloche: Cloche!
 
     // MARK: Mode clair / sombre (choix gardé ; sans choix, l'app suit macOS)
 
@@ -414,7 +415,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         var rubriques: NSView = pile(boutons, espace: 4)
         boutonApparence = Bouton(symbole: "moon", titre: nil, aide: "") { [weak self] in self?.basculerApparence(nil) }
         appliquerApparence()
-        var droite: NSView = pile([boutonApparence, precedent, suivant, recharger], espace: 2)
+        cloche = Cloche(fenetre: self)
+        var droite: NSView = pile([cloche.bouton, boutonApparence, precedent, suivant, recharger], espace: 2)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif

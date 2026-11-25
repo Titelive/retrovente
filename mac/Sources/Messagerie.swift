@@ -328,10 +328,11 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         return out
     }
     private func notifier(_ c: ConversationLbc) {
-        guard !(NSApp.isActive && fenetre?.modele.messagesOuvert == true) else { return }
-        let centre = UNUserNotificationCenter.current()
         let titre = c.acheteur.isEmpty ? "Nouveau message" : "Message de \(c.acheteur)"
         let corps = c.apercu.isEmpty ? c.nom : "\(c.nom) : \(c.apercu)"
+        fenetre?.modele.noter(titre, corps, symbole: "bubble.left.and.bubble.right", cible: .messages)
+        guard !(NSApp.isActive && fenetre?.modele.messagesOuvert == true) else { return }
+        let centre = UNUserNotificationCenter.current()
         centre.requestAuthorization(options: [.alert, .sound, .badge]) { ok, _ in
             guard ok else { return }
             let n = UNMutableNotificationContent()
