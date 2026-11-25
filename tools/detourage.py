@@ -60,14 +60,16 @@ def niveaux(img, fond=None):
         sat = f.max(axis=2) - f.min(axis=2)
         fond = sat <= np.percentile(sat, 50)
     ref = np.median(f[fond], axis=0)                       # couleur du fond, R G B
-    cible = ref.mean() * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # même fond pour toutes : neutre, un peu chaud
+    # Même fond pour toutes : un ton chaud et vivant (bois clair, lumière de fin d'après-midi), jamais gris ni délavé.
+    cible = ref.mean() * np.array([1.09, 1.0, 0.84], dtype=np.float32)
     gains = np.clip(cible / np.maximum(ref, 1), .8, 1.25)
     f = f * gains
     lum = float((ref * gains).mean())
-    expo = float(np.clip(190.0 / max(lum, 1), .9, 1.12))  # même luminosité de fond, ajustée en douceur
+    expo = float(np.clip(172.0 / max(lum, 1), .92, 1.08))  # même luminosité de fond, sans éclaircir jusqu'au pâle
     f = f * expo
+    f = 128 + (f - 128) * 1.06        # un peu de relief (contraste doux), pour ne pas faire terne
     gr = f.mean(axis=2, keepdims=True)
-    f = gr + (f - gr) * 1.04          # couleurs un poil plus vives, jamais plus ternes
+    f = gr + (f - gr) * 1.14          # couleurs plus vives et gaies, sans excès
     return np.clip(f, 0, 255).astype(np.uint8)
 
 
@@ -163,21 +165,51 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         if zone.any():
             img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
     img = niveaux(img, ~pres)   # le fond seul sert de référence
-    # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
-    ys, xs = np.nonzero(obj)
-    cx, cy = xs.mean(), ys.mean()
-    w_, v = np.linalg.eigh(np.cov(np.vstack([xs - cx, ys - cy])))
-    ang = np.degrees(np.arctan2(v[1, 1], v[0, 1]))
-    d = ((ang + 45) % 90) - 45
-    if abs(d) > 15 or not fiable:
-        d = 0
+    # 4) redressement : quart de tour demandé, puis le jeu remis bien droit.
+    #    Un boîtier photographié un peu de biais forme un quadrilatère : s'il est net (4 coins francs, presque un
+    #    rectangle), on corrige la perspective pour en refaire un rectangle droit (même contenu, juste remis à plat).
+    #    Sinon, l'angle du plus petit rectangle qui entoure le jeu (plus juste que l'ancienne mesure par moments,
+    #    que l'ombre faussait).
+    valide = np.full((H, W), 255, np.uint8)
+    d = 0.0
+    if fiable:
+        cnts, _ = cv2.findContours(obj.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if cnts:
+            hull = cv2.convexHull(max(cnts, key=cv2.contourArea))
+            quad = cv2.approxPolyDP(hull, .02 * cv2.arcLength(hull, True), True).reshape(-1, 2).astype(np.float32)
+            plat = False
+            if len(quad) == 4 and cv2.contourArea(quad) > .9 * cv2.contourArea(hull):
+                c0 = quad.mean(axis=0)
+                quad = quad[np.argsort(np.arctan2(quad[:, 1] - c0[1], quad[:, 0] - c0[0]))]   # haut-g, haut-d, bas-d, bas-g
+                quad = np.roll(quad, -int(np.argmin(quad.sum(axis=1))), axis=0)
+                tl, tr, br, bl = quad
+                def angle(p, q, r):
+                    u, v_ = p - q, r - q
+                    return np.degrees(np.arccos(np.clip(u @ v_ / (np.linalg.norm(u) * np.linalg.norm(v_) + 1e-6), -1, 1)))
+                coins = [angle(bl, tl, tr), angle(tl, tr, br), angle(tr, br, bl), angle(br, bl, tl)]
+                bw = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2
+                bh = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2
+                inclin = np.degrees(np.arctan2(tr[1] - tl[1], tr[0] - tl[0]))
+                if max(abs(x - 90) for x in coins) < 12 and abs(inclin) < 15 and bw > 20 and bh > 20:
+                    dst = np.array([[c0[0] - bw / 2, c0[1] - bh / 2], [c0[0] + bw / 2, c0[1] - bh / 2],
+                                    [c0[0] + bw / 2, c0[1] + bh / 2], [c0[0] - bw / 2, c0[1] + bh / 2]], np.float32)
+                    P = cv2.getPerspectiveTransform(quad, dst)
+                    img = cv2.warpPerspective(img, P, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                    obj = cv2.warpPerspective(obj.astype(np.uint8) * 255, P, (W, H), flags=cv2.INTER_NEAREST) > 0
+                    valide = cv2.warpPerspective(valide, P, (W, H), flags=cv2.INTER_NEAREST)
+                    plat = True
+            if not plat:
+                (_, _), (rw, rh), ra = cv2.minAreaRect(hull)
+                d = ((ra + 45) % 90) - 45
+                if abs(d) > 15:
+                    d = 0.0
     a = d - rot          # degrés, sens trigonométrique pour OpenCV
     M = cv2.getRotationMatrix2D((W / 2, H / 2), a, 1.0)
     c, s_ = abs(M[0, 0]), abs(M[0, 1]); NW, NH = int(H * s_ + W * c), int(H * c + W * s_)
     M[0, 2] += NW / 2 - W / 2; M[1, 2] += NH / 2 - H / 2
     img = cv2.warpAffine(img, M, (NW, NH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
     om = cv2.warpAffine(obj.astype(np.uint8) * 255, M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
-    ok = cv2.warpAffine(np.full((H, W), 255, np.uint8), M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
+    ok = cv2.warpAffine(valide, M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
     # 5) recadrage autour du jeu avec une marge, sans sortir de la vraie photo
     ys, xs = np.nonzero(om)
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
