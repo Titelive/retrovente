@@ -378,7 +378,7 @@ struct CarteArticle: View {
             let c = Libelles.couleursStatut(article.statut)
             Etiquette(texte: Libelles.statut(article.statut).uppercased(), symbole: Libelles.symboleStatut(article.statut), fond: c.fond, texteCouleur: c.texte, pixel: true)
         } else if article.estLot, article.alerteVendus > 0 {
-            Etiquette(texte: "\(article.alerteVendus) vendu\(article.alerteVendus > 1 ? "s" : "") à part", symbole: nil, fond: Color(nsColor: NSColor(hex: 0xFFE3B3)), texteCouleur: Color(nsColor: NSColor(hex: 0x6B3D00)), pixel: false)
+            Etiquette(texte: "\(article.alerteVendus) vendu\(article.alerteVendus > 1 ? "s" : "") à part", symbole: nil, fond: .orange, texteCouleur: .white, pixel: false)
         }
     }
 
