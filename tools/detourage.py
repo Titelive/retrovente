@@ -48,7 +48,56 @@ def detourer(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False) -> bytes:
+def niveaux(img):
+    # 3) niveaux : on étire seulement, et doucement (jamais moins de contraste ni moins de couleur que l'original,
+    #    mais sans contraste « poussé » non plus), sans toucher localement au jeu
+    f = img.astype(np.float32)
+    lum = f.mean(axis=2)
+    lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
+    g = 255 / max(hi - lo, 1)
+    if g > 1:
+        lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
+        f = np.clip((f - lo) * min(g, 1.1), 0, 255)
+    gr = f.mean(axis=2, keepdims=True)
+    f = gr + (f - gr) * 1.04          # couleurs un poil plus vives, jamais plus ternes
+    f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
+    # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
+    # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
+    img = np.clip(f, 0, 255).astype(np.uint8)
+    return img
+
+
+def finir(crop, pastille):
+    flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
+    crop = cv2.addWeighted(crop, 1.18, flou, -.18, 0)   # netteté très légère, compense la rotation
+    out_im = Image.fromarray(crop)
+    if max(out_im.size) > SORTIE:
+        out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
+    if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
+        out_im = filigrane.poser(out_im)
+    out = io.BytesIO()
+    out_im.save(out, "JPEG", quality=90, optimize=True, progressive=True, subsampling=0)
+    return out.getvalue()
+
+
+def zoomer(data: bytes, rot: int, cadre, pastille: bool = False) -> bytes:
+    """Photo de détail (coin, tranche, défaut) : on garde le rectangle donné (fractions x, y, w, h de la photo
+    à l'endroit), lumière et couleurs comme les autres, puis le quart de tour demandé. Rien n'est effacé."""
+    im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
+    W, H = im.size
+    x, y, w, h = cadre
+    X0, Y0 = max(0, int(x * W)), max(0, int(y * H))
+    X1, Y1 = min(W, int((x + w) * W)), min(H, int((y + h) * H))
+    if X1 - X0 < W * .15 or Y1 - Y0 < H * .15:
+        raise ValueError("cadre trop petit")
+    im = im.crop((X0, Y0, X1, Y1))
+    if rot:
+        im = im.rotate(-rot, expand=True)
+    return finir(niveaux(np.asarray(im).copy()), pastille)
+
+
+def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False):
+    """→ (JPEG, fiable) ; fiable = False : objet coupé ou tenu en main (gros plan), la photo est gardée entière."""
     im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     if max(im.size) > ENTREE:
         im.thumbnail((ENTREE, ENTREE), Image.LANCZOS)
@@ -109,21 +158,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         zone[pres] = 0
         if zone.any():
             img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    # 3) niveaux : on étire seulement, et doucement (jamais moins de contraste ni moins de couleur que l'original,
-    #    mais sans contraste « poussé » non plus), sans toucher localement au jeu
-    f = img.astype(np.float32)
-    lum = f.mean(axis=2)
-    lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
-    g = 255 / max(hi - lo, 1)
-    if g > 1:
-        lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
-        f = np.clip((f - lo) * min(g, 1.1), 0, 255)
-    gr = f.mean(axis=2, keepdims=True)
-    f = gr + (f - gr) * 1.04          # couleurs un poil plus vives, jamais plus ternes
-    f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
-    # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
-    # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
-    img = np.clip(f, 0, 255).astype(np.uint8)
+    img = niveaux(img)
     # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
     ys, xs = np.nonzero(obj)
     cx, cy = xs.mean(), ys.mean()
@@ -162,17 +197,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         c_ = max(X1 - X0, Y1 - Y0); c_ = min(c_, NW, NH)
         mx, my = (X0 + X1) / 2, (Y0 + Y1) / 2
         X0 = int(min(max(0, mx - c_ / 2), NW - c_)); Y0 = int(min(max(0, my - c_ / 2), NH - c_)); X1, Y1 = X0 + c_, Y0 + c_
-    crop = img[Y0:Y1, X0:X1]
-    flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
-    crop = cv2.addWeighted(crop, 1.18, flou, -.18, 0)   # netteté très légère, compense la rotation
-    out_im = Image.fromarray(crop)
-    if max(out_im.size) > SORTIE:
-        out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
-    if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
-        out_im = filigrane.poser(out_im)
-    out = io.BytesIO()
-    out_im.save(out, "JPEG", quality=90, optimize=True, progressive=True, subsampling=0)
-    return out.getvalue()
+    return finir(img[Y0:Y1, X0:X1], pastille), bool(fiable)
 
 
 class H(BaseHTTPRequestHandler):
@@ -193,11 +218,15 @@ class H(BaseHTTPRequestHandler):
             self.send_response(413); self.end_headers(); return
         try:
             corps = self.rfile.read(n)
+            fiable = True
             with UN_A_LA_FOIS:
                 if chemin == "/retoucher":
-                    rot = int(dict(x.split("=", 1) for x in q.split("&") if "=" in x).get("rot", "0"))
-                    carre = "carre=1" in q
-                    png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre, "filigrane=1" in q)
+                    p = dict(x.split("=", 1) for x in q.split("&") if "=" in x)
+                    rot = int(p.get("rot", "0")); rot = rot if rot in (0, 90, 180, 270) else 0
+                    if p.get("cadre"):   # gros plan : zoom sur le détail repéré par l'IA (coin, tranche…)
+                        png = zoomer(corps, rot, [float(v) for v in p["cadre"].split(",")][:4], "filigrane=1" in q)
+                    else:
+                        png, fiable = retoucher(corps, rot, "carre=1" in q, "filigrane=1" in q)
                 else:
                     png = detourer(corps)
         except Exception as e:  # image illisible
@@ -206,6 +235,7 @@ class H(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg" if chemin == "/retoucher" else "image/png")
         self.send_header("Content-Length", str(len(png)))
+        self.send_header("X-Fiable", "1" if fiable else "0")
         self.end_headers()
         self.wfile.write(png)
 
