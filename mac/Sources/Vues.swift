@@ -363,6 +363,7 @@ struct Fiche: View {
     @State private var redaction = false
     /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
     @State private var aRetirerDePhotos: [String] = []
+    private var aEnregistrer: Bool { article != original || !aRetirerDePhotos.isEmpty }
 
     /// L'annonce liée n'existe plus sur Le Bon Coin : on le dit, et on propose de redéposer.
     private var bandeauAnnonceMorte: some View {
@@ -475,8 +476,9 @@ struct Fiche: View {
                     Button { appli.deposer(article) } label: { Label("Déposer sur Le Bon Coin", systemImage: "paperplane") }.boutonVerre()
                         .help("Remplit l'annonce Le Bon Coin en coulisses : tu la relis et tu publies dans l'app").disabled(article.statut != "en_vente")
                 }
-                Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n; await apresEnregistrement() }; enCours = false } } label: { Label("Enregistrer", systemImage: "checkmark") }
-                    .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || (article == original && aRetirerDePhotos.isEmpty))
+                Button { Task { enCours = true; if let n = await appli.enregistrer(article) { article = n; original = n; await apresEnregistrement() }; enCours = false } } label: { Label(aEnregistrer ? "Enregistrer" : "Enregistré", systemImage: aEnregistrer ? "square.and.arrow.down" : "checkmark") }
+                    .boutonVerre(principal: true).keyboardShortcut("s").disabled(enCours || !aEnregistrer)
+                    .help(aEnregistrer ? "Enregistrer les modifications" : "Tout est déjà enregistré : modifie un champ pour réactiver le bouton")
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
