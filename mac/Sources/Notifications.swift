@@ -58,7 +58,7 @@ struct ListeNotifs: View {
             Divider()
             if appli.notifications.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "bell.slash").font(.system(size: 28, weight: .light)).foregroundStyle(Color.rrOr)
+                    Image(systemName: "bell.slash").font(.system(size: 28, weight: .light)).foregroundStyle(Color.rrAccent)
                     Text("Rien de nouveau").font(.callout.weight(.semibold))
                     Text("Annonces prêtes à publier, messages et demandes de Le Bon Coin s'afficheront ici.")
                         .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -78,8 +78,8 @@ struct ListeNotifs: View {
     }
     private func ligne(_ n: NotifRR) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: n.symbole).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.rrOr)
-                .frame(width: 28, height: 28).background(Color.rrOr.opacity(0.15), in: Circle())
+            Image(systemName: n.symbole).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.rrAccent)
+                .frame(width: 28, height: 28).background(Color.rrAccent.opacity(0.15), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(n.titre).font(.callout.weight(n.lue ? .regular : .bold)).lineLimit(1)
@@ -88,7 +88,7 @@ struct ListeNotifs: View {
                 }
                 if !n.texte.isEmpty { Text(n.texte).font(.caption).foregroundStyle(.secondary).lineLimit(3).fixedSize(horizontal: false, vertical: true) }
             }
-            if !n.lue { Circle().fill(Color.rrOr).frame(width: 8, height: 8).padding(.top, 6) }
+            if !n.lue { Circle().fill(Color.rrAccent).frame(width: 8, height: 8).padding(.top, 6) }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .contentShape(Rectangle())

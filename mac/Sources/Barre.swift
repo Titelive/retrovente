@@ -1,4 +1,4 @@
-// La barre du haut, à la charte RetroRevente : fond nuit, icônes au trait dorées, onglet actif en pastille dorée.
+// La barre du haut : verre neutre, icônes au trait bleues (accent du système), onglet actif en pastille bleue.
 import AppKit
 
 enum Charte {
@@ -6,8 +6,9 @@ enum Charte {
         NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: a)
     }
     static let nuit = rvb(0x1A1A1A)
-    static let or = rvb(0xF5C542)
-    static let orClair = rvb(0xFFE27A)
+    // « or » : historique, c'est désormais l'accent bleu du système (Liquid Glass) sur toute l'app.
+    static let or = NSColor.systemBlue
+    static let orClair = NSColor.systemBlue.blended(withFraction: 0.35, of: .white) ?? .systemBlue
     static let encre = rvb(0xF4F4EE)
     static let gris = rvb(0xA6A69E)
     /// Liquid Glass (macOS 26) : la barre devient du verre posé sur la page.
@@ -15,9 +16,7 @@ enum Charte {
     /// Texte de la barre : blanc sur la barre nuit ; sur le verre, la couleur du système (lisible en clair et en sombre).
     static var texte: NSColor { verre ? .labelColor : encre }
     /// Or des icônes : plus soutenu sur verre clair pour rester lisible.
-    static let orIcone = NSColor(name: nil) { a in
-        a.bestMatch(from: [.aqua, .darkAqua]) == .aqua ? rvb(0xB98200) : rvb(0xF5C542)
-    }
+    static let orIcone = NSColor.systemBlue
 
     static func police(_ taille: CGFloat, _ graisse: NSFont.Weight = .semibold) -> NSFont {
         let f = NSFont.systemFont(ofSize: taille, weight: graisse)
