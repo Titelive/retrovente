@@ -737,7 +737,7 @@ struct MessagesVue: View {
                     .background {
                         if moi {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(LinearGradient(colors: [Color.rrAccent.opacity(0.85), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .fill(Color.rrAccent)
                                 .shadow(color: Color.rrAccent.opacity(0.25), radius: 6, y: 2)
                         } else {
                             RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.rrCarte)
