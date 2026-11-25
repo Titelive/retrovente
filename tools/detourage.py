@@ -48,23 +48,27 @@ def detourer(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def niveaux(img):
-    # 3) niveaux : on étire seulement, et doucement (jamais moins de contraste ni moins de couleur que l'original,
-    #    mais sans contraste « poussé » non plus), sans toucher localement au jeu
+def niveaux(img, fond=None):
+    """Lumière et couleurs de TOUTE la photo, réglées vers une même cible pour toutes les photos d'un article :
+    le fond (bois, table, nappe) est ramené au même blanc légèrement chaud et à la même luminosité, quelle que soit
+    la lampe. Avant, chaque photo était étirée selon son propre histogramme : une photo terne sous une lampe jaune
+    était poussée (plus jaune, plus contrastée), une photo déjà contrastée restait telle quelle, d'où une série incohérente.
+    Aucune retouche locale sur le jeu : seuls des réglages globaux, doux et bornés."""
     f = img.astype(np.float32)
-    lum = f.mean(axis=2)
-    lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
-    g = 255 / max(hi - lo, 1)
-    if g > 1:
-        lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
-        f = np.clip((f - lo) * min(g, 1.1), 0, 255)
+    if fond is None or fond.sum() < f.shape[0] * f.shape[1] * .05:
+        # Pas de masque (gros plan) : les pixels les moins colorés servent de fond (le bois, pas la jaquette rouge).
+        sat = f.max(axis=2) - f.min(axis=2)
+        fond = sat <= np.percentile(sat, 50)
+    ref = np.median(f[fond], axis=0)                       # couleur du fond, R G B
+    cible = ref.mean() * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # même fond pour toutes : neutre, un peu chaud
+    gains = np.clip(cible / np.maximum(ref, 1), .8, 1.25)
+    f = f * gains
+    lum = float((ref * gains).mean())
+    expo = float(np.clip(190.0 / max(lum, 1), .9, 1.12))  # même luminosité de fond, ajustée en douceur
+    f = f * expo
     gr = f.mean(axis=2, keepdims=True)
     f = gr + (f - gr) * 1.04          # couleurs un poil plus vives, jamais plus ternes
-    f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
-    # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
-    # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
-    img = np.clip(f, 0, 255).astype(np.uint8)
-    return img
+    return np.clip(f, 0, 255).astype(np.uint8)
 
 
 def finir(crop, pastille):
@@ -158,7 +162,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         zone[pres] = 0
         if zone.any():
             img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    img = niveaux(img)
+    img = niveaux(img, ~pres)   # le fond seul sert de référence
     # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
     ys, xs = np.nonzero(obj)
     cx, cy = xs.mean(), ys.mean()
