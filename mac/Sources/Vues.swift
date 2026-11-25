@@ -1065,11 +1065,12 @@ struct ParcoursStatut: View {
                 ForEach(Array(etapes.enumerated()), id: \.offset) { i, e in
                     if i > 0 {
                         Capsule().fill(rang.map { i <= $0 } == true ? Color.rrAccent : Color.primary.opacity(0.12))
-                            .frame(height: 4).padding(.top, 20).frame(maxWidth: .infinity)
+                            .frame(height: 4).padding(.top, 26).frame(maxWidth: .infinity)
                     }
                     etape(e, i)
                 }
             }
+            .padding(.horizontal, 6).padding(.bottom, 4)
             .opacity(statut == "retire" ? 0.45 : 1)
         }
         .padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
@@ -1080,13 +1081,14 @@ struct ParcoursStatut: View {
         let fait = rang.map { i < $0 } ?? false, actuel = rang == i && !(aPublier && i == 0)
         return Button { choisir(e) } label: {
             VStack(spacing: 6) {
+                // Le halo de l'étape actuelle tient DANS le cadre (56 pt) : rien ne déborde sur le libellé ni sur le bord de la carte.
                 ZStack {
-                    Circle().fill(actuel || fait ? Color.rrAccent : Color.primary.opacity(0.06))
-                    if actuel { Circle().stroke(Color.rrAccent.opacity(0.35), lineWidth: 6).padding(-5) }
-                    Image(systemName: fait ? "checkmark" : Libelles.symboleStatut(e)).font(.system(size: 16, weight: .bold))
+                    if actuel { Circle().fill(Color.rrAccent.opacity(0.22)) }
+                    Circle().fill(actuel || fait ? Color.rrAccent : Color.primary.opacity(0.06)).padding(actuel ? 5 : 6)
+                    Image(systemName: fait ? "checkmark" : Libelles.symboleStatut(e)).font(.system(size: actuel ? 18 : 16, weight: .bold))
                         .foregroundStyle(actuel || fait ? Color.white : Color.secondary)
                 }
-                .frame(width: 44, height: 44).scaleEffect(actuel ? 1.1 : 1)
+                .frame(width: 56, height: 56)
                 Text(Libelles.statut(e)).font(.caption.weight(actuel ? .heavy : .semibold)).foregroundStyle(actuel ? Color.primary : Color.secondary).fixedSize()
             }.contentShape(Rectangle())
         }.buttonStyle(.plain).help(Libelles.aideStatut(e))
