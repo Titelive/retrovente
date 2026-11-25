@@ -184,7 +184,7 @@ Réponds uniquement par un objet JSON avec les clés :
 "remarques" (une phrase courte sur ce qui compte pour un acheteur : étiquette abîmée, rayures, plastique jauni, éléments manquants… ; "" sinon),
 ${CADRE_CONSIGNE},
 "rotation" (rotation en degrés, dans le sens des aiguilles d'une montre, à appliquer à la photo pour que l'étiquette ou le texte de l'objet soit à l'endroit : 0, 90, 180 ou 270),
-"annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, région, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose »),
+"annonce" (titre d'annonce Le Bon Coin précis, 70 caractères au plus : nom du jeu, plateforme, « PAL » pour une version européenne ou française, puis « loose » si cartouche ou disque seul, « en boîte » ou « complet CIB » ; ex. « Kirby 64 Nintendo 64 PAL loose » ; une version d'un autre pays (allemande, UK, NTSC…) ne se dit JAMAIS dans le titre, seulement dans "description"),
 "description" (texte de l'annonce en français, exactement dans ce style, 4 lignes courtes, honnête, sans prix ni émoji, sans inventer ce qui ne se voit pas ; ${ETAT_SEUL} :
 « Conker's Bad Fur Day sur Nintendo 64, version européenne (PAL, NUS-NFUP-EUR).
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
@@ -209,7 +209,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
   return {
     ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
-    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: txt(o.annonce, 100), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
+    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: titreSansVersion(txt(o.annonce, 100)), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
     ...(sansNotice(o.plateforme) && o.contenu === "boite" ? { contenu: "complet" } : {}),
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
@@ -357,6 +357,10 @@ Réponds uniquement par un objet JSON avec les clés :
 }
 // Consoles récentes sans notice papier : un jeu en boîte y est complet.
 export const sansNotice = (plateforme) => /switch|ps5|playstation 5|xbox series/i.test(String(plateforme || ""));
+// Titre d'annonce : la version d'un autre pays (« version allemande », « PAL UK », « NTSC-U »…) ne se dit QUE dans le
+// texte de l'annonce, jamais dans le titre. « PAL » seul, « PAL EUR » et « PAL FR » restent.
+const VERSION_TITRE = /\s*[-–,(]?\s*\b(?:(?:version|vers\.|v\.)\s+(?:allemande|anglaise|britannique|uk|italienne|espagnole|n[ée]erlandaise|hollandaise|scandinave|nordique|autrichienne|am[ée]ricaine|us|usa|japonaise|jap|import(?:[ée]e)?)|pal\s+(?:allemande|allemand|uk|ukv|anglaise|italienne|espagnole|n[ée]erlandaise|hollandaise|scandinave|nordique|ger|noe|ita|esp|hol|scn)|ntsc(?:[- ]?(?:u|j|us|usa|jp|jap))?|import\s+(?:allemand|anglais|uk|us|usa|japon|jap)\w*)\b\)?/gi;
+export const titreSansVersion = (t) => String(t || "").replace(VERSION_TITRE, "").replace(/\s{2,}/g, " ").replace(/\s+([,:)])/g, "$1").trim();
 // Version d'un autre pays que la France (« PAL allemande », « PAL UK », « NTSC-U »…). « PAL EUR » ou « PAL FR » n'en sont pas.
 export function estImport(region) {
   const r = String(region || "").toLowerCase();
@@ -1120,6 +1124,7 @@ export function changementsSurs(c) {
     else if (k === "etatCarte") { if (ETATS_CARTE.includes(v)) out[k] = v; }
     else if (k === "annee") { if (/^(18|19|20)\d{2}$/.test(String(v).trim())) out[k] = String(v).trim(); }
     else if (k === "texteAnnonce") out[k] = affirme(txt(v, 4000));
+    else if (k === "titreAnnonce") out[k] = titreSansVersion(txt(v, 100));
     else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 80, gradation: 30, realisateur: 80 }[k]);
   }
   return out;
@@ -1150,7 +1155,7 @@ Signification des champs :
 - prixDemande, prixAchat : en euros ;
 - pour une carte Pokémon (categorie « cartes ») : titre = nom de la carte, plateforme = extension, region = langue, numero (ex. « 4/102 »), rarete, edition (« 1re édition »…), gradation (ex. « PSA 9 »), etatCarte (« mint », « near_mint », « excellent », « good », « light_played », « played » ou « poor ») ; contenu et origine ne servent pas ;
 - pour un film (categorie « films ») : titre = titre français du film, plateforme = format (${FORMATS_FILM.map((f) => "« " + f + " »").join(", ")}), region = langues et zone (ex. « VF incluse, zone B »), edition (ex. « Steelbook », « Édition collector », plusieurs séparées par des virgules), annee (4 chiffres), realisateur ; contenu et origine ne servent pas ;
-- titreAnnonce : titre Le Bon Coin (100 caractères au plus) ; texteAnnonce : texte de l'annonce.
+- titreAnnonce : titre Le Bon Coin (100 caractères au plus), sans jamais la version d'un autre pays (« version allemande », « PAL UK », « NTSC-U ») : elle se dit seulement dans texteAnnonce ; texteAnnonce : texte de l'annonce.
 
 Conversation (le dernier message est celui du vendeur) :
 ${l.map((m) => (m.role === "ia" ? "Toi : " : "Vendeur : ") + m.texte).join("\n")}
