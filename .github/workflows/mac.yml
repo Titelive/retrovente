@@ -1,16 +1,23 @@
 name: App Mac
+# Économie de minutes Mac (facturées 10 fois plus que Linux) :
+# - plus de compilation sur les PR, elle faisait doublon avec celle sur main ; une seule compilation par version ;
+# - les captures d'écran ne tournent qu'à la demande (lancement manuel, case « captures »).
+# Pour une version d'essai d'une branche : Actions > App Mac > Run workflow, en choisissant la branche.
 on:
-  pull_request:
-    paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
   push:
     branches: [main]
     paths: ["mac/**", "extension/**", ".github/workflows/mac.yml"]
   workflow_dispatch:
+    inputs:
+      captures:
+        description: "Lancer l'app et prendre des captures d'écran (environ 4 minutes Mac de plus)"
+        type: boolean
+        default: false
 permissions:
   contents: write
 # Une seule compilation à la fois par branche : une plus ancienne, finie après coup, écrasait la release d'essai.
 concurrency:
-  group: mac-${{ github.head_ref || github.ref }}
+  group: mac-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   construire:
@@ -25,6 +32,7 @@ jobs:
           lipo -info mac/build/RetroRevente.app/Contents/MacOS/RetroRevente
           codesign -dv mac/build/RetroRevente.app 2>&1 | head -5
       - name: Lancer l'app et prendre des captures
+        if: ${{ inputs.captures }}
         continue-on-error: true
         run: |
           APP=mac/build/RetroRevente.app
@@ -44,7 +52,6 @@ jobs:
             mac/build/capture-*.png
           if-no-files-found: warn
       - name: Publier l'app (GitHub Releases) pour l'installation
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installe (ou met à jour) RetroRevente pour Mac dans le dossier Applications, puis l'ouvre.
 #   curl -fsSL https://raw.githubusercontent.com/Titelive/retrovente/main/mac/installer.sh | sh
-# Version d'essai (celle d'une PR en cours) : … | RR_CANAL=mac-essai sh
+# Version d'essai (celle d'une branche compilée à la main depuis Actions) : … | RR_CANAL=mac-essai sh
 set -eu
 CANAL=${RR_CANAL:-mac}
 URL="https://github.com/Titelive/retrovente/releases/download/$CANAL/RetroRevente-mac.zip"
