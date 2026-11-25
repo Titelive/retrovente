@@ -405,7 +405,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
             guard let m = self?.modele, m.barreCachee, self?.visible == .appli else { return }
             withAnimation(.easeOut(duration: 0.2)) { m.barreSurvol = true }
         }
-        let boutons = Rubrique.allCases.map { r -> Bouton in
+        // « Mes annonces » n'a plus d'onglet : RetroRevente montre déjà les annonces en ligne, leurs vues, favoris et statuts.
+        // La page Le Bon Coin reste accessible depuis une fiche (« Retrouver dans Mes annonces ») quand une annonce a disparu.
+        let boutons = Rubrique.allCases.filter { $0 != .annonces }.map { r -> Bouton in
             let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
             onglets[r] = b; return b
         }
