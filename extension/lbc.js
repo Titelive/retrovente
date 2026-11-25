@@ -1972,7 +1972,7 @@
     var bloque = BLOQUE.test(col.innerText || "") || out.some(function (m) { return BLOQUE.test(m.texte); });
     var lignesListe = {};
     if (bloque) entreesConversations().forEach(function (x) { (x.innerText || "").split("\n").forEach(function (l) { l = norm(l); if (l) lignesListe[l] = 1; }); });
-    var FICHE = /^(à propos de|a propos de|membre depuis|\d+ transactions?|temps de r[ée]ponse|derni[èe]re activit[ée]|l.utilisateur est bloqu|impossible de recevoir|r[ée]pond (en|g[ée]n[ée]ralement)|[(]\s*\d+\s*[)]$|[0-5]([.,]\d)?$|-$)/i;
+    var FICHE = /^(à propos de|a propos de|membre depuis|\d+ transactions?|temps de r[ée]ponse|derni[èe]re activit[ée]|l.utilisateur est bloqu|impossible de recevoir|r[ée]pond (en|g[ée]n[ée]ralement)|[()]$|[(]\s*\d+\s*[)]$|[0-5]([.,]\d)?$|-$)/i;
     out = out.filter(function (m) {
       var ls = m.texte.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
       if (!ls.length || FICHE.test(ls[0])) return false;

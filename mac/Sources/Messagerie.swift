@@ -230,7 +230,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
             debut = nil; etat = .pret   // la page dit qu'il n'y a aucune conversation
         }
         if ouverte != nil, let f = r["fil"] as? [String: Any] {
-            let n = FilLbc(f)
+            let n = purger(FilLbc(f))
             if n.cle == fil.cle, n != fil {
                 let nouveau = n.messages.count != fil.messages.count
                 fil = n
@@ -306,7 +306,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         filCharge = false
         guard let r = r else { return }
         if r["erreur"] != nil { avis = "Cette conversation n'est plus dans la liste."; await lire(); return }
-        fil = FilLbc(r)
+        fil = purger(FilLbc(r))
         if fil.bloque { bloques.insert(c.cle) }
         await lire()
         if jeton == jetonOuverture, !fil.dernierMoi, !ouverteBloquee { await proposer() }
@@ -382,6 +382,37 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         await lire()
     }
 
+    /// Retire du fil ce qui n'est pas un message de cette conversation : morceaux de la liste (« Morgan - 22 nov. »,
+    /// titre d'une autre annonce, aperçu d'une autre conversation) et fiche de l'acheteur, que Le Bon Coin glisse
+    /// dans la colonne quand sa mise en page change (après un blocage, par exemple).
+    func purger(_ f: FilLbc) -> FilLbc {
+        let n: (String) -> String = { $0.lowercased().replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: CharacterSet(charactersIn: " .…")) }
+        var liste = Set<String>(), noms = Set<String>()
+        for c in conversations {
+            let a = c.acheteur.isEmpty ? (c.lignes.first ?? "") : c.acheteur
+            noms.insert(n(a)); if let p = c.lignes.first { noms.insert(n(p)) }
+            for l in c.lignes where !(c.cle == ouverte && l == c.apercu) {
+                liste.insert(n(l))
+                if let r = l.range(of: " - ", options: .backwards) { liste.insert(n(String(l[..<r.lowerBound]))) }
+            }
+        }
+        if !f.acheteur.isEmpty { noms.insert(n(f.acheteur)) }
+        let fiche = #"^(à propos de|a propos de|membre depuis|\d+ transactions?|temps de r[ée]ponse|derni[èe]re activit[ée]|l.utilisateur est bloqu|impossible de recevoir|[()]$|\(\s*\d+\s*\)$|[0-5]([.,]\d)?$)"#
+        var g = f
+        g.messages = f.messages.filter { m in
+            if m.genre == .heure { return true }
+            let ls = m.texte.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            guard let premiere = ls.first else { return false }
+            if premiere.range(of: fiche, options: [.regularExpression, .caseInsensitive]) != nil { return false }
+            if ls.count == 1, noms.contains(n(premiere)) { return false }
+            if m.cote != "moi", ls.allSatisfy({ liste.contains(n($0)) || noms.contains(n($0)) || $0 == "-" || ConversationLbc.estDate($0) }) { return false }
+            return true
+        }
+        // Une heure restée seule en fin de fil (son message a été retiré) ne sert à rien.
+        while g.messages.last?.genre == .heure { g.messages.removeLast() }
+        return g
+    }
+
     /// Affichage seulement (jamais dans le message envoyé) : montants, nom de l'acheteur et mots qui décident en gras.
     static func enGras(_ t: String, nom: String) -> AttributedString {
         var a = AttributedString(t)
@@ -437,7 +468,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         guard let r = await appel("return await window.rrMessagerie.envoyer(texte);", ["texte": t]) else { avis = "Envoi impossible : Le Bon Coin ne répond pas."; return }
         if let e = r["erreur"] as? String { avis = e; return }
         brouillon = ""; reponses = []; resume = ""
-        if let f = r["fil"] as? [String: Any] { fil = FilLbc(f) }
+        if let f = r["fil"] as? [String: Any] { fil = purger(FilLbc(f)) }
         avis = (r["incertain"] as? Bool) == true ? "Message parti ? Je ne vois pas encore la confirmation de Le Bon Coin : vérifie dans un instant." : ""
         await lire()
     }
