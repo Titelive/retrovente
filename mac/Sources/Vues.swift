@@ -590,7 +590,7 @@ struct Fiche: View {
             if article.publiee, let u = URL(string: article.annonce) {
                 Button { _ = u; appli.fenetre?.voirAnnonce(article) } label: { Label("Voir l'annonce sur Le Bon Coin", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity) }.boutonVerre()
             }
-            Button(role: .destructive) { confirmer = true } label: { Label("Supprimer l'article", systemImage: "trash").frame(maxWidth: .infinity) }.boutonVerre()
+            Button(role: .destructive) { confirmer = true } label: { Label("Supprimer l'article", systemImage: "trash").frame(maxWidth: .infinity) }.boutonVerre().tint(.red).foregroundStyle(.red)
         }
     }
 
@@ -621,6 +621,19 @@ struct Fiche: View {
             }.help("Retirer cette photo de la fiche")
         }
         .disabled(p == nil)
+        .safeAreaInset(edge: .bottom, spacing: 8) {
+            if article.photos.count > 1 {
+                let enCours = appli.retoucheTout == article.id
+                Button { Task { await appli.retoucherTout(article); if let p = p { rafraichirPhotos(garder: p) } } } label: {
+                    HStack(spacing: 6) {
+                        if enCours { ProgressView().controlSize(.small) } else { Image(systemName: "sparkles.rectangle.stack") }
+                        Text(enCours ? "Retouche des photos…" : "Retoucher les \(article.photos.count) photos")
+                    }.frame(maxWidth: .infinity)
+                }
+                .boutonVerre().disabled(enCours || appli.retoucheTout != nil)
+                .help("Retouche toutes les photos de la fiche : recadrage, lumière, objets à côté effacés. Les originaux sont gardés.")
+            }
+        }
     }
     private func outil(_ nom: String, _ symbole: String, _ teinte: Color, principal: Bool = false, enCours: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
