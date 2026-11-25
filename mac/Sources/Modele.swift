@@ -595,12 +595,33 @@ final class Appli: ObservableObject {
         guard retoucheTout == nil else { return }
         retoucheTout = a.id; defer { retoucheTout = nil }
         var faites = 0
-        for p in a.photos where retouches[Appli.cle(a, p)] == nil {
+        // Toutes les photos, même déjà retouchées : chacune repart de son original (une retouche améliorée s'applique).
+        for p in a.photos {
             guard let actuel = parId(a.id) else { break }
+            let avant = retouches[Appli.cle(a, p)]?.retouchee
             await retoucher(actuel, p)
-            if retouches[Appli.cle(a, p)] != nil { faites += 1 }
+            if let r = retouches[Appli.cle(a, p)], r.retouchee != avant { faites += 1 }
         }
         message = faites == 0 ? "Toutes les photos étaient déjà retouchées." : "\(faites) photo\(faites > 1 ? "s" : "") retouchée\(faites > 1 ? "s" : ""). Les originaux sont gardés : « Original » pour y revenir."
+    }
+    /// Photos retouchées de la fiche, et combien montrent en ce moment leur original.
+    func etatRetouches(_ a: Article) -> (retouchees: Int, originaux: Int) {
+        let l = a.photos.compactMap { retouches[Appli.cle(a, $0)] }
+        return (l.count, l.filter(\.voitOriginal).count)
+    }
+    /// Toutes les photos de la fiche d'un coup : originaux (original = true) ou retouches.
+    func originalTout(_ a: Article, original: Bool) async {
+        guard retoucheTout == nil else { return }
+        retoucheTout = a.id; defer { retoucheTout = nil }
+        var n = 0
+        for p in a.photos {
+            guard let r = retouches[Appli.cle(a, p)], r.voitOriginal != original, let actuel = parId(a.id) else { continue }
+            await basculerOriginal(actuel, p)
+            n += 1
+        }
+        message = n == 0 ? "Aucune photo à changer." : original
+            ? "\(n) photo\(n > 1 ? "s" : "") remise\(n > 1 ? "s" : "") en original. « Retouches » pour revenir aux photos retouchées."
+            : "\(n) photo\(n > 1 ? "s" : "") retouchée\(n > 1 ? "s" : "") de nouveau."
     }
     /// Original ⇄ retouchée.
     func basculerOriginal(_ a: Article, _ p: Photo) async {

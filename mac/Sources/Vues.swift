@@ -708,6 +708,7 @@ struct Fiche: View {
         }
         .disabled(p == nil)
         .safeAreaInset(edge: .bottom, spacing: 8) {
+          VStack(spacing: 8) {
             if article.photos.count > 1 {
                 let enCours = appli.retoucheTout == article.id
                 Button { Task { await appli.retoucherTout(article); if let p = p { rafraichirPhotos(garder: p) } } } label: {
@@ -718,7 +719,20 @@ struct Fiche: View {
                 }
                 .boutonVerre().disabled(enCours || appli.retoucheTout != nil)
                 .help("Retouche toutes les photos de la fiche : recadrage, lumière, objets à côté effacés. Les originaux sont gardés.")
+                // Toutes les photos d'un coup : originaux ⇄ retouches.
+                let e = appli.etatRetouches(article)
+                if e.retouchees > 0 {
+                    let versOriginal = e.originaux < e.retouchees
+                    Button { Task { await appli.originalTout(article, original: versOriginal); if let p = p { rafraichirPhotos(garder: p) } } } label: {
+                        Label(versOriginal ? "Original pour les \(e.retouchees) photos" : "Retouches pour les \(e.retouchees) photos",
+                              systemImage: versOriginal ? "arrow.uturn.backward" : "sparkles")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .boutonVerre().disabled(appli.retoucheTout != nil)
+                    .help(versOriginal ? "Remet toutes les photos retouchées à leur original (les retouches restent à un clic)" : "Remet les retouches sur toutes les photos")
+                }
             }
+          }
         }
     }
     private func outil(_ nom: String, _ symbole: String, _ teinte: Color, principal: Bool = false, enCours: Bool = false, action: @escaping () -> Void) -> some View {
