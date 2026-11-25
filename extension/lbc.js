@@ -2018,18 +2018,25 @@
       var boutons = function (racine) { return [].filter.call((racine || document).querySelectorAll("button, [role=button], [role=menuitem], a"), function (b) { return visible(b) && !(hote && hote.contains(b)); }); };
       var nom = function (b) { return norm((b.getAttribute("aria-label") || "") + " " + (b.innerText || "") + " " + (b.getAttribute("title") || "")); };
       var trouver = function (re, racine) { return boutons(racine).find(function (b) { return re.test(nom(b)); }); };
-      if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true };
+      if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true, verifie: true };
       var bl = trouver(/^bloquer|bloquer (cet|l.)?(utilisateur|acheteur|membre|contact)/i);
       if (!bl) {
         var menu = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
-        if (menu) { cliquer(menu); await attendre(700); if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true }; bl = trouver(/bloquer/i); }
+        if (menu) { cliquer(menu); await attendre(700); if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true, verifie: true }; bl = trouver(/bloquer/i); }
       }
       if (!bl) return { erreur: "bouton" };
       cliquer(bl); await attendre(900);
       var dlg = document.querySelector("[role=dialog], [role=alertdialog], dialog[open]");
       var ok = dlg && trouver(/^(bloquer|confirmer|oui)/i, dlg);
       if (ok) { cliquer(ok); await attendre(1500); }
-      return { ok: true };
+      // Vérification sur la page : un message « bloqué », ou « Débloquer » à la place de « Bloquer » (au besoin dans le menu).
+      var dit = function () { return /(vous avez bloqu|utilisateur bloqu|membre bloqu|a [ée]t[ée] bloqu|est bloqu|bloqu[ée] avec succ)/i.test(norm(document.body.innerText)); };
+      var verifie = dit() || !!trouver(/d[ée]bloquer/i);
+      if (!verifie) {
+        var m2 = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (m2) { cliquer(m2); await attendre(700); verifie = !!trouver(/d[ée]bloquer/i); document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
+      }
+      return { ok: true, verifie: verifie };
     },
     ouvrir: async function (cle, lignes) {
       var x = entreeParCle(cle, lignes);

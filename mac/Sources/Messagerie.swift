@@ -354,6 +354,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     func masquer(_ c: ConversationLbc) {
         masquees.insert(c.cle)
+        fenetre?.modele.message = "Conversation masquée ici (elle reste sur Le Bon Coin)."
         withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
         if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
     }
@@ -362,13 +363,15 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     /// Supprime la conversation sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
     func supprimer(_ c: ConversationLbc) async {
         suppression = c.cle; defer { suppression = nil }
+        fenetre?.modele.message = "Suppression de la conversation sur Le Bon Coin…"
         let r = await appel("return await window.rrMessagerie.supprimer(cle);", ["cle": c.cle])
         if (r?["ok"] as? Bool) == true {
             withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
             if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
-            fenetre?.modele.message = "Conversation supprimée de Le Bon Coin."
+            fenetre?.modele.message = "Conversation supprimée : Le Bon Coin ne l'affiche plus."
         } else {
-            fenetre?.modele.message = "Je n'ai pas réussi à supprimer cette conversation sur Le Bon Coin. Tu peux la masquer ici, ou la supprimer sur le site."
+            let pourquoi = r?["erreur"] as? String == "confirmation" ? "elle est toujours dans ta messagerie Le Bon Coin" : "je n'ai pas trouvé le bouton « Supprimer »"
+            fenetre?.modele.message = "⚠️ Pas supprimée : \(pourquoi). Tu peux la masquer ici, ou la supprimer sur le site."
         }
         await lire()
     }
@@ -377,11 +380,14 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     func bloquer(_ c: ConversationLbc) async {
         suppression = c.cle; defer { suppression = nil }
         let qui = c.acheteur.isEmpty ? c.nom : c.acheteur
+        fenetre?.modele.message = "Blocage de \(qui) sur Le Bon Coin…"
         let r = await appel("return await window.rrMessagerie.bloquer(cle, lignes);", ["cle": c.cle, "lignes": c.lignes])
-        if (r?["ok"] as? Bool) == true {
-            fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Cet utilisateur était déjà bloqué sur Le Bon Coin." : "C'est fait : \(qui) ne peut plus t'écrire sur Le Bon Coin."
+        if (r?["ok"] as? Bool) == true, (r?["verifie"] as? Bool) == true {
+            fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Ce compte était déjà bloqué sur Le Bon Coin." : "Le Bon Coin confirme le blocage : \(qui) ne peut plus t'écrire."
+        } else if (r?["ok"] as? Bool) == true {
+            fenetre?.modele.message = "⚠️ J'ai cliqué « Bloquer », mais Le Bon Coin ne l'a pas confirmé. Vérifie sur le site."
         } else {
-            fenetre?.modele.message = "Je n'ai pas trouvé le bouton « Bloquer » de Le Bon Coin pour cette conversation. Tu peux le faire sur le site."
+            fenetre?.modele.message = "⚠️ Pas bloqué : je n'ai pas trouvé le bouton « Bloquer » de Le Bon Coin. Tu peux le faire sur le site."
         }
         await lire()
     }
@@ -429,7 +435,7 @@ struct MessagesVue: View {
             liste.frame(width: 330)
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(Color.rrFond.ignoresSafeArea())
         .onAppear { if let f = appli.fenetre { m.demarrer(f) } }
         .onDisappear { m.arreter() }
         .confirmationDialog("Supprimer la conversation avec \(aSupprimer.map { $0.acheteur.isEmpty ? $0.nom : $0.acheteur } ?? "") ?",
@@ -493,7 +499,7 @@ struct MessagesVue: View {
                 }
             }
         }
-        .background(.regularMaterial)
+        .background(Color.rrSurface)
         .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.06)).frame(width: 1) }
     }
 
@@ -522,7 +528,7 @@ struct MessagesVue: View {
                     .overlay(alignment: .topTrailing) {
                         if c.nonLu {
                             Circle().fill(Color.rrAccent).frame(width: 12, height: 12)
-                                .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 2)).offset(x: 4, y: -4)
+                                .overlay(Circle().stroke(Color.rrFond, lineWidth: 2)).offset(x: 4, y: -4)
                                 .transition(.scale)
                         }
                     }
@@ -621,7 +627,7 @@ struct MessagesVue: View {
             }
         }
         .padding(.horizontal, 22).padding(.vertical, 14)
-        .background(.bar)
+        .background(Color.rrFond)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 
@@ -658,10 +664,10 @@ struct MessagesVue: View {
                     .background {
                         if moi {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.4), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .fill(LinearGradient(colors: [Color.rrAccent.opacity(0.85), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .shadow(color: Color.rrAccent.opacity(0.25), radius: 6, y: 2)
                         } else {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
+                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.rrCarte)
                                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.07)))
                                 .shadow(color: .black.opacity(0.08), radius: 4, y: 1)
                         }
@@ -697,7 +703,7 @@ struct MessagesVue: View {
             }
         }
         .padding(14).frame(maxWidth: 520, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.rrCarte))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(teinte.opacity(0.35), lineWidth: 1))
         .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(teinte).frame(width: 4).padding(.vertical, 12) }
     }
@@ -730,8 +736,8 @@ struct MessagesVue: View {
                                     Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
                                 }
                                 .frame(width: 240, alignment: .leading).padding(12)
-                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Material.regularMaterial)))
-                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.rrAccent.opacity(choisie ? 0 : 0.35)))
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Color.rrCarte)))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(choisie ? 0 : 0.08)))
                             }.buttonStyle(.plain).help("Placer cette réponse dans le message (tu peux la modifier)")
                         }
                     }.padding(.vertical, 2)
@@ -765,7 +771,7 @@ struct MessagesVue: View {
             if !m.avis.isEmpty { Text(m.avis).font(.callout).foregroundStyle(.orange) }
         }
         .padding(18)
-        .background(.bar)
+        .background(Color.rrFond)
         .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 }
