@@ -2,8 +2,8 @@
 
 POST /retoucher?rot=0|90|180|270 avec l'image en corps (JPEG, PNG ou WebP) → JPEG retouché, VRAI FOND GARDÉ :
   - le jeu est repéré (masque rembg) pour redresser la photo et la recadrer autour de lui ;
-  - les objets posés à côté et les poussières du fond sont effacés (retouche locale, « inpainting ») ;
-  - les reflets sur le jeu sont atténués, la lumière est corrigée doucement.
+  - rien n'est effacé ni modifié localement (ni sur le jeu, ni sur le fond) ;
+  - la lumière est corrigée doucement sur toute la photo ; le jeu lui-même (logos, textes, PEGI) n'est jamais retouché.
 Pas de détourage ni de fond remplacé : l'acheteur doit voir une vraie photo.
 POST /detourer (ancien) → PNG avec transparence.
 """
@@ -72,6 +72,12 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     frac = float(obj.mean())
     rempli = obj.sum() / float((bx1 - bx0 + 1) * (by1 - by0 + 1))
     fiable = (not touche) and .03 < frac < .85 and rempli > .45
+    # Le rectangle du jeu (avec une marge) est intouchable : le détourage rate parfois un logo blanc imprimé au bord
+    # de la jaquette (PEGI, USK, bandeau), qu'il ne faut jamais prendre pour de la poussière ou un objet à effacer.
+    marge = max(12, W // 40)
+    boite = np.zeros_like(obj)
+    boite[max(0, by0 - marge):min(H, by1 + marge + 1), max(0, bx0 - marge):min(W, bx1 + marge + 1)] = True
+    pres = pres | boite
     # 1) objets à côté : autres zones repérées, assez grandes, détachées du jeu
     bazar = np.zeros_like(obj)
     for k in range(n):
@@ -95,14 +101,10 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
                 retenus.append(k + 1)
         if 0 < len(retenus) <= 25:     # au-delà, c'est la texture du fond, pas de la poussière
             poussiere = np.isin(lp, retenus)
-    if fiable and bazar.any() and bazar.mean() < .22:
-        zone = cv2.dilate(bazar.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=max(4, W // 160))
-        img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    if poussiere.any():
-        zone = cv2.dilate(poussiere.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=2)
-        img = cv2.inpaint(img, zone, 3, cv2.INPAINT_TELEA)
+    # Règle absolue : AUCUNE retouche locale (ni effacement, ni « inpainting »), même sur le fond. La retouche
+    # recadre, redresse et réchauffe un peu les couleurs, rien d'autre. (Les repérages ci-dessus ne servent plus.)
     # 3) niveaux : on étire seulement (jamais moins de contraste ni moins de couleur que l'original),
-    #    puis on calme les reflets blancs sur le jeu
+    #    sans toucher localement au jeu
     f = img.astype(np.float32)
     lum = f.mean(axis=2)
     lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
@@ -112,10 +114,9 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         f = np.clip((f - lo) * min(g, 1.25), 0, 255)
     gr = f.mean(axis=2, keepdims=True)
     f = gr + (f - gr) * 1.08          # couleurs un poil plus vives, jamais plus ternes
-    L = f.mean(axis=2, keepdims=True); sat = f.max(axis=2, keepdims=True) - f.min(axis=2, keepdims=True)
-    k = np.clip((L - 225) / 30, 0, 1) * np.clip(1 - sat / 40, 0, 1) * obj[..., None]
-    k = cv2.GaussianBlur(k[..., 0], (0, 0), 3)[..., None]
-    f = f - k * (L - 225) * .35
+    f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
+    # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
+    # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
     img = np.clip(f, 0, 255).astype(np.uint8)
     # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
     ys, xs = np.nonzero(obj)

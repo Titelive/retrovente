@@ -53,6 +53,7 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
     private var file: [String] = []
     private var pages: [String] = []        // pages suivantes de « Mes annonces »
     private var lignes: [String: [String: Any]] = [:]
+    private var vus: [String: String] = [:], enAttente: Set<String> = []   // annonces de « Mes annonces » (id → texte) et celles pas encore validées
     private var minuterie: Timer?, veille: Timer?
     private var essais = 0, precedent = -1
     static let intervalle: TimeInterval = 2 * 3600
@@ -64,7 +65,8 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
     /// Sites qui ont au moins une annonce en ligne liée.
     private func sites(_ articles: [Article]) -> [String] {
         let actifs = articles.filter { ["en_vente", "reserve"].contains($0.statut) }
-        return (actifs.contains { !$0.annonce.isEmpty } ? ["lbc"] : []) + (actifs.contains { !$0.annonceEbay.isEmpty } ? ["ebay"] : [])
+        let attente = !(appli?.enValidation.isEmpty ?? true)
+        return (attente || actifs.contains { !$0.annonce.isEmpty } ? ["lbc"] : []) + (actifs.contains { !$0.annonceEbay.isEmpty } ? ["ebay"] : [])
     }
     /// Après chaque chargement des fiches, et toutes les 15 minutes : relevé des sites dont le dernier date de plus de 2 h.
     func planifier(_ articles: [Article]) {
@@ -78,7 +80,7 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
         let actifs = articles.filter { ["en_vente", "reserve"].contains($0.statut) }
         for s in sites(articles) {
             let manque = actifs.contains { (s == "lbc" ? !$0.annonce.isEmpty : !$0.annonceEbay.isEmpty) && $0.stats[s] == nil }
-            let delai = manque ? 600 : ReleveStats.intervalle
+            let delai = manque || (s == "lbc" && !(appli?.enValidation.isEmpty ?? true)) ? 600 : ReleveStats.intervalle
             if Date().timeIntervalSince(derniere(s)) > delai && !file.contains(s) && enCours != s { file.append(s) }
         }
         suivant()
@@ -95,7 +97,7 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
         guard enCours == nil, !file.isEmpty else { return }
         let s = file.removeFirst()
         guard let u = URL(string: ReleveStats.adresses[s] ?? "") else { return suivant() }
-        enCours = s; lignes = [:]; pages = []; essais = 0; precedent = -1
+        enCours = s; lignes = [:]; vus = [:]; enAttente = []; pages = []; essais = 0; precedent = -1
         if vue == nil {
             let conf = WKWebViewConfiguration()
             conf.websiteDataStore = .default()   // la même session Le Bon Coin / eBay que le reste de l'app
@@ -136,6 +138,16 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
           window.scrollTo(0, document.body ? document.body.scrollHeight : 0);
           var r = typeof RR_STATS !== "undefined" ? RR_STATS.tout() : { site: "", annonces: [] };
           var s = [].find.call(document.querySelectorAll("a[rel=next], a[aria-label], a[title]"), function (a) { return a.rel === "next" || /page suivante|suivant/i.test((a.getAttribute("aria-label") || "") + " " + (a.title || "")); });
+          // Annonces de la page : en ligne, ou encore en attente de validation par Le Bon Coin (texte de leur carte).
+          var enLigne = {}, attente = [];
+          [].forEach.call(document.querySelectorAll("a[href*='/ad/']"), function (a) {
+            var m = /\\/(\\d{6,15})(?:[/?#]|$)/.exec(a.getAttribute("href") || ""); if (!m) return;
+            var c = a; for (var k = 0; k < 6 && c.parentElement; k++) { var p = c.parentElement; if ((p.innerText || "").length > 700 || p.querySelectorAll("a[href*='/ad/']").length > 3) break; c = p; }
+            var t = (c.innerText || a.innerText || "").replace(/\\s+/g, " ").trim();
+            if (/en attente|en cours de (validation|mod[ée]ration|v[ée]rification)|validation en cours|pas encore (en ligne|visible)|sera (bient[ôo]t )?(en ligne|visible)/i.test(t)) attente.push(m[1]);
+            enLigne[m[1]] = ((enLigne[m[1]] || "") + " " + t).slice(0, 400);
+          });
+          r.enLigne = enLigne; r.attente = attente;
           r.suivante = s && s.href && s.href.indexOf(location.origin) === 0 ? s.href : "";
           return JSON.stringify(r);
         })()
@@ -147,6 +159,10 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
                       let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return self.encore() }
                 if o["verification"] as? Bool == true { NSLog("RetroRevente : vues et favoris → vérification anti-robot"); return self.fin() }
                 for l in o["annonces"] as? [[String: Any]] ?? [] { if let id = l["id"] as? String { self.lignes[id] = l } }
+                if self.enCours == "lbc" {
+                    for (k, v) in o["enLigne"] as? [String: String] ?? [:] { self.vus[k] = v }
+                    self.enAttente.formUnion(o["attente"] as? [String] ?? [])
+                }
                 let n = self.lignes.count
                 if n > 0 && n == self.precedent {
                     if let p = o["suivante"] as? String, !p.isEmpty, self.pages.count < 5, !self.pages.contains(p), let u = URL(string: p) {
@@ -170,7 +186,8 @@ final class ReleveStats: NSObject, ObservableObject, WKNavigationDelegate {
         minuterie?.invalidate(); minuterie = nil
         guard let s = enCours else { return }
         let l = Array(lignes.values)
-        enCours = nil; lignes = [:]
+        if s == "lbc", !vus.isEmpty { appli?.validerAnnonces(enLigne: vus, attente: enAttente) }
+        enCours = nil; lignes = [:]; vus = [:]; enAttente = []
         vue?.stopLoading()
         marquer(s)
         NSLog("RetroRevente : vues et favoris %@ → %d annonce(s) lue(s)", s, l.count)

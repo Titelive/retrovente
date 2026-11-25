@@ -504,19 +504,21 @@ struct BoutonStatut: View {
     let article: Article
     @State private var ouvert = false
     var body: some View {
-        let c = Libelles.couleursStatut(article.statut)
+        let attente = appli.enAttente(article)
+        let c = attente ? (fond: Color.orange.opacity(0.15), texte: Color.orange) : Libelles.couleursStatut(article.statut)
         Button { ouvert.toggle() } label: {
             HStack(spacing: 4) {
-                if article.statut == "en_vente" { Circle().fill(Color(nsColor: NSColor(hex: 0x3E8E1E))).frame(width: 6, height: 6) }
+                if attente { Image(systemName: "hourglass").font(.system(size: 9, weight: .bold)) }
+                else if article.statut == "en_vente" { Circle().fill(Color(nsColor: NSColor(hex: 0x3E8E1E))).frame(width: 6, height: 6) }
                 else { Image(systemName: Libelles.symboleStatut(article.statut)).font(.system(size: 9, weight: .bold)) }
-                Text(Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold)).lineLimit(1)
+                Text(attente ? "En validation" : Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold)).lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
             .fixedSize()   // la pastille reste sur une ligne, quelle que soit la largeur de la carte
             .foregroundStyle(c.texte).padding(.horizontal, 9).padding(.vertical, 5)
             .background(c.fond, in: Capsule()).overlay(Capsule().stroke(c.texte.opacity(0.25), lineWidth: 1))
         }
-        .buttonStyle(.plain).help("Changer le statut")
+        .buttonStyle(.plain).help(attente ? "Déposée : Le Bon Coin ne l'a pas encore validée, elle n'est pas encore en ligne" : "Changer le statut")
         .popover(isPresented: $ouvert, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Statut de **\(article.titre)**").font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 10).padding(.bottom, 4)

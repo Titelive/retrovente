@@ -752,6 +752,35 @@ final class Appli: ObservableObject {
         fenetre?.ouvrir(URL(string: "https://www.leboncoin.fr/deposer-une-annonce#rr=\(a.id)")!)
     }
     /// Annonce publiée sur Le Bon Coin (signalée par le panneau) : confettis et liste à jour.
+    /// Annonces déposées que Le Bon Coin n'a pas encore validées (id de l'article → date du dépôt). Elles ne sont pas
+    /// encore en ligne : l'app l'affiche, et le relevé de « Mes annonces » les retire dès qu'elles y apparaissent en ligne.
+    @Published var enValidation: [String: Double] = UserDefaults.standard.dictionary(forKey: "annoncesEnValidation") as? [String: Double] ?? [:] {
+        didSet { UserDefaults.standard.set(enValidation, forKey: "annoncesEnValidation") }
+    }
+    func enAttente(_ a: Article) -> Bool { a.statut == "en_vente" && enValidation[a.id] != nil }
+    func deposee(id: String) {
+        guard !id.isEmpty else { return }
+        enValidation[id] = Date().timeIntervalSince1970
+        // Premier coup d'œil à « Mes annonces » dans 10 minutes, puis à chaque passage (toutes les 15 min).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 600) { [weak self] in self?.releve.planifier(self?.articles ?? []) }
+    }
+    /// Relevé de « Mes annonces » : une annonce en attente qui y apparaît en ligne (par son lien, sinon par son titre) est validée.
+    func validerAnnonces(enLigne: [String: String], attente: Set<String>) {
+        let n: (String) -> String = { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces) }
+        var valides: [String] = []
+        for (id, quand) in enValidation {
+            guard let a = parId(id), a.statut == "en_vente", Date().timeIntervalSince1970 - quand < 5 * 86400 else { enValidation[id] = nil; continue }
+            let ad = a.annonce.split(separator: "/").last.map(String.init) ?? ""
+            let titre = n(a.titreAnnonce.isEmpty ? a.titre : a.titreAnnonce)
+            let vu = (!ad.isEmpty && enLigne[ad] != nil && !attente.contains(ad))
+                || (titre.count >= 8 && enLigne.contains { !attente.contains($0.key) && n($0.value).contains(String(titre.prefix(60))) })
+            if vu { valides.append(id) }
+        }
+        for id in valides {
+            if let a = parId(id) { noter("Annonce validée", "« \(a.titre) » est en ligne sur Le Bon Coin.", symbole: "checkmark.seal", cible: .article, article: id) }
+            enValidation[id] = nil
+        }
+    }
     func publiee(titre: String) {
         fete = titre.isEmpty ? "Ton annonce" : titre
         Task { await recharger() }
