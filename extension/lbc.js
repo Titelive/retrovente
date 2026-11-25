@@ -1975,6 +1975,13 @@
     var l = entreesConversations().map(lireEntree).filter(function (e) { return !horsAnnonce(e); }).slice(0, 80);
     return !l.length && zoneMessage() ? null : l;
   }
+  // Entrée de la liste par sa clé ; si la clé a changé (texte de l'entrée modifié), par le nom et l'annonce.
+  function entreeParCle(cle, lignes) {
+    var es = entreesConversations(), x = es.find(function (e) { return cleEntree(e) === cle; });
+    if (x || !lignes || !lignes.length) return x;
+    var sig = function (l) { return l.filter(function (t) { return !DATE_ENTREE.test(t); }).slice(0, 2).map(norm).join("|"); }, s = sig(lignes);
+    return es.find(function (e) { return sig(lireEntree(e).lignes) === s; });
+  }
   window.rrMessagerie = {
     liste: function () { return { page: location.pathname, vide: /\baucun(e)? (message|conversation)|pas (encore )?de (message|conversation)/i.test(norm((document.querySelector("main") || document.body).innerText).slice(0, 3000)), connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: listeConversations(), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
     fil: function () { return filActuel(); },
@@ -2001,12 +2008,40 @@
       var reste = entreesConversations().some(function (e) { return cleEntree(e) === cle; });
       return reste ? { erreur: "confirmation" } : { ok: true };
     },
-    ouvrir: async function (cle) {
-      var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
+    // Bloque l'acheteur sur Le Bon Coin (après la confirmation demandée dans l'app) : on ouvre la conversation, on cherche
+    // « Bloquer » (au besoin dans le menu « … » de la conversation), puis on confirme. Rien d'autre n'est cliqué.
+    bloquer: async function (cle, lignes) {
+      var x = entreeParCle(cle, lignes);
+      if (!x) return { erreur: "introuvable" };
+      cliquer(x.matches("a[href]") ? x : (x.querySelector("a[href]") || x));
+      await attendre(1500);
+      var boutons = function (racine) { return [].filter.call((racine || document).querySelectorAll("button, [role=button], [role=menuitem], a"), function (b) { return visible(b) && !(hote && hote.contains(b)); }); };
+      var nom = function (b) { return norm((b.getAttribute("aria-label") || "") + " " + (b.innerText || "") + " " + (b.getAttribute("title") || "")); };
+      var trouver = function (re, racine) { return boutons(racine).find(function (b) { return re.test(nom(b)); }); };
+      if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true };
+      var bl = trouver(/^bloquer|bloquer (cet|l.)?(utilisateur|acheteur|membre|contact)/i);
+      if (!bl) {
+        var menu = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (menu) { cliquer(menu); await attendre(700); if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true }; bl = trouver(/bloquer/i); }
+      }
+      if (!bl) return { erreur: "bouton" };
+      cliquer(bl); await attendre(900);
+      var dlg = document.querySelector("[role=dialog], [role=alertdialog], dialog[open]");
+      var ok = dlg && trouver(/^(bloquer|confirmer|oui)/i, dlg);
+      if (ok) { cliquer(ok); await attendre(1500); }
+      return { ok: true };
+    },
+    ouvrir: async function (cle, lignes) {
+      var x = entreeParCle(cle, lignes);
       if (!x) return { erreur: "introuvable" };
       var avant = idConversation(), cible = x.matches("a[href]") ? x : (x.querySelector("a[href]") || x);
+      // Déjà ouverte sur la page (Le Bon Coin ouvre souvent la première conversation tout seul) : l'id ne changera pas,
+      // on s'arrête dès que la colonne montre le bon acheteur et la bonne annonce au lieu d'attendre 10 s.
+      var l = lireEntree(x).lignes.filter(function (t) { return !DATE_ENTREE.test(t); });
+      var nom = norm(l[0] || ""), titre = norm((l[1] || "").replace(/(\.\.\.|…)$/, "")).slice(0, 25);
+      var montre = function () { var t = norm(colonneConversation().innerText.slice(0, 2000)); return t.length > 40 && (!nom || t.indexOf(nom) >= 0) && (!titre || t.indexOf(titre) >= 0); };
       cliquer(cible);
-      for (var i = 0; i < 40; i++) { await attendre(250); if (idConversation() !== avant && colonneConversation().innerText.trim().length > 40) break; }
+      for (var i = 0; i < 40; i++) { await attendre(250); if ((idConversation() !== avant && colonneConversation().innerText.trim().length > 40) || (i >= 3 && montre())) break; }
       await attendre(600);
       return filActuel();
     },

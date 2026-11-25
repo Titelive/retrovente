@@ -289,16 +289,21 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         NSLog("RetroRevente messagerie : diagnostic %@ (%d conversations)", raison, conversations.count)
     }
 
+    /// Le dernier clic gagne : une conversation se choisit même pendant le chargement d'une autre ou pendant que l'IA réfléchit.
+    private var jetonOuverture = 0, jetonIA = 0
     func ouvrir(_ c: ConversationLbc) async {
-        guard !filCharge else { return }
+        jetonOuverture += 1; let jeton = jetonOuverture
         marquerLue(c)
-        ouverte = c.cle; filCharge = true; reponses = []; resume = ""; iaErreur = ""; brouillon = ""; avis = ""
-        defer { filCharge = false }
-        guard let r = await appel("return await window.rrMessagerie.ouvrir(cle);", ["cle": c.cle]) else { return }
+        ouverte = c.cle; filCharge = true; fil = FilLbc(); reponses = []; resume = ""; iaErreur = ""; brouillon = ""; avis = ""
+        jetonIA += 1; iaCharge = false
+        let r = await appel("return await window.rrMessagerie.ouvrir(cle, lignes);", ["cle": c.cle, "lignes": c.lignes])
+        guard jeton == jetonOuverture else { return }
+        filCharge = false
+        guard let r = r else { return }
         if r["erreur"] != nil { avis = "Cette conversation n'est plus dans la liste."; await lire(); return }
         fil = FilLbc(r)
         await lire()
-        if !fil.dernierMoi { await proposer() }
+        if jeton == jetonOuverture, !fil.dernierMoi { await proposer() }
     }
 
     // Non lus : le rond jaune n'apparaît que sur une conversation dont le dernier message a changé depuis que tu l'as
@@ -368,11 +373,27 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         await lire()
     }
 
+    /// Bloque l'acheteur sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
+    func bloquer(_ c: ConversationLbc) async {
+        suppression = c.cle; defer { suppression = nil }
+        let qui = c.acheteur.isEmpty ? c.nom : c.acheteur
+        let r = await appel("return await window.rrMessagerie.bloquer(cle, lignes);", ["cle": c.cle, "lignes": c.lignes])
+        if (r?["ok"] as? Bool) == true {
+            fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Cet utilisateur était déjà bloqué sur Le Bon Coin." : "C'est fait : \(qui) ne peut plus t'écrire sur Le Bon Coin."
+        } else {
+            fenetre?.modele.message = "Je n'ai pas trouvé le bouton « Bloquer » de Le Bon Coin pour cette conversation. Tu peux le faire sur le site."
+        }
+        await lire()
+    }
+
     /// Réponses de l'IA pour la conversation ouverte (avec une consigne : « dis-lui que… »).
     func proposer(_ consigne: String = "") async {
-        guard ouverte != nil, !iaCharge else { return }
-        iaCharge = true; iaErreur = ""; defer { iaCharge = false }
-        guard let r = await appel("return await window.rrMessagerie.suggestions(consigne);", ["consigne": consigne]) else { iaErreur = "L'IA ne répond pas."; return }
+        guard let pour = ouverte else { return }
+        jetonIA += 1; let j = jetonIA
+        iaCharge = true; iaErreur = ""; defer { if j == jetonIA { iaCharge = false } }
+        let rep = await appel("return await window.rrMessagerie.suggestions(consigne);", ["consigne": consigne])
+        guard j == jetonIA, ouverte == pour else { return }   // une autre conversation a été choisie entre-temps
+        guard let r = rep else { iaErreur = "L'IA ne répond pas."; return }
         if let e = r["erreur"] as? String { iaErreur = e; return }
         resume = r["resume"] as? String ?? ""
         reponses = (r["reponses"] as? [[String: Any]] ?? []).map { ReponseIA(approche: $0["approche"] as? String ?? "", titre: $0["titre"] as? String ?? "", texte: $0["texte"] as? String ?? "") }
@@ -400,6 +421,7 @@ struct MessagesVue: View {
     @State private var consigne = ""
     @State private var survol: String? = nil
     @State private var aSupprimer: ConversationLbc? = nil
+    @State private var aBloquer: ConversationLbc? = nil
     @Environment(\.accessibilityReduceMotion) private var sansMouvement
 
     var body: some View {
@@ -415,6 +437,10 @@ struct MessagesVue: View {
             Button("Supprimer sur Le Bon Coin", role: .destructive) { Task { await m.supprimer(c) } }
             Button("Seulement la masquer ici") { m.masquer(c) }
         } message: { _ in Text("Supprimée sur Le Bon Coin, elle ne pourra pas être récupérée. Masquée, elle reste sur Le Bon Coin et tu peux la faire réapparaître.") }
+        .confirmationDialog("Bloquer \(aBloquer.map { $0.acheteur.isEmpty ? $0.nom : $0.acheteur } ?? "") ?",
+                            isPresented: Binding(get: { aBloquer != nil }, set: { if !$0 { aBloquer = nil } }), presenting: aBloquer) { c in
+            Button("Bloquer sur Le Bon Coin", role: .destructive) { Task { await m.bloquer(c) } }
+        } message: { _ in Text("Cette personne ne pourra plus t'écrire ni t'envoyer d'offre. Tu pourras la débloquer plus tard sur Le Bon Coin.") }
     }
 
     // MARK: Liste des conversations
@@ -525,6 +551,7 @@ struct MessagesVue: View {
         .onHover { h in withAnimation(.easeOut(duration: 0.12)) { survol = h ? c.cle : (survol == c.cle ? nil : survol) } }
         .contextMenu {
             Button("Masquer cette conversation") { m.masquer(c) }
+            Button("Bloquer cet utilisateur…", role: .destructive) { aBloquer = c }
             Button("Supprimer…", role: .destructive) { aSupprimer = c }
         }
     }
@@ -587,6 +614,7 @@ struct MessagesVue: View {
             if let c = c {
                 Menu {
                     Button("Masquer cette conversation") { m.masquer(c) }
+                    Button("Bloquer cet utilisateur…", role: .destructive) { aBloquer = c }
                     Button("Supprimer…", role: .destructive) { aSupprimer = c }
                 } label: { Image(systemName: "ellipsis.circle").font(.title3) }
                 .menuStyle(.borderlessButton).fixedSize()
