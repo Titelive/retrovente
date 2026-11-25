@@ -873,6 +873,15 @@ export function refusSansAvis(objet = "le jeu") {
   ];
 }
 
+// La dernière offre officielle a-t-elle été refusée (ou a-t-elle expiré) depuis ?
+export function offreRefusee(conversation) {
+  const c = String(conversation || "");
+  let o = -1, r = -1, m;
+  const reO = /offre de [^:\n]{1,60}:\s*\d/gi, reR = /offre refus[ée]e|vous avez refus[ée] (?:l'|son |cette )?offre|offre (?:a )?expir[ée]e|offre d[ée]clin[ée]e/gi;
+  while ((m = reO.exec(c))) o = m.index;
+  while ((m = reR.exec(c))) r = m.index;
+  return o >= 0 && r > o;
+}
 export async function repondre(conversation, a = {}, autres = [], contexte = {}) {
   const conv = txt(conversation, 5000);
   const articles = contexte && contexte.lot ? contenuLot(contexte.lot.articles, autres) : [];
@@ -883,7 +892,9 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   // L'offre officielle (« Voici l'offre de mm : 140 €. »), envoyée par l'extension ou relue dans la conversation.
   const mOffre = /offre de [^:\n]{1,60}:\s*(\d[\d\s\u00a0\u202f]{0,6})\s?€/gi; let vueOffre = null, mo;
   while ((mo = mOffre.exec(String(conversation || "")))) vueOffre = prix(mo[1].replace(/[\s\u00a0\u202f]/g, ""));
-  const montantOffre = contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
+  // Offre déjà refusée (« Offre refusée », « Vous avez refusé l'offre de 360 € ») : elle n'est plus en cours.
+  const refusee = offreRefusee(conversation);
+  const montantOffre = refusee ? null : contexte && prix(contexte.offre) != null ? prix(contexte.offre) : vueOffre;
   const pv = normaliserProfil(contexte && contexte.profil), part = partPlancher(pv), ferme = pv.prix === "ferme";
   const ana = analyseOffre(contexte && contexte.lot ? contexte.lot.prix : a.prix, montantOffre, part, ferme);
   const lot = contexte && contexte.lot && prix(contexte.lot.prix) != null ? `L'acheteur négocie un LOT de ${Math.min(20, Number(contexte.lot.n) || 2)} articles au prix total de ${prix(contexte.lot.prix)} € (${ferme ? "le vendeur ne marchande pas : le prix du lot tient" : `prix plancher du lot : ${ana && ana.insultante ? ana.contre : rond(prix(contexte.lot.prix) * part, true)} €`}). Un « lot de N articles » Le Bon Coin regroupe N ANNONCES, et une annonce peut contenir plusieurs jeux : ne corrige jamais l'acheteur sur le nombre de jeux.` : "";
@@ -970,7 +981,7 @@ Particularités d'eBay :
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
 
-${profilIA ? profilIA + "\n\n" : ""}${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre, consigneVersion(version)].filter(Boolean).join("\n")}${qui || lot || offre || version ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
+${profilIA ? profilIA + "\n\n" : ""}${catalogue ? `Tous ses jeux en vente (pour reconnaître une offre groupée sur plusieurs annonces) :\n${catalogue}\n\n` : ""}${[qui ? `Prénom ou pseudo de l'acheteur : ${qui}` : "", conclue && lot ? lot.replace("L'acheteur négocie un LOT", "L'acheteur a acheté un LOT").replace(/ \(prix plancher[^)]*\)/, "") : lot, detailLot, offre, refusee && vueOffre != null ? `Le vendeur a déjà REFUSÉ l'offre de ${vueOffre} € : elle n'est plus en cours, n'en reparle pas sauf si l'acheteur relance.` : "", consigneVersion(version)].filter(Boolean).join("\n")}${qui || lot || offre || version ? "\n\n" : ""}Texte de la page de messagerie (copié tel quel ; il peut contenir des menus, des dates et les messages des deux personnes, le plus récent en bas) :
 """
 ${conv}
 """
@@ -1058,7 +1069,7 @@ LE VENDEUR A ÉCRIT LE DERNIER MESSAGE : il a déjà répondu à la dernière qu
   let resume = phrase(o.resume, 260);
   if (apresMoi && (!resume || /pas (encore )?pr[ée]cis[ée]|s'int[ée]resse [àa] (votre|ton) annonce/i.test(resume))) resume = "Tu as déjà répondu à son dernier message : voici de quoi relancer si besoin.";
   if (/texte (fourni|transmis)|conversation (fournie|transmise)|je ne (vois|trouve)|aucun message de l.acheteur|en-t[êe]tes? de la messagerie|mes consignes|page (fournie|transmise)/i.test(resume)) resume = "Pas de message de l'acheteur lisible ici : voici de quoi lancer l'échange.";
-  return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana ? { offre: ana } : {}), ...(version ? { version: resumeVersion(version) } : {}), ...(apresMoi ? { apresMoi: true } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}) };
+  return { resume, intention: txt(o.intention, 30), reponses: l, ...(ana && !fin ? { offre: ana } : {}), ...(version ? { version: resumeVersion(version) } : {}), ...(apresMoi ? { apresMoi: true } : {}), ...(sansAvis ? { acheteur: { sansAvis: true } } : {}) };
 }
 
 // La conversation parle-t-elle de prix (offre, baisse, « dernier prix », un montant) ? Les boutons et l'encadré de l'annonce ne comptent pas.
@@ -1092,8 +1103,11 @@ export function sansLieu(t, lieux) {
 const PAS_PRENOM = /^(à|a|pour|beaucoup|bien|encore|infiniment|mille|monsieur|madame|tout|à vous)$/i;
 export function sansPrenomInvente(t, qui = "") {
   const connu = String(qui || "").trim().toLowerCase();
-  return String(t).replace(/\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci|[Ss]alut|[Hh]ello)\s+(\p{Lu}[\p{L}\p{N}'’-]+)(\s*)([,!.]?)/gu, (m, salut, nom, esp, p) => {
-    if (PAS_PRENOM.test(nom) || (connu && connu.split(/\s+/).includes(nom.toLowerCase()))) return m;
+  // Un pseudo peut contenir un point, un tiret bas ou des chiffres (« Mick.8 », « jean_75 ») : il est pris en entier,
+  // sinon « Bonjour Mick.8, » devenait « Bonjour.8, ». Un point final (« Bonjour Mick. ») n'en fait pas partie.
+  return String(t).replace(/\b((?:[Rr]e)?[Bb]onjour|[Bb]onsoir|[Mm]erci|[Ss]alut|[Hh]ello)\s+(\p{Lu}(?:[\p{L}\p{N}'’._-]*[\p{L}\p{N}])?)(\s*)([,!.]?)/gu, (m, salut, nom, esp, p) => {
+    const n = nom.toLowerCase();
+    if (PAS_PRENOM.test(nom) || (connu && (connu === n || connu.split(/[\s.]+/).includes(n) || connu.split(/\s+/).includes(n)))) return m;
     return salut + (p === "!" ? " !" : p);
   });
 }
