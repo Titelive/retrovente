@@ -1,5 +1,5 @@
 // Retouche des photos : service tools/detourage.py installé sur le même serveur, donc sans coût par photo.
-// Retouche légère, vrai fond gardé : redressement, recadrage, objets à côté et poussières effacés, rien de retouché sur le jeu lui-même.
+// Retouche légère, vrai fond gardé : redressement, recadrage, couleurs un peu plus chaudes ; rien n'est jamais effacé.
 // Pas de détourage : une photo trop « parfaite » inquiète les acheteurs.
 import { IaError, checkPhoto } from "./ia.mjs";
 

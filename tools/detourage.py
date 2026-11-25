@@ -2,7 +2,7 @@
 
 POST /retoucher?rot=0|90|180|270 avec l'image en corps (JPEG, PNG ou WebP) → JPEG retouché, VRAI FOND GARDÉ :
   - le jeu est repéré (masque rembg) pour redresser la photo et la recadrer autour de lui ;
-  - les objets posés à côté et les poussières du fond sont effacés (retouche locale, « inpainting ») ;
+  - rien n'est effacé ni modifié localement (ni sur le jeu, ni sur le fond) ;
   - la lumière est corrigée doucement sur toute la photo ; le jeu lui-même (logos, textes, PEGI) n'est jamais retouché.
 Pas de détourage ni de fond remplacé : l'acheteur doit voir une vraie photo.
 POST /detourer (ancien) → PNG avec transparence.
@@ -101,12 +101,8 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
                 retenus.append(k + 1)
         if 0 < len(retenus) <= 25:     # au-delà, c'est la texture du fond, pas de la poussière
             poussiere = np.isin(lp, retenus)
-    if fiable and bazar.any() and bazar.mean() < .22:
-        zone = cv2.dilate(bazar.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=max(4, W // 160))
-        img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    if poussiere.any():
-        zone = cv2.dilate(poussiere.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=2)
-        img = cv2.inpaint(img, zone, 3, cv2.INPAINT_TELEA)
+    # Règle absolue : AUCUNE retouche locale (ni effacement, ni « inpainting »), même sur le fond. La retouche
+    # recadre, redresse et réchauffe un peu les couleurs, rien d'autre. (Les repérages ci-dessus ne servent plus.)
     # 3) niveaux : on étire seulement (jamais moins de contraste ni moins de couleur que l'original),
     #    sans toucher localement au jeu
     f = img.astype(np.float32)
@@ -118,6 +114,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         f = np.clip((f - lo) * min(g, 1.25), 0, 255)
     gr = f.mean(axis=2, keepdims=True)
     f = gr + (f - gr) * 1.08          # couleurs un poil plus vives, jamais plus ternes
+    f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
     # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
     # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
     img = np.clip(f, 0, 255).astype(np.uint8)
