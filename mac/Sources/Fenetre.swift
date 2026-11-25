@@ -410,7 +410,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
         // « Mes annonces » n'a plus d'onglet : RetroRevente montre déjà les annonces en ligne, leurs vues, favoris et statuts.
         // La page Le Bon Coin reste accessible depuis une fiche (« Retrouver dans Mes annonces ») quand une annonce a disparu.
-        let boutons = Rubrique.allCases.filter { $0 != .annonces }.map { r -> Bouton in
+        // « Déposer » non plus : le dépôt part de l'article (bouton « Déposer sur Le Bon Coin » de la fiche, menu de la liste).
+        // Le choix de l'article reste au menu Aller › Déposer une annonce (⌘2).
+        let boutons = Rubrique.allCases.filter { $0 != .annonces && $0 != .deposer }.map { r -> Bouton in
             let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
             onglets[r] = b; return b
         }
