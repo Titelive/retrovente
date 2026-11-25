@@ -67,7 +67,8 @@ final class Bouton: NSView {
 
     private func majCouleurs() {
         if Charte.verre {
-            icone.contentTintColor = Charte.orIcone
+            // Comme les barres d'outils de macOS : icônes grises, l'onglet affiché en bleu.
+            icone.contentTintColor = actif ? Charte.orIcone : .secondaryLabelColor
             texte?.textColor = .labelColor
             texte?.font = Charte.police(13, actif ? .bold : .semibold)
         } else {

@@ -192,6 +192,9 @@ struct Accueil: View {
                 }
             }
             .listStyle(.sidebar)
+            // Fond neutre : la barre latérale de macOS prend sinon la teinte du fond d'écran (beige sur un fond orangé).
+            .scrollContentBackground(.hidden)
+            .background(ZStack { Color.rrFond; Color.rrSurface }.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 8) {

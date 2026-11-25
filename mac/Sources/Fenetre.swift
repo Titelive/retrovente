@@ -427,7 +427,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         NSLayoutConstraint.activate([
             margeFeux,
             centre, rubriques.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
-            barreLaterale.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+            { let c = barreLaterale.centerYAnchor.constraint(equalTo: barre.centerYAnchor); c.priority = .defaultHigh; return c }(),
             rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: barreLaterale.trailingAnchor, constant: 12),
             droite.leadingAnchor.constraint(greaterThanOrEqualTo: rubriques.trailingAnchor, constant: 12),
             droite.trailingAnchor.constraint(equalTo: barre.trailingAnchor, constant: -12), droite.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
@@ -435,6 +435,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         guard let titre = fenetre.standardWindowButton(.closeButton)?.superview else { return }
         barre.translatesAutoresizingMaskIntoConstraints = false
         titre.addSubview(barre, positioned: .below, relativeTo: nil)
+        // Le bouton de la barre latérale, à la hauteur exacte des feux de la fenêtre.
+        if let feu = fenetre.standardWindowButton(.closeButton) { barreLaterale.centerYAnchor.constraint(equalTo: feu.centerYAnchor).isActive = true }
         NSLayoutConstraint.activate([
             barre.leadingAnchor.constraint(equalTo: titre.leadingAnchor), barre.trailingAnchor.constraint(equalTo: titre.trailingAnchor),
             barre.topAnchor.constraint(equalTo: titre.topAnchor), barre.bottomAnchor.constraint(equalTo: titre.bottomAnchor),
