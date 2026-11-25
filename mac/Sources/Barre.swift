@@ -39,6 +39,8 @@ final class Bouton: NSView {
     private var appui = false { didSet { needsDisplay = true } }
     var actif = false { didSet { majCouleurs(); needsDisplay = true } }
     var disponible = true { didSet { alphaValue = disponible ? 1 : 0.35 } }
+    /// Pastille dorée en haut à droite (notifications non lues) ; 0 : rien.
+    var pastille = 0 { didSet { if pastille != oldValue { needsDisplay = true } } }
 
     init(symbole: String, titre: String?, aide: String, action: @escaping () -> Void) {
         self.action = action
@@ -75,6 +77,15 @@ final class Bouton: NSView {
         }
     }
     override func draw(_ dirtyRect: NSRect) {
+        dessinerFond()
+        if pastille > 0 {
+            let r = NSRect(x: bounds.maxX - 11, y: isFlipped ? 3 : bounds.maxY - 11, width: 8, height: 8)
+            Charte.or.setFill(); NSBezierPath(ovalIn: r).fill()
+            Charte.nuit.withAlphaComponent(Charte.verre ? 0.25 : 0.9).setStroke()
+            let c = NSBezierPath(ovalIn: r.insetBy(dx: -0.75, dy: -0.75)); c.lineWidth = 1.5; c.stroke()
+        }
+    }
+    private func dessinerFond() {
         let fond: NSColor? = actif ? Charte.or.withAlphaComponent(appui ? 0.26 : 0.18)
             : appui ? Bouton.voile.withAlphaComponent(0.14) : survol && disponible ? Bouton.voile.withAlphaComponent(0.08) : nil
         guard let f = fond else { return }

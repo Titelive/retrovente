@@ -393,6 +393,7 @@ final class Appli: ObservableObject {
     @Published var fete: String? = nil        // titre de l'annonce publiée (confettis)
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
+    @Published var notifications: [NotifRR] = Appli.notifsEnregistrees()   // cloche en haut à droite (Notifications.swift)
     @Published var nouveauOuvert = false
     @Published var nouveauMode = ""        // « film » : photo de jaquette ; « main » : fiche vide
     @Published var cartesOuvert = false    // plusieurs cartes Pokémon sur une photo
