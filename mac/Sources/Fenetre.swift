@@ -303,6 +303,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     // MARK: Après une publication : retour sur l'appli, qui fait la fête (confettis)
 
     func publiee(id: String, titre: String, url: String) {
+        modele.deposee(id: id)   // pas encore en ligne : Le Bon Coin doit d'abord valider l'annonce
         // Publiée depuis l'app (en coulisses) : la fête tout de suite, Le Bon Coin n'a jamais été à l'écran.
         if enCoulisses || modele.depot != nil {
             modele.depot = nil

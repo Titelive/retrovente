@@ -478,7 +478,7 @@ struct Fiche: View {
                 Button(action: fermer) { Label("Mes articles", systemImage: "chevron.left") }.boutonVerre().keyboardShortcut(.cancelAction)
                 Spacer()
             }.padding(.horizontal, 24).padding(.top, 14)
-            EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
+            EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [appli.enAttente(article) ? "En attente de validation par Le Bon Coin" : Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
                 if article.estLot {
                     Button { Task { await refaireAnnonceLot() } } label: { Label("Refaire l'annonce", systemImage: "sparkles") }.boutonVerre()
                         .help("Nouveau titre accrocheur et annonce à jour avec les articles du lot").disabled(enCours)
