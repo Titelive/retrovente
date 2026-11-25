@@ -82,7 +82,19 @@ extension Fenetre {
     }
 
     /// Signal du panneau (alerte « À toi ») pendant un dépôt en coulisses. Vrai s'il a été pris en charge.
+    /// Le dépôt avait été fermé dans l'app mais la page cachée a fini de se remplir : on rouvre le récapitulatif
+    /// avec son bouton de publication, au lieu d'une notification sans rien à valider.
     func signalCoulisses(titre: String, texte: String) -> Bool {
+        if !enCoulisses, modele.depot == nil, titre == "À toi de finaliser l'annonce", visible != .lbc,
+           let id = (Stockage.partage.valeur("aDeposer") as? [String: Any])?["id"] as? String, let a = modele.parId(id) {
+            enCoulisses = true; debutCoulisses = Date(); etapeDepuis = Date()
+            modele.depot = DepotEnCours(id: a.id, titre: a.titre, etape: .remplissage("Je reprends ton annonce…"))
+            montrer(.appli)
+            veilleCoulisses?.invalidate()
+            veilleCoulisses = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.verifierCoulisses() }
+            }
+        }
         guard enCoulisses, var d = modele.depot else { return false }
         switch titre {
         case "À toi de finaliser l'annonce":

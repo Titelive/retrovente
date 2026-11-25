@@ -187,13 +187,13 @@ struct Accueil: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Le logo, en bas à gauche de la barre latérale (le haut reste aux feux et au bouton de la barre).
+                    CarteCompte(appli: appli, actif: filtre == "@compte")
+                    // Le logo, tout en bas à gauche de la barre latérale, sous le compte.
                     HStack(spacing: 7) {
                         Image(nsImage: NSApp.applicationIconImage ?? NSImage()).resizable().frame(width: 22, height: 22)
                         (Text("Retro") + Text("Revente").foregroundColor(.rrOr)).font(.system(size: 14, weight: .bold))
                     }
                     .padding(.horizontal, 8).accessibilityHidden(true)
-                    CarteCompte(appli: appli, actif: filtre == "@compte")
                 }.padding(10)
             }
             .onHover { dedans in
