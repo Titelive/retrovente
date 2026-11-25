@@ -13,7 +13,7 @@ const ext = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const dist = path.resolve(ext, "../dist");
 const base = JSON.parse(fs.readFileSync(path.join(ext, "manifest.json"), "utf8"));
 const v = base.version;
-const FICHIERS = ["commun.js", "lbc.js", "ebay.js", "appli.js", "background.js", "popup.html", "popup.js", "icones", "img", "polices"];
+const FICHIERS = ["commun.js", "lbc.js", "ebay.js", "stats.js", "stats-page.js", "appli.js", "background.js", "popup.html", "popup.js", "icones", "img", "polices"];
 
 const sans = (l, x) => (l || []).filter((p) => p !== x);
 const chrome = () => {

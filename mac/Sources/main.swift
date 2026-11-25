@@ -62,7 +62,9 @@ enum Menus {
             item("Tout sélectionner", #selector(NSText.selectAll(_:)), "a"),
         ])
         _ = menu("Présentation", [
-            item("Cacher ou montrer la barre latérale", #selector(Fenetre.basculerBarre(_:)), "s", [.command, .control], f), sep(),
+            item("Cacher ou montrer la barre latérale", #selector(Fenetre.basculerBarre(_:)), "s", [.command, .control], f),
+            item("Mode clair / sombre", #selector(Fenetre.basculerApparence(_:)), "l", [.command, .shift], f),
+            item("Suivre l'apparence de macOS", #selector(Fenetre.suivreApparenceSysteme(_:)), "", [], f), sep(),
             item("Recharger la page", #selector(Fenetre.rechargerPage(_:)), "r", .command, f), sep(),
             item("Taille réelle", #selector(Fenetre.tailleReelle(_:)), "0", .command, f),
             item("Agrandir", #selector(Fenetre.agrandir(_:)), "+", .command, f),
@@ -77,7 +79,7 @@ enum Menus {
             item("RetroRevente", #selector(Fenetre.allerAppli(_:)), "1", .command, f),
             item("Déposer une annonce", #selector(Fenetre.allerDeposer(_:)), "2", .command, f),
             item("Messages", #selector(Fenetre.allerMessages(_:)), "3", .command, f),
-            item("Mes annonces", #selector(Fenetre.allerAnnonces(_:)), "4", .command, f), sep(),
+            sep(),
             item("Chercher un article", #selector(Fenetre.chercherArticle(_:)), "k", .command, f),
             item("Chercher l'article à déposer", #selector(Fenetre.ouvrirRecherche(_:)), "r", [.command, .option], f),
             item("Mon compte RetroRevente", #selector(Fenetre.afficherCompte(_:)), "k", [.command, .shift], f), sep(),

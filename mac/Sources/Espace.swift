@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 private func carte<C: View>(_ titre: String, _ symbole: String, @ViewBuilder _ c: () -> C) -> some View {
     VStack(alignment: .leading, spacing: 12) {
-        Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
+        Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrAccent) }
         c()
     }.padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
 }
@@ -36,8 +36,7 @@ struct Trophees: View {
         let envois = v.filter { $0.statut == "envoye" || $0.statut == "recu" || $0.remise == "envoi" }.count
         let anc = Int(jours(appli.profil.cree, ISO8601DateFormatter().string(from: Date())) ?? 0)
         // Temps gagné (minutes par étape, valeurs par défaut de l'appli web).
-        let lbcN = min(appli.profil.usageLbc, o.filter { $0.statut != "retire" || $0.publiee }.count)
-        let minutes = photos * 3 + ia * 4 + o.filter { $0.cote != nil }.count * 4 + lbcN * 2 + v.count * 1
+        let minutes = TempsGagne.total(appli)   // même calcul que la tuile « Temps gagné » de l'accueil
         let t: [(String, String, String, Int, Int)] = [
             ("🕹️", "Insert Coin", "Ajoute ton tout premier article.", o.count, 1),
             ("📸", "Photographe", "10 articles avec une photo.", photos, 10),
@@ -70,22 +69,83 @@ struct Trophees: View {
             EnTete(titre: "Ta salle des trophées", sousTitre: "\(n) trophée\(n > 1 ? "s" : "") débloqué\(n > 1 ? "s" : "") sur \(l.count)") { EmptyView() }
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(l) { t in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(t.ico).font(.system(size: 34)).grayscale(t.ok ? 0 : 1).opacity(t.ok ? 1 : 0.45)
-                                Spacer()
-                                if t.ok { Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrOr).font(.title3) }
-                            }
-                            Text(t.nom).font(.headline)
-                            Text(t.desc).font(.callout).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
-                            ProgressView(value: Double(t.val), total: Double(t.max)).tint(t.ok ? .rrOr : .secondary)
-                            Text("\(t.val) / \(t.max)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        .padding(16)
-                        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrOr : nil)
-                    }
+                    ForEach(Array(l.enumerated()), id: \.element.id) { i, t in CarteTrophee(t: t, rang: i) }
                 }.padding(22)
+            }
+        }
+    }
+}
+
+/// Carte d'un trophée, animée : apparition en cascade, barre qui se remplit, survol, éclat doré sur les trophées débloqués.
+/// « Réduire les animations » (Réglages Système › Accessibilité) : tout s'affiche directement, sans mouvement.
+struct CarteTrophee: View {
+    let t: Trophees.T; let rang: Int
+    @Environment(\.accessibilityReduceMotion) private var sansMouvement
+    @State private var visible = false
+    @State private var rempli = 0.0
+    @State private var survol = false
+    @State private var eclat: CGFloat = -0.6
+    @State private var rebond = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(t.ico).font(.system(size: 34)).grayscale(t.ok ? 0 : 1).opacity(t.ok ? 1 : 0.45)
+                    .scaleEffect(rebond ? 1.18 : 1).rotationEffect(.degrees(rebond ? -8 : 0))
+                Spacer()
+                if t.ok {
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrAccent).font(.title3)
+                        .scaleEffect(visible ? 1 : 0.2).opacity(visible ? 1 : 0)
+                }
+            }
+            Text(t.nom).font(.headline)
+            Text(t.desc).font(.callout).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.12))
+                    Capsule().fill(t.ok ? Color.rrAccent : Color.secondary)
+                        .frame(width: max(t.val > 0 ? 6 : 0, g.size.width * rempli))
+                }
+            }.frame(height: 6)
+            Text("\(t.val) / \(t.max)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .overlay {
+            // Éclat : un reflet doré qui traverse la carte de temps en temps.
+            if t.ok && !sansMouvement {
+                GeometryReader { g in
+                    LinearGradient(colors: [.clear, Color.white.opacity(0.28), .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: g.size.width * 0.45).rotationEffect(.degrees(20))
+                        .offset(x: g.size.width * eclat)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 22)).allowsHitTesting(false).blendMode(.plusLighter)
+            }
+        }
+        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrAccent : nil)
+        .shadow(color: (t.ok ? Color.rrAccent : Color.black).opacity(survol ? 0.35 : 0), radius: survol ? 14 : 0, y: survol ? 6 : 0)
+        .scaleEffect(sansMouvement ? 1 : (visible ? (survol ? 1.03 : 1) : 0.92))
+        .offset(y: sansMouvement || visible ? 0 : 18)
+        .opacity(visible ? 1 : 0)
+        .onHover { h in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { survol = h }
+            if h, t.ok, !sansMouvement {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.45)) { rebond = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) { rebond = false } }
+            }
+        }
+        .task {
+            let fraction = t.max > 0 ? min(1, Double(t.val) / Double(t.max)) : 0
+            if sansMouvement { visible = true; rempli = fraction; return }
+            let attente = Double(min(rang, 24)) * 0.04
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.78).delay(attente)) { visible = true }
+            withAnimation(.easeOut(duration: 0.9).delay(attente + 0.25)) { rempli = fraction }
+            guard t.ok else { return }
+            // Premier éclat juste après l'apparition, puis un toutes les quelques secondes, décalé d'une carte à l'autre.
+            try? await Task.sleep(nanoseconds: UInt64((attente + 0.9) * 1_000_000_000))
+            while !Task.isCancelled {
+                eclat = -0.6
+                withAnimation(.easeInOut(duration: 1.1)) { eclat = 1.3 }
+                try? await Task.sleep(nanoseconds: UInt64((5.5 + Double(rang % 5) * 0.7) * 1_000_000_000))
             }
         }
     }
@@ -113,7 +173,7 @@ struct Bilan: View {
                         chiffre("Encaissé", Libelles.prix(encaisse), "eurosign.circle")
                         chiffre("Net (après frais)", Libelles.prix(net), "banknote")
                         chiffre("Marge", achats > 0 ? Libelles.prix(net - achats) : "—", "chart.line.uptrend.xyaxis")
-                        chiffre("En vente", "\(enVente.count) · \(Libelles.prix(stock))", "tag")
+                        chiffre(stock > 0 ? "En vente · \(Libelles.prix(stock)) demandés" : "En vente", "\(enVente.count) article\(enVente.count > 1 ? "s" : "")", "tag")
                     }
                     carte("Seuil fiscal \(an)", "building.columns") {
                         if appli.profil.fiscal {
@@ -122,7 +182,7 @@ struct Bilan: View {
                             jauge("Objet le plus cher", gros, 5000, { Libelles.prix($0) })
                             Text(message(Swift.max(Double(va.count) / 30, mt / 2000), gros)).font(.callout).foregroundStyle(.secondary)
                         } else {
-                            Text("Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre les seuils (30 ventes ou 2 000 €).")
+                            Text("Avec la formule **Collectionneur**, RetroRevente suit tes ventes de l'année et **te prévient avant d'atteindre les seuils** (30 ventes ou 2 000 €).")
                                 .font(.callout).foregroundStyle(.secondary)
                         }
                     }
@@ -133,7 +193,7 @@ struct Bilan: View {
                                 Text(a.titre).lineLimit(1)
                                 Spacer()
                                 Text(a.dateVente).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                                Text(Libelles.prix(a.prixVente)).font(.callout.weight(.bold).monospacedDigit()).foregroundStyle(Color.rrOr).frame(width: 80, alignment: .trailing)
+                                Text(Libelles.prix(a.prixVente)).font(.callout.weight(.bold).monospacedDigit()).foregroundStyle(Color.rrAccent).frame(width: 80, alignment: .trailing)
                             }
                             Divider()
                         }
@@ -144,7 +204,7 @@ struct Bilan: View {
     }
     private func chiffre(_ nom: String, _ valeur: String, _ symbole: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: symbole).foregroundStyle(Color.rrOr).font(.title3)
+            Image(systemName: symbole).foregroundStyle(Color.rrAccent).font(.title3)
             Text(valeur).font(.system(size: 22, weight: .heavy, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
             Text(nom).font(.caption).foregroundStyle(.secondary)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 20))
@@ -153,7 +213,7 @@ struct Bilan: View {
         let r = v / max
         return VStack(alignment: .leading, spacing: 4) {
             Text("\(nom) : \(f(v)) sur \(f(max))").font(.callout)
-            ProgressView(value: Swift.min(1, r)).tint(r >= 1 ? .red : r >= 0.8 ? .orange : .rrOr)
+            ProgressView(value: Swift.min(1, r)).tint(r >= 1 ? .red : r >= 0.8 ? .orange : .rrAccent)
         }
     }
     private func message(_ r: Double, _ gros: Double) -> String {
@@ -184,7 +244,7 @@ struct BlocCote: View {
                 ForEach(c.releves, id: \.self) { r in
                     Button { if let u = URL(string: r.url) { NSWorkspace.shared.open(u) } } label: {
                         HStack {
-                            Text(r.site).font(.caption.weight(.bold)).foregroundStyle(Color.rrOr).frame(width: 90, alignment: .leading)
+                            Text(r.site).font(.caption.weight(.bold)).foregroundStyle(Color.rrAccent).frame(width: 90, alignment: .leading)
                             Text(r.titre).font(.caption).lineLimit(1)
                             Spacer()
                             Text(Libelles.prix(r.prix)).font(.caption.weight(.semibold).monospacedDigit())
@@ -200,7 +260,7 @@ struct BlocCote: View {
                     bouton("Réestimer")
                 }
             } else {
-                Text("L'IA cherche les ventes conclues et les annonces en cours pour estimer le bon prix.").font(.callout).foregroundStyle(.secondary)
+                Text("L'IA cherche les **ventes conclues** et les **annonces en cours** pour estimer **le bon prix**.").font(.callout).foregroundStyle(.secondary)
                 bouton("Estimer la cote")
             }
         }
@@ -213,7 +273,7 @@ struct BlocCote: View {
     }
     private func valeur(_ nom: String, _ x: Double?, principal: Bool = false, texte: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(texte ?? Libelles.prix(x)).font(.system(size: principal ? 24 : 18, weight: .heavy, design: .rounded)).foregroundStyle(principal ? Color.rrOr : .primary)
+            Text(texte ?? Libelles.prix(x)).font(.system(size: principal ? 24 : 18, weight: .heavy, design: .rounded)).foregroundStyle(principal ? Color.rrAccent : .primary)
             Text(nom).font(.caption).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -243,7 +303,7 @@ struct MonCompte: View {
             }
             ScrollView {
                 VStack(spacing: 16) {
-                    if !info.isEmpty { Text(info).font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 14), teinte: .rrAnis) }
+                    if !info.isEmpty { Text(info).font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 14), teinte: .rrAccent) }
                     HStack(alignment: .top, spacing: 16) {
                         carte("Profil", "person") {
                             HStack(spacing: 14) {
@@ -264,7 +324,7 @@ struct MonCompte: View {
                             }
                                 .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc && adresse == appli.profil.adresse)
                             if appli.profil.adresse.isEmpty {
-                                Text("Ajoute ton code postal et ta ville : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
+                                Text("Ajoute ton **code postal** et ta **ville** : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
                             }
                         }
                         formule
@@ -272,10 +332,10 @@ struct MonCompte: View {
                     HStack(alignment: .top, spacing: 16) {
                         carte("Adresse e-mail", "envelope") {
                             if !appli.profil.emailOk {
-                                Text("Adresse pas encore confirmée.").font(.callout).foregroundStyle(.orange)
+                                Text("Adresse **pas encore confirmée**.").font(.callout).foregroundStyle(.orange)
                                 Button("Renvoyer le lien") { Task { await appli.renvoyerVerification(); info = "Lien de confirmation renvoyé." } }.buttonStyle(.link)
                             }
-                            if !appli.profil.emailEnAttente.isEmpty { Text("En attente de confirmation : \(appli.profil.emailEnAttente)").font(.callout).foregroundStyle(.secondary) }
+                            if !appli.profil.emailEnAttente.isEmpty { Text("**En attente de confirmation** : \(appli.profil.emailEnAttente)").font(.callout).foregroundStyle(.secondary) }
                             TextField("Nouvelle adresse", text: $email).textFieldStyle(.roundedBorder)
                             SecureField("Mot de passe actuel", text: $mdpEmail).textFieldStyle(.roundedBorder)
                             Button("Changer d'adresse") { Task { if let m = await appli.changerEmail(email, motdepasse: mdpEmail) { info = m; email = ""; mdpEmail = "" } } }
@@ -290,16 +350,16 @@ struct MonCompte: View {
                     }
                     carte("Le Bon Coin", "bolt.fill") {
                         let branche = !(Stockage.partage.texte("cle") ?? "").isEmpty
-                        Text(branche ? "Branché : remplissage du dépôt et réponses IA aux acheteurs actifs." : "Pas encore branché.").font(.callout)
+                        Text(branche ? LocalizedStringKey("**Branché** : remplissage du dépôt et réponses IA aux acheteurs actifs.") : "Pas encore branché.").font(.callout)
                         Button(branche ? "Rebrancher" : "Brancher maintenant") { Task { await appli.brancherLeBonCoin(force: true); info = "Le Bon Coin est branché." } }.boutonVerre()
                     }
                     carte("App Photos", "photo.on.rectangle.angled") {
-                        Toggle("Retirer de Photos les photos ajoutées à un article", isOn: $retirerDePhotos)
-                        Text("Seulement une fois la photo bien envoyée. macOS te demande de confirmer, et elle reste 30 jours dans « Supprimés récemment ».")
+                        Toggle("Retirer de Photos les photos d'un article, une fois son annonce publiée", isOn: $retirerDePhotos)
+                        Text("Seulement **à la fin, une fois l'annonce publiée** sur Le Bon Coin. macOS te demande de confirmer, et la photo reste **30 jours** dans « Supprimés récemment ».")
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     carte("Supprimer mon compte", "trash") {
-                        Text("Tes articles et tes photos seront effacés définitivement.").font(.callout).foregroundStyle(.secondary)
+                        Text("Tes articles et tes photos seront **effacés définitivement**.").font(.callout).foregroundStyle(.secondary)
                         HStack {
                             SecureField("Mot de passe", text: $mdpSuppr).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
                             Button("Supprimer mon compte", role: .destructive) { confirmerSuppression = true }.boutonVerre().disabled(mdpSuppr.isEmpty)
@@ -320,11 +380,11 @@ struct MonCompte: View {
             HStack {
                 Text(appli.profil.formule).font(.system(size: 22, weight: .heavy, design: .rounded))
                 Spacer()
-                if !appli.profil.abonnement.isEmpty { Text(appli.profil.resiliation ? "Résiliée" : "Active").font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 4).background(Color.rrAnis, in: Capsule()).foregroundColor(.rrNuit) }
+                if !appli.profil.abonnement.isEmpty { Text(appli.profil.resiliation ? "Résiliée" : "Active").font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 4).background(appli.profil.resiliation ? Color.orange : Color.green, in: Capsule()).foregroundColor(.white) }
             }
             if let m = appli.profil.quotaMax {
                 Text("Articles ce mois-ci : \(appli.profil.quotaUtilise) sur \(m)").font(.callout)
-                ProgressView(value: Double(min(appli.profil.quotaUtilise, m)), total: Double(max(m, 1))).tint(.rrOr)
+                ProgressView(value: Double(min(appli.profil.quotaUtilise, m)), total: Double(max(m, 1))).tint(.rrAccent)
             } else { Text("Articles illimités · \(appli.profil.quotaUtilise) ce mois-ci").font(.callout).foregroundStyle(.secondary) }
             if !appli.profil.finAbonnement.isEmpty { Text("Période en cours jusqu'au \(String(appli.profil.finAbonnement.prefix(10)))").font(.caption).foregroundStyle(.secondary) }
             Divider()
@@ -335,7 +395,7 @@ struct MonCompte: View {
                     Button("Collectionneur") { Task { await appli.payer(offre: "collectionneur", periode: periode) } }.boutonVerre(principal: true)
                     Button("Pass Grand ménage") { Task { await appli.payer(offre: "pass", periode: periode) } }.boutonVerre()
                 }
-                Text("Le paiement se fait sur la page sécurisée de Stripe.").font(.caption).foregroundStyle(.secondary)
+                Text("Le paiement se fait sur la **page sécurisée de Stripe**.").font(.caption).foregroundStyle(.secondary)
             }
             if appli.profil.client { Button("Gérer mon abonnement et mes factures") { Task { await appli.portail() } }.boutonVerre() }
         }

@@ -2,8 +2,8 @@
 
 POST /retoucher?rot=0|90|180|270 avec l'image en corps (JPEG, PNG ou WebP) → JPEG retouché, VRAI FOND GARDÉ :
   - le jeu est repéré (masque rembg) pour redresser la photo et la recadrer autour de lui ;
-  - les objets posés à côté et les poussières du fond sont effacés (retouche locale, « inpainting ») ;
-  - les reflets sur le jeu sont atténués, la lumière est corrigée doucement.
+  - les objets qui traînent à côté sont effacés, sans jamais toucher au rectangle du jeu ;
+  - la lumière est corrigée doucement sur toute la photo ; le jeu lui-même (logos, textes, PEGI) n'est jamais retouché.
 Pas de détourage ni de fond remplacé : l'acheteur doit voir une vraie photo.
 POST /detourer (ancien) → PNG avec transparence.
 """
@@ -48,7 +48,62 @@ def detourer(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False) -> bytes:
+def niveaux(img, fond=None):
+    """Lumière et couleurs de TOUTE la photo, réglées vers une même cible pour toutes les photos d'un article :
+    le fond (bois, table, nappe) est ramené au même blanc légèrement chaud et à la même luminosité, quelle que soit
+    la lampe. Avant, chaque photo était étirée selon son propre histogramme : une photo terne sous une lampe jaune
+    était poussée (plus jaune, plus contrastée), une photo déjà contrastée restait telle quelle, d'où une série incohérente.
+    Aucune retouche locale sur le jeu : seuls des réglages globaux, doux et bornés."""
+    f = img.astype(np.float32)
+    if fond is None or fond.sum() < f.shape[0] * f.shape[1] * .05:
+        # Pas de masque (gros plan) : les pixels les moins colorés servent de fond (le bois, pas la jaquette rouge).
+        sat = f.max(axis=2) - f.min(axis=2)
+        fond = sat <= np.percentile(sat, 50)
+    ref = np.median(f[fond], axis=0)                       # couleur du fond, R G B
+    # Même fond pour toutes : un ton chaud et vivant (bois clair, lumière de fin d'après-midi), jamais gris ni délavé.
+    cible = ref.mean() * np.array([1.09, 1.0, 0.84], dtype=np.float32)
+    gains = np.clip(cible / np.maximum(ref, 1), .8, 1.25)
+    f = f * gains
+    lum = float((ref * gains).mean())
+    expo = float(np.clip(172.0 / max(lum, 1), .92, 1.08))  # même luminosité de fond, sans éclaircir jusqu'au pâle
+    f = f * expo
+    f = 128 + (f - 128) * 1.06        # un peu de relief (contraste doux), pour ne pas faire terne
+    gr = f.mean(axis=2, keepdims=True)
+    f = gr + (f - gr) * 1.14          # couleurs plus vives et gaies, sans excès
+    return np.clip(f, 0, 255).astype(np.uint8)
+
+
+def finir(crop, pastille):
+    flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
+    crop = cv2.addWeighted(crop, 1.18, flou, -.18, 0)   # netteté très légère, compense la rotation
+    out_im = Image.fromarray(crop)
+    if max(out_im.size) > SORTIE:
+        out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
+    if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
+        out_im = filigrane.poser(out_im)
+    out = io.BytesIO()
+    out_im.save(out, "JPEG", quality=90, optimize=True, progressive=True, subsampling=0)
+    return out.getvalue()
+
+
+def zoomer(data: bytes, rot: int, cadre, pastille: bool = False) -> bytes:
+    """Photo de détail (coin, tranche, défaut) : on garde le rectangle donné (fractions x, y, w, h de la photo
+    à l'endroit), lumière et couleurs comme les autres, puis le quart de tour demandé. Rien n'est effacé."""
+    im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
+    W, H = im.size
+    x, y, w, h = cadre
+    X0, Y0 = max(0, int(x * W)), max(0, int(y * H))
+    X1, Y1 = min(W, int((x + w) * W)), min(H, int((y + h) * H))
+    if X1 - X0 < W * .15 or Y1 - Y0 < H * .15:
+        raise ValueError("cadre trop petit")
+    im = im.crop((X0, Y0, X1, Y1))
+    if rot:
+        im = im.rotate(-rot, expand=True)
+    return finir(niveaux(np.asarray(im).copy()), pastille)
+
+
+def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = False):
+    """→ (JPEG, fiable) ; fiable = False : objet coupé ou tenu en main (gros plan), la photo est gardée entière."""
     im = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     if max(im.size) > ENTREE:
         im.thumbnail((ENTREE, ENTREE), Image.LANCZOS)
@@ -72,6 +127,12 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     frac = float(obj.mean())
     rempli = obj.sum() / float((bx1 - bx0 + 1) * (by1 - by0 + 1))
     fiable = (not touche) and .03 < frac < .85 and rempli > .45
+    # Le rectangle du jeu (avec une marge) est intouchable : le détourage rate parfois un logo blanc imprimé au bord
+    # de la jaquette (PEGI, USK, bandeau), qu'il ne faut jamais prendre pour de la poussière ou un objet à effacer.
+    marge = max(12, W // 40)
+    boite = np.zeros_like(obj)
+    boite[max(0, by0 - marge):min(H, by1 + marge + 1), max(0, bx0 - marge):min(W, bx1 + marge + 1)] = True
+    pres = pres | boite
     # 1) objets à côté : autres zones repérées, assez grandes, détachées du jeu
     bazar = np.zeros_like(obj)
     for k in range(n):
@@ -95,48 +156,73 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
                 retenus.append(k + 1)
         if 0 < len(retenus) <= 25:     # au-delà, c'est la texture du fond, pas de la poussière
             poussiere = np.isin(lp, retenus)
+    # Règle absolue : le jeu n'est JAMAIS retouché. Seuls les objets qui traînent à côté, bien détachés du jeu, sont
+    # effacés ; la zone effacée ne déborde jamais dans le rectangle du jeu (et sa marge). Pas d'effacement de
+    # « poussières » : trop proche du jeu, il a déjà abîmé un logo PEGI.
     if fiable and bazar.any() and bazar.mean() < .22:
         zone = cv2.dilate(bazar.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=max(4, W // 160))
-        img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    if poussiere.any():
-        zone = cv2.dilate(poussiere.astype(np.uint8) * 255, np.ones((3, 3), np.uint8), iterations=2)
-        img = cv2.inpaint(img, zone, 3, cv2.INPAINT_TELEA)
-    # 3) niveaux : on étire seulement (jamais moins de contraste ni moins de couleur que l'original),
-    #    puis on calme les reflets blancs sur le jeu
-    f = img.astype(np.float32)
-    lum = f.mean(axis=2)
-    lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
-    g = 255 / max(hi - lo, 1)
-    if g > 1:
-        lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
-        f = np.clip((f - lo) * min(g, 1.25), 0, 255)
-    gr = f.mean(axis=2, keepdims=True)
-    f = gr + (f - gr) * 1.08          # couleurs un poil plus vives, jamais plus ternes
-    L = f.mean(axis=2, keepdims=True); sat = f.max(axis=2, keepdims=True) - f.min(axis=2, keepdims=True)
-    k = np.clip((L - 225) / 30, 0, 1) * np.clip(1 - sat / 40, 0, 1) * obj[..., None]
-    k = cv2.GaussianBlur(k[..., 0], (0, 0), 3)[..., None]
-    f = f - k * (L - 225) * .35
-    img = np.clip(f, 0, 255).astype(np.uint8)
-    # 4) redressement : quart de tour demandé + petit angle mesuré sur le jeu
-    ys, xs = np.nonzero(obj)
-    cx, cy = xs.mean(), ys.mean()
-    w_, v = np.linalg.eigh(np.cov(np.vstack([xs - cx, ys - cy])))
-    ang = np.degrees(np.arctan2(v[1, 1], v[0, 1]))
-    d = ((ang + 45) % 90) - 45
-    if abs(d) > 15 or not fiable:
-        d = 0
+        zone[pres] = 0
+        if zone.any():
+            img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
+    img = niveaux(img, ~pres)   # le fond seul sert de référence
+    # 4) redressement : quart de tour demandé, puis le jeu remis bien droit.
+    #    Un boîtier photographié un peu de biais forme un quadrilatère : s'il est net (4 coins francs, presque un
+    #    rectangle), on corrige la perspective pour en refaire un rectangle droit (même contenu, juste remis à plat).
+    #    Sinon, l'angle du plus petit rectangle qui entoure le jeu (plus juste que l'ancienne mesure par moments,
+    #    que l'ombre faussait).
+    valide = np.full((H, W), 255, np.uint8)
+    d = 0.0
+    if fiable:
+        cnts, _ = cv2.findContours(obj.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if cnts:
+            hull = cv2.convexHull(max(cnts, key=cv2.contourArea))
+            quad = cv2.approxPolyDP(hull, .02 * cv2.arcLength(hull, True), True).reshape(-1, 2).astype(np.float32)
+            plat = False
+            if len(quad) == 4 and cv2.contourArea(quad) > .9 * cv2.contourArea(hull):
+                c0 = quad.mean(axis=0)
+                quad = quad[np.argsort(np.arctan2(quad[:, 1] - c0[1], quad[:, 0] - c0[0]))]   # haut-g, haut-d, bas-d, bas-g
+                quad = np.roll(quad, -int(np.argmin(quad.sum(axis=1))), axis=0)
+                tl, tr, br, bl = quad
+                def angle(p, q, r):
+                    u, v_ = p - q, r - q
+                    return np.degrees(np.arccos(np.clip(u @ v_ / (np.linalg.norm(u) * np.linalg.norm(v_) + 1e-6), -1, 1)))
+                coins = [angle(bl, tl, tr), angle(tl, tr, br), angle(tr, br, bl), angle(br, bl, tl)]
+                bw = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2
+                bh = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2
+                inclin = np.degrees(np.arctan2(tr[1] - tl[1], tr[0] - tl[0]))
+                if max(abs(x - 90) for x in coins) < 12 and abs(inclin) < 15 and bw > 20 and bh > 20:
+                    dst = np.array([[c0[0] - bw / 2, c0[1] - bh / 2], [c0[0] + bw / 2, c0[1] - bh / 2],
+                                    [c0[0] + bw / 2, c0[1] + bh / 2], [c0[0] - bw / 2, c0[1] + bh / 2]], np.float32)
+                    P = cv2.getPerspectiveTransform(quad, dst)
+                    img = cv2.warpPerspective(img, P, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                    obj = cv2.warpPerspective(obj.astype(np.uint8) * 255, P, (W, H), flags=cv2.INTER_NEAREST) > 0
+                    valide = cv2.warpPerspective(valide, P, (W, H), flags=cv2.INTER_NEAREST)
+                    plat = True
+            if not plat:
+                (_, _), (rw, rh), ra = cv2.minAreaRect(hull)
+                d = ((ra + 45) % 90) - 45
+                if abs(d) > 15:
+                    d = 0.0
     a = d - rot          # degrés, sens trigonométrique pour OpenCV
     M = cv2.getRotationMatrix2D((W / 2, H / 2), a, 1.0)
     c, s_ = abs(M[0, 0]), abs(M[0, 1]); NW, NH = int(H * s_ + W * c), int(H * c + W * s_)
     M[0, 2] += NW / 2 - W / 2; M[1, 2] += NH / 2 - H / 2
     img = cv2.warpAffine(img, M, (NW, NH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
     om = cv2.warpAffine(obj.astype(np.uint8) * 255, M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
-    ok = cv2.warpAffine(np.full((H, W), 255, np.uint8), M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
+    ok = cv2.warpAffine(valide, M, (NW, NH), flags=cv2.INTER_NEAREST) > 0
     # 5) recadrage autour du jeu avec une marge, sans sortir de la vraie photo
     ys, xs = np.nonzero(om)
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
-    marge = int(max(x1 - x0, y1 - y0) * .13)
-    X0, X1, Y0, Y1 = max(0, x0 - marge), min(NW, x1 + marge), max(0, y0 - marge), min(NH, y1 + marge)
+    # Jeu centré : la même marge des quatre côtés. Si la photo manque d'un côté, la marge diminue partout
+    # (plutôt qu'un jeu décalé avec des bords inégaux).
+    voulu = int(max(x1 - x0, y1 - y0) * .10)
+    dispo = min(x0, NW - 1 - x1, y0, NH - 1 - y1)
+    marge = max(0, min(voulu, dispo))
+    def dans(X0, X1, Y0, Y1):
+        return ok[Y0, X0] and ok[Y0, X1 - 1] and ok[Y1 - 1, X0] and ok[Y1 - 1, X1 - 1]
+    while marge > voulu // 3 and not dans(x0 - marge, x1 + 1 + marge, y0 - marge, y1 + 1 + marge):
+        marge -= 2
+    X0, X1, Y0, Y1 = x0 - marge, x1 + 1 + marge, y0 - marge, y1 + 1 + marge
     if not fiable:        # photo entière (seulement le quart de tour demandé)
         X0, X1, Y0, Y1 = 0, NW, 0, NH
     for _ in range(40 if fiable else 0):   # rogne tant que les coins tombent hors de la photo d'origine
@@ -147,17 +233,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         c_ = max(X1 - X0, Y1 - Y0); c_ = min(c_, NW, NH)
         mx, my = (X0 + X1) / 2, (Y0 + Y1) / 2
         X0 = int(min(max(0, mx - c_ / 2), NW - c_)); Y0 = int(min(max(0, my - c_ / 2), NH - c_)); X1, Y1 = X0 + c_, Y0 + c_
-    crop = img[Y0:Y1, X0:X1]
-    flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
-    crop = cv2.addWeighted(crop, 1.35, flou, -.35, 0)   # netteté légère, compense la rotation
-    out_im = Image.fromarray(crop)
-    if max(out_im.size) > SORTIE:
-        out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
-    if pastille:   # formule gratuite : petite pastille RetroRevente, posée ici pour ne pas pouvoir y couper
-        out_im = filigrane.poser(out_im)
-    out = io.BytesIO()
-    out_im.save(out, "JPEG", quality=90, optimize=True, progressive=True, subsampling=0)
-    return out.getvalue()
+    return finir(img[Y0:Y1, X0:X1], pastille), bool(fiable)
 
 
 class H(BaseHTTPRequestHandler):
@@ -178,11 +254,15 @@ class H(BaseHTTPRequestHandler):
             self.send_response(413); self.end_headers(); return
         try:
             corps = self.rfile.read(n)
+            fiable = True
             with UN_A_LA_FOIS:
                 if chemin == "/retoucher":
-                    rot = int(dict(x.split("=", 1) for x in q.split("&") if "=" in x).get("rot", "0"))
-                    carre = "carre=1" in q
-                    png = retoucher(corps, rot if rot in (0, 90, 180, 270) else 0, carre, "filigrane=1" in q)
+                    p = dict(x.split("=", 1) for x in q.split("&") if "=" in x)
+                    rot = int(p.get("rot", "0")); rot = rot if rot in (0, 90, 180, 270) else 0
+                    if p.get("cadre"):   # gros plan : zoom sur le détail repéré par l'IA (coin, tranche…)
+                        png = zoomer(corps, rot, [float(v) for v in p["cadre"].split(",")][:4], "filigrane=1" in q)
+                    else:
+                        png, fiable = retoucher(corps, rot, "carre=1" in q, "filigrane=1" in q)
                 else:
                     png = detourer(corps)
         except Exception as e:  # image illisible
@@ -191,6 +271,7 @@ class H(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg" if chemin == "/retoucher" else "image/png")
         self.send_header("Content-Length", str(len(png)))
+        self.send_header("X-Fiable", "1" if fiable else "0")
         self.end_headers()
         self.wfile.write(png)
 

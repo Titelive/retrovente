@@ -15,6 +15,7 @@ import * as stripe from "./stripe.mjs";
 import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, majPhrasePrix, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
 import { normaliserProfil, lireProfil } from "./profil.mjs";
+import { SITES_STATS, idAnnonce, lignesStats, majStats, garderStats } from "./stats.mjs";
 
 const { txt, prix, jour, parmi, lien } = ia;
 const STATUTS = ["en_vente", "reserve", "vendu", "envoye", "recu", "retire"];
@@ -48,7 +49,7 @@ function nettoyer(v, avant) {
     // Films : plateforme = format (Blu-Ray 4K UHD, Blu-Ray, DVD…), region = langues et zone, edition = steelbook, collector…
     ...(film ? { annee: /^(18|19|20)\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", realisateur: txt(v.realisateur, 80), edition: txt(v.edition, 80) } : {}),
     // Jeux, consoles, accessoires : rareté sur le marché de l'occasion, établie automatiquement (voir rareteAuto).
-    ...(carte || film ? {} : { rareteJeu: rareteDe(v, avant, titre) }),
+    ...(carte || film ? {} : rareteDe(v, avant, titre)),
     plateforme: film ? formatFilm(txt(v.plateforme, 60)) : txt(v.plateforme, 60), region: txt(v.region, 30),
     etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
@@ -74,7 +75,35 @@ function nettoyer(v, avant) {
     ...(exLotsIds(avant).length ? { exLots: exLotsIds(avant) } : {}),
     // Lots quittés à la vente de l'article : leurs annonces sont à effacer sur les sites (encart, jusqu'à « C'est fait »)
     ...(avant && Array.isArray(avant.lotsAEffacer) && avant.lotsAEffacer.length ? { lotsAEffacer: avant.lotsAEffacer } : {}),
+    // Vues et favoris relevés sur les sites : ils ne s'écrivent que par /api/stats, et suivent le lien de l'annonce.
+    ...statsGardees(avant, v),
   };
+}
+function statsGardees(avant, v) {
+  const s = avant && garderStats(avant.stats, lien(v.annonce), ebayOuErreur(v.annonceEbay));
+  return s ? { stats: s } : {};
+}
+/** Vues et favoris relevés sur un site (« Mes annonces », Seller Hub) : rangés dans les fiches dont le lien correspond. */
+function enregistrerStats(uid, b) {
+  const site = SITES_STATS.includes(b && b.site) ? b.site : "", l = lignesStats(b && b.annonces);
+  if (!site) fail(400, "Site inconnu.");
+  const champ = site === "ebay" ? "annonceEbay" : "annonce", parId = new Map(l.map((x) => [x.id, x]));
+  const quand = new Date(), faits = [];
+  tx(() => {
+    for (const r of db.prepare("SELECT id, data FROM items WHERE user_id = ?").all(uid)) {
+      const d = JSON.parse(r.data), url = d[champ], x = url && parId.get(idAnnonce(site, url));
+      if (!x) continue;
+      const st = d.stats && typeof d.stats === "object" ? d.stats : {}, avant = st[site];
+      const n = majStats(avant, url, x, quand);
+      // rien de changé et relevé récent (moins d'une heure) : on n'écrit pas
+      if (avant && avant.url === url && avant.vues === n.vues && avant.favoris === n.favoris && quand - new Date(avant.at) < 3600e3) { faits.push(r.id); continue; }
+      d.stats = { ...st, [site]: n };
+      // pas de « updated » : un relevé de stats ne compte pas comme une modification de la fiche
+      db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), r.id, uid);
+      faits.push(r.id);
+    }
+  });
+  return { ok: true, site, recus: l.length, maj: faits.length, ids: faits };
 }
 /* ===== Rareté des jeux, établie automatiquement =====
    Elle vient de l'IA : à la reconnaissance photo, puis de la recherche des prix (plus juste, d'après le marché) ; l'appli
@@ -82,12 +111,18 @@ function nettoyer(v, avant) {
    Elle suit le jeu : nom, console, région ou contenu changés, elle est estimée à nouveau. */
 const cleJeu = (v) => [v.titre, v.plateforme, v.region, v.contenu].map((x) => String(x || "").trim().toLowerCase()).join("|");
 function rareteDe(v, avant, titre) {
-  const r = parmi(v.rareteJeu, ia.RARETES_JEU, "");
-  if (!avant || !avant.rareteJeu) return r;
-  const memeJeu = cleJeu({ ...v, titre }) === cleJeu(avant);
-  return memeJeu ? r || avant.rareteJeu : r !== avant.rareteJeu ? r : "";
+  let r = parmi(v.rareteJeu, ia.RARETES_JEU, "");
+  if (avant && avant.rareteJeu) {
+    const memeJeu = cleJeu({ ...v, titre }) === cleJeu(avant), ancienne = avant.rareteV !== ia.RARETE_V;
+    // la valeur renvoyée par l'appli est celle déjà enregistrée : gardée pour le même jeu (si elle vient du calcul actuel),
+    // sinon estimée à nouveau ; une valeur nouvelle (reconnaissance, cote) est prise telle quelle
+    if (r === avant.rareteJeu && (!memeJeu || ancienne)) r = "";
+    else if (!r && memeJeu && !ancienne) r = avant.rareteJeu;
+  }
+  r = ia.rareteVraisemblable(r, { ...v, titre });
+  return r ? { rareteJeu: r, rareteV: ia.RARETE_V } : { rareteJeu: "" };
 }
-const SANS_RARETE = (it) => it && !estLot(it) && it.categorie !== "cartes" && it.categorie !== "films" && !it.rareteJeu && it.titre;
+const SANS_RARETE = (it) => it && !estLot(it) && it.categorie !== "cartes" && it.categorie !== "films" && (!it.rareteJeu || it.rareteV !== ia.RARETE_V) && it.titre && it.rareteEssai !== ia.RARETE_V + "|" + cleJeu(it);
 const RARETE_FILE = [], RARETE_EN_COURS = new Set();
 let rareteActifs = 0;
 export function rareteAuto(uid, id) {
@@ -103,11 +138,12 @@ function rareteSuivante() {
       if (!SANS_RARETE(it)) return;
       const r = await ia.estimerRarete(it);
       const r2 = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(t.id, t.uid);
-      if (!r || !r2) return;
+      if (!r2) return;
       const d = JSON.parse(r2.data);
       // la fiche a changé pendant l'estimation (autre jeu, ou rareté déjà connue) : on n'y touche pas
-      if (d.rareteJeu || cleJeu(d) !== cleJeu(it)) return;
-      d.rareteJeu = r;   // sans changer la date de modification (elle sert aussi d'adresse aux photos)
+      if ((d.rareteJeu && d.rareteV === ia.RARETE_V) || cleJeu(d) !== cleJeu(it)) return;
+      // jeu inconnu de l'IA : pas de rareté plutôt qu'une devinette, et pas de nouvel essai tant que le jeu ne change pas
+      if (r) { d.rareteJeu = r; d.rareteV = ia.RARETE_V; delete d.rareteEssai; } else { d.rareteJeu = ""; delete d.rareteV; d.rareteEssai = ia.RARETE_V + "|" + cleJeu(d); }   // sans changer la date de modification (elle sert aussi d'adresse aux photos)
       db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), t.id, t.uid);
     })().catch((e) => console.error("rareté", e.message)).finally(() => { rareteActifs--; RARETE_EN_COURS.delete(t.k); rareteSuivante(); });
   }
@@ -146,7 +182,11 @@ function ordrePhotos(liste, avant) {
   return out;
 }
 const fichierPhoto = (uid, id, pid) => photoPath(uid, pid === "p0" ? id : id + "-" + pid);
-const itemOut = (r) => { const d = JSON.parse(r.data); const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
+const itemOut = (r) => { const d = JSON.parse(r.data);
+  // rareté d'un calcul plus ancien, en attendant sa nouvelle estimation : déjà ramenée à ce qui est vraisemblable
+  if (d.rareteJeu && d.rareteV !== ia.RARETE_V) d.rareteJeu = ia.rareteVraisemblable(d.rareteJeu, d);
+  if (d.contenu === "boite" && ia.sansNotice(d.plateforme)) d.contenu = "complet";   // Switch, PS5, Xbox Series : pas de notice papier
+  const photos = photosDe(d).map((x) => ({ ...x, legende: ia.affirme(x.legende) })); return { id: r.id, ...d, photos, photo: photos.length > 0, cree: r.created, modifie: r.updated }; };
 const listItems = (uid) => db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY created DESC").all(uid).map(itemOut);
 const getItem = (uid, id) => { const r = db.prepare("SELECT * FROM items WHERE user_id = ? AND id = ?").get(uid, String(id)); return r ? itemOut(r) : null; };
 
@@ -186,6 +226,8 @@ function modifierObjet(uid, avant, b) {
   const sesLots = estLot(avant) ? [] : lotsDe(uid, avant), lotVendu = sesLots.find((l) => VENDU(l.statut));
   // Article d'un lot vendu : il est parti avec le lot, son statut suit celui du lot.
   if (lotVendu) { it.statut = avant.statut; it.dateVente = avant.dateVente; Object.assign(it, colisDe(avant)); if (!avant.suiviEtat) delete it.suiviEtat; }
+  // Passé en vendu sans prix de vente : on reprend le prix demandé, pour que la vente compte dans l'encaissé.
+  else if (VENDU(it.statut) && !VENDU(avant.statut) && it.prixVente == null && it.prixDemande != null) it.prixVente = it.prixDemande;
   if (estLot(avant) && b.fermerAlerte) delete it.alerte;
   if (b.lotEfface && it.lotsAEffacer) { it.lotsAEffacer = it.lotsAEffacer.filter((x) => b.lotEfface !== "*" && x.id !== String(b.lotEfface)); if (!it.lotsAEffacer.length) delete it.lotsAEffacer; }
   if (typeof b.photo === "string") {
@@ -467,7 +509,7 @@ export function annonceLbc(v) {
     ? [`Film ${v.titre}${v.annee ? ` (${v.annee})` : ""}${v.realisateur ? " de " + v.realisateur : ""}${v.plateforme ? ", en " + v.plateforme : ""}${v.edition ? ", " + editionTexte(v.edition) : ""}.`, v.region ? v.region.replace(/^./, (c) => c.toUpperCase()) + "." : "", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
     : v.categorie === "cartes"
     ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
-    : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
+    : [[v.titre, v.plateforme].filter(Boolean).join(", ") + ".", ETAT_DESC[v.etat], /switch|ps5|playstation 5|xbox series/i.test(v.plateforme || "") && (v.contenu === "boite" || v.contenu === "complet") ? "Complet en boîte (pas de notice papier sur cette console)." : CONTENU_DESC[v.contenu], "Remise en main propre ou envoi."]).filter(Boolean).join("\n");
   return {
     id: v.id, nom: v.titre, titre: (v.titreAnnonce || nom).slice(0, 100), description,
     prix: v.prixDemande != null ? Math.round(v.prixDemande) : null,
@@ -565,6 +607,11 @@ export async function handleApi(req) {
       const f = it && x ? fichierPhoto(eu.id, it.id, x.id) : "";
       if (!it || !f || !fs.existsSync(f)) return { status: 404, json: { error: "Pas de photo." }, headers: CORS };
       return { status: 200, body: fs.readFileSync(f), headers: { ...CORS, "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=600" } };
+    }
+    // Vues et favoris lus par l'extension sur « Mes annonces » (Le Bon Coin) ou Seller Hub (eBay).
+    if (p === "/api/extension/stats" && method === "POST") {
+      if (!allow("stats:" + eu.id, 120, 3600)) return { status: 429, json: { error: "Trop de relevés, réessaie dans un moment." }, headers: CORS };
+      return { status: 200, json: enregistrerStats(eu.id, body()), headers: CORS };
     }
     if (p === "/api/extension/rempli" && method === "POST") { bump(eu.id, "lbc"); return { status: 200, json: { ok: true }, headers: CORS }; }
     // Lien de l'annonce publiée, repéré par l'extension sur Le Bon Coin : seul champ que la clé peut écrire.
@@ -782,6 +829,11 @@ function adresseVendeur(t) {
   }
 
   /* --- fiches --- */
+  // Vues et favoris relevés par l'app Mac (même format que /api/extension/stats).
+  if (p === "/api/stats" && method === "POST") {
+    if (!allow("stats:" + u.id, 120, 3600)) fail(429, "Trop de relevés, réessaie dans un moment.");
+    return ok(enregistrerStats(u.id, body()));
+  }
   if (p === "/api/objets" && method === "GET") { const t = listItems(u.id); if (t.some((x) => estLot(x) && !VENDU(x.statut))) tx(() => t.forEach((x) => { if (estLot(x)) reparerLot(u.id, x); })); t.filter(SANS_RARETE).slice(0, 8).forEach((x) => rareteAuto(u.id, x.id)); return ok({ objets: t.some((x) => estLot(x)) ? listItems(u.id) : t }); }
   if (p === "/api/objets" && method === "POST") {
     const b = body();
@@ -989,7 +1041,7 @@ function adresseVendeur(t) {
     catch (e) { console.error("infos film", e.message); fail(503, "Les infos du film sont momentanément indisponibles."); }
   }
   if (p === "/api/lot-cartes" && method === "POST") return ok({ ok: true, lot: ia.lotCartes(body().cartes) });
-  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const c = await ia.estimerCote(body().objet || {}); bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
+  if (p === "/api/ia/cote" && method === "POST") { iaAllowed(u, "cote", req); const ob = body().objet || {}, c = await ia.estimerCote(ob); if (c && c.rarete) { c.rarete = ia.rareteVraisemblable(c.rarete, { ...ob, cote: c }); if (!c.rarete) delete c.rarete; } bump(u.id, "cote"); return ok({ ok: true, cote: c }); }
   if (p === "/api/ia/dialoguer" && method === "POST") {
     iaAllowed(u, "dialogue", req);
     const b = body(); const out = await ia.dialoguer(b.messages, b.fiche || {}); bump(u.id, "dialogue"); return ok({ ok: true, ...out });

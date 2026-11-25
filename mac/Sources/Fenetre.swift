@@ -78,6 +78,16 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         let contenu = NSView()
         // RetroRevente : écrans natifs (SwiftUI). La vue web « appli » ne sert plus qu'en secours.
         modele.fenetre = self
+        // Un clic dans la fenêtre, en dehors de la feuille ouverte (nouvel article, dépôt…), la referme,
+        // sauf pendant une publication ou un envoi en cours.
+        NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] e in
+            guard let self = self, let w = e.window, let feuille = w.attachedSheet else { return e }
+            // Feuille posée sur une feuille (aperçu des photos de l'app Photos au-dessus de « Nouvel article ») : on ferme celle du dessus.
+            if let dessus = feuille.attachedSheet { Fenetre.fermer(dessus, sur: feuille); return nil }
+            if w === self.fenetre, self.fermerFeuille() { return nil }
+            Fenetre.fermer(feuille, sur: w)   // autre feuille (aperçu des photos, choix de fichier…)
+            return nil
+        }
         // Données à jour : au retour dans l'app, et toutes les 90 s pendant qu'elle est au premier plan.
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.modele.rafraichir() }
@@ -137,6 +147,12 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         }
     }
 
+    /// Clé WebCrypto donnée par l'app (voir CleWebCrypto.swift) : plus de mot de passe du trousseau après une mise à jour.
+    @objc(_webCryptoMasterKeyForWebView:) func cleMaitresse(_ w: WKWebView) -> NSData? { CleWebCrypto.cle as NSData }
+    @objc(_webCryptoMasterKeyForWebView:completionHandler:) func cleMaitresse(_ w: WKWebView, completionHandler: @escaping (NSData?) -> Void) {
+        completionHandler(CleWebCrypto.cle as NSData)
+    }
+
     private func creerNavigateur(_ conf: WKWebViewConfiguration? = nil) -> WKWebView {
         let conf = conf ?? configuration()
         let v = WKWebView(frame: .zero, configuration: conf)
@@ -145,6 +161,15 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         v.allowsBackForwardNavigationGestures = true
         v.allowsMagnification = true
         if #available(macOS 13.3, *) { v.isInspectable = true }
+        return v
+    }
+
+    /// Navigateur caché de la messagerie native : mêmes cookies et scripts, sans panneau ni automatismes (__rrNatif).
+    func navigateurCache() -> WKWebView {
+        let conf = configuration()
+        conf.userContentController.addUserScript(WKUserScript(source: "window.__rrNatif = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Scripts.monde))
+        let v = creerNavigateur(conf)
+        v.uiDelegate = DelegueWebCrypto.partage   // pas de fenêtres surgissantes, mais la clé WebCrypto sans trousseau
         return v
     }
 
@@ -199,6 +224,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
     func aller(_ r: Rubrique) {
         montrerFenetre()
+        // Messages : la messagerie native ; Le Bon Coin reste caché en fond.
+        if r == .messages, modele.etat == .connecte { modele.messagesOuvert = true; montrer(.appli); return }
+        modele.messagesOuvert = false
         if r == .appli { montrer(.appli); return }
         // Déposer : dans l'app, on choisit l'article ; Le Bon Coin travaille en coulisses, sans jamais s'afficher.
         if r == .deposer, modele.etat == .connecte { montrer(.appli); modele.selection = nil; modele.choixDepot = true; return }
@@ -207,6 +235,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     /// Le Bon Coin à l'écran (Messages, Mes annonces, ou le dépôt quand la personne le demande).
     func allerSurLeSite(_ r: Rubrique) {
         montrerFenetre()
+        modele.messagesOuvert = false
         // Déjà sur la bonne page Le Bon Coin : on la montre sans la recharger (un dépôt en cours n'est pas perdu).
         if !lbcCharge || Rubrique.de(lbc.url) != r { lbc.load(URLRequest(url: r.adresse)); lbcCharge = true }
         montrer(.lbc)
@@ -215,12 +244,31 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     /// Ouvre une adresse dans le bon navigateur (lien « Le Bon Coin » d'une fiche, « Ouvrir Mon compte »…).
     /// Vue de vérification des annonces : posée tout au fond de la fenêtre, sous l'app, jamais visible.
     /// Dans la fenêtre, Le Bon Coin la traite comme une vraie page (sans fenêtre, son anti-robot la bloque).
-    func accueillirEnFond(_ v: NSView) {
+    /// `taille` : taille fixe (messagerie : assez large pour que Le Bon Coin montre la liste ET la conversation,
+    /// quelle que soit la taille de la fenêtre).
+    func accueillirEnFond(_ v: NSView, taille: NSSize? = nil) {
         guard let c = fenetre.contentView, v.superview !== c else { return }
         v.translatesAutoresizingMaskIntoConstraints = false
         c.addSubview(v, positioned: .below, relativeTo: nil)
+        if let t = taille {
+            NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo: c.leadingAnchor), v.topAnchor.constraint(equalTo: c.topAnchor),
+                                         v.widthAnchor.constraint(equalToConstant: t.width), v.heightAnchor.constraint(equalToConstant: t.height)])
+            return
+        }
         NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo: c.leadingAnchor), v.trailingAnchor.constraint(equalTo: c.trailingAnchor),
                                      v.topAnchor.constraint(equalTo: c.topAnchor), v.bottomAnchor.constraint(equalTo: c.bottomAnchor)])
+    }
+
+    static func fermer(_ feuille: NSWindow, sur w: NSWindow) {
+        if let vc = feuille.contentViewController, vc.presentingViewController != nil { vc.dismiss(nil) } else { w.endSheet(feuille, returnCode: .cancel) }
+    }
+    /// Ferme la feuille ouverte comme son bouton « Annuler ». Renvoie false si elle doit rester (action en cours).
+    @discardableResult func fermerFeuille() -> Bool {
+        if let d = modele.depot { if d.etape == .publication { return false }; annulerCoulisses(); return true }
+        if let g = modele.gestion { if g.etape == .envoi { return false }; modele.gestion = nil; return true }
+        if modele.nouveauOuvert { modele.nouveauOuvert = false; return true }
+        if modele.choixDepot { modele.choixDepot = false; return true }
+        return false
     }
 
     func ouvrir(_ url: URL) {
@@ -243,7 +291,7 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     }
 
     private func majBarre() {
-        let rubrique: Rubrique? = visible == .appli ? .appli : Rubrique.de(lbc.url)
+        let rubrique: Rubrique? = visible == .appli ? (modele.messagesOuvert ? .messages : .appli) : Rubrique.de(lbc.url)
         for (r, b) in onglets { b.actif = r == rubrique }
         let web = visible == .lbc
         precedent?.disponible = web && lbc.canGoBack
@@ -255,6 +303,10 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     // MARK: Après une publication : retour sur l'appli, qui fait la fête (confettis)
 
     func publiee(id: String, titre: String, url: String) {
+        modele.deposee(id: id)   // pas encore en ligne : Le Bon Coin doit d'abord valider l'annonce
+        // À la fin seulement : l'annonce est publiée, les photos venues de Photos peuvent quitter la photothèque (après la fête).
+        let ids = [id] + (modele.parId(id).map { modele.membres($0).map(\.id) } ?? [])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { Task { await Phototheque.apresPublication(ids) } }
         // Publiée depuis l'app (en coulisses) : la fête tout de suite, Le Bon Coin n'a jamais été à l'écran.
         if enCoulisses || modele.depot != nil {
             modele.depot = nil
@@ -309,12 +361,56 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
     // MARK: Barre du haut (dans la barre de titre)
 
     private var boutonCompte: Bouton!
+    private var boutonApparence: Bouton!
+    private var cloche: Cloche!
+
+    // MARK: Mode clair / sombre (choix gardé ; sans choix, l'app suit macOS)
+
+    /// L'apparence affichée en ce moment : celle choisie, sinon celle de macOS.
+    private var sombreAffiche: Bool {
+        switch UserDefaults.standard.string(forKey: "apparence") {
+        case "sombre": return true
+        case "clair": return false
+        default: return NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        }
+    }
+    @objc func basculerApparence(_ s: Any?) {
+        UserDefaults.standard.set(sombreAffiche ? "clair" : "sombre", forKey: "apparence")
+        appliquerApparence()
+    }
+    @objc func suivreApparenceSysteme(_ s: Any?) {
+        UserDefaults.standard.removeObject(forKey: "apparence")
+        appliquerApparence()
+    }
+    private func appliquerApparence() {
+        let choix = UserDefaults.standard.string(forKey: "apparence")
+        let nouvelle: NSAppearance? = choix == "sombre" ? NSAppearance(named: .darkAqua) : choix == "clair" ? NSAppearance(named: .aqua) : nil
+        if let vue = fenetre.contentView, let image = vue.bitmapImageRepForCachingDisplay(in: vue.bounds) {
+            // Fondu entre les deux apparences : une image de l'écran actuel s'efface par-dessus la nouvelle.
+            vue.cacheDisplay(in: vue.bounds, to: image)
+            let voile = NSImageView(frame: vue.bounds); voile.image = NSImage(size: vue.bounds.size); voile.image?.addRepresentation(image)
+            voile.autoresizingMask = [.width, .height]
+            if fenetre.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { vue.addSubview(voile) }
+            NSApp.appearance = nouvelle
+            NSAnimationContext.runAnimationGroup({ c in c.duration = 0.35; voile.animator().alphaValue = 0 }, completionHandler: { voile.removeFromSuperview() })
+        } else { NSApp.appearance = nouvelle }
+        let sombre = sombreAffiche
+        boutonApparence?.changerSymbole(sombre ? "sun.max" : "moon", aide: sombre ? "Passer en mode clair (⇧⌘L)" : "Passer en mode sombre (⇧⌘L)")
+    }
     private var margeFeux: NSLayoutConstraint!
 
     private func installerBarre() {
         let barre = BarreHaut()
-        let logo = Logo()
-        let boutons = Rubrique.allCases.map { r -> Bouton in
+        // Cacher / montrer la barre latérale : juste après les feux, comme dans les apps macOS (Notes, Mail…).
+        // Le logo est en bas de la barre latérale, au-dessus du compte.
+        let barreLaterale = Bouton(symbole: "sidebar.left", titre: nil, aide: "Cacher ou montrer la barre latérale (⌃⌘S)") { [weak self] in self?.basculerBarre(nil) }
+        barreLaterale.auSurvol = { [weak self] in
+            guard let m = self?.modele, m.barreCachee, self?.visible == .appli else { return }
+            withAnimation(.easeOut(duration: 0.2)) { m.barreSurvol = true }
+        }
+        // « Mes annonces » n'a plus d'onglet : RetroRevente montre déjà les annonces en ligne, leurs vues, favoris et statuts.
+        // La page Le Bon Coin reste accessible depuis une fiche (« Retrouver dans Mes annonces ») quand une annonce a disparu.
+        let boutons = Rubrique.allCases.filter { $0 != .annonces }.map { r -> Bouton in
             let b = Bouton(symbole: r.symbole, titre: r.titre, aide: r.aide + " (⌘\(r.rawValue + 1))") { [weak self] in self?.aller(r) }
             onglets[r] = b; return b
         }
@@ -323,23 +419,29 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
         var rubriques: NSView = pile(boutons, espace: 4)
-        var droite: NSView = pile([precedent, suivant, recharger], espace: 2)
+        boutonApparence = Bouton(symbole: "moon", titre: nil, aide: "") { [weak self] in self?.basculerApparence(nil) }
+        appliquerApparence()
+        cloche = Cloche(fenetre: self)
+        var droite: NSView = pile([cloche.bouton, boutonApparence, precedent, suivant, recharger], espace: 2)
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) { rubriques = capsuleDeVerre(rubriques); droite = capsuleDeVerre(droite) }
         #endif
-        for v in [logo, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
-        margeFeux = logo.leadingAnchor.constraint(equalTo: barre.leadingAnchor, constant: 84)
+        for v in [barreLaterale, rubriques, droite] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; barre.addSubview(v) }
+        margeFeux = barreLaterale.leadingAnchor.constraint(equalTo: barre.leadingAnchor, constant: 84)
         let centre = rubriques.centerXAnchor.constraint(equalTo: barre.centerXAnchor); centre.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            margeFeux, logo.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
+            margeFeux,
             centre, rubriques.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
-            rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: logo.trailingAnchor, constant: 12),
+            { let c = barreLaterale.centerYAnchor.constraint(equalTo: barre.centerYAnchor); c.priority = .defaultHigh; return c }(),
+            rubriques.leadingAnchor.constraint(greaterThanOrEqualTo: barreLaterale.trailingAnchor, constant: 12),
             droite.leadingAnchor.constraint(greaterThanOrEqualTo: rubriques.trailingAnchor, constant: 12),
             droite.trailingAnchor.constraint(equalTo: barre.trailingAnchor, constant: -12), droite.centerYAnchor.constraint(equalTo: barre.centerYAnchor),
         ])
         guard let titre = fenetre.standardWindowButton(.closeButton)?.superview else { return }
         barre.translatesAutoresizingMaskIntoConstraints = false
         titre.addSubview(barre, positioned: .below, relativeTo: nil)
+        // Le bouton de la barre latérale, à la hauteur exacte des feux de la fenêtre.
+        if let feu = fenetre.standardWindowButton(.closeButton) { barreLaterale.centerYAnchor.constraint(equalTo: feu.centerYAnchor).isActive = true }
         NSLayoutConstraint.activate([
             barre.leadingAnchor.constraint(equalTo: titre.leadingAnchor), barre.trailingAnchor.constraint(equalTo: titre.trailingAnchor),
             barre.topAnchor.constraint(equalTo: titre.topAnchor), barre.bottomAnchor.constraint(equalTo: titre.bottomAnchor),

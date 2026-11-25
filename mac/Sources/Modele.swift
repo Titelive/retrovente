@@ -1,11 +1,43 @@
 // RetroRevente en natif : le compte et les articles, lus et modifiés par l'API de retrorevente.fr (/api/…),
 // avec la même session (cookie) que l'appli web. Aucune page web pour cette partie de l'app.
 import AppKit
+import ImageIO
 import SwiftUI
 
 // MARK: Données
 
 struct Photo: Identifiable, Hashable { let id: String; var legende: String }
+
+extension Article {
+    /// Texte de l'annonce avec UNE seule section « Photos : » (une ligne par photo décrite) : toute liste numérotée
+    /// ou section photo écrite par l'IA est retirée d'abord, pour ne jamais avoir de doublon.
+    static func avecPhotos(_ texte: String, _ legendes: [String]) -> String {
+        let entete = try! NSRegularExpression(pattern: "^\\W*(d[ée]tail des |description des |les )?photos?\\b[^\\n]{0,40}:\\W*$", options: [.caseInsensitive])
+        let numero = try! NSRegularExpression(pattern: "^\\s*(photo\\s*)?\\d+\\s*[.):–-]\\s", options: [.caseInsensitive])
+        let garde = texte.components(separatedBy: "\n").filter { l in
+            let r = NSRange(l.startIndex..., in: l)
+            return entete.firstMatch(in: l, range: r) == nil && numero.firstMatch(in: l, range: r) == nil
+        }
+        var t = garde.joined(separator: "\n").replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let lignes = legendes.enumerated().filter { !$0.element.trimmingCharacters(in: .whitespaces).isEmpty }.map { "\($0.offset + 1). \($0.element)" }
+        if !lignes.isEmpty { t += "\n\nPhotos :\n" + lignes.joined(separator: "\n") }
+        return t
+    }
+
+    /// Annonce simple composée à partir des champs (même modèle que le serveur quand l'annonce est vide).
+    static func titreSimple(_ a: Article) -> String { String([a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: " ").prefix(100)) }
+    static func texteSimple(_ a: Article) -> String {
+        let etats = ["neuf": "Neuf.", "tres_bon": "Très bon état.", "bon": "Bon état.", "correct": "État correct.", "pieces": "Pour pièces."]
+        let contenus = ["seul": "Cartouche ou disque seul.", "boite": "En boîte, sans notice.", "complet": "Complet : boîte et notice.", "boite_vide": "Boîte seule, sans le jeu."]
+        let l1 = [a.titre, a.plateforme].filter { !$0.isEmpty }.joined(separator: ", ") + "."
+        let contenu = Libelles.sansNotice(a.plateforme) && ["boite", "complet"].contains(a.contenu) ? "Complet en boîte (pas de notice papier sur cette console)." : contenus[a.contenu]
+        return [l1, a.region.isEmpty ? nil : "Version " + a.region + ".", etats[a.etat], contenu, "Remise en main propre ou envoi."].compactMap { $0 }.joined(separator: "\n")
+    }
+}
+
+/// Lot dont l'annonce propose encore un article vendu : à supprimer sur les sites (comme l'encart de l'accueil du site).
+struct LotAEffacer: Hashable { var id, titre, annonce, annonceEbay: String; var defait: Bool }
 
 struct Article: Identifiable, Hashable {
     var id: String = ""
@@ -24,6 +56,8 @@ struct Article: Identifiable, Hashable {
     var alerteVendus = 0                   // lot : articles vendus à part
     var suivi = "", transporteur = "", livreLe = "", suiviLibelle = ""
     var coteLot = false                    // la cote conseille de vendre en lot
+    var stats: [String: StatsSite] = [:]   // vues et favoris relevés sur les sites (« lbc », « ebay »), voir Stats.swift
+    var lotsAEffacer: [LotAEffacer] = []    // article vendu : les lots qui le proposent encore en ligne
 
     init() {}
     init(_ d: [String: Any]) {
@@ -53,6 +87,12 @@ struct Article: Identifiable, Hashable {
         suivi = t("suivi"); transporteur = t("transporteur"); livreLe = t("livreLe")
         suiviLibelle = (d["suiviEtat"] as? [String: Any])?["libelle"] as? String ?? ""
         coteLot = (d["cote"] as? [String: Any])?["lot"] as? Bool ?? false
+        stats = Article.lireStats(d)
+        lotsAEffacer = (d["lotsAEffacer"] as? [[String: Any]] ?? []).compactMap { e in
+            guard let i = e["id"] as? String, !i.isEmpty else { return nil }
+            return LotAEffacer(id: i, titre: e["titre"] as? String ?? "", annonce: e["annonce"] as? String ?? "",
+                               annonceEbay: e["annonceEbay"] as? String ?? "", defait: e["defait"] as? Bool ?? false)
+        }
     }
     var estLot: Bool { membres != nil }
     var vendu: Bool { ["vendu", "envoye", "recu"].contains(statut) }
@@ -77,7 +117,7 @@ struct Article: Identifiable, Hashable {
         return ["titre": titre, "categorie": categorie, "plateforme": plateforme, "region": region, "etat": etat, "contenu": contenu,
                 "prixAchat": p(prixAchat), "prixDemande": p(prixDemande), "prixVente": p(prixVente), "frais": p(frais),
                 "statut": statut, "titreAnnonce": titreAnnonce, "texteAnnonce": texteAnnonce, "annonce": annonce, "notes": notes, "ia": ia,
-                "remise": remise, "cote": cote?.brut ?? NSNull()]
+                "remise": remise, "cote": cote?.brut ?? NSNull(), "photos": photos.map { ["id": $0.id, "legende": $0.legende] }]
     }
     var publiee: Bool { !annonce.isEmpty }
     var sousTitre: String { [plateforme, region].filter { !$0.isEmpty }.joined(separator: " · ") }
@@ -157,6 +197,12 @@ enum Libelles {
                                             ("correct", "État correct"), ("pieces", "Pour pièces")]
     static let contenus: [(String, String)] = [("", "Non précisé"), ("seul", "Jeu seul"), ("boite", "En boîte, sans notice"),
                                                ("complet", "Complet (boîte et notice)"), ("boite_vide", "Boîte seule")]
+    /// Consoles récentes sans notice papier (Switch, PS5, Xbox Series) : un jeu en boîte est complet.
+    static func sansNotice(_ plateforme: String) -> Bool { plateforme.range(of: #"switch|ps5|playstation 5|xbox series"#, options: [.regularExpression, .caseInsensitive]) != nil }
+    static func contenus(pour plateforme: String) -> [(String, String)] {
+        guard sansNotice(plateforme) else { return contenus }
+        return [("", "Non précisé"), ("seul", "Jeu seul"), ("complet", "Complet en boîte"), ("boite_vide", "Boîte seule")]
+    }
     static func prix(_ x: Double?) -> String {
         guard let x = x else { return "—" }
         let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = "EUR"; f.locale = Locale(identifier: "fr_FR")
@@ -165,7 +211,7 @@ enum Libelles {
     }
 }
 
-struct Profil {
+struct Profil: Equatable {
     var email = "", nom = "", pseudo = "", avatar = "", lbc = "", adresse = "", cree = "", formule = "Découverte", formuleId = "gratuit"
     var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
     var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
@@ -244,17 +290,66 @@ func jpegData(_ image: NSImage, max: CGFloat = 2000, poids: Int = 2_000_000) -> 
 }
 
 /// Images de l'API (avec la session), gardées en mémoire.
+/// Fluidité : chaque photo est réduite à la taille où elle s'affiche (une vignette de carte n'a pas besoin des
+/// 2000 px d'origine) et décodée hors du fil principal ; le défilement ne décode plus rien. Un même fichier n'est
+/// téléchargé qu'une fois, même si plusieurs cartes le demandent en même temps.
 @MainActor
 final class Images {
-    static let cache = NSCache<NSURL, NSImage>()
-    static func charger(_ url: URL) async -> NSImage? {
-        if let i = cache.object(forKey: url as NSURL) { return i }
-        var r = URLRequest(url: url); r.setValue(API.appareil, forHTTPHeaderField: "x-rr-app")
-        guard let (d, rep) = try? await URLSession.shared.data(for: r), (rep as? HTTPURLResponse)?.statusCode == 200, let i = NSImage(data: d) else { return nil }
-        cache.setObject(i, forKey: url as NSURL)
+    enum Taille: CGFloat { case mini = 200, carte = 720, grande = 1600, pleine = 0 }
+    private static let images: NSCache<NSString, NSImage> = { let c = NSCache<NSString, NSImage>(); c.totalCostLimit = 300 << 20; return c }()
+    private static let donnees: NSCache<NSURL, NSData> = { let c = NSCache<NSURL, NSData>(); c.totalCostLimit = 150 << 20; return c }()
+    private static var enVol: [String: Task<NSImage?, Never>] = [:]
+    private static var telechargements: [URL: Task<Data?, Never>] = [:]
+
+    private static func cle(_ url: URL, _ t: Taille) -> NSString { "\(Int(t.rawValue))|\(url.absoluteString)" as NSString }
+    /// Déjà prête : la vue l'affiche tout de suite, sans case vide le temps d'une image.
+    static func enCache(_ url: URL, _ t: Taille = .carte) -> NSImage? { images.object(forKey: cle(url, t)) }
+
+    static func charger(_ url: URL, _ t: Taille = .pleine) async -> NSImage? {
+        let k = cle(url, t)
+        if let i = images.object(forKey: k) { return i }
+        if let e = enVol[k as String] { return await e.value }
+        let tache = Task<NSImage?, Never> {
+            guard let d = await telecharger(url) else { return nil }
+            let i = await Task.detached(priority: .userInitiated) { Images.decoder(d, t.rawValue) }.value
+            if let i = i { images.setObject(i, forKey: k, cost: Int(i.size.width * i.size.height * 4)) }
+            return i
+        }
+        enVol[k as String] = tache
+        let i = await tache.value
+        enVol[k as String] = nil
         return i
     }
-    static func oublier(_ url: URL) { cache.removeObject(forKey: url as NSURL) }
+    private static func telecharger(_ url: URL) async -> Data? {
+        if let d = donnees.object(forKey: url as NSURL) { return d as Data }
+        if let e = telechargements[url] { return await e.value }
+        let tache = Task<Data?, Never> {
+            var r = URLRequest(url: url); r.setValue(API.appareil, forHTTPHeaderField: "x-rr-app")
+            guard let (d, rep) = try? await URLSession.shared.data(for: r), (rep as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            donnees.setObject(d as NSData, forKey: url as NSURL, cost: d.count)
+            return d
+        }
+        telechargements[url] = tache
+        let d = await tache.value
+        telechargements[url] = nil
+        return d
+    }
+    /// Décodage réduit (ImageIO), orientation appliquée, pixels prêts : rien à décoder au moment de dessiner.
+    nonisolated static func decoder(_ d: Data, _ max: CGFloat) -> NSImage? {
+        guard let src = CGImageSourceCreateWithData(d as CFData, nil) else { return nil }
+        var o: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                  kCGImageSourceShouldCacheImmediately: true]
+        if max > 0 { o[kCGImageSourceThumbnailMaxPixelSize] = max }
+        else if let p = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] {
+            o[kCGImageSourceThumbnailMaxPixelSize] = Swift.max((p[kCGImagePropertyPixelWidth] as? Int) ?? 4000, (p[kCGImagePropertyPixelHeight] as? Int) ?? 4000)
+        }
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, o as CFDictionary) else { return NSImage(data: d) }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+    }
+    static func oublier(_ url: URL) {
+        donnees.removeObject(forKey: url as NSURL)
+        for t in [Taille.mini, .carte, .grande, .pleine] { images.removeObject(forKey: cle(url, t)) }
+    }
 }
 
 // MARK: État de l'appli
@@ -292,15 +387,25 @@ final class Appli: ObservableObject {
     enum Etat { case chargement, deconnecte, connecte }
     @Published var etat: Etat = .chargement
     @Published var profil = Profil()
-    @Published var articles: [Article] = []
+    @Published var articles: [Article] = [] { didSet { index = Dictionary(articles.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a }) } }
+    private(set) var index: [String: Int] = [:]   // id → position : parId en temps constant (appelé des centaines de fois par rendu)
     @Published var erreur: String? = nil
     @Published var fete: String? = nil        // titre de l'annonce publiée (confettis)
     @Published var compteOuvert = false
     @Published var page: String? = nil       // trophees, bilan, compte (sinon : mes articles)
+    @Published var notifications: [NotifRR] = Appli.notifsEnregistrees()   // cloche en haut à droite (Notifications.swift)
     @Published var nouveauOuvert = false
+    @Published var nouveauMode = ""        // « film » : photo de jaquette ; « main » : fiche vide
+    @Published var cartesOuvert = false    // plusieurs cartes Pokémon sur une photo
+    @Published var messagesOuvert = false     // onglet Messages : la messagerie native (Messagerie.swift)
+    let messagerie = Messagerie()
     @Published var choixDepot = false        // « Déposer » : choisir l'article, le dépôt se fait en coulisses
     @Published var selection: String? = nil   // article ouvert
     /// Barre latérale cachée (⌃⌘S ou bouton des en-têtes), retenue d'une ouverture à l'autre.
+    /// Barre latérale masquée mais montrée par-dessus la page (souris sur le bord gauche ou sur le bouton de la barre).
+    @Published var barreSurvol = false
+    /// Visionneuse ouverte : l'article et la photo affichée (par-dessus toute la fenêtre).
+    @Published var visionneuse: (article: String, photo: Int)? = nil
     @Published var barreCachee = UserDefaults.standard.bool(forKey: "barreCachee") {
         didSet { UserDefaults.standard.set(barreCachee, forKey: "barreCachee") }
     }
@@ -325,6 +430,7 @@ final class Appli: ObservableObject {
         didSet { UserDefaults.standard.set(annoncesMortes, forKey: "annoncesMortes") }
     }
     let verif = VerifAnnonces()
+    let releve = ReleveStats()                 // vues et favoris des annonces, relevés en arrière-plan
     @Published var gestion: GestionAnnonce? = nil {
         didSet { if gestion == nil, oldValue != nil { fenetre?.finCoulisses() } }
     }
@@ -332,15 +438,18 @@ final class Appli: ObservableObject {
 
     func demarrer() async {
         // Captures automatiques (GitHub) : données d'exemple, sans réseau.
-        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse"].contains(d) {
+        if let d = ProcessInfo.processInfo.environment["RR_DEMO"], ["articles", "fiche", "nouveau", "compte", "depot", "gestion", "choixdepot", "fichelot", "adresse", "messages"].contains(d) {
             profil = Profil(["email": "demo@retrorevente.fr", "nom": "Titelive", "pseudo": "Titelive", "cree": "2025-06-01T10:00:00Z",
                              "formule": ["nom": "Collectionneur", "id": "collectionneur", "fiscal": true, "abonnement": "collectionneur", "statut": "active"], "quota": ["max": NSNull(), "utilise": 37]])
             let ex: [[String: Any]] = [
                 ["id": "a1", "titre": "Super Mario 64", "plateforme": "Nintendo 64", "region": "PAL EUR", "etat": "bon", "contenu": "complet", "prixDemande": 45, "statut": "en_vente", "modifie": "6", "cree": "2026-11-20", "rareteJeu": "peu_commun", "lots": ["l1"], "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000001",
+                 "stats": ["lbc": ["vues": 128, "favoris": 7, "at": demoIl(2), "hist": [["j": demoJour(6), "v": 96, "f": 4], ["j": demoJour(0), "v": 128, "f": 7]]]],
                  "cote": ["bas": 38, "haut": 52, "conseille": 49, "rapide": 42, "date": "2026-11-20", "resume": "Ventes eBay conclues entre 38 et 52 € en complet ; annonces Le Bon Coin entre 40 et 60 €.",
                           "releves": [["site": "eBay", "titre": "Super Mario 64 complet PAL", "prix": 45, "date": "2026-11-02", "url": "https://www.ebay.fr/"], ["site": "PriceCharting", "titre": "Cote moyenne CIB", "prix": 48, "date": "2026-11-10", "url": "https://www.pricecharting.com/"]]]],
-                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789"],
-                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"]],
+                ["id": "a2", "titre": "The Legend of Zelda: Ocarina of Time", "plateforme": "Nintendo 64", "region": "PAL EUR", "prixDemande": 39, "statut": "en_vente", "modifie": "5", "cree": "2026-11-19", "rareteJeu": "rare", "lots": ["l1"], "annonceEbay": "https://www.ebay.fr/itm/123456789",
+                 "stats": ["ebay": ["vues": 54, "favoris": 3, "at": demoIl(3), "hist": [["j": demoJour(5), "v": 41, "f": 2], ["j": demoJour(0), "v": 54, "f": 3]]]]],
+                ["id": "l1", "titre": "Lot Nintendo 64 : 11 jeux et 1 accessoire, Zelda, Mario, Banjo", "annonce": "https://www.leboncoin.fr/ad/jeux_video/3000000009", "plateforme": "Nintendo 64", "prixDemande": 75, "statut": "en_vente", "modifie": "7", "cree": "2026-11-21", "articles": ["a1", "a2"], "theme": ["nom": "Nintendo 64", "type": "support"],
+                 "stats": ["lbc": ["vues": 342, "favoris": 19, "at": demoIl(1), "hist": [["j": demoJour(7), "v": 250, "f": 12], ["j": demoJour(0), "v": 342, "f": 19]]]]],
                 ["id": "a8", "titre": "Perfect Dark", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 22, "prixVente": 20, "statut": "recu", "remise": "envoi", "transporteur": "colissimo", "suivi": "6A12345678901", "livreLe": "2026-11-18", "dateVente": "2026-11-14", "modifie": "0", "cree": "2026-10-02", "rareteJeu": "peu_commun"],
                 ["id": "a9", "titre": "Conker's Bad Fur Day", "plateforme": "Nintendo 64", "contenu": "seul", "prixDemande": 185, "statut": "en_vente", "modifie": "0", "cree": "2026-11-10", "rareteJeu": "tres_rare"],
                 ["id": "a3", "titre": "Game Boy Color Violette", "categorie": "consoles", "plateforme": "Game Boy Color", "prixDemande": 70, "statut": "reserve", "modifie": "4"],
@@ -356,30 +465,40 @@ final class Appli: ObservableObject {
             if d == "nouveau" { nouveauOuvert = true }
             if d == "choixdepot" { choixDepot = true }
             if d == "gestion" { selection = "a1"; gestion = GestionAnnonce(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", action: .modifier, etape: .pret(bouton: "Valider les modifications")) }
+            if d == "messages" { messagesOuvert = true; messagerie.demo() }
             if d == "adresse" { selection = "a3"; depot = DepotEnCours(id: "a3", titre: articles.first { $0.id == "a3" }?.titre ?? "", etape: .adresse("")) }
             if d == "depot" { selection = "a1"; depot = DepotEnCours(id: "a1", titre: articles.first { $0.id == "a1" }?.titre ?? "", etape: .pret(bouton: "Déposer sans booster mon annonce", payant: false)) }
             barreCachee = ProcessInfo.processInfo.environment["RR_DEMO_BARRE"] == "cachee"
             if ["trophees", "bilan", "compte", "tous"].contains(ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] ?? "") { page = ProcessInfo.processInfo.environment["RR_DEMO_PAGE"] }
             return
         }
-        do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger() }
+        do { try await chargerProfil(); etat = .connecte; await brancherLeBonCoin(); await recharger(); prechaufferMessages() }
         catch let e as ErreurRR where e.status == 401 { etat = .deconnecte }
         catch { etat = .deconnecte; erreur = (error as? ErreurRR)?.message ?? "Pas de connexion à RetroRevente." }
     }
-    func chargerProfil() async throws { profil = Profil(try await API.json("GET", "/api/moi")) }
+    func chargerProfil() async throws { let p = Profil(try await API.json("GET", "/api/moi")); if p != profil { profil = p } }
     func recharger() async {
         do {
             let j = try await API.json("GET", "/api/objets")
-            articles = (j["objets"] as? [[String: Any]] ?? []).map(Article.init)
-                .sorted { $0.modifie > $1.modifie }
+            let n = (j["objets"] as? [[String: Any]] ?? []).map(Article.init).sorted { $0.modifie > $1.modifie }
+            if n != articles { articles = n }   // rien de changé : la grille n'est pas redessinée
             dernierChargement = Date()
             verif.appli = self; verif.planifier(articles)
+            releve.appli = self; releve.planifier(articles)
         } catch { signaler(error) }
     }
     func connecter(email: String, motdepasse: String) async throws {
         _ = try await API.json("POST", "/api/connexion", ["email": email, "motdepasse": motdepasse])
         try await chargerProfil(); etat = .connecte
-        await brancherLeBonCoin(force: true); await recharger()
+        await brancherLeBonCoin(force: true); await recharger(); prechaufferMessages()
+    }
+    /// La messagerie Le Bon Coin se charge en fond (cachée) dès la connexion : l'onglet Messages s'ouvre déjà prêt.
+    func prechaufferMessages() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard etat == .connecte, !messagesOuvert, let f = fenetre else { return }
+            messagerie.demarrer(f); messagerie.arreter()   // un chargement, sans relecture périodique
+        }
     }
     func oubli(email: String) async throws { _ = try await API.json("POST", "/api/oubli", ["email": email]) }
     func deconnecter() async {
@@ -411,6 +530,20 @@ final class Appli: ObservableObject {
             try? await chargerProfil(); return n
         } catch { signaler(error); return nil }
     }
+    /// Fiche créée à partir de champs bruts (cartes repérées sur une photo de classeur).
+    func creerBrut(_ objet: [String: Any], photo: String?) async throws -> Article {
+        var corps: [String: Any] = ["objet": objet]
+        if let p = photo { corps["photo"] = p }
+        let j = try await API.json("POST", "/api/objets", corps)
+        let n = Article(j["objet"] as? [String: Any] ?? [:]); articles.insert(n, at: 0); return n
+    }
+    /// « C'est fait » : l'annonce du lot est supprimée sur les sites.
+    func lotEfface(article: String, lot: String) async {
+        do {
+            let j = try await API.json("PUT", "/api/objets/\(article)", ["objet": [String: Any](), "lotEfface": lot])
+            remplacer(Article(j["objet"] as? [String: Any] ?? [:])); message = "Noté : l'annonce du lot est effacée."
+        } catch { signaler(error) }
+    }
     func supprimer(_ a: Article) async {
         do { _ = try await API.json("DELETE", "/api/objets/\(a.id)"); articles.removeAll { $0.id == a.id }; if selection == a.id { selection = nil } }
         catch { signaler(error) }
@@ -419,24 +552,172 @@ final class Appli: ObservableObject {
         do { let j = try await API.json("POST", "/api/objets/\(a.id)/photos", ["photo": data]); remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true }
         catch { signaler(error); return false }
     }
+    // MARK: Retouche des photos (comme le bouton « Retoucher » du site)
+
+    /// Photo retouchée : l'original et la retouche, gardés le temps de la session pour revenir en arrière.
+    struct Retouche { var original: String; var retouchee: String; var voitOriginal = false }
+    @Published var retouches: [String: Retouche] = [:]          // « article/photo »
+    @Published var retoucheEnCours: Set<String> = []
+    static func cle(_ a: Article, _ p: Photo) -> String { a.id + "/" + p.id }
+
+    /// La photo telle qu'elle est sur le serveur, en JPEG « data: » (au plus 2400 px, comme le site).
+    private func donneesPhoto(_ a: Article, _ p: Photo) async -> String? {
+        guard let i = await Images.charger(API.urlPhoto(a.id, p.id, v: a.modifie), .pleine) else { return nil }
+        return jpegData(i, max: 2400, poids: 1_500_000)
+    }
+    @discardableResult private func remplacerPhoto(_ a: Article, _ p: Photo, _ data: String) async -> Bool {
+        do {
+            let j = try await API.json("PUT", "/api/objets/\(a.id)/photos/\(p.id)", ["photo": data])
+            Images.oublier(API.urlPhoto(a.id, p.id, v: a.modifie))
+            remplacer(Article(j["objet"] as? [String: Any] ?? [:])); return true
+        } catch { signaler(error); return false }
+    }
+    /// Retoucher : fond, lumière, cadrage, toujours depuis la photo d'origine. L'original reste à un clic.
+    func retoucher(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard !retoucheEnCours.contains(k) else { return }
+        retoucheEnCours.insert(k); defer { retoucheEnCours.remove(k) }
+        var source = retouches[k]?.original
+        if source == nil { source = await donneesPhoto(a, p) }
+        guard let base = source else { erreur = "Photo illisible."; return }
+        do {
+            let j = try await API.json("POST", "/api/ia/nettoyer", ["photo": base, "rotation": 0])
+            guard let nouvelle = j["photo"] as? String, !nouvelle.isEmpty else { erreur = "Retouche impossible."; return }
+            if await remplacerPhoto(a, p, nouvelle) {
+                retouches[k] = Retouche(original: base, retouchee: nouvelle)
+                message = "Photo retouchée. L'original est gardé : « Original » pour y revenir."
+            }
+        } catch { signaler(error) }
+    }
+    /// Toutes les photos de la fiche, l'une après l'autre (celles déjà retouchées sont gardées telles quelles).
+    @Published var retoucheTout: String? = nil   // id de l'article en cours
+    func retoucherTout(_ a: Article) async {
+        guard retoucheTout == nil else { return }
+        retoucheTout = a.id; defer { retoucheTout = nil }
+        var faites = 0
+        for p in a.photos where retouches[Appli.cle(a, p)] == nil {
+            guard let actuel = parId(a.id) else { break }
+            await retoucher(actuel, p)
+            if retouches[Appli.cle(a, p)] != nil { faites += 1 }
+        }
+        message = faites == 0 ? "Toutes les photos étaient déjà retouchées." : "\(faites) photo\(faites > 1 ? "s" : "") retouchée\(faites > 1 ? "s" : ""). Les originaux sont gardés : « Original » pour y revenir."
+    }
+    /// Original ⇄ retouchée.
+    func basculerOriginal(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard var r = retouches[k] else { return }
+        if await remplacerPhoto(a, p, r.voitOriginal ? r.retouchee : r.original) { r.voitOriginal.toggle(); retouches[k] = r }
+    }
+    /// Un quart de tour dans le sens des aiguilles d'une montre (l'original retouché tourne avec).
+    func pivoter(_ a: Article, _ p: Photo) async {
+        let k = Appli.cle(a, p)
+        guard let cur = await donneesPhoto(a, p), let t = Appli.tourner(cur) else { erreur = "Rotation impossible."; return }
+        if await remplacerPhoto(a, p, t), var r = retouches[k] {
+            if let o = Appli.tourner(r.original), let n = Appli.tourner(r.retouchee) { r.original = o; r.retouchee = n; retouches[k] = r } else { retouches[k] = nil }
+        }
+    }
+    nonisolated static func tourner(_ data: String) -> String? {
+        guard let b = data.split(separator: ",").last, let d = Data(base64Encoded: String(b)), let i = NSImage(data: d),
+              let cg = i.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let ctx = CGContext(data: nil, width: cg.height, height: cg.width, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        // repère CoreGraphics (origine en bas à gauche) : quart de tour horaire
+        ctx.translateBy(x: 0, y: CGFloat(cg.width)); ctx.rotate(by: -.pi / 2)
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        guard let r = ctx.makeImage() else { return nil }
+        return jpegData(NSImage(cgImage: r, size: NSSize(width: r.width, height: r.height)), max: 2400, poids: 1_500_000)
+    }
+    /// Exporter les photos de l'article dans un dossier, en JPEG numérotés.
+    func exporterPhotos(_ a: Article) async {
+        let o = NSOpenPanel(); o.canChooseDirectories = true; o.canChooseFiles = false; o.canCreateDirectories = true; o.prompt = "Exporter ici"
+        o.message = "Choisis où enregistrer les \(a.photos.count) photo\(a.photos.count > 1 ? "s" : "") de « \(a.titre) »"
+        guard o.runModal() == .OK, let dossier = o.url else { return }
+        let nom = a.titre.replacingOccurrences(of: "[/:\\\\]", with: "-", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        var n = 0
+        for (i, p) in a.photos.enumerated() {
+            guard let img = await Images.charger(API.urlPhoto(a.id, p.id, v: a.modifie), .pleine), let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                  let d = NSBitmapImageRep(cgImage: cg).representation(using: .jpeg, properties: [.compressionFactor: 0.92]) else { continue }
+            if (try? d.write(to: dossier.appendingPathComponent("\(nom.isEmpty ? "Photo" : nom) \(i + 1).jpg"))) != nil { n += 1 }
+        }
+        message = n > 0 ? "\(n) photo\(n > 1 ? "s" : "") exportée\(n > 1 ? "s" : "") dans « \(dossier.lastPathComponent) »." : "Aucune photo exportée."
+        if n > 0 { NSWorkspace.shared.activateFileViewerSelecting([dossier]) }
+    }
     func retirerPhoto(_ a: Article, _ p: Photo) async {
         do {
             let j = try await API.json("DELETE", "/api/objets/\(a.id)/photos/\(p.id)")
             Images.oublier(API.urlPhoto(a.id, p.id)); remplacer(Article(j["objet"] as? [String: Any] ?? [:]))
         } catch { signaler(error) }
     }
-    func identifier(_ photo: String) async throws -> Article {
-        let j = try await API.json("POST", "/api/ia/identifier", ["photo": photo])
-        var a = Article(j["objet"] as? [String: Any] ?? [:]); a.ia = true
-        if let r = (j["objet"] as? [String: Any])?["remarques"] as? String, !r.isEmpty { a.notes = r }
+    func identifier(_ photo: String, indice: String = "") async throws -> Article {
+        let j = try await API.json("POST", "/api/ia/identifier", indice.isEmpty ? ["photo": photo] : ["photo": photo, "indice": indice])
+        let o = j["objet"] as? [String: Any] ?? [:]
+        var a = Article(o); a.ia = true
+        if let r = o["remarques"] as? String, !r.isEmpty { a.notes = r }
+        // L'IA rédige le titre et le texte de l'annonce (« annonce » et « description ») : on les garde dans la fiche.
+        if a.titreAnnonce.isEmpty, let t = o["annonce"] as? String { a.titreAnnonce = t }
+        if a.texteAnnonce.isEmpty, let d = o["description"] as? String { a.texteAnnonce = d }
         return a
     }
+    /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche (comme le dialogue de la fiche sur le site).
+    /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
+    struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String] }
+    /// Légendes de chaque photo de l'article (l'IA regarde les photos une par une).
+    func legender(_ a: Article) async -> (legendes: [String], code: String) {
+        var datas: [String] = []
+        // Le serveur refuse un envoi de plus de 4 Mo : toutes les photos ensemble doivent tenir dans ~3,2 Mo.
+        // (Avant, 8 photos à 900 Ko étaient refusées : l'IA n'avait aucune légende et inventait sa propre liste.)
+        let poids = min(450_000, 3_200_000 / max(1, min(8, a.photos.count)))
+        for p in a.photos.prefix(8) {
+            // Une photo illisible : on s'arrête là, pour que chaque légende reste en face de sa photo.
+            guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: poids) else { break }
+            datas.append(j)
+        }
+        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return ([], "") }
+        // « code » : « non_utilise » ou « utilise » quand une photo montre un code (téléchargement, DLC, bonus), "" sinon.
+        return ((j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }, j["code"] as? String ?? "")
+    }
+    /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche ET de chaque photo, décrite une par une.
+    /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
+    func rediger(_ a: Article) async -> Redaction {
+        let (legendes, code) = await legender(a)
+        if legendes.allSatisfy({ $0.isEmpty }), !a.photos.isEmpty { message = "Les photos n'ont pas pu être décrites cette fois : l'annonce est rédigée sans la liste des photos." }
+        var fiche: [String: Any] = [:]
+        let e = a.envoi
+        for k in ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixDemande", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"] {
+            if let v = e[k], !(v is NSNull), "\(v)" != "" { fiche[k] = v }
+        }
+        let liste = legendes.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+        var consigne = "Rédige le titre Le Bon Coin (titreAnnonce) et le texte complet de l'annonce (texteAnnonce) de cet objet."
+        consigne += " N'écris aucune liste des photos ni de section « Photos » : l'app l'ajoute elle-même à la fin."
+        if !liste.isEmpty {
+            consigne += " La description tient en 3 ou 4 lignes courtes : nom, console, version et langue ; contenu et état général en une seule phrase ; une particularité seulement si elle compte pour l'acheteur ; « Remise en main propre ou envoi. ». Ne reprends pas, même reformulé, le détail photo par photo (face avant, dos, tranche, contacts…) et ne parle ni des couleurs ni du décor imprimé. Pour info, voici ce que montrent mes photos :\n\(liste)\n L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
+        }
+        // Code vu sur les photos : l'annonce le dit (un code non utilisé compte pour l'acheteur). Sans indice, on n'en parle pas.
+        if code == "non_utilise" { consigne += " Une photo montre un code (téléchargement, DLC ou bonus) non utilisé : dis-le dans le texte (« avec le code … non utilisé »)." }
+        if code == "utilise" { consigne += " Une photo montre un code déjà gratté : écris « code déjà utilisé »." }
+        if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
+        var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)
+        if let j = try? await API.json("POST", "/api/ia/dialoguer", ["messages": [["role": "vendeur", "texte": consigne]], "fiche": fiche]),
+           let ch = j["changements"] as? [String: Any] {
+            if let t = ch["titreAnnonce"] as? String, !t.isEmpty { r.titre = t }
+            if let d = ch["texteAnnonce"] as? String, !d.isEmpty { r.texte = d }
+            if let et = ch["etat"] as? String, !et.isEmpty { r.etat = et }
+        }
+        r.texte = Article.avecPhotos(r.texte, legendes)
+        return r
+    }
+
     /// Cote IA de l'article, gardée dans sa fiche.
     func estimerCote(_ a: Article) async -> Article? {
         do {
-            let j = try await API.json("POST", "/api/ia/cote", ["objet": ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]])
+            var objet: [String: Any] = ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]
+            // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
+            if let p = a.photos.first, let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)),
+               let i = NSImage(data: d), let jp = jpegData(i, max: 1200, poids: 450_000) { objet["photo"] = jp }
+            let j = try await API.json("POST", "/api/ia/cote", ["objet": objet])
             guard let c = j["cote"] as? [String: Any] else { return nil }
             var b = a; b.cote = Cote(c)
+            if b.prixDemande == nil, let p = (c["conseille"] as? NSNumber)?.doubleValue { b.prixDemande = p }   // prix vide : le prix conseillé
             return await enregistrer(b)
         } catch { signaler(error); return nil }
     }
@@ -492,6 +773,40 @@ final class Appli: ObservableObject {
         fenetre?.ouvrir(URL(string: "https://www.leboncoin.fr/deposer-une-annonce#rr=\(a.id)")!)
     }
     /// Annonce publiée sur Le Bon Coin (signalée par le panneau) : confettis et liste à jour.
+    /// Annonces déposées que Le Bon Coin n'a pas encore validées (id de l'article → date du dépôt). Elles ne sont pas
+    /// encore en ligne : l'app l'affiche, et le relevé de « Mes annonces » les retire dès qu'elles y apparaissent en ligne.
+    @Published var enValidation: [String: Double] = UserDefaults.standard.dictionary(forKey: "annoncesEnValidation") as? [String: Double] ?? [:] {
+        didSet { UserDefaults.standard.set(enValidation, forKey: "annoncesEnValidation") }
+    }
+    func enAttente(_ a: Article) -> Bool { a.statut == "en_vente" && enValidation[a.id] != nil }
+    /// « En vente » dans la fiche, mais jamais publié (ni Le Bon Coin, ni eBay, ni dans un lot en ligne) : « À publier ».
+    func aPublier(_ a: Article) -> Bool {
+        a.statut == "en_vente" && !a.publiee && a.annonceEbay.isEmpty && !enAttente(a)
+            && !lotsDe(a).contains { $0.publiee || !$0.annonceEbay.isEmpty }
+    }
+    func deposee(id: String) {
+        guard !id.isEmpty else { return }
+        enValidation[id] = Date().timeIntervalSince1970
+        // Premier coup d'œil à « Mes annonces » dans 10 minutes, puis à chaque passage (toutes les 15 min).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 600) { [weak self] in self?.releve.planifier(self?.articles ?? []) }
+    }
+    /// Relevé de « Mes annonces » : une annonce en attente qui y apparaît en ligne (par son lien, sinon par son titre) est validée.
+    func validerAnnonces(enLigne: [String: String], attente: Set<String>) {
+        let n: (String) -> String = { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces) }
+        var valides: [String] = []
+        for (id, quand) in enValidation {
+            guard let a = parId(id), a.statut == "en_vente", Date().timeIntervalSince1970 - quand < 5 * 86400 else { enValidation[id] = nil; continue }
+            let ad = a.annonce.split(separator: "/").last.map(String.init) ?? ""
+            let titre = n(a.titreAnnonce.isEmpty ? a.titre : a.titreAnnonce)
+            let vu = (!ad.isEmpty && enLigne[ad] != nil && !attente.contains(ad))
+                || (titre.count >= 8 && enLigne.contains { !attente.contains($0.key) && n($0.value).contains(String(titre.prefix(60))) })
+            if vu { valides.append(id) }
+        }
+        for id in valides {
+            if let a = parId(id) { noter("Annonce validée", "« \(a.titre) » est en ligne sur Le Bon Coin.", symbole: "checkmark.seal", cible: .article, article: id) }
+            enValidation[id] = nil
+        }
+    }
     func publiee(titre: String) {
         fete = titre.isEmpty ? "Ton annonce" : titre
         Task { await recharger() }

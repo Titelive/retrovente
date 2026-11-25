@@ -708,6 +708,21 @@ html[data-formule="pass"] .jeu:hover{box-shadow:0 0 0 2px #B98CFF}
 .site.lbc-s{background:#EC5A13}.site.ebay-s{background:#0064D2}
 a.site:hover{transform:translateY(-1px)}a.site:focus-visible{outline:2px solid var(--anis);outline-offset:2px}
 .jeu .im .sites{position:absolute;left:10px;bottom:10px;z-index:2}
+/* ===== Vues et favoris des annonces (relevés sur Mes annonces / Seller Hub) : ligne de la carte, bloc de la fiche ===== */
+.jeu .ln.stats{justify-content:flex-start;gap:12px;font:700 12.5px/1 var(--texte,inherit);color:var(--gris);font-variant-numeric:tabular-nums}
+.stats span{display:inline-flex;align-items:center;gap:4px}
+.stats svg,.stats-fiche svg{width:14px;height:14px;flex:none}
+.stats .sf svg{color:#E0457B}
+.stats-fiche{display:grid;gap:8px;margin:2px 0 14px;padding:12px 14px;border-radius:14px;background:var(--papier);box-shadow:inset 0 0 0 1px var(--trait)}
+.stats-fiche .lg{display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--gris)}
+.stats-fiche .lg>span{display:inline-flex;align-items:center;gap:5px}
+.stats-fiche .lg svg{color:var(--gris)}
+.stats-fiche .lg b{font:800 18px/1 var(--titre);color:var(--encre);font-variant-numeric:tabular-nums}
+.stats-fiche .lg .gain{font-weight:700;font-size:12.5px;color:#1F5410;background:#DDF3CF;border-radius:7px;padding:3px 7px}
+:root[data-theme="dark"] .stats-fiche .lg .gain{color:#B5F09A;background:#1D3A14}
+.stats-fiche .lg .quand{margin-left:auto;font-size:12.5px}
+.stats-fiche .lg .fav svg{color:#E0457B}
+.stats-fiche .vide{font-size:13.5px;color:var(--gris)}
 /* ===== Rareté d'un jeu : badge sur la carte (une à trois gemmes), champ de la fiche ===== */
 .jeu .im .rar{position:absolute;right:10px;bottom:10px;z-index:2;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:7px;font:800 11px/1 var(--titre);letter-spacing:-.1px;text-transform:none;color:var(--rar-tx);background:var(--rar-bg);box-shadow:0 0 0 1.5px var(--carte),0 4px 10px -4px rgba(0,0,0,.45);white-space:nowrap}
 .jeu .im .rar span{font:inherit;color:inherit;letter-spacing:inherit;text-transform:none}
@@ -1479,13 +1494,13 @@ html.sans-anim .vt-b.pousse{animation:none}
         <label class="btn clair petit ot" data-f="ajout" for="fPhotoIn" title="Ajouter des photos"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7"/><path d="m4 16 4.5-4.5L13 16l2-2 5 5"/><path d="M18 3v6M15 6h6"/></svg></span><span class="ol">Ajouter</span></label><input type="file" id="fPhotoIn" accept="image/*" multiple hidden>
         <button class="btn clair petit ot" data-f="ia" type="button" id="fIa" title="Remplir la fiche depuis la photo"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></span><span class="ol">Remplir</span></button>
         <button class="btn clair petit ot" data-f="ia" type="button" id="fDecrire" title="Décrire chaque photo (légendes)"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15h4M14 15h3M7 11h2M12 11h5"/></svg></span><span class="ol">Décrire</span></button>
-        <button class="btn clair petit ot" data-f="ia" type="button" id="fNet" title="Retoucher la photo : fond, cadrage, reflets"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span><span class="ol">Retoucher</span></button>
+        <button class="btn clair petit ot" data-f="ia" type="button" id="fNet" title="Retoucher la photo : fond, cadrage, lumière"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span><span class="ol">Retoucher</span></button>
         <button class="btn clair petit ot" data-f="edit" type="button" id="fPivot" title="Tourner d'un quart de tour"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6L20 8.7"/><path d="M20 3.5v5.2h-5.2"/></svg></span><span class="ol">Pivoter</span></button>
         <button class="btn clair petit ot" data-f="edit" type="button" id="fOrig" hidden title="Voir l'original"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M9 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/><path d="M15 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" stroke-dasharray="2.2 2.6"/></svg></span><span class="ol">Original</span></button>
         <button class="btn clair petit ot" data-f="export" type="button" id="fPhotoDl" title="Enregistrer les photos numérotées"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 20h14"/></svg></span><span class="ol">Exporter</span></button>
         <button class="btn clair petit ot" data-f="suppr" type="button" id="fPhotoSuppr" hidden title="Retirer cette photo"><span class="oi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></span><span class="ol">Retirer</span></button>
       </div>
-      <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, efface ce qui traîne à côté et atténue les reflets. Les <b>défauts de l'article restent visibles</b>, c'est ce qui rassure les acheteurs.</p>
+      <p class="note">La retouche garde le <b>vrai fond</b> : elle redresse, recadre, retire ce qui traîne à côté et réchauffe un peu les couleurs. <b>Rien n'est retouché sur l'article</b> (logos, PEGI, textes, défauts), c'est ce qui rassure les acheteurs.</p>
      </section>
 
     </div>
@@ -1558,7 +1573,9 @@ html.sans-anim .vt-b.pousse{animation:none}
       <section class="carte bloc" data-onglet="annonce">
         <header><h3>L'annonce</h3><span id="fSitesM"></span><button class="btn clair petit" type="button" id="fLotIa" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="pc-seul">Rédiger l'annonce du lot</span><span class="mob-seul">Rédiger</span></button></header>
         <div class="lot-alerte" id="fLotAnnonce" role="status" hidden></div>
+        <div class="stats-fiche" id="fStats" aria-live="polite" hidden></div>
         <label class="f">Titre de l'annonce<input type="text" id="f_titreAnnonce" maxlength="100"></label>
+        <button class="btn jaune petit" type="button" id="fReecrire" style="float:right;align-self:flex-end;position:relative;z-index:1;margin:2px 0 -30px" title="L'IA réécrit le titre et la description d'après la fiche et les photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> Réécrire avec l'IA</button>
         <label class="f">Description<textarea id="f_texteAnnonce" maxlength="4000"></textarea></label>
         <label class="f">Lien de l'annonce Le Bon Coin une fois publiée (facultatif)<input type="url" id="f_annonce" placeholder="https://www.leboncoin.fr/…"></label>
         <label class="f">Lien de l'annonce eBay une fois publiée (facultatif)<input type="url" id="f_annonceEbay" inputmode="url" placeholder="https://www.ebay.fr/itm/…"></label>
@@ -1883,6 +1900,31 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 /* Sites où l'annonce est en ligne, d'après ses liens : une pastille par site, cliquable vers l'annonce. */
 function sitesHtml(lbc,ebay,lien){var p=function(u,c,t,n){return u?(lien?'<a class="site '+c+'" href="'+esc(u)+'" target="_blank" rel="noopener" title="Voir l\'annonce sur '+n+'" aria-label="Voir l\'annonce sur '+n+'">'+t+'</a>':'<span class="site '+c+'" title="En ligne sur '+n+'">'+t+'</span>'):""};
   var h=p(lbc,"lbc-s","LBC","Le Bon Coin")+p(ebay,"ebay-s","eBay","eBay");return h?'<span class="sites">'+h+'</span>':""}
+/* Vues et favoris relevés sur les sites (o.stats.lbc / o.stats.ebay, voir server/stats.mjs) */
+var OEIL_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  COEUR_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.7 4.5c2.1 0 3.5 1.1 4.3 2.4h2c.8-1.3 2.2-2.4 4.3-2.4 3.7 0 5.8 3.7 4.3 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+var SITES_STATS=[["lbc","Le Bon Coin","annonce"],["ebay","eBay","annonceEbay"]];
+function statsDe(o){var st=o&&o.stats||{};return SITES_STATS.filter(function(s){return st[s[0]]&&o[s[2]]&&st[s[0]].url===o[s[2]]}).map(function(s){return {site:s[0],nom:s[1],e:st[s[0]]}})}
+function nbStat(n){return n>=10000?(Math.round(n/100)/10).toLocaleString("fr-FR")+" k":n.toLocaleString("fr-FR")}
+function ilYa(iso){var m=Math.round((Date.now()-new Date(iso))/6e4);return !(m>=0)?"":m<2?"à l'instant":m<60?"il y a "+m+" min":m<2880?"il y a "+Math.round(m/60)+" h":"il y a "+Math.round(m/1440)+" jours"}
+function gain7(e){var h=e.hist||[];if(h.length<2)return null;var lim=new Date(Date.now()-7*864e5).toISOString().slice(0,10),b=h.filter(function(x){return x.j>=lim})[0];if(!b||b===h[h.length-1])return null;
+  return {v:e.vues!=null&&b.v!=null?e.vues-b.v:null,f:e.favoris!=null&&b.f!=null?e.favoris-b.f:null}}
+function statsHtml(o){if(vendu(o))return"";var l=statsDe(o);if(!l.length)return"";
+  var v=null,f=null;l.forEach(function(x){if(x.e.vues!=null)v=(v||0)+x.e.vues;if(x.e.favoris!=null)f=(f||0)+x.e.favoris});if(v==null&&f==null)return"";
+  var t=l.map(function(x){return x.nom+" : "+(x.e.vues!=null?pluriel(x.e.vues,"vue"):"vues ?")+", "+(x.e.favoris!=null?pluriel(x.e.favoris,x.site==="ebay"?"observateur":"favori"):"favoris ?")+" ("+ilYa(x.e.at)+")"}).join("\n");
+  return '<div class="ln stats" title="'+esc(t)+'">'+(v!=null?'<span class="sv" aria-label="'+pluriel(v,"vue")+'">'+OEIL_SVG+nbStat(v)+'</span>':'')+(f!=null?'<span class="sf" aria-label="'+pluriel(f,"favori")+'">'+COEUR_SVG+nbStat(f)+'</span>':'')+'</div>'}
+function majStatsFiche(o){var b=$("fStats");if(!b)return;var sites=o&&!vendu(o)?SITES_STATS.filter(function(s){return o[s[2]]}):[];b.hidden=!sites.length;if(!sites.length){b.innerHTML="";return}
+  var l=statsDe(o),par={};l.forEach(function(x){par[x.site]=x});
+  b.innerHTML=sites.map(function(s){var x=par[s[0]],badge='<span class="site '+(s[0]==="lbc"?"lbc-s":"ebay-s")+'">'+(s[0]==="lbc"?"LBC":"eBay")+'</span>';
+    if(!x)return '<div class="lg">'+badge+'<span class="vide">Vues et favoris pas encore relevés : l\'app Mac les lit toute seule, l\'extension quand tu passes sur '+(s[0]==="lbc"?"« Mes annonces »":"Seller Hub")+'.</span></div>';
+    var g=gain7(x.e),mot=s[0]==="ebay"?"observateur":"favori";
+    return '<div class="lg">'+badge+'<span>'+OEIL_SVG+' <b>'+(x.e.vues!=null?nbStat(x.e.vues):"—")+'</b>'+(x.e.vues>1?"vues":"vue")+'</span><span class="fav">'+COEUR_SVG+' <b>'+(x.e.favoris!=null?nbStat(x.e.favoris):"—")+'</b>'+mot+(x.e.favoris>1?"s":"")+'</span>'+
+      (g&&(g.v>0||g.f>0)?'<span class="gain">+'+[g.v>0?pluriel(g.v,"vue"):"",g.f>0?pluriel(g.f,mot):""].filter(Boolean).join(", ")+' en 7 jours</span>':'')+'<span class="quand">Relevé '+ilYa(x.e.at)+'</span></div>'}).join("")}
+/* Rafraîchissement : toutes les 10 minutes (onglet visible), seules les stats des fiches sont reprises. */
+var STATS_T=0;function rafraichirStats(){if(document.hidden||!ME||Date.now()-STATS_T<5*6e4)return;STATS_T=Date.now();
+  api("GET","/api/objets").then(function(j){var chg=false;(j.objets||[]).forEach(function(n){var o=parId(n.id);if(o&&JSON.stringify(o.stats||null)!==JSON.stringify(n.stats||null)){o.stats=n.stats;chg=true}});
+    if(chg){dessiner();if(ED&&!$("fiche").hidden){var e=parId(ED.id);if(e){ED.stats=e.stats;majStatsFiche(ED)}}}}).catch(function(){})}
+setInterval(rafraichirStats,10*6e4);document.addEventListener("visibilitychange",rafraichirStats);
 function eur(n){n=n||0;return n.toLocaleString("fr-FR",{maximumFractionDigits:Math.round(n)===n?0:2})+" €"}
 function hm(m){m=Math.round(m);if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+String(r).padStart(2,"0"):"")}
 function today(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -1909,7 +1951,7 @@ function montrer(v,titre){if(typeof fermerStatut==="function")fermerStatut();if(
   var f=[["Accueil","/"]];if(v==="auth")f.push(["Connexion"]);else{f.push(["Mes articles",v==="accueil"?null:"#"]);if(v==="compte")f.push(["Mon compte"]);if(v==="trophees")f.push(["Trophées"]);if(v==="fiche")f.push([titre||"Nouvel article"])}
   $("fil").innerHTML=f.map(function(x,i){return i===f.length-1?'<li aria-current="page">'+esc(x[0])+'</li>':'<li><a href="'+x[1]+'"'+(x[1]==="#"?' data-vue="accueil"':"")+'>'+esc(x[0])+'</a></li>'}).join("");
   document.title=(v==="fiche"?(titre||"Nouvel article"):v==="compte"?"Mon compte":v==="trophees"?"Trophées":v==="auth"?"Connexion":"Mes articles")+" · RetroRevente";
-  window.scrollTo(0,0)}
+  window.scrollTo({top:0,left:0,behavior:"instant"})}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 /* depuisAdresse : au démarrage (et après connexion), on rouvre l'écran décrit par l'adresse (article, onglet, photo…) */
 function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();relireSuivis();RAR_SUIVI=0;suivreRaretes();try{majTrophNav()}catch(e){}
@@ -2149,7 +2191,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
     return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+badgeRarete(o)+'</div>'+
-      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+statsHtml(o)+
       ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
   $("liste").innerHTML=gs.map(function(g){
@@ -2268,10 +2310,13 @@ function pastilleRarete(r){return '<span class="rar r-'+r+'">'+new Array(RAR_N[r
 function majRarete(){var r=$("f_rareteJeu").value;$("fRar").innerHTML=RAR[r]?pastilleRarete(r)+'<small>établie par l\'IA</small>':'<small>'+(ED&&ED.titre&&!estLot(ED)?'L\'IA l\'estime…':'Établie par l\'IA à l\'enregistrement')+'</small>'}
 /* Fiches sans rareté (saisies à la main, ou d'avant) : le serveur l'estime en arrière-plan, on la récupère quelques secondes après */
 var RAR_SUIVI=0,RAR_T=0;
-function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(function(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&!o.rareteJeu})){RAR_SUIVI=0;return}
+/* RAR_V : version du calcul côté serveur ; une rareté plus ancienne est estimée à nouveau, on la reprend aussi */
+var RAR_V=2;
+function rareteAttendue(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&(!o.rareteJeu||o.rareteV!==RAR_V)}
+function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(rareteAttendue)){RAR_SUIVI=0;return}
   if(RAR_SUIVI>=6)return;RAR_T=setTimeout(function(){RAR_SUIVI++;api("GET","/api/objets").then(function(j){var nv={},chg=false;(j.objets||[]).forEach(function(x){nv[x.id]=x});
-    OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteJeu&&!o.rareteJeu){o.rareteJeu=x.rareteJeu;chg=true;
-      if(ED&&ED.id===o.id&&!$("f_rareteJeu").value&&cleFiche()===cleObj(o)){var propre=!sale();$("f_rareteJeu").value=o.rareteJeu;majRarete();if(propre)figer()}}});
+    OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteV===RAR_V&&(x.rareteJeu!==o.rareteJeu||o.rareteV!==RAR_V)){var avant=o.rareteJeu||"";o.rareteJeu=x.rareteJeu;o.rareteV=RAR_V;chg=true;
+      if(ED&&ED.id===o.id&&$("f_rareteJeu").value===avant&&cleFiche()===cleObj(o)){var propre=!sale();$("f_rareteJeu").value=o.rareteJeu;majRarete();if(propre)figer()}}});
     if(chg)dessiner();suivreRaretes()}).catch(function(){})},RAR_SUIVI<2?5000:12000)}
 function cleObj(o){return [o.titre,o.plateforme,o.region,o.contenu].map(function(x){return String(x||"").trim().toLowerCase()}).join("|")}
 function cleFiche(){return cleObj({titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,contenu:$("f_contenu").value})}
@@ -2366,7 +2411,11 @@ function pivoter(src){return chargerImg(src).then(function(img){var cv=document.
 $("fPivot").onclick=function(){var c=cur();if(!c)return;Promise.all([pivoter(c.src),c.orig?pivoter(c.orig):null]).then(function(r){c.src=c.data=r[0];if(r[1])c.orig=r[1];IMG=null;afficher()}).catch(function(e){erreur(e,"Rotation impossible.")})};
 /* Description : bloc « Photos : 1. … » tenu à jour avec l'ordre et les légendes */
 var RE_PHOTOS=/\n*Photos :\n(?:\d+\. [^\n]*(?:\n|$))*/;
+function legNet(x){return String(x||"").toLowerCase().replace(/\s+/g," ").replace(/[\s.]+$/,"").trim()}
 function majDescPhotos(){var t=$("f_texteAnnonce"),v=t.value.replace(RE_PHOTOS,"\n").replace(/\n+$/,"");
+  // l'IA a parfois déjà listé les photos dans le texte : ces lignes font doublon avec le bloc « Photos : », on les retire
+  var legs=GAL.map(function(g){return legNet(g.legende)}).filter(Boolean);
+  if(legs.length)v=v.split("\n").filter(function(x){var m=/^\s*(?:photo\s*)?\d+\s*[.):–-]\s*(.+)$/i.exec(x);return !(m&&legs.indexOf(legNet(m[1]))>=0)}).join("\n").replace(/\n{3,}/g,"\n\n").replace(/\n+$/,"");
   var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende.replace(/\s*\.$/,""):""}).filter(Boolean);
   if(l.length&&GAL.some(function(g){return g.legende}))v=(v?v+"\n\n":"")+"Photos :\n"+l.join("\n");
   if(t.value!==v){t.value=v;t.dispatchEvent(new Event("input"))}}
@@ -2623,7 +2672,9 @@ function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").
   if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});return o}
 function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
-  return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;if(j.cote.rarete&&!estCarte()&&!estFilm()){$("f_rareteJeu").value=j.cote.rarete;majRarete()}ME.usage.cote=(ME.usage.cote||0)+1})
+  // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
+  var g0=GAL[0],ph=g0?chargerImg(g0.data||g0.src).then(function(img){return versData(img,null,1200,450000)},function(){return null}):Promise.resolve(null);
+  return ph.then(function(d){var o=objetCote();if(d)o.photo=d;return api("POST","/api/ia/cote",{objet:o})}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;if(j.cote.rarete&&!estCarte()&&!estFilm()){$("f_rareteJeu").value=j.cote.rarete;majRarete()}ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
 /* Relevés de la cote : ceux qui entrent dans le calcul d'abord (avec leur nature, l'état, le contenu et ce qu'ils pèsent),
    puis, à part, les annonces encore en ligne et les prix trop différents, montrés pour comparer. */
@@ -2692,10 +2743,10 @@ function dessinerDial(){var f=$("dFil");f.hidden=!DIAL.length;$("dSug").hidden=!
     var c="";if(m.ch&&Object.keys(m.ch).length)c='<div class="chg">'+Object.keys(m.ch).map(function(k){return '<span>'+esc(DLIB[k])+(k==="texteAnnonce"?"":" : "+esc(valLisible(k,m.ch[k])))+'</span>'}).join("")+(m.avant?'<button type="button" data-annule="'+i+'">Annuler</button>':'<span style="background:none;color:var(--gris)">Annulé</span>')+'</div>';
     return '<div class="bul '+(m.role==="ia"?"ia":"moi")+(m.err?" err":"")+'">'+esc(m.texte)+c+'</div>'}).join("");
   f.scrollTop=f.scrollHeight}
-function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return;var b=$("dEnv");if(b.disabled)return;
+function envoyerDial(texte){texte=(texte||"").trim();if(!texte)return Promise.resolve();var b=$("dEnv");if(b.disabled)return Promise.resolve();
   DIAL.push({role:"moi",texte:texte});var hist=DIAL.filter(function(m){return !m.err}).map(function(m){return{role:m.role==="ia"?"ia":"vendeur",texte:m.texte}});
   DIAL.push({attente:true});dessinerDial();$("dTexte").value="";taille();b.disabled=true;
-  api("POST","/api/ia/dialoguer",{messages:hist,fiche:ficheDial()}).then(function(j){DIAL.pop();var ch=j.changements||{},avant={};
+  return api("POST","/api/ia/dialoguer",{messages:hist,fiche:ficheDial()}).then(function(j){DIAL.pop();var ch=j.changements||{},avant={};
       Object.keys(ch).forEach(function(k){avant[k]=$("f_"+k).value});if(Object.keys(ch).length){avant.texteAnnonce=$("f_texteAnnonce").value;poser(ch)}
       DIAL.push({role:"ia",texte:j.reponse,ch:ch,avant:Object.keys(ch).length?avant:null});dessinerDial()})
     .catch(function(e){DIAL.pop();DIAL.push({role:"ia",err:true,texte:e.status===401?"Ta session a expiré, reconnecte-toi.":(e.message||"Je n'ai pas pu répondre, réessaie.")});dessinerDial();if(e.status===401)erreur(e)})
@@ -2713,6 +2764,15 @@ $("dForm").addEventListener("submit",function(e){e.preventDefault();envoyerDial(
 $("dTexte").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();envoyerDial(this.value)}});
 $("dTexte").addEventListener("input",taille);
 $("dSug").addEventListener("click",function(e){var b=e.target.closest("button");if(b)envoyerDial(b.textContent)});
+/* Consigne de la réécriture : un résumé court ; le détail photo par photo est dans le bloc « Photos : », jamais repris dans le texte. */
+var REECRIRE="La description tient en 3 ou 4 lignes courtes : 1) nom, console, version et langue ; 2) contenu (boîte, notice, cartouche ou disque) et état général en une seule phrase ; 3) une particularité seulement si elle compte pour l'acheteur ; 4) « Remise en main propre ou envoi. ». Ne reprends pas, même reformulé, le détail des photos (face avant, dos, tranche, contacts…) : il est ajouté à la fin dans le bloc « Photos », une ligne par photo. Ne parle ni des couleurs ni du décor imprimé.";
+/* Réécrire avec l'IA : chaque photo est d'abord décrite (légendes), puis l'IA réécrit titre et description ;
+   le bloc « Photos : » (une ligne par photo) est remis à la fin. */
+$("fReecrire").onclick=function(){var b=this,t=b.innerHTML;if(b.disabled)return;busy(b,true,"Je décris les photos…");
+  (GAL.length?decrire(false,0,true):Promise.resolve()).then(function(){busy(b,true,"Je réécris…");
+    var l=GAL.map(function(g,i){return g.legende?(i+1)+". "+g.legende:""}).filter(Boolean).join("\n");
+    return envoyerDial("Réécris toute l'annonce : titre et description."+(l?" Pour info, voici ce que montrent mes photos :\n"+l+"\n":" ")+REECRIRE)})
+    .then(function(){if(GAL.some(function(g){return g.legende}))majDescPhotos()}).catch(function(e){erreur(e,"Réécriture impossible.")}).then(function(){busy(b,false,t);b.innerHTML=t})};
 $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-annule]");if(!b)return;var m=DIAL[+b.dataset.annule];if(!m||!m.avant)return;poser(m.avant);m.avant=null;dessinerDial();toast("Changements annulés.","ok")});
 
 /* ===== Le Bon Coin (pas d'API publique : on copie l'annonce et on ouvre la page de dépôt) ===== */
@@ -2912,7 +2972,7 @@ function ouvrirFiche(o){ED=o;IMG=null;ORIG=null;LBC_FAIT={};EBAY_FAIT={};$("fOri
   montrerCote(o&&o.cote);setPhoto(null);attente(null);majVente();
   if(o&&o.photos&&o.photos.length){GAL=o.photos.map(function(x){return{pid:x.id,src:urlPhoto(o.id,x.id,o.modifie),data:null,legende:x.legende||"",orig:null}});SEL=0;afficher();if(RE_PHOTOS.test($("f_texteAnnonce").value))majDescPhotos();
     if(o.categorie!=="cartes"||GAL.length>1)if(!(ME&&ME.formule&&ME.formule.id==="gratuit")&&GAL.some(function(g){return!g.legende}))setTimeout(function(){if(ED===o)decrire(true,0,false,true)},400)}
-  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
+  montrer("fiche",o?o.titre:"Nouvel article");journal();majLbc();majSites();majStatsFiche(o);CLE=o?o.id:"n"+Date.now().toString(36);DELS=[];DIAL=[];dessinerDial();figer();if(o&&o.statut==="envoye"&&o.suivi&&!o.livreLe&&!(o.suiviEtat&&o.suiviEtat.fini))relireSuivis([o.id]);if(window.ongletFiche)ongletFiche("article");if(window.infosFiche)infosFiche()}
 function fermerFiche(){ED=null;montrer("accueil")}
 /* ===== Modifications non enregistrées : alerte en quittant + brouillons (IndexedDB, sur cet appareil) ===== */
 var SNAP=null,CLE="",SORTIE_OK=false,TBR=0;
@@ -2965,7 +3025,7 @@ $("fFermer").onclick=fermerFiche;$("fListe").onclick=function(){$("fFermer").cli
   (mq.addEventListener?mq.addEventListener("change",maj):mq.addListener(maj));addEventListener("resize",dispo);
   O.addEventListener("click",function(e){var b=e.target.closest("button");if(b)choisir(b.dataset.o)});
   choisir("article");maj();
-  new MutationObserver(function(){if(!$("fiche").hidden){scrollTo(0,0);requestAnimationFrame(dispo)}}).observe($("fiche"),{attributes:true,attributeFilter:["hidden"]});
+  new MutationObserver(function(){if(!$("fiche").hidden){if(!RETABLIR)scrollTo({top:0,left:0,behavior:"instant"});requestAnimationFrame(dispo)}}).observe($("fiche"),{attributes:true,attributeFilter:["hidden"]});
   /* un champ d'un autre onglet qui reçoit le focus (erreur, IA, copie) : on affiche son onglet */
   var foc=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(){var s=this.closest&&this.closest("#fiche [data-onglet]");if(s&&!s.classList.contains("actif")&&document.documentElement.classList.contains("etabli"))choisir(s.dataset.onglet);return foc.apply(this,arguments)};
   document.addEventListener("invalid",function(e){var s=e.target.closest&&e.target.closest("#fiche [data-onglet]");if(s)choisir(s.dataset.onglet)},true);
@@ -3131,7 +3191,7 @@ charger(true);
 (function(){var q=new URLSearchParams(location.search),id=q.get("publiee");if(!/^[a-f0-9]{16}$/.test(id||""))return;history.replaceState(null,"","/app/");setTimeout(function(){fete({id:id,site:q.get("site")==="ebay"?"ebay":"lbc"})},900)})();
 
 /* ===== Nettoyage de la photo =====
-   Le serveur retouche en gardant le vrai fond (redressement, recadrage, objets à côté effacés, reflets atténués).
+   Le serveur retouche en gardant le vrai fond (redressement, recadrage, rien de retouché sur l'article).
    On ne retouche jamais l'objet lui-même : les défauts restent visibles. L'original reste disponible. */
 /* Image prête pour un canvas (rotation, retouche, numérotation, analyse…) : une photo du serveur est d'abord téléchargée en
    entier et vérifiée par PH ; sinon une photo coupée en route serait redessinée puis enregistrée pour de bon (bande, puis blanc). */
@@ -3248,7 +3308,7 @@ function majAdresse(){if(!ROUTE_PRETE||ROUTAGE)return;var v=vueCourante();if(!v|
 /* rouvre l'écran décrit par une adresse ; initial : premier affichage de la page (on reprend alors le brouillon laissé au rafraîchissement) */
 function allerA(recherche,initial){var q=new URLSearchParams(recherche),id=q.get("article"),nv=q.get("nouveau"),on=q.get("onglet"),ph=parseInt(q.get("photo"),10)||0,fi=q.get("filtre");
   ROUTAGE++;
-  function fin(){ROUTAGE--;ROUTE_PRETE=true;var u=adresse();if(u!==ici())history.replaceState(history.state,"",u);return null}
+  function fin(){ROUTAGE--;ROUTE_PRETE=true;var u=adresse();if(u!==ici())history.replaceState(history.state,"",u);retablirDefil();return null}
   function details(){if(on&&!$("fiche").hidden){var b=$("fOnglets").querySelector('[data-o="'+on+'"]');if(b)b.click();if(MQ.matches)ongletMobile(on)}
     if(ph>1&&ph<=GAL.length){SEL=ph-1;IMG=null;afficher()}}
   var recharge="";try{recharge=sessionStorage.getItem("rr-recharge")||"";sessionStorage.removeItem("rr-recharge")}catch(e){}
@@ -3283,6 +3343,26 @@ addEventListener("popstate",function(){if(IGN){IGN--;return}
     var u=adresse();if(u!==voulu&&u!==ici())history.pushState({rr:vueCourante()},"",u)})});
 /* garde un repère pour reprendre le brouillon de cette fiche si la page est rafraîchie */
 addEventListener("beforeunload",function(){try{if(!$("fiche").hidden&&sale())sessionStorage.setItem("rr-recharge",CLE);else sessionStorage.removeItem("rr-recharge")}catch(e){}});
+/* Position de défilement : notée pour chaque adresse (sessionStorage, le temps de l'onglet) et rétablie au rafraîchissement
+   comme au retour arrière. Les cartes et les images arrivent après coup : on la repose à chaque fois que la page grandit,
+   jusqu'à ce que la personne fasse défiler elle-même (ou 5 s). */
+try{history.scrollRestoration="manual"}catch(e){}
+var DEFIL={},RETABLIR=0,TDEF=0;try{DEFIL=JSON.parse(sessionStorage.getItem("rr-defil")||"{}")||{}}catch(e){}
+function zonesFiche(){var g=document.querySelector("#fiche .grille"),o=document.documentElement.classList.contains("etabli")&&document.querySelector("#fiche [data-onglet].actif");return{g:g,o:o||null}}
+function noterDefil(){if(!ROUTE_PRETE||ROUTAGE||RETABLIR)return;var v=vueCourante();if(!v||v==="auth")return;var d={y:Math.round(scrollY)};
+  if(v==="fiche"){var z=zonesFiche();if(z.g&&z.g.scrollTop)d.g=Math.round(z.g.scrollTop);if(z.o&&z.o.scrollTop)d.o=Math.round(z.o.scrollTop)}
+  var k=ici();delete DEFIL[k];if(d.y||d.g||d.o)DEFIL[k]=d}
+function garderDefil(){try{var k=Object.keys(DEFIL);k.slice(0,Math.max(0,k.length-50)).forEach(function(x){delete DEFIL[x]});sessionStorage.setItem("rr-defil",JSON.stringify(DEFIL))}catch(e){}}
+document.addEventListener("scroll",function(){noterDefil();clearTimeout(TDEF);TDEF=setTimeout(garderDefil,200)},{capture:true,passive:true});
+addEventListener("pagehide",function(){noterDefil();garderDefil()});
+function retablirDefil(){var d=DEFIL[ici()];if(!d)return;var stop=false,vue=vueCourante(),ev=["wheel","touchstart","keydown","mousedown"],ro=null;RETABLIR++;
+  function arret(){if(stop)return;stop=true;RETABLIR--;ev.forEach(function(t){removeEventListener(t,arret,true)});if(ro)ro.disconnect()}
+  function poser(){if(stop)return;if(vueCourante()!==vue)return arret();
+    if(vue==="fiche"){var z=zonesFiche();if(d.g&&z.g)z.g.scrollTop=d.g;if(d.o&&z.o)z.o.scrollTop=d.o}
+    if(Math.abs(scrollY-(d.y||0))>1)scrollTo({top:d.y||0,left:0,behavior:"instant"})}
+  ev.forEach(function(t){addEventListener(t,arret,true)});
+  if(window.ResizeObserver){ro=new ResizeObserver(poser);ro.observe(document.body)}
+  poser();requestAnimationFrame(poser);[100,300,700,1500,3000].forEach(function(t){setTimeout(poser,t)});setTimeout(arret,5000)}
 (function(){var v=vueCourante();if(v)document.body.dataset.vue=v})();
 $("navBas").addEventListener("click",function(e){var b=e.target.closest("[data-nb]");if(!b)return;var k=b.dataset.nb;
   if(k==="accueil"){montrer("accueil")}else if(k==="trophees")trophees();else if(k==="compte")compte();else if(k==="manuel")$("bManuel").click();else if(k==="photo")camera("nouveau")});
@@ -3497,7 +3577,7 @@ function ajTxt(c){if(!c||c.ajust==null)return "";var p=Math.round(c.ajust*100);r
 function carteLot(o,i){var m=membres(o),som=m.reduce(function(a,x){return a+(valeur(x)||0)},0),px=prixArticle(o),ch=CHOIX?{ok:CHOIX.lot===o}:null;
   var sous=[pluriel(m.length,"article"),o.plateforme,o.theme&&o.theme.nom&&o.theme.type!=="support"&&o.theme.type!=="petits prix"?o.theme.nom:""].filter(Boolean);
   return '<div class="jeu lot v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch&&!ch.ok?' aria-disabled="true"':'')+'></button><div class="im">'+tamponSta(o)+'<span class="ruban">'+BOX_SVG+'Lot ×'+m.length+'</span>'+(o.alerte&&o.alerte.vendus&&o.alerte.vendus.length&&!vendu(o)?'<span class="tag-lot alerte">'+pluriel(o.alerte.vendus.length,"vendu","vendus")+' à part</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+'</div>'+
-    '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+
+    '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc(sous.join(" · "))+'</span></div>'+statsHtml(o)+
     '<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+(!vendu(o)&&px!=null&&som>px?'<s>'+eur(Math.round(som))+'</s>':'')+'</span>'+boutonSta(o)+'</div></div></div>'}
 
 /* --- idées de lots à thème --- */

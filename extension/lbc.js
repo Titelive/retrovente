@@ -1201,7 +1201,10 @@
   function offreOfficielle() {
     var t = colonneConversation().innerText, m, r = null, re = /offre de [^:\n]{1,60}:\s*(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/gi;
     while ((m = re.exec(t))) r = entier(m[1]);
-    return r;
+    // « Vendu ! Recevez 15,00 € » : le montant de la vente conclue l'emporte sur l'offre.
+    var v = null, rv = /recevez\s+(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s?€/gi;
+    while ((m = rv.exec(t))) { var x = parseFloat(m[1].replace(/\s/g, "").replace(",", ".")); if (isFinite(x) && x > 0) v = Math.round(x * 100) / 100; }
+    return v != null ? v : r;
   }
   // Prénom ou pseudo de l'acheteur : « Voici l'offre de Garnier », sinon le nom en tête de l'encadré.
   // Prénom de l'acheteur : « Voici l'offre de Garnier », sinon la signature de son message (« Cordialement, Evelyne »),
@@ -1895,9 +1898,218 @@
     remplir(true).then(function (f) { if (!f.length) statut("Rien à remplir sur cet écran.", ""); }).catch(function (e) { statut(e.message, "bad"); });
   }
 
+  /* ===== Messagerie native (app Mac) =====
+     L'app Mac garde la messagerie Le Bon Coin chargée dans un navigateur caché (window.__rrNatif) et la lit ou l'écrit
+     par ces fonctions : liste des conversations, fil d'une conversation, réponses de l'IA, envoi. Rien n'est envoyé sans
+     un clic « Envoyer » dans l'app. Pas de panneau ni d'IA automatique dans ce navigateur-là. */
+  var DATE_ENTREE = new RegExp(DATE_LISTE.source + "|\\b\\d{1,2}[:h]\\d{2}\\b|\\b\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?\\b|^(?:lun|mar|mer|jeu|ven|sam|dim)\\w*\\.?\\s*$|\\b\\d{1,2} (?:janv|févr|fevr|mars|avr|mai|juin|juil|août|aout|sept|oct|nov|déc|dec)", "im");
+  function entreesConversations() {
+    var cand = [].filter.call(document.querySelectorAll("a[href], li, [role=link], [role=listitem], [role=button], button"), function (x) {
+      if (!visible(x) || (hote && hote.contains(x)) || x.closest("header, nav, footer")) return false;
+      var r = x.getBoundingClientRect(); if (r.left > innerWidth * 0.5 || r.height < 36 || r.height > 260) return false;
+      var t = x.innerText || ""; return t.length > 3 && t.length < 700 && DATE_ENTREE.test(t);
+    });
+    // Rien dans la conversation ouverte (une bulle « Offre reçue · il y a 7 min » ressemble à une entrée de liste).
+    var z = zoneMessage(), col = z ? colonneConversation() : null;
+    var l = cand.filter(function (x) { return !cand.some(function (y) { return y !== x && y.contains(x); }) && !(col && (col.contains(x) || x.contains(col))); });
+    // Une conversation est ouverte : seules comptent les entrées qui mènent à une conversation (lien de messagerie ou
+    // vignette d'annonce). Les bulles de la conversation (« Merci. Au plaisir. 23:38 ») n'en ont pas.
+    if (col) l = l.filter(function (x) {
+      var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
+      return (a && /messag|conversation/i.test(a.getAttribute("href") || "")) || [].some.call(x.querySelectorAll("img"), function (i) { return i.getBoundingClientRect().width >= 28; });
+    });
+    // Les vraies entrées sont empilées dans une même colonne : même bord gauche et même largeur, à quelques pixels près.
+    // On garde la colonne la plus fournie, ce qui écarte les morceaux de page égarés.
+    var cles = {}, cle = function (x) { var r = x.getBoundingClientRect(); return Math.round(r.left / 8) + ":" + Math.round(r.width / 16); };
+    l.forEach(function (x) { var k = cle(x); cles[k] = (cles[k] || 0) + 1; });
+    var meilleure = Object.keys(cles).sort(function (a, b) { return cles[b] - cles[a]; })[0];
+    if (meilleure && cles[meilleure] >= 2) l = l.filter(function (x) { return cle(x) === meilleure; });
+    return l;
+  }
+  // Conversations sans annonce (chatbot promotionnel de Le Bon Coin, « Discussion avec le Père Noël »…) : ignorées.
+  function horsAnnonce(e) { return /p[èe]re no[ëe]l|chatbot|assistant leboncoin|^discussion avec\b/i.test((e.lignes || []).slice(0, 2).join(" ")); }
+  function cleEntree(x) {
+    var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
+    if (a && /messag/.test(a.getAttribute("href") || "")) return a.getAttribute("href");
+    return "t:" + norm(x.innerText || "").split(" ").slice(0, 12).join(" ");
+  }
+  function lireEntree(x) {
+    // Les pastilles posées sur la vignette (« 2 » pour un lot de 2 articles, « +3 ») ne sont pas le nom de l'acheteur.
+    var lignes = (x.innerText || "").split("\n").map(function (l) { return l.replace(/\s+/g, " ").trim(); }).filter(function (l) { return l && !/^\+?\d{1,3}$/.test(l); }).slice(0, 7);
+    var img = [].find.call(x.querySelectorAll("img"), function (i) { return i.src && !/^data:/.test(i.src); });
+    var gras = [].some.call(x.querySelectorAll("p, span, div"), function (e) { return e.childElementCount === 0 && (e.textContent || "").trim().length > 3 && +getComputedStyle(e).fontWeight >= 600; });
+    var pastille = !!x.querySelector("[aria-label*='non lu' i], [title*='non lu' i], [data-qa-id*=unread], [data-test-id*=unread]");
+    return { cle: cleEntree(x), lignes: lignes, image: img ? img.src : "", nonLu: pastille, gras: gras, active: x.getAttribute("aria-current") === "page" || x.getAttribute("aria-selected") === "true" };
+  }
+  function bulleDe(e, col) {
+    for (var b = e, k = 0; b && b !== col && k < 6; b = b.parentElement, k++) {
+      var st = getComputedStyle(b);
+      if ((st.backgroundColor && !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(st.backgroundColor)) || parseFloat(st.borderTopLeftRadius) >= 8) return b;
+    }
+    return e;
+  }
+  var META = /^(?:\d{1,2}[:h]\d{2}|lu|vu|envoy[ée]|re[çc]u|distribu[ée]|lu à .*|vu à .*|envoy[ée] à .*)$/i;
+  function filActuel() {
+    var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), sugg = blocsSuggestions(col), out = [];
+    var w = document.createTreeWalker(col, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) {
+      var t = (n.nodeValue || "").replace(/[ \t ]+/g, " ").trim(), e = n.parentElement;
+      if (!t || !e || !visible(e) || (hote && hote.contains(e))) continue;
+      if (z && (z === e || z.contains(e))) continue;
+      if (e.closest("button, [role=button], form, textarea, [contenteditable]")) continue;
+      if (sugg.some(function (b) { return b.contains(e); })) continue;
+      var b = bulleDe(e, col), r = b.getBoundingClientRect(); if (!r.width) continue;
+      var g = r.left - cr.left, d = cr.right - r.right;
+      var cote = r.width > cr.width * 0.88 || Math.abs(g - d) < 24 ? "centre" : g > d ? "moi" : "lui";
+      var der = out[out.length - 1];
+      if (META.test(t) && der) { der.meta = der.meta ? der.meta + " · " + t : t; continue; }
+      if (der && der.el === b) { der.texte += "\n" + t; continue; }
+      out.push({ el: b, cote: cote, texte: t, meta: "" });
+    }
+    var enc = texteEncadre().split("\n").map(function (l) { return l.trim(); }).filter(Boolean).slice(0, 6);
+    // Utilisateur bloqué : Le Bon Coin l'écrit dans la conversation, et la mise en page change (la liste et la fiche
+    // « À propos de cet acheteur » se retrouvent dans la colonne). On le signale, et on écarte ces morceaux du fil.
+    var BLOQUE = /l.utilisateur est bloqu|vous avez bloqu|impossible de recevoir ou d.envoyer des messages/i;
+    var bloque = BLOQUE.test(col.innerText || "") || out.some(function (m) { return BLOQUE.test(m.texte); });
+    var lignesListe = {};
+    if (bloque) entreesConversations().forEach(function (x) { (x.innerText || "").split("\n").forEach(function (l) { l = norm(l); if (l) lignesListe[l] = 1; }); });
+    var FICHE = /^(à propos de|a propos de|membre depuis|\d+ transactions?|temps de r[ée]ponse|derni[èe]re activit[ée]|l.utilisateur est bloqu|impossible de recevoir|r[ée]pond (en|g[ée]n[ée]ralement)|[()]$|[(]\s*\d+\s*[)]$|[0-5]([.,]\d)?$|-$)/i;
+    out = out.filter(function (m) {
+      var ls = m.texte.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+      if (!ls.length || FICHE.test(ls[0])) return false;
+      if (ls.every(function (l) { return lignesListe[norm(l)] || l === "-" || DATE_ENTREE.test(l); })) return false;
+      if (ls.length === 1 && norm(ls[0]) === norm(acheteurLu())) return false;
+      return true;
+    });
+    return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(), bloque: bloque,
+             messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
+  }
+  // Liste des conversations, ou null quand la page ne montre que la conversation ouverte (mise en page étroite) :
+  // l'app garde alors la liste précédente au lieu de prendre les messages pour des conversations.
+  function listeConversations() {
+    var l = entreesConversations().map(lireEntree).filter(function (e) { return !horsAnnonce(e); }).slice(0, 80);
+    return !l.length && zoneMessage() ? null : l;
+  }
+  // Entrée de la liste par sa clé ; si la clé a changé (texte de l'entrée modifié), par le nom et l'annonce.
+  function entreeParCle(cle, lignes) {
+    var es = entreesConversations(), x = es.find(function (e) { return cleEntree(e) === cle; });
+    if (x || !lignes || !lignes.length) return x;
+    var sig = function (l) { return l.filter(function (t) { return !DATE_ENTREE.test(t); }).slice(0, 2).map(norm).join("|"); }, s = sig(lignes);
+    return es.find(function (e) { return sig(lireEntree(e).lignes) === s; });
+  }
+  window.rrMessagerie = {
+    liste: function () { return { page: location.pathname, vide: /\baucun(e)? (message|conversation)|pas (encore )?de (message|conversation)/i.test(norm((document.querySelector("main") || document.body).innerText).slice(0, 3000)), connexion: [].some.call(document.querySelectorAll("input[type=password]"), visible), conversations: listeConversations(), fil: colonneConversation().innerText.trim().length > 40 && zoneMessage() ? filActuel() : null }; },
+    fil: function () { return filActuel(); },
+    // Supprime une conversation sur Le Bon Coin (après la confirmation demandée dans l'app) : on l'ouvre, on cherche
+    // « Supprimer » (au besoin dans le menu « … » de la conversation), puis on confirme. Rien d'autre n'est cliqué.
+    supprimer: async function (cle) {
+      var x = entreesConversations().find(function (e) { return cleEntree(e) === cle; });
+      if (!x) return { erreur: "introuvable" };
+      cliquer(x.matches("a[href]") ? x : (x.querySelector("a[href]") || x));
+      await attendre(1500);
+      var boutons = function (racine) { return [].filter.call((racine || document).querySelectorAll("button, [role=button], [role=menuitem], a"), function (b) { return visible(b) && !(hote && hote.contains(b)); }); };
+      var nom = function (b) { return norm((b.getAttribute("aria-label") || "") + " " + (b.innerText || "") + " " + (b.getAttribute("title") || "")); };
+      var trouver = function (re, racine) { return boutons(racine).find(function (b) { return re.test(nom(b)); }); };
+      var sup = trouver(/supprimer (la |cette )?(conversation|discussion)/i);
+      if (!sup) {
+        var menu = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (menu) { cliquer(menu); await attendre(700); sup = trouver(/supprimer/i); }
+      }
+      if (!sup) return { erreur: "bouton" };
+      cliquer(sup); await attendre(900);
+      var dlg = document.querySelector("[role=dialog], [role=alertdialog], dialog[open]");
+      var ok = dlg && trouver(/^(supprimer|confirmer|oui)/i, dlg);
+      if (ok) { cliquer(ok); await attendre(1500); }
+      var reste = entreesConversations().some(function (e) { return cleEntree(e) === cle; });
+      return reste ? { erreur: "confirmation" } : { ok: true };
+    },
+    // Bloque l'acheteur sur Le Bon Coin (après la confirmation demandée dans l'app) : on ouvre la conversation, on cherche
+    // « Bloquer » (au besoin dans le menu « … » de la conversation), puis on confirme. Rien d'autre n'est cliqué.
+    bloquer: async function (cle, lignes) {
+      var x = entreeParCle(cle, lignes);
+      if (!x) return { erreur: "introuvable" };
+      cliquer(x.matches("a[href]") ? x : (x.querySelector("a[href]") || x));
+      await attendre(1500);
+      var boutons = function (racine) { return [].filter.call((racine || document).querySelectorAll("button, [role=button], [role=menuitem], a"), function (b) { return visible(b) && !(hote && hote.contains(b)); }); };
+      var nom = function (b) { return norm((b.getAttribute("aria-label") || "") + " " + (b.innerText || "") + " " + (b.getAttribute("title") || "")); };
+      var trouver = function (re, racine) { return boutons(racine).find(function (b) { return re.test(nom(b)); }); };
+      if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true, verifie: true };
+      var bl = trouver(/^bloquer|bloquer (cet|l.)?(utilisateur|acheteur|membre|contact)/i);
+      if (!bl) {
+        var menu = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (menu) { cliquer(menu); await attendre(700); if (trouver(/d[ée]bloquer/i)) return { ok: true, deja: true, verifie: true }; bl = trouver(/bloquer/i); }
+      }
+      if (!bl) return { erreur: "bouton" };
+      cliquer(bl); await attendre(900);
+      var dlg = document.querySelector("[role=dialog], [role=alertdialog], dialog[open]");
+      var ok = dlg && trouver(/^(bloquer|confirmer|oui)/i, dlg);
+      if (ok) { cliquer(ok); await attendre(1500); }
+      // Vérification sur la page : un message « bloqué », ou « Débloquer » à la place de « Bloquer » (au besoin dans le menu).
+      var dit = function () { return /(vous avez bloqu|utilisateur bloqu|membre bloqu|a [ée]t[ée] bloqu|est bloqu|bloqu[ée] avec succ)/i.test(norm(document.body.innerText)); };
+      var verifie = dit() || !!trouver(/d[ée]bloquer/i);
+      if (!verifie) {
+        var m2 = trouver(/plus d.options|^options|actions|menu|more|\.\.\.|…/i, colonneConversation().parentElement || document);
+        if (m2) { cliquer(m2); await attendre(700); verifie = !!trouver(/d[ée]bloquer/i); document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
+      }
+      return { ok: true, verifie: verifie };
+    },
+    ouvrir: async function (cle, lignes) {
+      var x = entreeParCle(cle, lignes);
+      if (!x) return { erreur: "introuvable" };
+      var avant = idConversation(), cible = x.matches("a[href]") ? x : (x.querySelector("a[href]") || x);
+      // Déjà ouverte sur la page (Le Bon Coin ouvre souvent la première conversation tout seul) : l'id ne changera pas,
+      // on s'arrête dès que la colonne montre le bon acheteur et la bonne annonce au lieu d'attendre 10 s.
+      var l = lireEntree(x).lignes.filter(function (t) { return !DATE_ENTREE.test(t); });
+      var nom = norm(l[0] || ""), titre = norm((l[1] || "").replace(/(\.\.\.|…)$/, "")).slice(0, 25);
+      var montre = function () { var t = norm(colonneConversation().innerText.slice(0, 2000)); return t.length > 40 && (!nom || t.indexOf(nom) >= 0) && (!titre || t.indexOf(titre) >= 0); };
+      cliquer(cible);
+      for (var i = 0; i < 40; i++) { await attendre(250); if ((idConversation() !== avant && colonneConversation().innerText.trim().length > 40) || (i >= 3 && montre())) break; }
+      await attendre(600);
+      return filActuel();
+    },
+    suggestions: async function (consigne) {
+      if (!etat.annonces) { try { var j = await rrDemander({ type: "annonces" }); etat.annonces = j.annonces || []; etat.vendeur = (j.profil && j.profil.vendeur) || {}; } catch (e) {} }
+      recaler(); if (!etat.choisie) etat.choisie = deviner(true) || deviner();
+      var c = etat.choisie || {}, lot = lotLu() || (c.lot && choixAJour() ? { n: c.n, prix: c.prix } : null);
+      try {
+        var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi(), dernierMoi: !consigne && dernierEstMoi(), refuserSansAvis: etat.refuserSansAvis !== false });
+        var qui = acheteurLu();
+        return { article: c.titre || "", resume: r.resume || "", offre: r.offre || null, version: r.version || null,
+                 reponses: (r.reponses || []).map(function (x) { return { approche: x.approche || "", titre: x.titre || "", texte: smiley(personnaliser(x.texte || "", qui)) }; }) };
+      } catch (e) { return { erreur: e.message || "Réponse impossible", status: e.status || 0 }; }
+    },
+    envoyer: async function (texte) {
+      var z = zoneMessage(); if (!z) return { erreur: "Zone de message introuvable" };
+      if (z instanceof HTMLTextAreaElement || z instanceof HTMLInputElement) { ecrire(z, texte); z.focus(); }
+      else { z.focus(); var sel = window.getSelection(); sel.selectAllChildren(z); if (!document.execCommand("insertText", false, texte)) z.textContent = texte; z.dispatchEvent(new Event("input", { bubbles: true })); }
+      await attendre(400);
+      var zone = z.closest("form") || z.parentElement && z.parentElement.parentElement && z.parentElement.parentElement.parentElement || document;
+      var b = [].find.call(zone.querySelectorAll("button, [role=button], input[type=submit]"), function (x) {
+        return visible(x) && !x.disabled && x.getAttribute("aria-disabled") !== "true" && /envoy|send|submit/.test(norm((x.getAttribute("aria-label") || "") + " " + (x.getAttribute("title") || "") + " " + (x.textContent || "") + " " + (x.type || "")));
+      });
+      if (!b) return { erreur: "Bouton Envoyer introuvable : le message est écrit, ouvre Le Bon Coin pour l'envoyer." };
+      cliquer(b);
+      for (var i = 0; i < 16; i++) {
+        await attendre(250);
+        var v = z.isConnected ? (z.value != null ? z.value : z.textContent) : "";
+        if (!String(v || "").trim()) return { ok: true, fil: filActuel() };
+      }
+      return { ok: true, incertain: true, fil: filActuel() };
+    },
+  };
+  // Une erreur dans la page ne doit jamais laisser l'app attendre : chaque fonction renvoie { erreur } au lieu de lever.
+  Object.keys(window.rrMessagerie).forEach(function (k) {
+    var f = window.rrMessagerie[k];
+    window.rrMessagerie[k] = async function () {
+      try { return await f.apply(null, arguments); }
+      catch (e) { return { erreur: "Lecture impossible (" + k + ")", pile: String((e && (e.stack || e.message)) || e).slice(0, 1500) }; }
+    };
+  });
+
   /* ===== Apparition pendant le dépôt et dans la messagerie (Le Bon Coin change de page sans recharger) ===== */
   var vu = "", vuMode = "";
   function suivre() {
+    if (window.__rrNatif) return;   // navigateur caché de la messagerie native : ni panneau ni automatismes
     guetterConfirmation().catch(function () {});
     try { placerBoutonVert(); } catch (e) {}
     if (location.pathname === vu) return;

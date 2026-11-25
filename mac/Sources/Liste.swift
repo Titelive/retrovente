@@ -31,7 +31,10 @@ func dateCourte(_ jour: String) -> String {
 }
 
 extension Appli {
-    func parId(_ id: String) -> Article? { articles.first { $0.id == id } }
+    func parId(_ id: String) -> Article? {
+        if let i = index[id], i < articles.count, articles[i].id == id { return articles[i] }
+        return articles.first { $0.id == id }
+    }
     /// Les lots qui contiennent vraiment cet article.
     func lotsDe(_ a: Article) -> [Article] { a.lots.compactMap(parId).filter { $0.estLot && ($0.membres ?? []).contains(a.id) } }
     /// Lots où l'article est proposé en ce moment (pas ceux retirés) : ce que compte le badge de la carte.
@@ -242,14 +245,15 @@ struct Grille: View {
                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).keyboardShortcut("n").help("Nouvel article (⌘N)")
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    if appli.choix == nil, filtre == nil || filtre == "en_vente" { IdeesLots(appli: appli) }
+                // Pile paresseuse : seules les cartes visibles (et leurs photos) sont construites pendant le défilement.
+                LazyVStack(alignment: .leading, spacing: 26) {
+                    if appli.choix == nil, filtre == nil || filtre == "en_vente" { AccueilTableau(appli: appli); IdeesLots(appli: appli) }
                     if articles.isEmpty {
                         VStack(spacing: 12) {
-                            Image(systemName: "shippingbox").font(.system(size: 44, weight: .light)).foregroundStyle(Color.rrOr)
+                            Image(systemName: "shippingbox").font(.system(size: 44, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text(appli.articles.isEmpty ? "Aucun article pour l'instant" : "Aucun article dans cette catégorie").font(.title3.weight(.semibold))
                             if appli.articles.isEmpty {
-                                Text("Prends ton premier article en photo : l'annonce se remplit toute seule.").foregroundStyle(.secondary)
+                                Text("Prends ton premier article **en photo** : l'annonce **se remplit toute seule**.").foregroundStyle(.secondary)
                                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).controlSize(.large)
                             }
                         }.frame(maxWidth: .infinity).padding(.top, 80)
@@ -269,7 +273,7 @@ struct Grille: View {
                             }
                         }
                     }
-                }.padding(.horizontal, 24).padding(.top, 8).padding(.bottom, appli.choix != nil ? 110 : 28)
+                }.padding(.horizontal, 24).padding(.top, 14).padding(.bottom, appli.choix != nil ? 110 : 28)
             }
             .overlay(alignment: .bottom) { if appli.choix != nil { BarreLot(appli: appli).padding(18).transition(.move(edge: .bottom).combined(with: .opacity)) } }
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.choix != nil)
@@ -289,7 +293,7 @@ struct CarteArticle: View {
     private var grise: Bool { appli.choix != nil && !appli.libre(article) }
     private var teinte: (fond: Color, trait: Color)? {
         switch article.statut {
-        case "vendu": return (Color.rrAnis.opacity(0.22), Color.rrAnis)
+        case "vendu": return (Color.green.opacity(0.14), Color.green.opacity(0.7))
         case "envoye", "recu": let c = Libelles.couleursStatut(article.statut); return (c.fond.opacity(0.75), c.texte.opacity(0.35))
         default: return nil
         }
@@ -305,7 +309,10 @@ struct CarteArticle: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(contour, lineWidth: choisi || survol ? 2 : 1))
         .background(pile)
-        .shadow(color: .black.opacity(survol ? 0.18 : 0.07), radius: survol ? 14 : 5, y: survol ? 8 : 3)
+        // Ombre portée par une simple forme derrière la carte : bien moins coûteuse à dessiner pendant le défilement
+        // qu'une ombre calculée sur tout le contenu (photo, étiquettes, textes).
+        .background(RoundedRectangle(cornerRadius: 20).fill(Color(nsColor: .controlBackgroundColor))
+            .shadow(color: .black.opacity(survol ? 0.18 : 0.07), radius: survol ? 14 : 5, y: survol ? 8 : 3))
         .scaleEffect(survol && !grise ? 1.015 : 1)
         .opacity(grise ? 0.45 : 1)
         .animation(.spring(response: 0.25, dampingFraction: 0.8), value: survol)
@@ -326,9 +333,9 @@ struct CarteArticle: View {
     }
 
     private var contour: Color {
-        if choisi { return Color.rrOr }
-        if survol { return Color.rrOr.opacity(0.7) }
-        if article.estLot && !article.vendu { return Color.rrOr.opacity(0.55) }
+        if choisi { return Color.rrAccent }
+        if survol { return Color.rrAccent.opacity(0.7) }
+        if article.estLot && !article.vendu { return Color.rrAccent.opacity(0.55) }
         return teinte?.trait.opacity(0.6) ?? Color.primary.opacity(0.08)
     }
     /// Un lot : des cartes empilées derrière.
@@ -349,29 +356,29 @@ struct CarteArticle: View {
             .overlay(alignment: .topTrailing) { coinHaut.padding(10) }
             .overlay(alignment: .bottomLeading) { Sites(article: article, appli: appli).padding(10) }
             .overlay(alignment: .bottomTrailing) { BadgeRarete(article: article).padding(10) }
-            .overlay { if choisi { Color.rrOr.opacity(0.12) } }
+            .overlay { if choisi { Color.rrAccent.opacity(0.12) } }
     }
 
     @ViewBuilder private var etiquetteHaut: some View {
         if article.estLot {
-            Etiquette(texte: "LOT ×\(appli.membres(article).count)", symbole: "shippingbox", fond: .rrNuit, texteCouleur: .rrAnis, pixel: true)
+            Etiquette(texte: "LOT ×\(appli.membres(article).count)", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
         } else if appli.choix == nil, !appli.lotsActifs(article).isEmpty {
             let n = appli.lotsActifs(article).count
-            Etiquette(texte: n > 1 ? "DANS \(n) LOTS" : "AUSSI EN LOT", symbole: "shippingbox", fond: .rrNuit, texteCouleur: .rrAnis, pixel: true)
+            Etiquette(texte: n > 1 ? "DANS \(n) LOTS" : "AUSSI EN LOT", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
                 .help("Aussi dans " + appli.lotsActifs(article).map { "« \($0.titre) »" }.joined(separator: ", "))
         } else if appli.choix == nil, appli.petitPrix(article), article.statut == "en_vente" {
-            Etiquette(texte: "Idéal en lot", symbole: nil, fond: .rrAnis, texteCouleur: .rrNuit, pixel: false)
+            Etiquette(texte: "Idéal en lot", symbole: nil, fond: .white, texteCouleur: .rrAccent, pixel: false)
         }
     }
     @ViewBuilder private var coinHaut: some View {
         if appli.choix != nil, !article.estLot {
             Image(systemName: choisi ? "checkmark.circle.fill" : "circle").font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(choisi ? Color.rrOr : Color.white).shadow(radius: 3)
+                .foregroundStyle(choisi ? Color.rrAccent : Color.white).shadow(radius: 3)
         } else if article.vendu {
             let c = Libelles.couleursStatut(article.statut)
             Etiquette(texte: Libelles.statut(article.statut).uppercased(), symbole: Libelles.symboleStatut(article.statut), fond: c.fond, texteCouleur: c.texte, pixel: true)
         } else if article.estLot, article.alerteVendus > 0 {
-            Etiquette(texte: "\(article.alerteVendus) vendu\(article.alerteVendus > 1 ? "s" : "") à part", symbole: nil, fond: Color(nsColor: NSColor(hex: 0xFFE3B3)), texteCouleur: Color(nsColor: NSColor(hex: 0x6B3D00)), pixel: false)
+            Etiquette(texte: "\(article.alerteVendus) vendu\(article.alerteVendus > 1 ? "s" : "") à part", symbole: nil, fond: .orange, texteCouleur: .white, pixel: false)
         }
     }
 
@@ -387,17 +394,23 @@ struct CarteArticle: View {
     private var texte: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(article.titre).font(.headline).lineLimit(2, reservesSpace: true)
-            Text(sousTitre.isEmpty ? " " : sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            // Une seule ligne (sous-titre, puis vues et favoris à droite) : toutes les cartes gardent la même mise en page.
+            HStack(spacing: 8) {
+                Text(sousTitre.isEmpty ? " " : sousTitre).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
+                StatsCarte(article: article).lineLimit(1).fixedSize()
+            }
             if let c = colis {
                 Label(c, systemImage: article.livreLe.isEmpty ? "shippingbox" : "checkmark.circle").font(.caption.weight(.medium))
                     .foregroundStyle(article.livreLe.isEmpty ? Color.secondary : Libelles.couleursStatut("recu").texte).lineLimit(1)
             }
             HStack(alignment: .center, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit())
+                    Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize()
                     if article.estLot, !article.vendu, let px = article.prixAffiche {
                         let som = appli.membres(article).reduce(0) { $0 + ($1.valeur ?? 0) }
-                        if som > px { Text(Libelles.prix(som.rounded())).font(.caption).strikethrough().foregroundStyle(.secondary) }
+                        // Prix barré : seulement s'il tient sans repousser la pastille de statut.
+                        if som > px { Text(Libelles.prix(som.rounded())).font(.caption).strikethrough().foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1) }
                     }
                 }
                 Spacer(minLength: 4)
@@ -424,8 +437,7 @@ struct Etiquette: View {
         }
         .foregroundStyle(texteCouleur)
         .padding(.horizontal, 9).padding(.vertical, 6)
-        .background(fond, in: Capsule())
-        .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
+        .background(Capsule().fill(fond).shadow(color: .black.opacity(0.25), radius: 5, y: 3))
     }
 }
 
@@ -470,8 +482,7 @@ struct BadgeRarete: View {
             }
             .foregroundStyle(texte)
             .padding(.horizontal, 8).frame(height: 22)
-            .background(fond, in: RoundedRectangle(cornerRadius: 7))
-            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+            .background(RoundedRectangle(cornerRadius: 7).fill(fond).shadow(color: .black.opacity(0.3), radius: 4, y: 2))
             .help("Rareté : " + nom)
         }
     }
@@ -493,18 +504,24 @@ struct BoutonStatut: View {
     let article: Article
     @State private var ouvert = false
     var body: some View {
-        let c = Libelles.couleursStatut(article.statut)
+        let attente = appli.enAttente(article), brouillon = appli.aPublier(article)
+        let c = attente ? (fond: Color.orange.opacity(0.15), texte: Color.orange)
+              : brouillon ? (fond: Color.primary.opacity(0.08), texte: Color.secondary) : Libelles.couleursStatut(article.statut)
         Button { ouvert.toggle() } label: {
             HStack(spacing: 4) {
-                if article.statut == "en_vente" { Circle().fill(Color(nsColor: NSColor(hex: 0x3E8E1E))).frame(width: 6, height: 6) }
+                if attente { Image(systemName: "hourglass").font(.system(size: 9, weight: .bold)) }
+                else if brouillon { Image(systemName: "paperplane").font(.system(size: 9, weight: .bold)) }
+                else if article.statut == "en_vente" { Circle().fill(Color(nsColor: NSColor(hex: 0x3E8E1E))).frame(width: 6, height: 6) }
                 else { Image(systemName: Libelles.symboleStatut(article.statut)).font(.system(size: 9, weight: .bold)) }
-                Text(Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold))
+                Text(attente ? "En validation" : brouillon ? "À publier" : Libelles.statut(article.statut)).font(.system(size: 11, weight: .bold)).lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
+            .fixedSize()   // la pastille reste sur une ligne, quelle que soit la largeur de la carte
             .foregroundStyle(c.texte).padding(.horizontal, 9).padding(.vertical, 5)
             .background(c.fond, in: Capsule()).overlay(Capsule().stroke(c.texte.opacity(0.25), lineWidth: 1))
         }
-        .buttonStyle(.plain).help("Changer le statut")
+        .buttonStyle(.plain).help(attente ? "Déposée : Le Bon Coin ne l'a pas encore validée, elle n'est pas encore en ligne"
+                       : brouillon ? "Pas encore publié : dépose-le sur Le Bon Coin pour le mettre en vente" : "Changer le statut")
         .popover(isPresented: $ouvert, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Statut de **\(article.titre)**").font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 10).padding(.bottom, 4)
@@ -519,7 +536,7 @@ struct BoutonStatut: View {
                                 Text(Libelles.aideStatut(s)).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 10)
-                            if s == article.statut { Image(systemName: "checkmark").font(.callout.weight(.bold)).foregroundStyle(Color.rrOr) }
+                            if s == article.statut { Image(systemName: "checkmark").font(.callout.weight(.bold)).foregroundStyle(Color.rrAccent) }
                         }.padding(.horizontal, 8).padding(.vertical, 5).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                 }
@@ -551,7 +568,7 @@ struct IdeesLots: View {
                     else {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Pas encore d'idée de lot").font(.callout.weight(.bold))
-                            Text("Quand tu auras plusieurs jeux d'une même série, d'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.")
+                            Text("Quand tu auras plusieurs jeux d'une **même série**, d'un **même studio** ou à **petit prix**, je te proposerai de les réunir. Tu peux aussi **composer ton lot** toi-même.")
                                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(14).frame(maxWidth: 360, alignment: .leading)
@@ -577,14 +594,14 @@ struct CarteIdee: View {
             HStack(spacing: 12) {
                 ZStack {
                     ForEach(Array(m.prefix(3).enumerated()), id: \.offset) { i, a in
-                        Vignette(article: a).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 9))
+                        Vignette(article: a, taille: .mini).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 9))
                             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 2))
                             .rotationEffect(.degrees(Double(i - 1) * 7)).offset(x: CGFloat(i) * 14)
                     }
                 }.frame(width: 76, height: 50, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
                     Text((idee.complet ? "Série complète" : Libelles.typesTheme[idee.type] ?? "Thème").uppercased())
-                        .font(.system(size: 9.5, weight: .heavy, design: .monospaced)).tracking(0.8).foregroundStyle(Color.rrOr)
+                        .font(.system(size: 9.5, weight: .heavy, design: .monospaced)).tracking(0.8).foregroundStyle(Color.rrAccent)
                     Text(idee.theme).font(.headline).lineLimit(1)
                 }
             }
@@ -595,7 +612,7 @@ struct CarteIdee: View {
                     Text(Libelles.prix(c)).font(.title3.weight(.heavy))
                     if let s = idee.somme, c < s.rounded() { Text(Libelles.prix(s.rounded()) + " à l'unité").font(.caption).strikethrough().foregroundStyle(.secondary) }
                     if let a = idee.ajust { let p = Int((a * 100).rounded()); Text(p > 0 ? "+\(p) %" : "−\(-p) %").font(.caption.weight(.bold)).foregroundStyle(p > 0 ? Color.green : Color.secondary) }
-                } else { Text("Ajoute un prix à ces articles pour estimer le lot.").font(.caption).foregroundStyle(.secondary) }
+                } else { Text("Ajoute **un prix** à ces articles pour estimer le lot.").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 0)
             HStack {
@@ -607,7 +624,7 @@ struct CarteIdee: View {
         }
         .padding(14).frame(width: 290, height: 230, alignment: .topLeading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(idee.complet ? Color.rrOr : Color.primary.opacity(0.08), lineWidth: idee.complet ? 2 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(idee.complet ? Color.rrAccent : Color.primary.opacity(0.08), lineWidth: idee.complet ? 2 : 1))
     }
 }
 
@@ -619,11 +636,11 @@ struct BarreLot: View {
     var body: some View {
         let n = appli.choix?.count ?? 0
         HStack(spacing: 14) {
-            Image(systemName: "shippingbox.fill").font(.title2).foregroundStyle(Color.rrOr)
+            Image(systemName: "shippingbox.fill").font(.title2).foregroundStyle(Color.rrAccent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(n > 0 ? "\(n) article\(n > 1 ? "s" : "") dans ton lot" : "Choisis les articles").font(.headline)
                 if let t = appli.choixTheme { Text(t.theme).font(.caption).foregroundStyle(.secondary) }
-                else { Text("Clique sur les cartes pour les ajouter ou les retirer.").font(.caption).foregroundStyle(.secondary) }
+                else { Text("**Clique sur les cartes** pour les ajouter ou les retirer.").font(.caption).foregroundStyle(.secondary) }
             }
             if n >= 2, let c = cote.conseille {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -655,12 +672,17 @@ struct Bandeau: View {
     @ObservedObject var appli: Appli
     var body: some View {
         if let m = appli.message {
-            Text(m).font(.callout.weight(.medium)).multilineTextAlignment(.center)
+            let echec = m.hasPrefix("⚠️"), attente = m.hasSuffix("…")
+            HStack(spacing: 8) {
+                if attente { ProgressView().controlSize(.small) }
+                else { Image(systemName: echec ? "exclamationmark.triangle.fill" : "checkmark.circle.fill").foregroundStyle(echec ? Color.orange : Color.green) }
+                Text(echec ? String(m.dropFirst(2)).trimmingCharacters(in: .whitespaces) : m).font(.callout.weight(.medium)).multilineTextAlignment(.leading)
+            }
                 .padding(.horizontal, 16).padding(.vertical, 10)
-                .verre(Capsule(), teinte: .rrOr)
+                .verre(Capsule(), teinte: echec ? .orange : .rrAccent)
                 .padding(.bottom, 22).padding(.horizontal, 40)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .task(id: m) { try? await Task.sleep(nanoseconds: 3_800_000_000); if appli.message == m { appli.message = nil } }
+                .task(id: m) { if attente { return }; try? await Task.sleep(nanoseconds: echec || m.count > 70 ? 7_000_000_000 : 3_800_000_000); if appli.message == m { appli.message = nil } }
                 .onTapGesture { appli.message = nil }
         }
     }

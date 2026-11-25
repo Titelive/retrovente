@@ -44,6 +44,9 @@ final class Actions {
             case "vendu":
                 let corps: [String: Any] = ["ids": m["ids"] as? [Any] ?? [], "prix": ou(m["prix"], NSNull()), "remise": chaine(m["remise"])]
                 return try JSONSerialization.jsonObject(with: try await appel("/api/extension/vendu", corps: corps).0)
+            case "stats":
+                let corps: [String: Any] = ["site": chaine(m["site"]) == "ebay" ? "ebay" : "lbc", "annonces": m["annonces"] as? [Any] ?? []]
+                return try JSONSerialization.jsonObject(with: try await appel("/api/extension/stats", corps: corps).0)
             case "rempli":
                 _ = try await appel("/api/extension/rempli", methode: "POST"); return ["ok": true]
             case "son": return jouerSon(m["wav"] as? String)
@@ -142,6 +145,15 @@ final class Actions {
     /// Notification système quand la personne doit agir, si elle regarde ailleurs.
     private func alerte(titre: String, texte: String, depuis vue: WKWebView?) -> Any {
         var titre = titre, texte = texte
+        defer {
+            // Gardée dans la cloche de l'app, même quand la personne regardait ailleurs.
+            if let m = fenetre?.modele {
+                let depot = m.depot
+                m.noter(titre.isEmpty ? "RetroRevente" : titre, texte,
+                        symbole: titre.lowercased().contains("prête") || titre.contains("finaliser") ? "checkmark.seal" : titre.lowercased().contains("publiée") ? "party.popper" : "exclamationmark.bubble",
+                        cible: depot != nil ? .depot : .aucune, article: depot?.id)
+            }
+        }
         // Dépôt en coulisses : l'app prend le relais (récapitulatif, ou Le Bon Coin à l'écran s'il a besoin de toi).
         if fenetre?.signalCoulisses(titre: titre, texte: texte) == true {
             if NSApp.isActive { return ["ok": true, "via": "app Mac"] }

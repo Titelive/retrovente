@@ -69,6 +69,11 @@ test("fiches : création, photo, modification, isolation entre comptes, suppress
   assert.equal(r2.json.objet.statut, "en_vente"); assert.equal(r2.json.objet.dateVente, "");
   const r3 = await call("PUT", "/api/objets/" + o.id, { objet: { statut: "vendu", prixVente: 40, dateVente: v.json.objet.dateVente } }, c);
   assert.equal(r3.json.objet.dateVente, v.json.objet.dateVente);
+  // passé en vendu sans prix de vente : le prix demandé devient le prix de vente
+  const sp = (await call("POST", "/api/objets", { objet: { titre: "Diddy Kong Racing", prixDemande: 15 } }, c)).json.objet;
+  const spv = await call("PUT", "/api/objets/" + sp.id, { objet: { statut: "vendu" } }, c);
+  assert.equal(spv.json.objet.prixVente, 15);
+  await call("DELETE", "/api/objets/" + sp.id, null, c);
   const moi = await call("GET", "/api/moi", null, c);
   assert.equal(moi.json.bilan.vendus, 1); assert.equal(moi.json.bilan.encaisse, 40);
   assert.equal(moi.json.bilan.annee.ventes, 1); assert.equal(moi.json.bilan.annee.montant, 40);
@@ -322,6 +327,13 @@ test("légendes et annonces : jamais d'« apparemment », on affirme ou on se ta
   assert.equal(affirme("Super Mario 64 sur Nintendo 64.\nBon état, coins probablement frottés.\nRemise en main propre ou envoi."), "Super Mario 64 sur Nintendo 64.\nBon état.\nRemise en main propre ou envoi.");
   assert.equal(affirme("Tranche gauche : plastique lisse, sans rayure ni choc visible"), "Tranche gauche : plastique lisse, sans rayure ni choc");
   assert.equal(affirme("Cartouche visiblement d'origine, probablement testée"), "Cartouche d'origine");
+});
+
+test("annonces : « testé et fonctionnel » qualifie le jeu, jamais le boîtier", async () => {
+  const { testeSurJeu } = await import("../server/ia.mjs");
+  assert.equal(testeSurJeu("En boîte : boîtier et jeu d'origine, testés et fonctionnels."), "En boîte : boîtier et jeu d'origine, jeu testé et fonctionnel.");
+  assert.equal(testeSurJeu("Boîte et cartouche d'origine, testées et fonctionnelles."), "Boîte et cartouche d'origine, cartouche testée et fonctionnelle.");
+  assert.equal(testeSurJeu("Cartouche seule, d'origine, testée et fonctionnelle."), "Cartouche seule, d'origine, testée et fonctionnelle.");
 });
 
 test("menu du site : l'indice de connexion est rattrapé pour les anciennes sessions", async () => {
@@ -833,4 +845,62 @@ test("adresse du vendeur : obligatoire à l'inscription, modifiable dans Mon com
   const m = await call("POST", "/api/compte/profil", { adresse: "  12 rue Stanislas   54000 Nancy " }, c);
   assert.equal(m.status, 200); assert.equal(m.json.adresse, "12 rue Stanislas 54000 Nancy");
   assert.equal((await call("POST", "/api/compte/profil", { adresse: "" }, c)).status, 400);
+});
+
+test("vues et favoris : relevé de l'app (cookie) et de l'extension (clé), gardés à l'enregistrement de la fiche", async () => {
+  const c = await compte("stats@retro.fr");
+  const lbc = "https://www.leboncoin.fr/ad/jeux_video/2874512345", eb = "https://www.ebay.fr/itm/123456789012";
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Super Mario 64", prixDemande: 45, annonce: lbc, annonceEbay: eb } }, c)).json.objet;
+  const b = (await call("POST", "/api/objets", { objet: { titre: "Zelda", prixDemande: 39 } }, c)).json.objet;
+  let r = await call("POST", "/api/stats", { site: "lbc", annonces: [{ id: "2874512345", vues: 128, favoris: 7 }, { id: "9999999", vues: 3 }] }, c);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.maj, 1);
+  const cle = (await call("POST", "/api/extension/cle", {}, c)).json.cle;
+  r = await call("POST", "/api/extension/stats", { site: "ebay", annonces: [{ id: "123456789012", vues: 40, favoris: 2 }] }, "", { authorization: "Bearer " + cle });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  let o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.stats.lbc.vues, 128); assert.equal(o.stats.lbc.favoris, 7); assert.equal(o.stats.ebay.vues, 40);
+  assert.equal((await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === b.id).stats, undefined);
+  // la fiche réécrite (même lien) garde ses stats ; le lien eBay retiré emporte les siennes
+  o = (await call("PUT", "/api/objets/" + a.id, { objet: { ...o, prixDemande: 49, annonceEbay: "" } }, c)).json.objet;
+  assert.equal(o.stats.lbc.vues, 128); assert.equal(o.stats.ebay, undefined);
+  assert.equal((await call("POST", "/api/stats", { site: "autre", annonces: [] }, c)).status, 400);
+});
+
+test("rareté vraisemblable : boîte seule, jeu récent, petit prix ; les anciennes raretés sont recalculées", async () => {
+  const { rareteVraisemblable, RARETE_V } = await import("../server/ia.mjs");
+  // GTA VI sur PS5, boîte seule à 12 € : jamais « très rare »
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", contenu: "boite_vide", prixDemande: 12 }), "commun");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Grand Theft Auto VI", plateforme: "PS5" }), "peu_commun");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Shantae Limited Run", plateforme: "Switch" }), "tres_rare");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Little Samson", plateforme: "NES", prixDemande: 1500 }), "tres_rare");
+  assert.equal(rareteVraisemblable("tres_rare", { titre: "Conker", plateforme: "Nintendo 64", prixDemande: 60 }), "rare");
+  assert.equal(rareteVraisemblable("rare", { titre: "Jeu", plateforme: "Nintendo 64", contenu: "boite_vide" }), "peu_commun");
+  assert.equal(rareteVraisemblable("inconnu", {}), "");
+
+  const c = await compte("gta@exemple.fr", true);
+  const { rareteFinie } = await import("../server/api.mjs");
+  const { db } = await import("../server/db.mjs");
+  // l'IA se trompe (« très rare ») : la fiche enregistrée reste vraisemblable
+  const a = (await call("POST", "/api/objets", { objet: { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", contenu: "boite_vide", prixDemande: 12 } }, c)).json.objet;
+  await rareteFinie();
+  let o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun"); assert.equal(o.rareteV, RARETE_V);
+  // valeur renvoyée par l'appli après une reconnaissance qui s'est trompée : ramenée aussi
+  const b = (await call("POST", "/api/objets", { objet: { titre: "Grand Theft Auto VI", plateforme: "PlayStation 5", rareteJeu: "tres_rare", prixDemande: 70 } }, c)).json.objet;
+  assert.equal(b.rareteJeu, "peu_commun");
+  // une fiche classée avec l'ancien calcul : ramenée tout de suite à l'affichage, puis estimée à nouveau
+  const r = db.prepare("SELECT data FROM items WHERE id = ?").get(a.id), d = JSON.parse(r.data);
+  d.rareteJeu = "tres_rare"; delete d.rareteV; delete d.rareteEssai;
+  db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(d), a.id);
+  o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun");
+  await rareteFinie();
+  o = (await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id);
+  assert.equal(o.rareteJeu, "commun"); assert.equal(o.rareteV, RARETE_V);
+  // enregistrer la fiche sans rien changer n'entérine pas une ancienne rareté
+  d.rareteJeu = "tres_rare"; delete d.rareteV; db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(d), a.id);
+  const e = (await call("PUT", "/api/objets/" + a.id, { objet: { rareteJeu: "commun" } }, c)).json.objet;
+  assert.equal(e.rareteJeu, ""); await rareteFinie();
+  assert.equal((await call("GET", "/api/objets", null, c)).json.objets.find((x) => x.id === a.id).rareteJeu, "commun");
 });

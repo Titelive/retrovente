@@ -198,10 +198,10 @@ struct FeuilleGestion: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
-                Group { if let a = article { Vignette(article: a) } else { Color.rrOr.opacity(0.15) } }
+                Group { if let a = article { Vignette(article: a) } else { Color.rrAccent.opacity(0.15) } }
                     .frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(gestion.action == .modifier ? "Mettre à jour l'annonce" : "Retirer l'annonce").font(.caption.weight(.bold)).foregroundStyle(Color.rrOr).textCase(.uppercase)
+                    Text(gestion.action == .modifier ? "Mettre à jour l'annonce" : "Retirer l'annonce").font(.caption.weight(.bold)).foregroundStyle(Color.rrAccent).textCase(.uppercase)
                     Text(titre).font(.title3.weight(.bold)).lineLimit(2)
                     if gestion.action == .modifier, let a = article { Text(Libelles.prix(a.prixDemande)).font(.headline.monospacedDigit()) }
                 }
@@ -216,8 +216,8 @@ struct FeuilleGestion: View {
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 boutons(principal: nil)
             case .pret(let b):
-                Label("Les modifications sont prêtes", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrOr)
-                Text("Le titre, la description et le prix de ta fiche sont reportés sur Le Bon Coin. Rien n'est envoyé tant que tu ne cliques pas sur « Enregistrer ».")
+                Label("Les modifications sont prêtes", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrAccent)
+                Text("Le **titre**, la **description** et le **prix** de ta fiche sont reportés sur Le Bon Coin. Rien n'est envoyé tant que tu ne cliques pas sur **« Enregistrer »**.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 boutons(principal: AnyView(
                     Button { appli.fenetre?.validerGestion() } label: { Label("Enregistrer", systemImage: "checkmark") }
@@ -225,7 +225,7 @@ struct FeuilleGestion: View {
             case .aide(let t):
                 Label("Le Bon Coin a besoin de toi", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
                 Text(t).font(.callout).fixedSize(horizontal: false, vertical: true)
-                Text("Rien n'a été envoyé. Le Bon Coin reste caché : tu peux réessayer, ou l'ouvrir pour régler ça toi-même.")
+                Text("**Rien n'a été envoyé.** Le Bon Coin reste caché : tu peux **réessayer**, ou l'ouvrir pour régler ça toi-même.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 boutons(principal: AnyView(HStack {
                     Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()
@@ -235,7 +235,7 @@ struct FeuilleGestion: View {
             case .envoi:
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text(gestion.action == .modifier ? "Envoi à Le Bon Coin…" : "Suppression sur Le Bon Coin…").font(.headline) }
             case .fait(let t):
-                Label(t, systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(Color.rrOr)
+                Label(t, systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(Color.rrAccent)
             }
         }
         .padding(24).frame(width: 460)

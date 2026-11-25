@@ -1,4 +1,4 @@
-// La barre du haut, à la charte RetroRevente : fond nuit, icônes au trait dorées, onglet actif en pastille dorée.
+// La barre du haut : verre neutre, icônes au trait bleues (accent du système), onglet actif en pastille bleue.
 import AppKit
 
 enum Charte {
@@ -6,8 +6,9 @@ enum Charte {
         NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: a)
     }
     static let nuit = rvb(0x1A1A1A)
-    static let or = rvb(0xF5C542)
-    static let orClair = rvb(0xFFE27A)
+    // « or » : historique, c'est désormais l'accent bleu du système (Liquid Glass) sur toute l'app.
+    static let or = NSColor.systemBlue
+    static let orClair = NSColor.systemBlue.blended(withFraction: 0.35, of: .white) ?? .systemBlue
     static let encre = rvb(0xF4F4EE)
     static let gris = rvb(0xA6A69E)
     /// Liquid Glass (macOS 26) : la barre devient du verre posé sur la page.
@@ -15,9 +16,7 @@ enum Charte {
     /// Texte de la barre : blanc sur la barre nuit ; sur le verre, la couleur du système (lisible en clair et en sombre).
     static var texte: NSColor { verre ? .labelColor : encre }
     /// Or des icônes : plus soutenu sur verre clair pour rester lisible.
-    static let orIcone = NSColor(name: nil) { a in
-        a.bestMatch(from: [.aqua, .darkAqua]) == .aqua ? rvb(0xB98200) : rvb(0xF5C542)
-    }
+    static let orIcone = NSColor.systemBlue
 
     static func police(_ taille: CGFloat, _ graisse: NSFont.Weight = .semibold) -> NSFont {
         let f = NSFont.systemFont(ofSize: taille, weight: graisse)
@@ -39,6 +38,8 @@ final class Bouton: NSView {
     private var appui = false { didSet { needsDisplay = true } }
     var actif = false { didSet { majCouleurs(); needsDisplay = true } }
     var disponible = true { didSet { alphaValue = disponible ? 1 : 0.35 } }
+    /// Pastille dorée en haut à droite (notifications non lues) ; 0 : rien.
+    var pastille = 0 { didSet { if pastille != oldValue { needsDisplay = true } } }
 
     init(symbole: String, titre: String?, aide: String, action: @escaping () -> Void) {
         self.action = action
@@ -66,7 +67,8 @@ final class Bouton: NSView {
 
     private func majCouleurs() {
         if Charte.verre {
-            icone.contentTintColor = Charte.orIcone
+            // Comme les barres d'outils de macOS : icônes grises, l'onglet affiché en bleu.
+            icone.contentTintColor = actif ? Charte.orIcone : .secondaryLabelColor
             texte?.textColor = .labelColor
             texte?.font = Charte.police(13, actif ? .bold : .semibold)
         } else {
@@ -75,6 +77,15 @@ final class Bouton: NSView {
         }
     }
     override func draw(_ dirtyRect: NSRect) {
+        dessinerFond()
+        if pastille > 0 {
+            let r = NSRect(x: bounds.maxX - 11, y: isFlipped ? 3 : bounds.maxY - 11, width: 8, height: 8)
+            Charte.or.setFill(); NSBezierPath(ovalIn: r).fill()
+            Charte.nuit.withAlphaComponent(Charte.verre ? 0.25 : 0.9).setStroke()
+            let c = NSBezierPath(ovalIn: r.insetBy(dx: -0.75, dy: -0.75)); c.lineWidth = 1.5; c.stroke()
+        }
+    }
+    private func dessinerFond() {
         let fond: NSColor? = actif ? Charte.or.withAlphaComponent(appui ? 0.26 : 0.18)
             : appui ? Bouton.voile.withAlphaComponent(0.14) : survol && disponible ? Bouton.voile.withAlphaComponent(0.08) : nil
         guard let f = fond else { return }
@@ -92,7 +103,11 @@ final class Bouton: NSView {
         trackingAreas.forEach(removeTrackingArea)
         addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
     }
-    override func mouseEntered(with event: NSEvent) { survol = true }
+    /// Change l'icône (bouton clair / sombre).
+    func changerSymbole(_ nom: String, aide: String) { icone.image = Charte.symbole(nom); toolTip = aide; majCouleurs() }
+    /// Appelé quand la souris arrive sur le bouton (barre latérale : elle s'aperçoit au survol).
+    var auSurvol: (() -> Void)?
+    override func mouseEntered(with event: NSEvent) { survol = true; auSurvol?() }
     override func mouseExited(with event: NSEvent) { survol = false; appui = false }
     override func mouseDown(with event: NSEvent) { if disponible { appui = true } }
     override func mouseUp(with event: NSEvent) {
