@@ -779,6 +779,11 @@ final class Appli: ObservableObject {
         didSet { UserDefaults.standard.set(enValidation, forKey: "annoncesEnValidation") }
     }
     func enAttente(_ a: Article) -> Bool { a.statut == "en_vente" && enValidation[a.id] != nil }
+    /// « En vente » dans la fiche, mais jamais publié (ni Le Bon Coin, ni eBay, ni dans un lot en ligne) : « À publier ».
+    func aPublier(_ a: Article) -> Bool {
+        a.statut == "en_vente" && !a.publiee && a.annonceEbay.isEmpty && !enAttente(a)
+            && !lotsDe(a).contains { $0.publiee || !$0.annonceEbay.isEmpty }
+    }
     func deposee(id: String) {
         guard !id.isEmpty else { return }
         enValidation[id] = Date().timeIntervalSince1970

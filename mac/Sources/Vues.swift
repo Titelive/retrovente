@@ -483,7 +483,7 @@ struct Fiche: View {
                 Button(action: fermer) { Label("Mes articles", systemImage: "chevron.left") }.boutonVerre().keyboardShortcut(.cancelAction)
                 Spacer()
             }.padding(.horizontal, 24).padding(.top, 14)
-            EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [appli.enAttente(article) ? "En attente de validation par Le Bon Coin" : Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
+            EnTete(titre: article.titre.isEmpty ? "Article" : article.titre, sousTitre: [appli.enAttente(article) ? "En attente de validation par Le Bon Coin" : appli.aPublier(article) ? "À publier : pas encore sur Le Bon Coin" : Libelles.statut(article.statut), article.sousTitre].filter { !$0.isEmpty }.joined(separator: " · ")) {
                 if article.estLot {
                     Button { Task { await refaireAnnonceLot() } } label: { Label("Refaire l'annonce", systemImage: "sparkles") }.boutonVerre()
                         .help("Nouveau titre accrocheur et annonce à jour avec les articles du lot").disabled(enCours)
@@ -749,7 +749,7 @@ struct Fiche: View {
     private var champs: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Le statut d'abord (tout en haut), le prix plus bas, juste avant l'annonce (après la cote qui aide à le fixer).
-            ParcoursStatut(statut: $article.statut, enValidation: appli.enAttente(article))
+            ParcoursStatut(statut: $article.statut, enValidation: appli.enAttente(article), aPublier: appli.aPublier(article))
             bloc("Article", "gamecontroller") {
                 champ("Titre") { TextField("Nom du jeu, de la console…", text: $article.titre) }
                 HStack {
@@ -1024,6 +1024,7 @@ func imageDe(_ f: NSItemProvider) async -> NSImage? {
 struct ParcoursStatut: View {
     @Binding var statut: String
     var enValidation = false
+    var aPublier = false
     private let etapes = ["en_vente", "reserve", "vendu", "envoye", "recu"]
     private var rang: Int? { etapes.firstIndex(of: statut) }
 
@@ -1031,12 +1032,14 @@ struct ParcoursStatut: View {
         let cs = Libelles.couleursStatut(statut)
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
-                Image(systemName: enValidation ? "hourglass" : Libelles.symboleStatut(statut)).font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(enValidation ? Color.orange : cs.texte)
-                    .frame(width: 50, height: 50).background(enValidation ? Color.orange.opacity(0.15) : cs.fond, in: RoundedRectangle(cornerRadius: 14))
+                Image(systemName: enValidation ? "hourglass" : aPublier ? "paperplane" : Libelles.symboleStatut(statut)).font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(enValidation ? Color.orange : aPublier ? Color.secondary : cs.texte)
+                    .frame(width: 50, height: 50).background(enValidation ? Color.orange.opacity(0.15) : aPublier ? Color.primary.opacity(0.08) : cs.fond, in: RoundedRectangle(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(enValidation ? "En validation" : Libelles.statut(statut)).font(.system(size: 24, weight: .heavy, design: .rounded))
-                    Text(enValidation ? "Déposée : Le Bon Coin **doit encore la valider** avant qu'elle soit en ligne." : LocalizedStringKey(Libelles.aideStatut(statut)))
+                    Text(enValidation ? "En validation" : aPublier ? "À publier" : Libelles.statut(statut)).font(.system(size: 24, weight: .heavy, design: .rounded))
+                    Text(enValidation ? "Déposée : Le Bon Coin **doit encore la valider** avant qu'elle soit en ligne."
+                         : aPublier ? "**Pas encore en ligne** : dépose-la sur Le Bon Coin et clique sur « Publier » pour la mettre en vente."
+                         : LocalizedStringKey(Libelles.aideStatut(statut)))
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
@@ -1060,7 +1063,7 @@ struct ParcoursStatut: View {
     }
 
     private func etape(_ e: String, _ i: Int) -> some View {
-        let fait = rang.map { i < $0 } ?? false, actuel = rang == i
+        let fait = rang.map { i < $0 } ?? false, actuel = rang == i && !(aPublier && i == 0)
         return Button { choisir(e) } label: {
             VStack(spacing: 6) {
                 ZStack {
