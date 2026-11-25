@@ -293,7 +293,7 @@ struct CarteArticle: View {
     private var grise: Bool { appli.choix != nil && !appli.libre(article) }
     private var teinte: (fond: Color, trait: Color)? {
         switch article.statut {
-        case "vendu": return (Color.rrAnis.opacity(0.22), Color.rrAnis)
+        case "vendu": return (Color.green.opacity(0.14), Color.green.opacity(0.7))
         case "envoye", "recu": let c = Libelles.couleursStatut(article.statut); return (c.fond.opacity(0.75), c.texte.opacity(0.35))
         default: return nil
         }
@@ -361,13 +361,13 @@ struct CarteArticle: View {
 
     @ViewBuilder private var etiquetteHaut: some View {
         if article.estLot {
-            Etiquette(texte: "LOT ×\(appli.membres(article).count)", symbole: "shippingbox", fond: .rrNuit, texteCouleur: .rrAnis, pixel: true)
+            Etiquette(texte: "LOT ×\(appli.membres(article).count)", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
         } else if appli.choix == nil, !appli.lotsActifs(article).isEmpty {
             let n = appli.lotsActifs(article).count
-            Etiquette(texte: n > 1 ? "DANS \(n) LOTS" : "AUSSI EN LOT", symbole: "shippingbox", fond: .rrNuit, texteCouleur: .rrAnis, pixel: true)
+            Etiquette(texte: n > 1 ? "DANS \(n) LOTS" : "AUSSI EN LOT", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
                 .help("Aussi dans " + appli.lotsActifs(article).map { "« \($0.titre) »" }.joined(separator: ", "))
         } else if appli.choix == nil, appli.petitPrix(article), article.statut == "en_vente" {
-            Etiquette(texte: "Idéal en lot", symbole: nil, fond: .rrAnis, texteCouleur: .rrNuit, pixel: false)
+            Etiquette(texte: "Idéal en lot", symbole: nil, fond: .white, texteCouleur: .rrAccent, pixel: false)
         }
     }
     @ViewBuilder private var coinHaut: some View {
@@ -667,12 +667,17 @@ struct Bandeau: View {
     @ObservedObject var appli: Appli
     var body: some View {
         if let m = appli.message {
-            Text(m).font(.callout.weight(.medium)).multilineTextAlignment(.center)
+            let echec = m.hasPrefix("⚠️"), attente = m.hasSuffix("…")
+            HStack(spacing: 8) {
+                if attente { ProgressView().controlSize(.small) }
+                else { Image(systemName: echec ? "exclamationmark.triangle.fill" : "checkmark.circle.fill").foregroundStyle(echec ? Color.orange : Color.green) }
+                Text(echec ? String(m.dropFirst(2)).trimmingCharacters(in: .whitespaces) : m).font(.callout.weight(.medium)).multilineTextAlignment(.leading)
+            }
                 .padding(.horizontal, 16).padding(.vertical, 10)
-                .verre(Capsule(), teinte: .rrAccent)
+                .verre(Capsule(), teinte: echec ? .orange : .rrAccent)
                 .padding(.bottom, 22).padding(.horizontal, 40)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .task(id: m) { try? await Task.sleep(nanoseconds: 3_800_000_000); if appli.message == m { appli.message = nil } }
+                .task(id: m) { if attente { return }; try? await Task.sleep(nanoseconds: echec || m.count > 70 ? 7_000_000_000 : 3_800_000_000); if appli.message == m { appli.message = nil } }
                 .onTapGesture { appli.message = nil }
         }
     }

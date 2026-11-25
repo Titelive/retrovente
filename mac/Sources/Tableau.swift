@@ -436,7 +436,7 @@ private struct Bulle: View {
             if cours { Text("Mois en cours").font(.caption2).foregroundStyle(.secondary) }
         }
         .padding(12).frame(minWidth: 200)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.rrCarte, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.secondary.opacity(0.2)))
         .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
     }

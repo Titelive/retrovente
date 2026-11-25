@@ -8,6 +8,10 @@ import UniformTypeIdentifiers
 extension Color {
     /// Accent de toute l'app : le bleu du système (Liquid Glass), lisible en clair comme en sombre.
     static let rrAccent = Color(nsColor: .systemBlue)
+    /// Fonds neutres : ni le doré d'avant, ni la teinte du fond d'écran que macOS ajoute aux matériaux.
+    static let rrFond = Color(nsColor: .textBackgroundColor)
+    static let rrSurface = Color.primary.opacity(0.035)
+    static let rrCarte = Color.primary.opacity(0.05)
     static let rrAnis = Color(red: 0.83, green: 0.96, blue: 0.48)
     static let rrNuit = Color(red: 0.10, green: 0.10, blue: 0.10)
 }
@@ -88,6 +92,9 @@ struct Racine: View {
             }
             if let t = appli.fete { Fete(titre: t).allowsHitTesting(false).transition(.opacity) }
         }
+        // Au-dessus de tout (aussi de la messagerie) : le résultat d'une action se voit toujours.
+        .overlay(alignment: .bottom) { Bandeau(appli: appli).padding(.bottom, appli.messagesOuvert ? 150 : 0) }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: appli.etat == .connecte)
         .animation(.easeInOut, value: appli.fete)
         .alert("RetroRevente", isPresented: Binding(get: { appli.erreur != nil }, set: { if !$0 { appli.erreur = nil } })) {
@@ -108,10 +115,10 @@ struct Connexion: View {
     @State private var enCours = false
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color.rrNuit, Color(red: 0.16, green: 0.17, blue: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color.rrNuit, Color(red: 0.07, green: 0.10, blue: 0.18)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
             Circle().fill(Color.rrAccent.opacity(0.35)).frame(width: 420).blur(radius: 120).offset(x: 220, y: -160)
-            Circle().fill(Color.rrAnis.opacity(0.25)).frame(width: 380).blur(radius: 120).offset(x: -260, y: 200)
+            Circle().fill(Color.indigo.opacity(0.25)).frame(width: 380).blur(radius: 120).offset(x: -260, y: 200)
             VStack(spacing: 18) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
                 (Text("Retro").foregroundColor(.white) + Text("Revente").foregroundColor(.rrAccent)).font(.system(size: 30, weight: .heavy, design: .rounded))
@@ -242,15 +249,13 @@ struct Accueil: View {
                     .transition(.opacity)
             }
         }
-        .overlay(alignment: .bottom) { Bandeau(appli: appli) }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: appli.message)
         .onChange(of: appli.focusRecherche) { _ in
             if appli.barreCachee { appli.barreCachee = false }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { champRecherche = true }
         }
         .onChange(of: appli.choix != nil) { c in if c, filtre != nil, filtre != "en_vente" { filtre = nil } }
         .environment(\.basculerBarre, { withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { appli.barreCachee.toggle() } })
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(Color.rrFond.ignoresSafeArea())
         .sheet(isPresented: $appli.nouveauOuvert) { Nouveau(appli: appli) }
         .sheet(isPresented: $appli.cartesOuvert) { CartesPhoto(appli: appli) }
         .sheet(item: $appli.depot) { d in FeuilleDepot(appli: appli, depot: d) }
@@ -321,9 +326,9 @@ struct Avatar: View {
     let profil: Profil; let taille: CGFloat
     var body: some View {
         ZStack {
-            Circle().fill(Color.rrAnis)
+            Circle().fill(Color.secondary.opacity(0.22))
             if let i = image { Image(nsImage: i).resizable().scaledToFill() }
-            else { Text(String(profil.nom.prefix(1)).uppercased()).font(.system(size: taille * 0.45, weight: .heavy, design: .rounded)).foregroundColor(.rrNuit) }
+            else { Text(String(profil.nom.prefix(1)).uppercased()).font(.system(size: taille * 0.45, weight: .heavy, design: .rounded)).foregroundColor(.primary) }
         }
         .frame(width: taille, height: taille).clipShape(Circle())
         .overlay(Circle().stroke(Color.rrAccent.opacity(0.8), lineWidth: 1.5))
@@ -345,7 +350,7 @@ struct Vignette: View {
     static func url(_ a: Article, _ photo: Photo?) -> URL? { (photo ?? a.photos.first).map { API.urlPhoto(a.id, $0.id, v: a.modifie) } }
     var body: some View {
         // La photo remplit le cadre sans jamais en sortir (le cadre fixe la taille, la photo est rognée).
-        Rectangle().fill(LinearGradient(colors: [Color.rrAccent.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        Rectangle().fill(LinearGradient(colors: [Color.rrAccent.opacity(0.12), Color.primary.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .overlay {
             if let i = image { Image(nsImage: i).resizable().interpolation(.medium).scaledToFill() }
             else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrAccent) }
@@ -849,7 +854,7 @@ struct Nouveau: View {
 struct Fete: View {
     let titre: String
     @State private var debut = Date()
-    private let couleurs: [Color] = [.rrAccent, .rrAnis, Color(red: 0.48, green: 0.96, blue: 0.89), Color(red: 0.73, green: 0.55, blue: 1), Color(red: 1, green: 0.6, blue: 0.84)]
+    private let couleurs: [Color] = [.rrAccent, .cyan, .indigo, Color(red: 0.73, green: 0.55, blue: 1), .white]
     var body: some View {
         ZStack {
             TimelineView(.animation) { tl in

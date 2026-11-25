@@ -303,7 +303,7 @@ struct MonCompte: View {
             }
             ScrollView {
                 VStack(spacing: 16) {
-                    if !info.isEmpty { Text(info).font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 14), teinte: .rrAnis) }
+                    if !info.isEmpty { Text(info).font(.callout).padding(12).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 14), teinte: .rrAccent) }
                     HStack(alignment: .top, spacing: 16) {
                         carte("Profil", "person") {
                             HStack(spacing: 14) {
@@ -380,7 +380,7 @@ struct MonCompte: View {
             HStack {
                 Text(appli.profil.formule).font(.system(size: 22, weight: .heavy, design: .rounded))
                 Spacer()
-                if !appli.profil.abonnement.isEmpty { Text(appli.profil.resiliation ? "Résiliée" : "Active").font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 4).background(Color.rrAnis, in: Capsule()).foregroundColor(.rrNuit) }
+                if !appli.profil.abonnement.isEmpty { Text(appli.profil.resiliation ? "Résiliée" : "Active").font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 4).background(appli.profil.resiliation ? Color.orange : Color.green, in: Capsule()).foregroundColor(.white) }
             }
             if let m = appli.profil.quotaMax {
                 Text("Articles ce mois-ci : \(appli.profil.quotaUtilise) sur \(m)").font(.callout)

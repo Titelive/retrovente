@@ -51,11 +51,11 @@ struct MessageLbc: Identifiable, Equatable {
 }
 
 struct FilLbc: Equatable {
-    var cle = "", acheteur = "", annonce: [String] = [], dernierMoi = false, messages: [MessageLbc] = []
+    var cle = "", acheteur = "", annonce: [String] = [], dernierMoi = false, bloque = false, messages: [MessageLbc] = []
     init() {}
     init(_ d: [String: Any]) {
         cle = d["cle"] as? String ?? ""; acheteur = d["acheteur"] as? String ?? ""; annonce = d["annonce"] as? [String] ?? []
-        dernierMoi = d["dernierMoi"] as? Bool ?? false
+        dernierMoi = d["dernierMoi"] as? Bool ?? false; bloque = d["bloque"] as? Bool ?? false
         let bruts = (d["messages"] as? [[String: Any]] ?? []).enumerated().map { i, m in
             MessageLbc(id: i, cote: m["cote"] as? String ?? "lui", texte: (m["texte"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines), meta: m["meta"] as? String ?? "")
         }
@@ -105,6 +105,11 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var masquees: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "conversationsMasquees") ?? []) {
         didSet { UserDefaults.standard.set(Array(masquees), forKey: "conversationsMasquees") }
     }
+    /// Conversations dont l'acheteur est bloqué (vu dans Le Bon Coin ou bloqué depuis l'app).
+    @Published var bloques: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "conversationsBloquees") ?? []) {
+        didSet { UserDefaults.standard.set(Array(bloques), forKey: "conversationsBloquees") }
+    }
+    var ouverteBloquee: Bool { fil.bloque || (ouverte.map { bloques.contains($0) } ?? false) }
     @Published var suppression: String? = nil
 
     weak var fenetre: Fenetre?
@@ -302,8 +307,9 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         guard let r = r else { return }
         if r["erreur"] != nil { avis = "Cette conversation n'est plus dans la liste."; await lire(); return }
         fil = FilLbc(r)
+        if fil.bloque { bloques.insert(c.cle) }
         await lire()
-        if jeton == jetonOuverture, !fil.dernierMoi { await proposer() }
+        if jeton == jetonOuverture, !fil.dernierMoi, !ouverteBloquee { await proposer() }
     }
 
     // Non lus : le rond jaune n'apparaît que sur une conversation dont le dernier message a changé depuis que tu l'as
@@ -354,6 +360,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     func masquer(_ c: ConversationLbc) {
         masquees.insert(c.cle)
+        fenetre?.modele.message = "Conversation masquée ici (elle reste sur Le Bon Coin)."
         withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
         if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
     }
@@ -362,33 +369,56 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     /// Supprime la conversation sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
     func supprimer(_ c: ConversationLbc) async {
         suppression = c.cle; defer { suppression = nil }
+        fenetre?.modele.message = "Suppression de la conversation sur Le Bon Coin…"
         let r = await appel("return await window.rrMessagerie.supprimer(cle);", ["cle": c.cle])
         if (r?["ok"] as? Bool) == true {
             withAnimation(.easeOut(duration: 0.25)) { conversations.removeAll { $0.cle == c.cle } }
             if ouverte == c.cle { ouverte = nil; fil = FilLbc() }
-            fenetre?.modele.message = "Conversation supprimée de Le Bon Coin."
+            fenetre?.modele.message = "Conversation supprimée : Le Bon Coin ne l'affiche plus."
         } else {
-            fenetre?.modele.message = "Je n'ai pas réussi à supprimer cette conversation sur Le Bon Coin. Tu peux la masquer ici, ou la supprimer sur le site."
+            let pourquoi = r?["erreur"] as? String == "confirmation" ? "elle est toujours dans ta messagerie Le Bon Coin" : "je n'ai pas trouvé le bouton « Supprimer »"
+            fenetre?.modele.message = "⚠️ Pas supprimée : \(pourquoi). Tu peux la masquer ici, ou la supprimer sur le site."
         }
         await lire()
+    }
+
+    /// Affichage seulement (jamais dans le message envoyé) : montants, nom de l'acheteur et mots qui décident en gras.
+    static func enGras(_ t: String, nom: String) -> AttributedString {
+        var a = AttributedString(t)
+        var motifs = [#"\d[\d  .,]*\s?€"#,
+                      #"(?i)\b(offres? (déjà )?(refusée?s?|acceptée?s?|expirée?s?|reçue?s?)|nouvelle offre|contre-offre|achat immédiat|vendue?|réservée?|paiement sécurisé|remise en main propre|envoi|colis|dernier prix|prix ferme|petit geste|pas en dessous)\b"#]
+        let n = nom.trimmingCharacters(in: .whitespaces)
+        if n.count >= 2 { motifs.append("(?i)" + NSRegularExpression.escapedPattern(for: n)) }
+        for motif in motifs {
+            guard let re = try? NSRegularExpression(pattern: motif) else { continue }
+            for r in re.matches(in: t, range: NSRange(t.startIndex..., in: t)) {
+                guard let rs = Range(r.range, in: t), let lo = AttributedString.Index(rs.lowerBound, within: a), let hi = AttributedString.Index(rs.upperBound, within: a) else { continue }
+                a[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
+            }
+        }
+        return a
     }
 
     /// Bloque l'acheteur sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
     func bloquer(_ c: ConversationLbc) async {
         suppression = c.cle; defer { suppression = nil }
         let qui = c.acheteur.isEmpty ? c.nom : c.acheteur
+        fenetre?.modele.message = "Blocage de \(qui) sur Le Bon Coin…"
         let r = await appel("return await window.rrMessagerie.bloquer(cle, lignes);", ["cle": c.cle, "lignes": c.lignes])
-        if (r?["ok"] as? Bool) == true {
-            fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Cet utilisateur était déjà bloqué sur Le Bon Coin." : "C'est fait : \(qui) ne peut plus t'écrire sur Le Bon Coin."
+        if (r?["ok"] as? Bool) == true, (r?["verifie"] as? Bool) == true {
+            bloques.insert(c.cle); if ouverte == c.cle { reponses = []; resume = "" }
+            fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Ce compte était déjà bloqué sur Le Bon Coin." : "Le Bon Coin confirme le blocage : \(qui) ne peut plus t'écrire."
+        } else if (r?["ok"] as? Bool) == true {
+            fenetre?.modele.message = "⚠️ J'ai cliqué « Bloquer », mais Le Bon Coin ne l'a pas confirmé. Vérifie sur le site."
         } else {
-            fenetre?.modele.message = "Je n'ai pas trouvé le bouton « Bloquer » de Le Bon Coin pour cette conversation. Tu peux le faire sur le site."
+            fenetre?.modele.message = "⚠️ Pas bloqué : je n'ai pas trouvé le bouton « Bloquer » de Le Bon Coin. Tu peux le faire sur le site."
         }
         await lire()
     }
 
     /// Réponses de l'IA pour la conversation ouverte (avec une consigne : « dis-lui que… »).
     func proposer(_ consigne: String = "") async {
-        guard let pour = ouverte else { return }
+        guard let pour = ouverte, !ouverteBloquee else { return }
         jetonIA += 1; let j = jetonIA
         iaCharge = true; iaErreur = ""; defer { if j == jetonIA { iaCharge = false } }
         let rep = await appel("return await window.rrMessagerie.suggestions(consigne);", ["consigne": consigne])
@@ -429,7 +459,7 @@ struct MessagesVue: View {
             liste.frame(width: 330)
             detail.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .background(Color.rrFond.ignoresSafeArea())
         .onAppear { if let f = appli.fenetre { m.demarrer(f) } }
         .onDisappear { m.arreter() }
         .confirmationDialog("Supprimer la conversation avec \(aSupprimer.map { $0.acheteur.isEmpty ? $0.nom : $0.acheteur } ?? "") ?",
@@ -493,7 +523,7 @@ struct MessagesVue: View {
                 }
             }
         }
-        .background(.regularMaterial)
+        .background(Color.rrSurface)
         .overlay(alignment: .trailing) { Rectangle().fill(Color.primary.opacity(0.06)).frame(width: 1) }
     }
 
@@ -522,13 +552,17 @@ struct MessagesVue: View {
                     .overlay(alignment: .topTrailing) {
                         if c.nonLu {
                             Circle().fill(Color.rrAccent).frame(width: 12, height: 12)
-                                .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 2)).offset(x: 4, y: -4)
+                                .overlay(Circle().stroke(Color.rrFond, lineWidth: 2)).offset(x: 4, y: -4)
                                 .transition(.scale)
                         }
                     }
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(c.acheteur.isEmpty ? c.nom : c.acheteur).font(.system(size: 13.5, weight: c.nonLu ? .heavy : .semibold, design: .rounded)).lineLimit(1)
+                        if m.bloques.contains(c.cle) {
+                            Label("Bloqué", systemImage: "nosign").labelStyle(.titleAndIcon).font(.caption2.weight(.bold)).foregroundStyle(.red)
+                                .padding(.horizontal, 6).padding(.vertical, 2).background(Color.red.opacity(0.1), in: Capsule())
+                        }
                         Spacer(minLength: 4)
                         Text(c.date).font(.caption2.weight(c.nonLu ? .bold : .regular)).foregroundStyle(c.nonLu ? Color.rrAccent : .secondary).lineLimit(1)
                     }
@@ -558,6 +592,7 @@ struct MessagesVue: View {
 
     // MARK: Conversation
 
+    private var acheteurOuvert: String { m.fil.acheteur.isEmpty ? (conversationOuverte?.acheteur ?? "") : m.fil.acheteur }
     private var conversationOuverte: ConversationLbc? { m.conversations.first { $0.cle == m.ouverte } }
 
     @ViewBuilder private var detail: some View {
@@ -591,7 +626,20 @@ struct MessagesVue: View {
                 .background(
                     LinearGradient(colors: [Color.rrAccent.opacity(0.04), .clear], startPoint: .top, endPoint: .bottom)
                 )
-                redaction
+                if m.ouverteBloquee {
+                    HStack(spacing: 10) {
+                        Image(systemName: "nosign").font(.title3).foregroundStyle(.red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Utilisateur bloqué").font(.headline)
+                            Text("Le Bon Coin ne vous laisse plus vous écrire. Si tu changes d'avis, tu peux débloquer ce compte sur le site.").font(.callout).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16).background(Color.red.opacity(0.07))
+                    .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
+                } else {
+                    redaction
+                }
             }
         }
     }
@@ -621,7 +669,7 @@ struct MessagesVue: View {
             }
         }
         .padding(.horizontal, 22).padding(.vertical, 14)
-        .background(.bar)
+        .background(Color.rrFond)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 
@@ -658,10 +706,10 @@ struct MessagesVue: View {
                     .background {
                         if moi {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.4), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .fill(LinearGradient(colors: [Color.rrAccent.opacity(0.85), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .shadow(color: Color.rrAccent.opacity(0.25), radius: 6, y: 2)
                         } else {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
+                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.rrCarte)
                                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.07)))
                                 .shadow(color: .black.opacity(0.08), radius: 4, y: 1)
                         }
@@ -697,7 +745,7 @@ struct MessagesVue: View {
             }
         }
         .padding(14).frame(maxWidth: 520, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.rrCarte))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(teinte.opacity(0.35), lineWidth: 1))
         .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(teinte).frame(width: 4).padding(.vertical, 12) }
     }
@@ -718,7 +766,7 @@ struct MessagesVue: View {
             }
             if !m.iaErreur.isEmpty { Text(m.iaErreur).font(.callout).foregroundStyle(.orange) }
             else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as répondu en dernier : je te proposerai une réponse dès que l'acheteur écrit.").font(.callout).foregroundStyle(.secondary) }
-            else if !m.resume.isEmpty { Text(m.resume).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
+            else if !m.resume.isEmpty { Text(Messagerie.enGras(m.resume, nom: acheteurOuvert)).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
             if !m.reponses.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 10) {
@@ -727,11 +775,11 @@ struct MessagesVue: View {
                             Button { withAnimation(.easeOut(duration: 0.15)) { m.brouillon = r.texte } } label: {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.heavy)).foregroundStyle(choisie ? Color.white : Color.rrAccent)
-                                    Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
+                                    Text(Messagerie.enGras(r.texte, nom: acheteurOuvert)).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
                                 }
                                 .frame(width: 240, alignment: .leading).padding(12)
-                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Material.regularMaterial)))
-                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.rrAccent.opacity(choisie ? 0 : 0.35)))
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Color.rrCarte)))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.primary.opacity(choisie ? 0 : 0.08)))
                             }.buttonStyle(.plain).help("Placer cette réponse dans le message (tu peux la modifier)")
                         }
                     }.padding(.vertical, 2)
@@ -765,7 +813,7 @@ struct MessagesVue: View {
             if !m.avis.isEmpty { Text(m.avis).font(.callout).foregroundStyle(.orange) }
         }
         .padding(18)
-        .background(.bar)
+        .background(Color.rrFond)
         .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
     }
 }
