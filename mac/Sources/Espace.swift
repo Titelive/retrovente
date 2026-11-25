@@ -354,8 +354,8 @@ struct MonCompte: View {
                         Button(branche ? "Rebrancher" : "Brancher maintenant") { Task { await appli.brancherLeBonCoin(force: true); info = "Le Bon Coin est branché." } }.boutonVerre()
                     }
                     carte("App Photos", "photo.on.rectangle.angled") {
-                        Toggle("Retirer de Photos les photos d'un article, une fois la fiche enregistrée", isOn: $retirerDePhotos)
-                        Text("Seulement une fois la photo **bien envoyée**. macOS te demande de confirmer, et elle reste **30 jours** dans « Supprimés récemment ».")
+                        Toggle("Retirer de Photos les photos d'un article, une fois son annonce publiée", isOn: $retirerDePhotos)
+                        Text("Seulement **à la fin, une fois l'annonce publiée** sur Le Bon Coin. macOS te demande de confirmer, et la photo reste **30 jours** dans « Supprimés récemment ».")
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     carte("Supprimer mon compte", "trash") {

@@ -304,6 +304,9 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
 
     func publiee(id: String, titre: String, url: String) {
         modele.deposee(id: id)   // pas encore en ligne : Le Bon Coin doit d'abord valider l'annonce
+        // À la fin seulement : l'annonce est publiée, les photos venues de Photos peuvent quitter la photothèque (après la fête).
+        let ids = [id] + (modele.parId(id).map { modele.membres($0).map(\.id) } ?? [])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { Task { await Phototheque.apresPublication(ids) } }
         // Publiée depuis l'app (en coulisses) : la fête tout de suite, Le Bon Coin n'a jamais été à l'écran.
         if enCoulisses || modele.depot != nil {
             modele.depot = nil
