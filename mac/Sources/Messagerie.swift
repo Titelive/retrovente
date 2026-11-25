@@ -376,6 +376,23 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         await lire()
     }
 
+    /// Affichage seulement (jamais dans le message envoyé) : montants, nom de l'acheteur et mots qui décident en gras.
+    static func enGras(_ t: String, nom: String) -> AttributedString {
+        var a = AttributedString(t)
+        var motifs = [#"\d[\d  .,]*\s?€"#,
+                      #"(?i)\b(offres? (déjà )?(refusée?s?|acceptée?s?|expirée?s?|reçue?s?)|nouvelle offre|contre-offre|achat immédiat|vendue?|réservée?|paiement sécurisé|remise en main propre|envoi|colis|dernier prix|prix ferme|petit geste|pas en dessous)\b"#]
+        let n = nom.trimmingCharacters(in: .whitespaces)
+        if n.count >= 2 { motifs.append("(?i)" + NSRegularExpression.escapedPattern(for: n)) }
+        for motif in motifs {
+            guard let re = try? NSRegularExpression(pattern: motif) else { continue }
+            for r in re.matches(in: t, range: NSRange(t.startIndex..., in: t)) {
+                guard let rs = Range(r.range, in: t), let lo = AttributedString.Index(rs.lowerBound, within: a), let hi = AttributedString.Index(rs.upperBound, within: a) else { continue }
+                a[lo..<hi].inlinePresentationIntent = .stronglyEmphasized
+            }
+        }
+        return a
+    }
+
     /// Bloque l'acheteur sur Le Bon Coin (l'app a demandé confirmation). Si le bouton n'est pas trouvé, on le dit.
     func bloquer(_ c: ConversationLbc) async {
         suppression = c.cle; defer { suppression = nil }
@@ -564,6 +581,7 @@ struct MessagesVue: View {
 
     // MARK: Conversation
 
+    private var acheteurOuvert: String { m.fil.acheteur.isEmpty ? (conversationOuverte?.acheteur ?? "") : m.fil.acheteur }
     private var conversationOuverte: ConversationLbc? { m.conversations.first { $0.cle == m.ouverte } }
 
     @ViewBuilder private var detail: some View {
@@ -724,7 +742,7 @@ struct MessagesVue: View {
             }
             if !m.iaErreur.isEmpty { Text(m.iaErreur).font(.callout).foregroundStyle(.orange) }
             else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as répondu en dernier : je te proposerai une réponse dès que l'acheteur écrit.").font(.callout).foregroundStyle(.secondary) }
-            else if !m.resume.isEmpty { Text(m.resume).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
+            else if !m.resume.isEmpty { Text(Messagerie.enGras(m.resume, nom: acheteurOuvert)).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
             if !m.reponses.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 10) {
@@ -733,7 +751,7 @@ struct MessagesVue: View {
                             Button { withAnimation(.easeOut(duration: 0.15)) { m.brouillon = r.texte } } label: {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.heavy)).foregroundStyle(choisie ? Color.white : Color.rrAccent)
-                                    Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
+                                    Text(Messagerie.enGras(r.texte, nom: acheteurOuvert)).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
                                 }
                                 .frame(width: 240, alignment: .leading).padding(12)
                                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Color.rrCarte)))
