@@ -589,6 +589,19 @@ final class Appli: ObservableObject {
             }
         } catch { signaler(error) }
     }
+    /// Toutes les photos de la fiche, l'une après l'autre (celles déjà retouchées sont gardées telles quelles).
+    @Published var retoucheTout: String? = nil   // id de l'article en cours
+    func retoucherTout(_ a: Article) async {
+        guard retoucheTout == nil else { return }
+        retoucheTout = a.id; defer { retoucheTout = nil }
+        var faites = 0
+        for p in a.photos where retouches[Appli.cle(a, p)] == nil {
+            guard let actuel = parId(a.id) else { break }
+            await retoucher(actuel, p)
+            if retouches[Appli.cle(a, p)] != nil { faites += 1 }
+        }
+        message = faites == 0 ? "Toutes les photos étaient déjà retouchées." : "\(faites) photo\(faites > 1 ? "s" : "") retouchée\(faites > 1 ? "s" : ""). Les originaux sont gardés : « Original » pour y revenir."
+    }
     /// Original ⇄ retouchée.
     func basculerOriginal(_ a: Article, _ p: Photo) async {
         let k = Appli.cle(a, p)
