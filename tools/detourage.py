@@ -109,17 +109,17 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         zone[pres] = 0
         if zone.any():
             img = cv2.inpaint(img, zone, 7, cv2.INPAINT_TELEA)
-    # 3) niveaux : on étire seulement (jamais moins de contraste ni moins de couleur que l'original),
-    #    sans toucher localement au jeu
+    # 3) niveaux : on étire seulement, et doucement (jamais moins de contraste ni moins de couleur que l'original,
+    #    mais sans contraste « poussé » non plus), sans toucher localement au jeu
     f = img.astype(np.float32)
     lum = f.mean(axis=2)
     lo, hi = np.percentile(lum, .5), np.percentile(lum, 99.6)
     g = 255 / max(hi - lo, 1)
     if g > 1:
         lo = min(lo, lo * g - lo)  # écart noir limité : on n'écrase pas les ombres
-        f = np.clip((f - lo) * min(g, 1.25), 0, 255)
+        f = np.clip((f - lo) * min(g, 1.1), 0, 255)
     gr = f.mean(axis=2, keepdims=True)
-    f = gr + (f - gr) * 1.08          # couleurs un poil plus vives, jamais plus ternes
+    f = gr + (f - gr) * 1.04          # couleurs un poil plus vives, jamais plus ternes
     f = f * np.array([1.035, 1.0, 0.965], dtype=np.float32)   # un peu plus chaud
     # Plus aucune retouche locale sur le jeu lui-même (l'ancien « calmage des reflets » assombrissait aussi les logos
     # blancs imprimés) : seuls la lumière et les couleurs de toute la photo sont ajustées, le jeu reste tel quel.
@@ -142,8 +142,16 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
     # 5) recadrage autour du jeu avec une marge, sans sortir de la vraie photo
     ys, xs = np.nonzero(om)
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
-    marge = int(max(x1 - x0, y1 - y0) * .13)
-    X0, X1, Y0, Y1 = max(0, x0 - marge), min(NW, x1 + marge), max(0, y0 - marge), min(NH, y1 + marge)
+    # Jeu centré : la même marge des quatre côtés. Si la photo manque d'un côté, la marge diminue partout
+    # (plutôt qu'un jeu décalé avec des bords inégaux).
+    voulu = int(max(x1 - x0, y1 - y0) * .10)
+    dispo = min(x0, NW - 1 - x1, y0, NH - 1 - y1)
+    marge = max(0, min(voulu, dispo))
+    def dans(X0, X1, Y0, Y1):
+        return ok[Y0, X0] and ok[Y0, X1 - 1] and ok[Y1 - 1, X0] and ok[Y1 - 1, X1 - 1]
+    while marge > voulu // 3 and not dans(x0 - marge, x1 + 1 + marge, y0 - marge, y1 + 1 + marge):
+        marge -= 2
+    X0, X1, Y0, Y1 = x0 - marge, x1 + 1 + marge, y0 - marge, y1 + 1 + marge
     if not fiable:        # photo entière (seulement le quart de tour demandé)
         X0, X1, Y0, Y1 = 0, NW, 0, NH
     for _ in range(40 if fiable else 0):   # rogne tant que les coins tombent hors de la photo d'origine
@@ -156,7 +164,7 @@ def retoucher(data: bytes, rot: int = 0, carre: bool = False, pastille: bool = F
         X0 = int(min(max(0, mx - c_ / 2), NW - c_)); Y0 = int(min(max(0, my - c_ / 2), NH - c_)); X1, Y1 = X0 + c_, Y0 + c_
     crop = img[Y0:Y1, X0:X1]
     flou = cv2.GaussianBlur(crop, (0, 0), 1.0)
-    crop = cv2.addWeighted(crop, 1.35, flou, -.35, 0)   # netteté légère, compense la rotation
+    crop = cv2.addWeighted(crop, 1.18, flou, -.18, 0)   # netteté très légère, compense la rotation
     out_im = Image.fromarray(crop)
     if max(out_im.size) > SORTIE:
         out_im.thumbnail((SORTIE, SORTIE), Image.LANCZOS)
