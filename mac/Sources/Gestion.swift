@@ -217,7 +217,7 @@ struct FeuilleGestion: View {
                 boutons(principal: nil)
             case .pret(let b):
                 Label("Les modifications sont prêtes", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrAccent)
-                Text("Le titre, la description et le prix de ta fiche sont reportés sur Le Bon Coin. Rien n'est envoyé tant que tu ne cliques pas sur « Enregistrer ».")
+                Text("Le **titre**, la **description** et le **prix** de ta fiche sont reportés sur Le Bon Coin. Rien n'est envoyé tant que tu ne cliques pas sur **« Enregistrer »**.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 boutons(principal: AnyView(
                     Button { appli.fenetre?.validerGestion() } label: { Label("Enregistrer", systemImage: "checkmark") }
@@ -225,7 +225,7 @@ struct FeuilleGestion: View {
             case .aide(let t):
                 Label("Le Bon Coin a besoin de toi", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
                 Text(t).font(.callout).fixedSize(horizontal: false, vertical: true)
-                Text("Rien n'a été envoyé. Le Bon Coin reste caché : tu peux réessayer, ou l'ouvrir pour régler ça toi-même.")
+                Text("**Rien n'a été envoyé.** Le Bon Coin reste caché : tu peux **réessayer**, ou l'ouvrir pour régler ça toi-même.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 boutons(principal: AnyView(HStack {
                     Button { appli.fenetre?.voirCoulisses() } label: { Label("Ouvrir Le Bon Coin", systemImage: "eye") }.boutonVerre()

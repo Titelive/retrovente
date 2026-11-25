@@ -182,7 +182,7 @@ struct Bilan: View {
                             jauge("Objet le plus cher", gros, 5000, { Libelles.prix($0) })
                             Text(message(Swift.max(Double(va.count) / 30, mt / 2000), gros)).font(.callout).foregroundStyle(.secondary)
                         } else {
-                            Text("Avec la formule Collectionneur, RetroRevente suit tes ventes de l'année et te prévient avant d'atteindre les seuils (30 ventes ou 2 000 €).")
+                            Text("Avec la formule **Collectionneur**, RetroRevente suit tes ventes de l'année et **te prévient avant d'atteindre les seuils** (30 ventes ou 2 000 €).")
                                 .font(.callout).foregroundStyle(.secondary)
                         }
                     }
@@ -260,7 +260,7 @@ struct BlocCote: View {
                     bouton("Réestimer")
                 }
             } else {
-                Text("L'IA cherche les ventes conclues et les annonces en cours pour estimer le bon prix.").font(.callout).foregroundStyle(.secondary)
+                Text("L'IA cherche les **ventes conclues** et les **annonces en cours** pour estimer **le bon prix**.").font(.callout).foregroundStyle(.secondary)
                 bouton("Estimer la cote")
             }
         }
@@ -324,7 +324,7 @@ struct MonCompte: View {
                             }
                                 .boutonVerre(principal: true).disabled(pseudo == appli.profil.pseudo && lbc == appli.profil.lbc && adresse == appli.profil.adresse)
                             if appli.profil.adresse.isEmpty {
-                                Text("Ajoute ton code postal et ta ville : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
+                                Text("Ajoute ton **code postal** et ta **ville** : ils remplissent l'adresse de tes dépôts Le Bon Coin.").font(.caption).foregroundStyle(.orange)
                             }
                         }
                         formule
@@ -332,10 +332,10 @@ struct MonCompte: View {
                     HStack(alignment: .top, spacing: 16) {
                         carte("Adresse e-mail", "envelope") {
                             if !appli.profil.emailOk {
-                                Text("Adresse pas encore confirmée.").font(.callout).foregroundStyle(.orange)
+                                Text("Adresse **pas encore confirmée**.").font(.callout).foregroundStyle(.orange)
                                 Button("Renvoyer le lien") { Task { await appli.renvoyerVerification(); info = "Lien de confirmation renvoyé." } }.buttonStyle(.link)
                             }
-                            if !appli.profil.emailEnAttente.isEmpty { Text("En attente de confirmation : \(appli.profil.emailEnAttente)").font(.callout).foregroundStyle(.secondary) }
+                            if !appli.profil.emailEnAttente.isEmpty { Text("**En attente de confirmation** : \(appli.profil.emailEnAttente)").font(.callout).foregroundStyle(.secondary) }
                             TextField("Nouvelle adresse", text: $email).textFieldStyle(.roundedBorder)
                             SecureField("Mot de passe actuel", text: $mdpEmail).textFieldStyle(.roundedBorder)
                             Button("Changer d'adresse") { Task { if let m = await appli.changerEmail(email, motdepasse: mdpEmail) { info = m; email = ""; mdpEmail = "" } } }
@@ -350,16 +350,16 @@ struct MonCompte: View {
                     }
                     carte("Le Bon Coin", "bolt.fill") {
                         let branche = !(Stockage.partage.texte("cle") ?? "").isEmpty
-                        Text(branche ? "Branché : remplissage du dépôt et réponses IA aux acheteurs actifs." : "Pas encore branché.").font(.callout)
+                        Text(branche ? LocalizedStringKey("**Branché** : remplissage du dépôt et réponses IA aux acheteurs actifs.") : "Pas encore branché.").font(.callout)
                         Button(branche ? "Rebrancher" : "Brancher maintenant") { Task { await appli.brancherLeBonCoin(force: true); info = "Le Bon Coin est branché." } }.boutonVerre()
                     }
                     carte("App Photos", "photo.on.rectangle.angled") {
                         Toggle("Retirer de Photos les photos d'un article, une fois la fiche enregistrée", isOn: $retirerDePhotos)
-                        Text("Seulement une fois la photo bien envoyée. macOS te demande de confirmer, et elle reste 30 jours dans « Supprimés récemment ».")
+                        Text("Seulement une fois la photo **bien envoyée**. macOS te demande de confirmer, et elle reste **30 jours** dans « Supprimés récemment ».")
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     carte("Supprimer mon compte", "trash") {
-                        Text("Tes articles et tes photos seront effacés définitivement.").font(.callout).foregroundStyle(.secondary)
+                        Text("Tes articles et tes photos seront **effacés définitivement**.").font(.callout).foregroundStyle(.secondary)
                         HStack {
                             SecureField("Mot de passe", text: $mdpSuppr).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
                             Button("Supprimer mon compte", role: .destructive) { confirmerSuppression = true }.boutonVerre().disabled(mdpSuppr.isEmpty)
@@ -395,7 +395,7 @@ struct MonCompte: View {
                     Button("Collectionneur") { Task { await appli.payer(offre: "collectionneur", periode: periode) } }.boutonVerre(principal: true)
                     Button("Pass Grand ménage") { Task { await appli.payer(offre: "pass", periode: periode) } }.boutonVerre()
                 }
-                Text("Le paiement se fait sur la page sécurisée de Stripe.").font(.caption).foregroundStyle(.secondary)
+                Text("Le paiement se fait sur la **page sécurisée de Stripe**.").font(.caption).foregroundStyle(.secondary)
             }
             if appli.profil.client { Button("Gérer mon abonnement et mes factures") { Task { await appli.portail() } }.boutonVerre() }
         }

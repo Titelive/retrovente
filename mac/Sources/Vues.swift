@@ -384,6 +384,7 @@ struct Fiche: View {
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
     @State private var redaction = false
+    @State private var clavier: Any?
     /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
     @State private var aRetirerDePhotos: [String] = []
     private var aEnregistrer: Bool { article != original || !aRetirerDePhotos.isEmpty }
@@ -395,8 +396,8 @@ struct Fiche: View {
             Image(systemName: "exclamationmark.triangle.fill").font(.title2).foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cette annonce n'est plus en ligne sur Le Bon Coin").font(.headline)
-                Text(article.estLot ? "Elle est désactivée, supprimée ou expirée. Redépose le lot : son titre accrocheur et son annonce sont refaits avec ses articles."
-                                    : "Elle est désactivée, supprimée ou expirée. Redépose-la, ou retrouve-la si tu l'as republiée sous un autre lien.")
+                Text(article.estLot ? LocalizedStringKey("Elle est **désactivée, supprimée ou expirée**. **Redépose le lot** : son titre accrocheur et son annonce sont refaits avec ses articles.")
+                                    : "Elle est **désactivée, supprimée ou expirée**. **Redépose-la**, ou retrouve-la si tu l'as republiée sous un autre lien.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }.frame(maxWidth: .infinity, alignment: .leading)
           }
@@ -523,21 +524,49 @@ struct Fiche: View {
             guard let n = l.first(where: { $0.id == article.id }), n != original, article == original else { return }
             article = n; original = n
         }
-        .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
+        .onAppear {
+            original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article)
+            // Clavier : ← → passent d'une photo à l'autre, sauf pendant la saisie d'un texte ou quand la visionneuse est ouverte (elle gère ses flèches).
+            clavier = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+                guard e.keyCode == 123 || e.keyCode == 124,
+                      e.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+                      appli.visionneuse == nil, !appli.messagesOuvert,
+                      !(e.window?.firstResponder is NSText), article.photos.count > 1 else { return e }
+                allerPhoto(e.keyCode == 123 ? -1 : 1)
+                return nil
+            }
+        }
+        .onDisappear { if let c = clavier { NSEvent.removeMonitor(c); clavier = nil } }
         // Annonce vide : l'IA la rédige tout de suite (il reste à enregistrer).
         .task(id: article.id) { await rediger(forcer: false) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
-        } message: { Text("La fiche et ses photos seront effacées.") }
+        } message: { Text("La fiche et ses photos seront **effacées**.") }
         .confirmationDialog("Supprimer l'annonce de Le Bon Coin ?", isPresented: $retirer) {
             Button("Supprimer de Le Bon Coin", role: .destructive) { appli.fenetre?.supprimerEnCoulisses(article) }
-        } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera retirée de Le Bon Coin. Ta fiche RetroRevente est gardée.") }
+        } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera **retirée de Le Bon Coin**. Ta fiche RetroRevente **est gardée**.") }
     }
 
     private func ouvrirVisionneuse(_ p: Photo?) {
         guard !article.photos.isEmpty else { return }
         let n = p.flatMap { x in article.photos.firstIndex(where: { $0.id == x.id }) } ?? 0
         withAnimation(.easeOut(duration: 0.2)) { appli.visionneuse = (article.id, n) }
+    }
+
+    private var indexPhoto: Int { photo.flatMap { x in article.photos.firstIndex(where: { $0.id == x.id }) } ?? 0 }
+    private func allerPhoto(_ d: Int) {
+        guard !article.photos.isEmpty else { return }
+        let n = indexPhoto + d
+        guard n >= 0, n < article.photos.count else { return }
+        withAnimation(.easeOut(duration: 0.15)) { photo = article.photos[n] }
+    }
+    private func flechePhoto(_ symbole: String, _ d: Int, aide: String) -> some View {
+        let n = indexPhoto + d
+        let possible = n >= 0 && n < article.photos.count
+        return Button { allerPhoto(d) } label: {
+            Image(systemName: symbole).font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                .frame(width: 34, height: 34).background(.black.opacity(0.45), in: Circle()).contentShape(Circle())
+        }.buttonStyle(.plain).opacity(possible ? 1 : 0.3).disabled(!possible).help(aide)
     }
 
     private var galerie: some View {
@@ -552,11 +581,29 @@ struct Fiche: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { ouvrirVisionneuse(photo) }
-                .help("Cliquer pour voir la photo en grand (← → pour naviguer)")
+                .help("Cliquer pour voir la photo en grand (← → pour passer d'une photo à l'autre)")
+                // Flèches de navigation et position de la photo (au-dessus du clic qui ouvre la visionneuse).
+                .overlay {
+                    if article.photos.count > 1 {
+                        HStack {
+                            flechePhoto("chevron.left", -1, aide: "Photo précédente (←)")
+                            Spacer()
+                            flechePhoto("chevron.right", 1, aide: "Photo suivante (→)")
+                        }.padding(.horizontal, 10)
+                    }
+                }
+                .overlay(alignment: .bottomLeading) {
+                    if article.photos.count > 1 {
+                        Text("\(indexPhoto + 1) / \(article.photos.count)").font(.caption.weight(.semibold).monospacedDigit()).foregroundStyle(.white)
+                            .padding(.horizontal, 9).padding(.vertical, 5).background(.black.opacity(0.45), in: Capsule()).padding(10).allowsHitTesting(false)
+                    }
+                }
+            ScrollViewReader { defile in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(article.photos) { p in
                         Vignette(article: article, photo: p, taille: .mini).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
+                            .id(p.id)
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrAccent : .clear, lineWidth: 2))
                             .onTapGesture(count: 2) { ouvrirVisionneuse(p) }
                             .onTapGesture { photo = p }
@@ -568,6 +615,12 @@ struct Fiche: View {
                     Button { choisirPhoto() } label: { Image(systemName: "folder").font(.title3).frame(width: 58, height: 58) }
                         .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter des photos depuis un dossier")
                 }.padding(2)
+            }
+            // La vignette choisie (flèches, clavier) reste visible dans la bande.
+            .onChange(of: photo?.id) { id in
+                guard let id else { return }
+                withAnimation(.easeOut(duration: 0.2)) { defile.scrollTo(id, anchor: .center) }
+            }
             }
             .photosPicker(isPresented: $photosOuvert, selection: $choixPhotos, maxSelectionCount: 20, selectionBehavior: .ordered,
                           matching: .images, preferredItemEncoding: .automatic, photoLibrary: .shared())
@@ -697,7 +750,7 @@ struct Fiche: View {
                 HStack(spacing: 8) {
                     if redaction {
                         ProgressView().controlSize(.small)
-                        Text("L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary)
+                        Text("L'IA **regarde chaque photo** et **rédige ton annonce**…").font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button { Task { await rediger(forcer: true) } } label: {
@@ -786,7 +839,7 @@ struct Nouveau: View {
                         VStack(spacing: 12) {
                             Image(systemName: film ? "film" : "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text(film ? "Glisse la photo de la jaquette ici" : "Glisse une photo ici").font(.title3.weight(.semibold))
-                            Text(film ? "Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA reconnaît le film et remplit la fiche." : "L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
+                            Text(film ? LocalizedStringKey("Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA **reconnaît le film** et **remplit la fiche**.") : "L'IA **reconnaît le jeu, la console ou la carte** et **remplit la fiche**.").foregroundStyle(.secondary)
                             HStack(spacing: 10) {
                                 Button { photosOuvert = true } label: { Label("Depuis Photos…", systemImage: "photo.on.rectangle.angled") }.boutonVerre(principal: true).controlSize(.large)
                                 Button { choisir() } label: { Label("Un fichier…", systemImage: "folder") }.boutonVerre().controlSize(.large)
@@ -890,7 +943,7 @@ struct Fete: View {
             VStack(spacing: 8) {
                 Text("🎉").font(.system(size: 56))
                 Text("Annonce publiée !").font(.system(size: 28, weight: .heavy, design: .rounded))
-                Text("« \(titre) » est en ligne sur Le Bon Coin.").foregroundStyle(.secondary)
+                Text("« \(titre) » est **en ligne** sur Le Bon Coin.").foregroundStyle(.secondary)
             }.padding(30).verre(RoundedRectangle(cornerRadius: 28))
         }.onAppear { debut = Date() }
     }
