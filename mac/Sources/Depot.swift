@@ -11,13 +11,13 @@ struct FeuilleDepot: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
                 Group {
-                    if let a = article { Vignette(article: a) } else { Color.rrOr.opacity(0.15) }
+                    if let a = article { Vignette(article: a) } else { Color.rrAccent.opacity(0.15) }
                 }
                 .frame(width: 86, height: 86).clipShape(RoundedRectangle(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(titreAnnonce).font(.title3.weight(.bold)).lineLimit(2)
                     if let a = article {
-                        Text(Libelles.prix(a.prixDemande)).font(.title2.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrOr)
+                        Text(Libelles.prix(a.prixDemande)).font(.title2.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrAccent)
                         if !a.sousTitre.isEmpty { Text(a.sousTitre).font(.callout).foregroundStyle(.secondary) }
                     }
                 }
@@ -34,7 +34,7 @@ struct FeuilleDepot: View {
                     Spacer()
                 }
             case .pret(let bouton, let payant):
-                Label("Ton annonce est prête", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrOr)
+                Label("Ton annonce est prête", systemImage: "checkmark.seal.fill").font(.headline).foregroundStyle(Color.rrAccent)
                 if payant {
                     Label("Une option payante est cochée sur Le Bon Coin. Vérifie-la avant de publier.", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout.weight(.semibold)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
@@ -113,7 +113,7 @@ struct ChoixDepot: View {
                                     }
                                     Spacer()
                                     Text(Libelles.prix(a.prixDemande)).font(.callout.weight(.heavy).monospacedDigit())
-                                    Image(systemName: "paperplane.fill").foregroundStyle(Color.rrOr)
+                                    Image(systemName: "paperplane.fill").foregroundStyle(Color.rrAccent)
                                 }
                                 .padding(8).contentShape(Rectangle())
                                 .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
@@ -142,7 +142,7 @@ struct ChampAdresse: View {
     @State private var enCours = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Où se trouve le bien ?", systemImage: "mappin.and.ellipse").font(.headline).foregroundStyle(Color.rrOr)
+            Label("Où se trouve le bien ?", systemImage: "mappin.and.ellipse").font(.headline).foregroundStyle(Color.rrAccent)
             Text(!explication.contains("pas reconnu") ? "Le Bon Coin demande l'adresse ou la ville où se trouve l'objet. Donne-la une fois : RetroRevente la remplira pour tous tes prochains dépôts."
                                  : "Le Bon Coin n'a pas reconnu cette adresse. Corrige-la (une ville avec son code postal suffit), puis continue.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

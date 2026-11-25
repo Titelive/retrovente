@@ -452,8 +452,8 @@ struct MessagesVue: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Messages").font(.system(size: 28, weight: .heavy, design: .rounded))
                 if nonLus > 0 {
-                    Text("\(nonLus)").font(.caption.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrNuit)
-                        .padding(.horizontal, 7).padding(.vertical, 2).background(Color.rrOr, in: Capsule())
+                    Text("\(nonLus)").font(.caption.weight(.heavy).monospacedDigit()).foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 2).background(Color.rrAccent, in: Capsule())
                         .transition(.scale.combined(with: .opacity))
                 }
                 Spacer()
@@ -472,7 +472,7 @@ struct MessagesVue: View {
                 etatVide(symbole: nil, texte: "Je lis ta messagerie Le Bon Coin…")
             case .connexion:
                 VStack(spacing: 12) {
-                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 38)).foregroundStyle(Color.rrOr)
+                    Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 38)).foregroundStyle(Color.rrAccent)
                     Text("Le Bon Coin te demande de te connecter.").multilineTextAlignment(.center)
                     Button("Ouvrir Le Bon Coin") { appli.fenetre?.allerSurLeSite(.messages) }.boutonVerre(principal: true)
                 }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -506,8 +506,8 @@ struct MessagesVue: View {
 
     private func vignette(_ url: String, taille: CGFloat, rayon: CGFloat) -> some View {
         AsyncImage(url: URL(string: url)) { i in i.resizable().scaledToFill() } placeholder: {
-            LinearGradient(colors: [Color.rrOr.opacity(0.35), Color.rrOr.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .overlay(Image(systemName: "gamecontroller.fill").foregroundStyle(Color.rrOr))
+            LinearGradient(colors: [Color.rrAccent.opacity(0.35), Color.rrAccent.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(Image(systemName: "gamecontroller.fill").foregroundStyle(Color.rrAccent))
         }
         .frame(width: taille, height: taille).clipShape(RoundedRectangle(cornerRadius: rayon, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: rayon, style: .continuous).stroke(Color.primary.opacity(0.08)))
@@ -521,7 +521,7 @@ struct MessagesVue: View {
                     .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
                     .overlay(alignment: .topTrailing) {
                         if c.nonLu {
-                            Circle().fill(Color.rrOr).frame(width: 12, height: 12)
+                            Circle().fill(Color.rrAccent).frame(width: 12, height: 12)
                                 .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 2)).offset(x: 4, y: -4)
                                 .transition(.scale)
                         }
@@ -530,10 +530,10 @@ struct MessagesVue: View {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(c.acheteur.isEmpty ? c.nom : c.acheteur).font(.system(size: 13.5, weight: c.nonLu ? .heavy : .semibold, design: .rounded)).lineLimit(1)
                         Spacer(minLength: 4)
-                        Text(c.date).font(.caption2.weight(c.nonLu ? .bold : .regular)).foregroundStyle(c.nonLu ? Color.rrOr : .secondary).lineLimit(1)
+                        Text(c.date).font(.caption2.weight(c.nonLu ? .bold : .regular)).foregroundStyle(c.nonLu ? Color.rrAccent : .secondary).lineLimit(1)
                     }
                     if !c.acheteur.isEmpty {
-                        Text(c.nom).font(.caption.weight(.semibold)).foregroundStyle(Color.rrOr.opacity(0.9)).lineLimit(1)
+                        Text(c.nom).font(.caption.weight(.semibold)).foregroundStyle(Color.rrAccent.opacity(0.9)).lineLimit(1)
                     }
                     Text(c.apercu.isEmpty ? (c.details.last ?? "") : c.apercu).font(.caption)
                         .foregroundStyle(c.nonLu ? .primary : .secondary).lineLimit(1)
@@ -542,9 +542,9 @@ struct MessagesVue: View {
             .padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(active ? Color.rrOr.opacity(0.18) : survole ? Color.primary.opacity(0.06) : .clear)
+                    .fill(active ? Color.rrAccent.opacity(0.18) : survole ? Color.primary.opacity(0.06) : .clear)
             }
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(active ? Color.rrOr.opacity(0.7) : .clear, lineWidth: 1.5))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(active ? Color.rrAccent.opacity(0.7) : .clear, lineWidth: 1.5))
             .opacity(m.suppression == c.cle ? 0.4 : 1)
         }
         .buttonStyle(.plain)
@@ -564,8 +564,8 @@ struct MessagesVue: View {
         if m.ouverte == nil {
             VStack(spacing: 14) {
                 ZStack {
-                    Circle().fill(Color.rrOr.opacity(0.14)).frame(width: 110, height: 110)
-                    Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 44)).foregroundStyle(Color.rrOr)
+                    Circle().fill(Color.rrAccent.opacity(0.14)).frame(width: 110, height: 110)
+                    Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 44)).foregroundStyle(Color.rrAccent)
                 }
                 Text("Choisis une conversation").font(.title2.weight(.heavy))
                 Text("L'IA lit le dernier message et te propose des réponses.\nRien ne part sans ton clic.").multilineTextAlignment(.center).foregroundStyle(.secondary)
@@ -589,7 +589,7 @@ struct MessagesVue: View {
                     .onAppear { if let d = m.fil.messages.last { p.scrollTo(d.id, anchor: .bottom) } }
                 }
                 .background(
-                    LinearGradient(colors: [Color.rrOr.opacity(0.04), .clear], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [Color.rrAccent.opacity(0.04), .clear], startPoint: .top, endPoint: .bottom)
                 )
                 redaction
             }
@@ -608,8 +608,8 @@ struct MessagesVue: View {
             }
             Spacer()
             if let p = prix {
-                Text(p).font(.callout.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrNuit)
-                    .padding(.horizontal, 12).padding(.vertical, 6).background(Color.rrOr, in: Capsule())
+                Text(p).font(.callout.weight(.heavy).monospacedDigit()).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6).background(Color.rrAccent, in: Capsule())
             }
             if let c = c {
                 Menu {
@@ -648,18 +648,18 @@ struct MessagesVue: View {
         return HStack(alignment: .bottom, spacing: 8) {
             if moi { Spacer(minLength: 90) }
             else {
-                Circle().fill(Color.rrAnis.opacity(suite ? 0 : 1)).frame(width: 28, height: 28)
-                    .overlay(Text(suite ? "" : initiale).font(.caption.weight(.heavy)).foregroundStyle(Color.rrNuit))
+                Circle().fill(Color.secondary.opacity(suite ? 0 : 0.22)).frame(width: 28, height: 28)
+                    .overlay(Text(suite ? "" : initiale).font(.caption.weight(.heavy)).foregroundStyle(.primary))
             }
             VStack(alignment: moi ? .trailing : .leading, spacing: 3) {
                 Text(msg.texte).textSelection(.enabled).font(.system(size: 13.5))
                     .padding(.horizontal, 14).padding(.vertical, 9)
-                    .foregroundStyle(moi ? Color.rrNuit : Color.primary)
+                    .foregroundStyle(moi ? Color.white : Color.primary)
                     .background {
                         if moi {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.4), Color.rrOr], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .shadow(color: Color.rrOr.opacity(0.25), radius: 6, y: 2)
+                                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.4), Color.rrAccent], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .shadow(color: Color.rrAccent.opacity(0.25), radius: 6, y: 2)
                         } else {
                             RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.regularMaterial)
                                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.primary.opacity(0.07)))
@@ -682,7 +682,7 @@ struct MessagesVue: View {
             : t.contains("offre") ? ("tag.fill", .blue)
             : t.contains("vendu") || t.contains("paiement") ? ("eurosign.circle.fill", .green)
             : t.contains("colis") || t.contains("commande") || t.contains("envoi") ? ("shippingbox.fill", .orange)
-            : ("info.circle.fill", Color.rrOr)
+            : ("info.circle.fill", Color.rrAccent)
         return HStack(alignment: .top, spacing: 12) {
             Image(systemName: icone).font(.system(size: 22)).foregroundStyle(teinte)
                 .frame(width: 40, height: 40).background(teinte.opacity(0.15), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
@@ -709,12 +709,12 @@ struct MessagesVue: View {
     private var redaction: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundStyle(Color.rrOr)
+                Image(systemName: "sparkles").foregroundStyle(Color.rrAccent)
                 Text("L'IA te propose").font(.callout.weight(.heavy))
                 if m.iaCharge { ProgressView().controlSize(.small) }
                 Spacer()
                 Button { Task { await m.proposer() } } label: { Label("Autres idées", systemImage: "arrow.triangle.2.circlepath") }
-                    .buttonStyle(.borderless).foregroundStyle(Color.rrOr).disabled(m.iaCharge)
+                    .buttonStyle(.borderless).foregroundStyle(Color.rrAccent).disabled(m.iaCharge)
             }
             if !m.iaErreur.isEmpty { Text(m.iaErreur).font(.callout).foregroundStyle(.orange) }
             else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as répondu en dernier : je te proposerai une réponse dès que l'acheteur écrit.").font(.callout).foregroundStyle(.secondary) }
@@ -726,12 +726,12 @@ struct MessagesVue: View {
                             let choisie = m.brouillon == r.texte
                             Button { withAnimation(.easeOut(duration: 0.15)) { m.brouillon = r.texte } } label: {
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.heavy)).foregroundStyle(choisie ? Color.rrNuit : Color.rrOr)
-                                    Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.rrNuit.opacity(0.85) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
+                                    Text(r.titre.isEmpty ? "Réponse" : r.titre).font(.caption.weight(.heavy)).foregroundStyle(choisie ? Color.white : Color.rrAccent)
+                                    Text(r.texte).font(.caption).foregroundStyle(choisie ? Color.white.opacity(0.9) : .secondary).lineLimit(4).multilineTextAlignment(.leading)
                                 }
                                 .frame(width: 240, alignment: .leading).padding(12)
-                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrOr) : AnyShapeStyle(Material.regularMaterial)))
-                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.rrOr.opacity(choisie ? 0 : 0.35)))
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(choisie ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(Material.regularMaterial)))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.rrAccent.opacity(choisie ? 0 : 0.35)))
                             }.buttonStyle(.plain).help("Placer cette réponse dans le message (tu peux la modifier)")
                         }
                     }.padding(.vertical, 2)
@@ -748,13 +748,13 @@ struct MessagesVue: View {
                 TextEditor(text: $m.brouillon).font(.system(size: 13.5)).frame(minHeight: 44, maxHeight: 130).scrollContentBackground(.hidden)
                     .padding(.horizontal, 10).padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.primary.opacity(0.05)))
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(peutEnvoyer ? Color.rrOr.opacity(0.6) : Color.primary.opacity(0.08)))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(peutEnvoyer ? Color.rrAccent.opacity(0.6) : Color.primary.opacity(0.08)))
                 Button { Task { await m.envoyer() } } label: {
                     ZStack {
-                        Circle().fill(peutEnvoyer ? Color.rrOr : Color.primary.opacity(0.1)).frame(width: 42, height: 42)
-                            .shadow(color: Color.rrOr.opacity(peutEnvoyer ? 0.4 : 0), radius: 8, y: 2)
+                        Circle().fill(peutEnvoyer ? Color.rrAccent : Color.primary.opacity(0.1)).frame(width: 42, height: 42)
+                            .shadow(color: Color.rrAccent.opacity(peutEnvoyer ? 0.4 : 0), radius: 8, y: 2)
                         if m.envoi { ProgressView().controlSize(.small) }
-                        else { Image(systemName: "paperplane.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(peutEnvoyer ? Color.rrNuit : .secondary) }
+                        else { Image(systemName: "paperplane.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(peutEnvoyer ? Color.white : .secondary) }
                     }
                 }
                 .buttonStyle(.plain).keyboardShortcut(.return, modifiers: .command)

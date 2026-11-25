@@ -231,7 +231,7 @@ struct BlocStats: View {
         if !sites.isEmpty, !article.vendu {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Label { Text("Audience des annonces").font(.headline) } icon: { Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Color.rrOr) }
+                    Label { Text("Audience des annonces").font(.headline) } icon: { Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Color.rrAccent) }
                     Spacer()
                     if releve.enCours != nil { ProgressView().controlSize(.small) }
                     Button { releve.releverMaintenant() } label: { Label("Actualiser", systemImage: "arrow.clockwise") }

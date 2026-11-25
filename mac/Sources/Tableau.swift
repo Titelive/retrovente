@@ -97,8 +97,8 @@ private struct LotsAEffacer: View {
                 .padding(.horizontal, 14).background(.background.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading)
-            .background(LinearGradient(colors: [Color.rrOr.opacity(0.22), Color.rrOr.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Color.rrOr.opacity(0.55), lineWidth: 1.5))
+            .background(LinearGradient(colors: [Color.rrAccent.opacity(0.22), Color.rrAccent.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Color.rrAccent.opacity(0.55), lineWidth: 1.5))
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
@@ -150,7 +150,7 @@ private struct Tuiles: View {
         HStack(spacing: 14) {
             Button { calcul = true } label: {
                 tuile("Temps gagné", TempsGagne.hm(TempsGagne.total(appli)), "timer", accent: true) {
-                    Text("Voir le calcul").font(.caption.weight(.semibold)).foregroundStyle(Color.rrOr).underline()
+                    Text("Voir le calcul").font(.caption.weight(.semibold)).foregroundStyle(Color.rrAccent).underline()
                 }
             }
             .buttonStyle(.plain).help("Le temps que RetroRevente t'a fait gagner, étape par étape")
@@ -163,14 +163,14 @@ private struct Tuiles: View {
     private func tuile<P: View>(_ nom: String, _ valeur: String, _ symbole: String, accent: Bool = false, @ViewBuilder pied: () -> P) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: symbole).foregroundStyle(Color.rrOr)
+                Image(systemName: symbole).foregroundStyle(Color.rrAccent)
                 Text(nom.uppercased()).font(.system(size: 10, weight: .heavy, design: .monospaced)).tracking(1.1).foregroundStyle(.secondary)
             }
             Chiffre(texte: valeur)
             pied()
         }
         .padding(16).frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-        .verre(RoundedRectangle(cornerRadius: 20), teinte: accent ? Color.rrOr.opacity(0.18) : nil, interactif: accent)
+        .verre(RoundedRectangle(cornerRadius: 20), teinte: accent ? Color.rrAccent.opacity(0.18) : nil, interactif: accent)
     }
 }
 
@@ -215,7 +215,7 @@ private struct CalculTemps: View {
                 Button("Valeurs d'origine") { m = TempsGagne.defaut; TempsGagne.minutes = m }.buttonStyle(.link)
                 Spacer()
                 Text("Total").foregroundStyle(.secondary)
-                Text(TempsGagne.hm(tot)).font(.title3.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrOr)
+                Text(TempsGagne.hm(tot)).font(.title3.weight(.heavy).monospacedDigit()).foregroundStyle(Color.rrAccent)
             }
         }
         .padding(20).frame(width: 470)
@@ -386,8 +386,8 @@ private struct Colonne: View {
     private var style: AnyShapeStyle {
         if sans { return AnyShapeStyle(Color.secondary.opacity(0.13)) }
         if valeur < 0 { return AnyShapeStyle(Color.red.opacity(0.75)) }
-        if cours { return AnyShapeStyle(LinearGradient(colors: [.rrOr, Color.rrOr.opacity(0.75)], startPoint: .top, endPoint: .bottom)) }
-        return AnyShapeStyle(Color.rrOr.opacity(actif ? 0.7 : 0.42))
+        if cours { return AnyShapeStyle(LinearGradient(colors: [.rrAccent, Color.rrAccent.opacity(0.75)], startPoint: .top, endPoint: .bottom)) }
+        return AnyShapeStyle(Color.rrAccent.opacity(actif ? 0.7 : 0.42))
     }
     var body: some View {
         let h = abs(CGFloat(valeur) * echelle) * pousse
@@ -442,7 +442,7 @@ private struct Bulle: View {
     }
     private func rang(_ k: String, _ nom: String, _ v: String) -> some View {
         HStack { Text(nom); Spacer(minLength: 12); Text(v).monospacedDigit() }
-            .font(.caption.weight(mesure == k ? .bold : .regular)).foregroundStyle(mesure == k ? Color.rrOr : Color.primary)
+            .font(.caption.weight(mesure == k ? .bold : .regular)).foregroundStyle(mesure == k ? Color.rrAccent : Color.primary)
     }
 }
 
@@ -472,11 +472,11 @@ struct CartesPhoto: View {
             }
             if etape < 2 {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 26).strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6])).foregroundStyle(cible ? Color.rrOr : Color.secondary.opacity(0.4))
+                    RoundedRectangle(cornerRadius: 26).strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6])).foregroundStyle(cible ? Color.rrAccent : Color.secondary.opacity(0.4))
                     if let i = image { Image(nsImage: i).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18)).padding(14).opacity(0.6) }
                     else {
                         VStack(spacing: 12) {
-                            Image(systemName: "rectangle.stack").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrOr)
+                            Image(systemName: "rectangle.stack").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text("Glisse une photo de tes cartes ici").font(.title3.weight(.semibold))
                             Text("Une page de classeur ou des cartes étalées : je repère chaque carte et je cherche sa cote.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                             HStack(spacing: 10) {
@@ -526,10 +526,10 @@ struct CartesPhoto: View {
                         }
                     }
                     .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.rrOr.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                    .background(Color.rrAccent.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
                 }
             }
-            if !message.isEmpty { Text(message).foregroundStyle(Color.rrOr).frame(maxWidth: .infinity) }
+            if !message.isEmpty { Text(message).foregroundStyle(Color.rrAccent).frame(maxWidth: .infinity) }
             if etape >= 2 {
                 HStack {
                     Spacer()

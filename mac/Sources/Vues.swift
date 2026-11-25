@@ -6,7 +6,8 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 extension Color {
-    static let rrOr = Color(red: 0.96, green: 0.77, blue: 0.26)
+    /// Accent de toute l'app : le bleu du système (Liquid Glass), lisible en clair comme en sombre.
+    static let rrAccent = Color(nsColor: .systemBlue)
     static let rrAnis = Color(red: 0.83, green: 0.96, blue: 0.48)
     static let rrNuit = Color(red: 0.10, green: 0.10, blue: 0.10)
 }
@@ -26,12 +27,12 @@ extension View {
     @ViewBuilder func boutonVerre(principal: Bool = false) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
-            if principal { self.buttonStyle(.glassProminent).tint(.rrOr) } else { self.buttonStyle(.glass) }
+            if principal { self.buttonStyle(.glassProminent).tint(.rrAccent) } else { self.buttonStyle(.glass) }
         } else {
-            if principal { self.buttonStyle(.borderedProminent).tint(.rrOr) } else { self.buttonStyle(.bordered) }
+            if principal { self.buttonStyle(.borderedProminent).tint(.rrAccent) } else { self.buttonStyle(.bordered) }
         }
         #else
-        if principal { self.buttonStyle(.borderedProminent).tint(.rrOr) } else { self.buttonStyle(.bordered) }
+        if principal { self.buttonStyle(.borderedProminent).tint(.rrAccent) } else { self.buttonStyle(.bordered) }
         #endif
     }
 }
@@ -92,7 +93,7 @@ struct Racine: View {
         .alert("RetroRevente", isPresented: Binding(get: { appli.erreur != nil }, set: { if !$0 { appli.erreur = nil } })) {
             Button("OK") { appli.erreur = nil }
         } message: { Text(appli.erreur ?? "") }
-        .tint(Color.rrOr)
+        .tint(Color.rrAccent)
         .task { await appli.demarrer() }
     }
 }
@@ -109,11 +110,11 @@ struct Connexion: View {
         ZStack {
             LinearGradient(colors: [Color.rrNuit, Color(red: 0.16, green: 0.17, blue: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
-            Circle().fill(Color.rrOr.opacity(0.35)).frame(width: 420).blur(radius: 120).offset(x: 220, y: -160)
+            Circle().fill(Color.rrAccent.opacity(0.35)).frame(width: 420).blur(radius: 120).offset(x: 220, y: -160)
             Circle().fill(Color.rrAnis.opacity(0.25)).frame(width: 380).blur(radius: 120).offset(x: -260, y: 200)
             VStack(spacing: 18) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
-                (Text("Retro").foregroundColor(.white) + Text("Revente").foregroundColor(.rrOr)).font(.system(size: 30, weight: .heavy, design: .rounded))
+                (Text("Retro").foregroundColor(.white) + Text("Revente").foregroundColor(.rrAccent)).font(.system(size: 30, weight: .heavy, design: .rounded))
                 Text("Content de te revoir").font(.title3.weight(.semibold)).foregroundStyle(.white.opacity(0.8))
                 VStack(spacing: 10) {
                     TextField("E-mail", text: $email).textContentType(.username)
@@ -121,7 +122,7 @@ struct Connexion: View {
                 }
                 .textFieldStyle(.plain).font(.system(size: 15))
                 .padding(14).verre(RoundedRectangle(cornerRadius: 16))
-                if !message.isEmpty { Text(message).font(.callout).foregroundStyle(Color.rrOr).multilineTextAlignment(.center) }
+                if !message.isEmpty { Text(message).font(.callout).foregroundStyle(Color.rrAccent).multilineTextAlignment(.center) }
                 Button(action: entrer) {
                     HStack { if enCours { ProgressView().controlSize(.small) }; Text("Me connecter").bold() }.frame(maxWidth: .infinity).padding(.vertical, 6)
                 }.boutonVerre(principal: true).controlSize(.large).keyboardShortcut(.defaultAction).disabled(enCours || email.isEmpty || mdp.isEmpty)
@@ -191,7 +192,7 @@ struct Accueil: View {
                     // Le logo, tout en bas à gauche de la barre latérale, sous le compte.
                     HStack(spacing: 7) {
                         Image(nsImage: NSApp.applicationIconImage ?? NSImage()).resizable().frame(width: 22, height: 22)
-                        (Text("Retro") + Text("Revente").foregroundColor(.rrOr)).font(.system(size: 14, weight: .bold))
+                        (Text("Retro") + Text("Revente").foregroundColor(.rrAccent)).font(.system(size: 14, weight: .bold))
                     }
                     .padding(.horizontal, 8).accessibilityHidden(true)
                 }.padding(10)
@@ -266,7 +267,7 @@ struct Accueil: View {
         let actif = filtre == id
         return Button { filtre = id; appli.selection = nil; appli.choix = nil } label: {
             HStack {
-                Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(actif ? Color.white : Color.rrOr) }
+                Label { Text(nom) } icon: { Image(systemName: symbole).foregroundStyle(actif ? Color.white : Color.rrAccent) }
                 Spacer()
                 if let n = n { Text("\(n)").font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(actif ? Color.white.opacity(0.85) : Color.secondary) }
             }
@@ -289,16 +290,30 @@ struct CarteCompte: View {
                 Avatar(profil: appli.profil, taille: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(appli.profil.nom).font(.callout.weight(.semibold)).lineLimit(1)
-                    Text(appli.profil.formule).font(.caption.weight(.medium)).foregroundStyle(Color.rrOr)
+                    Text(appli.profil.formule).font(.caption.weight(.bold)).foregroundStyle(statut)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
             }.padding(10).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .verre(RoundedRectangle(cornerRadius: 16), teinte: actif ? .rrOr : nil, interactif: true)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(actif ? Color.rrOr : .clear, lineWidth: 2))
+        // La carte du membre garde la couleur de son statut (Découverte, Vendeur, Collectionneur, Pass).
+        .verre(RoundedRectangle(cornerRadius: 16), teinte: statut, interactif: true)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(statut.opacity(actif ? 1 : 0.55), lineWidth: actif ? 2 : 1.2))
         .help("Mon compte (⇧⌘K)")
+    }
+    private var statut: Color { Color.statut(appli.profil.formuleId) }
+}
+
+extension Color {
+    /// Couleur du statut du membre : gris (Découverte), anis (Vendeur), or (Collectionneur), lilas (Pass).
+    static func statut(_ id: String) -> Color {
+        switch id {
+        case "vendeur": return Color(red: 0.45, green: 0.72, blue: 0.20)
+        case "collectionneur": return Color(red: 0.85, green: 0.62, blue: 0.08)
+        case "pass": return Color(red: 0.62, green: 0.42, blue: 0.95)
+        default: return .gray
+        }
     }
 }
 
@@ -311,7 +326,7 @@ struct Avatar: View {
             else { Text(String(profil.nom.prefix(1)).uppercased()).font(.system(size: taille * 0.45, weight: .heavy, design: .rounded)).foregroundColor(.rrNuit) }
         }
         .frame(width: taille, height: taille).clipShape(Circle())
-        .overlay(Circle().stroke(Color.rrOr.opacity(0.8), lineWidth: 1.5))
+        .overlay(Circle().stroke(Color.rrAccent.opacity(0.8), lineWidth: 1.5))
     }
     private var image: NSImage? {
         guard profil.avatar.hasPrefix("data:image"), let v = profil.avatar.split(separator: ",").last, let d = Data(base64Encoded: String(v)) else { return nil }
@@ -330,10 +345,10 @@ struct Vignette: View {
     static func url(_ a: Article, _ photo: Photo?) -> URL? { (photo ?? a.photos.first).map { API.urlPhoto(a.id, $0.id, v: a.modifie) } }
     var body: some View {
         // La photo remplit le cadre sans jamais en sortir (le cadre fixe la taille, la photo est rognée).
-        Rectangle().fill(LinearGradient(colors: [Color.rrOr.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        Rectangle().fill(LinearGradient(colors: [Color.rrAccent.opacity(0.18), Color.rrAnis.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .overlay {
             if let i = image { Image(nsImage: i).resizable().interpolation(.medium).scaledToFill() }
-            else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrOr) }
+            else { Image(systemName: Libelles.symboleCategorie(article.categorie)).font(.system(size: 38, weight: .light)).foregroundStyle(Color.rrAccent) }
         }
         .clipped()
         .task(id: Vignette.url(article, photo)?.absoluteString ?? "") {
@@ -485,7 +500,7 @@ struct Fiche: View {
                     if article.annonceMorte(appli) { bandeauAnnonceMorte }
                     HStack(alignment: .top, spacing: 24) {
                         galerie.frame(minWidth: 220, idealWidth: 340, maxWidth: 340)
-                            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.rrOr, lineWidth: cibleGalerie ? 3 : 0))
+                            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.rrAccent, lineWidth: cibleGalerie ? 3 : 0))
                             .onDrop(of: [.image, .fileURL], isTargeted: $cibleGalerie) { p in deposerPhotos(p) }
                         champs.frame(minWidth: 380, maxWidth: .infinity)
                     }
@@ -534,7 +549,7 @@ struct Fiche: View {
                 HStack(spacing: 8) {
                     ForEach(article.photos) { p in
                         Vignette(article: article, photo: p, taille: .mini).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrOr : .clear, lineWidth: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrAccent : .clear, lineWidth: 2))
                             .onTapGesture(count: 2) { ouvrirVisionneuse(p) }
                             .onTapGesture { photo = p }
                             .contextMenu { Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } } }
@@ -578,7 +593,7 @@ struct Fiche: View {
         let r = appli.retouches[k], occupe = appli.retoucheEnCours.contains(k)
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
             outil("Ajouter", "photo.badge.plus", .blue) { photosOuvert = true }
-            outil(occupe ? "Retouche…" : "Retoucher", "sparkles", .rrOr, principal: true, enCours: occupe) {
+            outil(occupe ? "Retouche…" : "Retoucher", "sparkles", .rrAccent, principal: true, enCours: occupe) {
                 guard let p = p else { return }
                 Task { await appli.retoucher(article, p); rafraichirPhotos(garder: p) }
             }.help("Retoucher la photo : fond, lumière, cadrage. L'original est gardé.")
@@ -605,12 +620,12 @@ struct Fiche: View {
                 ZStack {
                     if enCours { ProgressView().controlSize(.small) } else { Image(systemName: symbole).font(.system(size: 15, weight: .semibold)) }
                 }
-                .frame(width: 30, height: 30).foregroundStyle(principal ? Color.black.opacity(0.8) : teinte)
-                .background((principal ? Color.white.opacity(0.35) : teinte.opacity(0.14)), in: RoundedRectangle(cornerRadius: 9))
-                Text(nom).font(.caption.weight(.semibold)).lineLimit(1).foregroundStyle(principal ? Color.black.opacity(0.85) : .primary)
+                .frame(width: 30, height: 30).foregroundStyle(principal ? Color.white : teinte)
+                .background((principal ? Color.white.opacity(0.22) : teinte.opacity(0.14)), in: RoundedRectangle(cornerRadius: 9))
+                Text(nom).font(.caption.weight(.semibold)).lineLimit(1).foregroundStyle(principal ? Color.white : .primary)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 9)
-            .background(principal ? AnyShapeStyle(LinearGradient(colors: [.rrOr, Color.rrOr.opacity(0.8)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(teinte.opacity(0.07)),
+            .background(principal ? AnyShapeStyle(LinearGradient(colors: [.rrAccent, Color.rrAccent.opacity(0.8)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(teinte.opacity(0.07)),
                         in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(principal ? Color.clear : teinte.opacity(0.25)))
             .contentShape(RoundedRectangle(cornerRadius: 14))
@@ -667,7 +682,7 @@ struct Fiche: View {
                     Button { Task { await rediger(forcer: true) } } label: {
                         Label(article.texteAnnonce.isEmpty ? "Rédiger avec l'IA" : "Réécrire avec l'IA", systemImage: "sparkles")
                     }
-                    .buttonStyle(.borderedProminent).tint(.rrOr).foregroundStyle(Color.rrNuit)
+                    .buttonStyle(.borderedProminent).tint(.rrAccent).foregroundStyle(.white)
                     .disabled(redaction || article.estLot).help("Titre et texte de l'annonce rédigés par l'IA RetroRevente, qui regarde chaque photo")
                 }
                 champ("Titre de l'annonce") { TextField("Repris du titre si vide", text: $article.titreAnnonce) }
@@ -685,7 +700,7 @@ struct Fiche: View {
     }
     private func bloc<C: View>(_ titre: String, _ symbole: String, @ViewBuilder _ c: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
+            Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrAccent) }
             c()
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
     }
@@ -744,11 +759,11 @@ struct Nouveau: View {
             }
             if etape < 2 {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 26).strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6])).foregroundStyle(cible ? Color.rrOr : Color.secondary.opacity(0.4))
+                    RoundedRectangle(cornerRadius: 26).strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6])).foregroundStyle(cible ? Color.rrAccent : Color.secondary.opacity(0.4))
                     if let i = image { Image(nsImage: i).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 18)).padding(14) }
                     else {
                         VStack(spacing: 12) {
-                            Image(systemName: film ? "film" : "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrOr)
+                            Image(systemName: film ? "film" : "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text(film ? "Glisse la photo de la jaquette ici" : "Glisse une photo ici").font(.title3.weight(.semibold))
                             Text(film ? "Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA reconnaît le film et remplit la fiche." : "L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
                             HStack(spacing: 10) {
@@ -770,7 +785,7 @@ struct Nouveau: View {
                     choixPhoto = nil
                     Task { if let d = try? await it.loadTransferable(type: Data.self), let i = NSImage(data: d) { idPhotos = it.itemIdentifier ?? ""; reconnaitre(i) } else { message = "Photo illisible." } }
                 }
-                if !message.isEmpty { Text(message).foregroundStyle(Color.rrOr).multilineTextAlignment(.center) }
+                if !message.isEmpty { Text(message).foregroundStyle(Color.rrAccent).multilineTextAlignment(.center) }
                 HStack {
                     Button("Remplir à la main") { etape = 2 }.buttonStyle(.link)
                     Spacer()
@@ -834,7 +849,7 @@ struct Nouveau: View {
 struct Fete: View {
     let titre: String
     @State private var debut = Date()
-    private let couleurs: [Color] = [.rrOr, .rrAnis, Color(red: 0.48, green: 0.96, blue: 0.89), Color(red: 0.73, green: 0.55, blue: 1), Color(red: 1, green: 0.6, blue: 0.84)]
+    private let couleurs: [Color] = [.rrAccent, .rrAnis, Color(red: 0.48, green: 0.96, blue: 0.89), Color(red: 0.73, green: 0.55, blue: 1), Color(red: 1, green: 0.6, blue: 0.84)]
     var body: some View {
         ZStack {
             TimelineView(.animation) { tl in

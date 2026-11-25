@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 private func carte<C: View>(_ titre: String, _ symbole: String, @ViewBuilder _ c: () -> C) -> some View {
     VStack(alignment: .leading, spacing: 12) {
-        Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrOr) }
+        Label { Text(titre).font(.headline) } icon: { Image(systemName: symbole).foregroundStyle(Color.rrAccent) }
         c()
     }.padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
 }
@@ -94,7 +94,7 @@ struct CarteTrophee: View {
                     .scaleEffect(rebond ? 1.18 : 1).rotationEffect(.degrees(rebond ? -8 : 0))
                 Spacer()
                 if t.ok {
-                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrOr).font(.title3)
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.rrAccent).font(.title3)
                         .scaleEffect(visible ? 1 : 0.2).opacity(visible ? 1 : 0)
                 }
             }
@@ -103,7 +103,7 @@ struct CarteTrophee: View {
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(t.ok ? Color.rrOr : Color.secondary)
+                    Capsule().fill(t.ok ? Color.rrAccent : Color.secondary)
                         .frame(width: max(t.val > 0 ? 6 : 0, g.size.width * rempli))
                 }
             }.frame(height: 6)
@@ -121,8 +121,8 @@ struct CarteTrophee: View {
                 .clipShape(RoundedRectangle(cornerRadius: 22)).allowsHitTesting(false).blendMode(.plusLighter)
             }
         }
-        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrOr : nil)
-        .shadow(color: (t.ok ? Color.rrOr : Color.black).opacity(survol ? 0.35 : 0), radius: survol ? 14 : 0, y: survol ? 6 : 0)
+        .verre(RoundedRectangle(cornerRadius: 22), teinte: t.ok ? .rrAccent : nil)
+        .shadow(color: (t.ok ? Color.rrAccent : Color.black).opacity(survol ? 0.35 : 0), radius: survol ? 14 : 0, y: survol ? 6 : 0)
         .scaleEffect(sansMouvement ? 1 : (visible ? (survol ? 1.03 : 1) : 0.92))
         .offset(y: sansMouvement || visible ? 0 : 18)
         .opacity(visible ? 1 : 0)
@@ -193,7 +193,7 @@ struct Bilan: View {
                                 Text(a.titre).lineLimit(1)
                                 Spacer()
                                 Text(a.dateVente).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                                Text(Libelles.prix(a.prixVente)).font(.callout.weight(.bold).monospacedDigit()).foregroundStyle(Color.rrOr).frame(width: 80, alignment: .trailing)
+                                Text(Libelles.prix(a.prixVente)).font(.callout.weight(.bold).monospacedDigit()).foregroundStyle(Color.rrAccent).frame(width: 80, alignment: .trailing)
                             }
                             Divider()
                         }
@@ -204,7 +204,7 @@ struct Bilan: View {
     }
     private func chiffre(_ nom: String, _ valeur: String, _ symbole: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: symbole).foregroundStyle(Color.rrOr).font(.title3)
+            Image(systemName: symbole).foregroundStyle(Color.rrAccent).font(.title3)
             Text(valeur).font(.system(size: 22, weight: .heavy, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
             Text(nom).font(.caption).foregroundStyle(.secondary)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 20))
@@ -213,7 +213,7 @@ struct Bilan: View {
         let r = v / max
         return VStack(alignment: .leading, spacing: 4) {
             Text("\(nom) : \(f(v)) sur \(f(max))").font(.callout)
-            ProgressView(value: Swift.min(1, r)).tint(r >= 1 ? .red : r >= 0.8 ? .orange : .rrOr)
+            ProgressView(value: Swift.min(1, r)).tint(r >= 1 ? .red : r >= 0.8 ? .orange : .rrAccent)
         }
     }
     private func message(_ r: Double, _ gros: Double) -> String {
@@ -244,7 +244,7 @@ struct BlocCote: View {
                 ForEach(c.releves, id: \.self) { r in
                     Button { if let u = URL(string: r.url) { NSWorkspace.shared.open(u) } } label: {
                         HStack {
-                            Text(r.site).font(.caption.weight(.bold)).foregroundStyle(Color.rrOr).frame(width: 90, alignment: .leading)
+                            Text(r.site).font(.caption.weight(.bold)).foregroundStyle(Color.rrAccent).frame(width: 90, alignment: .leading)
                             Text(r.titre).font(.caption).lineLimit(1)
                             Spacer()
                             Text(Libelles.prix(r.prix)).font(.caption.weight(.semibold).monospacedDigit())
@@ -273,7 +273,7 @@ struct BlocCote: View {
     }
     private func valeur(_ nom: String, _ x: Double?, principal: Bool = false, texte: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(texte ?? Libelles.prix(x)).font(.system(size: principal ? 24 : 18, weight: .heavy, design: .rounded)).foregroundStyle(principal ? Color.rrOr : .primary)
+            Text(texte ?? Libelles.prix(x)).font(.system(size: principal ? 24 : 18, weight: .heavy, design: .rounded)).foregroundStyle(principal ? Color.rrAccent : .primary)
             Text(nom).font(.caption).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -384,7 +384,7 @@ struct MonCompte: View {
             }
             if let m = appli.profil.quotaMax {
                 Text("Articles ce mois-ci : \(appli.profil.quotaUtilise) sur \(m)").font(.callout)
-                ProgressView(value: Double(min(appli.profil.quotaUtilise, m)), total: Double(max(m, 1))).tint(.rrOr)
+                ProgressView(value: Double(min(appli.profil.quotaUtilise, m)), total: Double(max(m, 1))).tint(.rrAccent)
             } else { Text("Articles illimités · \(appli.profil.quotaUtilise) ce mois-ci").font(.callout).foregroundStyle(.secondary) }
             if !appli.profil.finAbonnement.isEmpty { Text("Période en cours jusqu'au \(String(appli.profil.finAbonnement.prefix(10)))").font(.caption).foregroundStyle(.secondary) }
             Divider()
