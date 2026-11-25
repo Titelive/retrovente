@@ -710,7 +710,11 @@ final class Appli: ObservableObject {
     /// Cote IA de l'article, gardée dans sa fiche.
     func estimerCote(_ a: Article) async -> Article? {
         do {
-            let j = try await API.json("POST", "/api/ia/cote", ["objet": ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]])
+            var objet: [String: Any] = ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]
+            // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
+            if let p = a.photos.first, let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)),
+               let i = NSImage(data: d), let jp = jpegData(i, max: 1200, poids: 450_000) { objet["photo"] = jp }
+            let j = try await API.json("POST", "/api/ia/cote", ["objet": objet])
             guard let c = j["cote"] as? [String: Any] else { return nil }
             var b = a; b.cote = Cote(c)
             if b.prixDemande == nil, let p = (c["conseille"] as? NSNumber)?.doubleValue { b.prixDemande = p }   // prix vide : le prix conseillé

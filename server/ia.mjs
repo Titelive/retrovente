@@ -352,7 +352,10 @@ export async function estimerCote(v) {
   // puis on propose un peu moins, parce qu'une version étrangère se vend moins bien en France.
   const region = txt(v.region, 30), importe = estImport(region);
   const quoi = [titre, txt(v.plateforme, 60), importe ? "" : region, sansNotice(v.plateforme) && cible.contenu === "complet" ? "en boîte (la console n'a pas de notice papier)" : LIB_CONTENU[cible.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
-  const o = await claude(`Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.
+  // Première photo de la fiche (la face de l'objet) : la cote part TOUJOURS d'elle, pour la bonne édition et le bon contenu.
+  let ph = null; try { ph = v.photo ? image(v.photo) : null; } catch { ph = null; }
+  const demande = `Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.${ph ? `
+La photo jointe est la première photo de l'annonce, la face de l'objet : sers-t'en pour reconnaître l'édition exacte (compilation, édition limitée, version, packaging) et ce qui est fourni, et cherche les prix de CETTE édition.` : ""}
 Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Note pour chaque prix l'état et ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro. Ne calcule pas de prix conseillé : le calcul est fait ensuite à partir de tes relevés.
 Réponds uniquement par un objet JSON avec les clés :
 "releves" (3 à 8 prix précis réellement lus pendant ta recherche, de préférence des ventes conclues proches de l'objet : objets avec
@@ -365,7 +368,8 @@ Réponds uniquement par un objet JSON avec les clés :
 "resume" (une phrase en français, sans chiffres : ce qui fait varier le prix de ce jeu (boîte, notice, édition, état…)),
 "rarete" (sa rareté d'après ce que ta recherche montre (nombre d'annonces et de ventes, prix), l'une de ${CONSIGNE_RARETE}),
 "sources" (2 à 4 adresses web consultées les plus utiles),
-"bas" et "haut" (fourchette des prix de vente constatés, en euros, utilisée seulement si aucun relevé n'est exploitable).`, { web: 5, max: 3500, timeout: 70000 });
+"bas" et "haut" (fourchette des prix de vente constatés, en euros, utilisée seulement si aucun relevé n'est exploitable).`;
+  const o = await claude(ph ? [ph, { type: "text", text: demande }] : demande, { web: 5, max: 3500, timeout: 70000 });
   // on ne garde que les liens qui sont vraiment sortis de la recherche web
   const c = coteCalculee(o, cible, o && o._vus);
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");

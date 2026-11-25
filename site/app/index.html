@@ -2672,7 +2672,9 @@ function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").
   if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});return o}
 function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
-  return api("POST","/api/ia/cote",{objet:objetCote()}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;if(j.cote.rarete&&!estCarte()&&!estFilm()){$("f_rareteJeu").value=j.cote.rarete;majRarete()}ME.usage.cote=(ME.usage.cote||0)+1})
+  // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
+  var g0=GAL[0],ph=g0?chargerImg(g0.data||g0.src).then(function(img){return versData(img,null,1200,450000)},function(){return null}):Promise.resolve(null);
+  return ph.then(function(d){var o=objetCote();if(d)o.photo=d;return api("POST","/api/ia/cote",{objet:o})}).then(function(j){montrerCote(j.cote);if(!$("f_prixDemande").value&&j.cote.conseille!=null)$("f_prixDemande").value=j.cote.conseille;if(j.cote.rarete&&!estCarte()&&!estFilm()){$("f_rareteJeu").value=j.cote.rarete;majRarete()}ME.usage.cote=(ME.usage.cote||0)+1})
     .catch(function(e){erreur(e,"Estimation impossible.")}).then(function(){iaEtat("prix");busy(b,false,"Trouver le bon prix")})}
 /* Relevés de la cote : ceux qui entrent dans le calcul d'abord (avec leur nature, l'état, le contenu et ce qu'ils pèsent),
    puis, à part, les annonces encore en ligne et les prix trop différents, montrés pour comparer. */
