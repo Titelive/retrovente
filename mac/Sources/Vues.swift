@@ -715,6 +715,8 @@ struct Fiche: View {
 
     private var champs: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Le statut d'abord (tout en haut), le prix plus bas, juste avant l'annonce (après la cote qui aide à le fixer).
+            ParcoursStatut(statut: $article.statut, enValidation: appli.enAttente(article))
             bloc("Article", "gamecontroller") {
                 champ("Titre") { TextField("Nom du jeu, de la console…", text: $article.titre) }
                 HStack {
@@ -731,21 +733,20 @@ struct Fiche: View {
                     }
                 }
             }
-            bloc("Vente", "tag") {
-                champ("Statut") {
-                    Picker("", selection: $article.statut) { ForEach(Libelles.ordreStatuts, id: \.self) { Text(Libelles.statut($0)).tag($0) } }.labelsHidden().pickerStyle(.segmented)
-                }
-                HStack {
+            BlocCote(appli: appli, article: $article, original: $original)
+            BlocStats(appli: appli, releve: appli.releve, article: article)
+            bloc("Prix", "eurosign") {
+                HStack(alignment: .bottom, spacing: 14) {
                     champ("Prix demandé") { prix($article.prixDemande) }
                     champ("Prix d'achat") { prix($article.prixAchat) }
                     if article.vendu {
                         champ("Vendu à") { prix($article.prixVente) }
                         champ("Frais") { prix($article.frais) }
                     }
+                    Spacer(minLength: 0)
+                    resultatPrix
                 }
             }
-            BlocCote(appli: appli, article: $article, original: $original)
-            BlocStats(appli: appli, releve: appli.releve, article: article)
             bloc("Annonce Le Bon Coin", "text.alignleft") {
                 HStack(spacing: 8) {
                     if redaction {
@@ -780,6 +781,26 @@ struct Fiche: View {
     }
     private func champ<C: View>(_ nom: String, @ViewBuilder _ c: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 5) { Text(nom).font(.caption.weight(.semibold)).foregroundStyle(.secondary); c() }
+    }
+    /// Ce que rapporte l'article, en grand : marge prévue (en vente) ou bénéfice réel (vendu).
+    @ViewBuilder private var resultatPrix: some View {
+        let vendu = article.vendu && article.prixVente != nil
+        let gain: Double? = vendu ? article.prixVente.map { $0 - (article.prixAchat ?? 0) - (article.frais ?? 0) }
+                                  : article.prixDemande.flatMap { p in article.prixAchat.map { p - $0 } }
+        if let g = gain {
+            let c: Color = g >= 0 ? .green : .red
+            VStack(alignment: .trailing, spacing: 2) {
+                Text((g >= 0 ? "+" : "") + Libelles.prix(g)).font(.system(size: 26, weight: .heavy, design: .rounded)).foregroundStyle(c)
+                Text(vendu ? "Bénéfice" : "Marge prévue").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8).background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+        } else if let p = article.prixDemande {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(Libelles.prix(p)).font(.system(size: 26, weight: .heavy, design: .rounded)).foregroundStyle(Color.rrAccent)
+                Text("Prix demandé").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8).background(Color.rrAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+        }
     }
     private func prix(_ b: Binding<Double?>) -> some View {
         TextField("—", value: b, format: .number.precision(.fractionLength(0...2))).frame(maxWidth: 110)
@@ -961,4 +982,64 @@ func imageDe(_ f: NSItemProvider) async -> NSImage? {
     }
     let u: URL? = await withCheckedContinuation { c in _ = f.loadObject(ofClass: URL.self) { u, _ in c.resume(returning: u) } }
     return u.flatMap { NSImage(contentsOf: $0) }
+}
+
+
+// MARK: Parcours de vente (haut de la fiche)
+
+/// Le statut de l'article en grand : les étapes de la vente reliées, l'étape actuelle mise en avant, « Retiré » à part.
+struct ParcoursStatut: View {
+    @Binding var statut: String
+    var enValidation = false
+    private let etapes = ["en_vente", "reserve", "vendu", "envoye", "recu"]
+    private var rang: Int? { etapes.firstIndex(of: statut) }
+
+    var body: some View {
+        let cs = Libelles.couleursStatut(statut)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 14) {
+                Image(systemName: enValidation ? "hourglass" : Libelles.symboleStatut(statut)).font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(enValidation ? Color.orange : cs.texte)
+                    .frame(width: 50, height: 50).background(enValidation ? Color.orange.opacity(0.15) : cs.fond, in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(enValidation ? "En validation" : Libelles.statut(statut)).font(.system(size: 24, weight: .heavy, design: .rounded))
+                    Text(enValidation ? "Déposée : Le Bon Coin **doit encore la valider** avant qu'elle soit en ligne." : LocalizedStringKey(Libelles.aideStatut(statut)))
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Button { choisir(statut == "retire" ? "en_vente" : "retire") } label: {
+                    Label(statut == "retire" ? "Remettre en vente" : "Retirer", systemImage: statut == "retire" ? "arrow.uturn.backward" : "archivebox")
+                }.boutonVerre().help(statut == "retire" ? "Remettre l'article en vente" : "Plus en vente : l'article reste dans ta liste")
+            }
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(Array(etapes.enumerated()), id: \.offset) { i, e in
+                    if i > 0 {
+                        Capsule().fill(rang.map { i <= $0 } == true ? Color.rrAccent : Color.primary.opacity(0.12))
+                            .frame(height: 4).padding(.top, 20).frame(maxWidth: .infinity)
+                    }
+                    etape(e, i)
+                }
+            }
+            .opacity(statut == "retire" ? 0.45 : 1)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: statut)
+    }
+
+    private func etape(_ e: String, _ i: Int) -> some View {
+        let fait = rang.map { i < $0 } ?? false, actuel = rang == i
+        return Button { choisir(e) } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle().fill(actuel || fait ? Color.rrAccent : Color.primary.opacity(0.06))
+                    if actuel { Circle().stroke(Color.rrAccent.opacity(0.35), lineWidth: 6).padding(-5) }
+                    Image(systemName: fait ? "checkmark" : Libelles.symboleStatut(e)).font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(actuel || fait ? Color.white : Color.secondary)
+                }
+                .frame(width: 44, height: 44).scaleEffect(actuel ? 1.1 : 1)
+                Text(Libelles.statut(e)).font(.caption.weight(actuel ? .heavy : .semibold)).foregroundStyle(actuel ? Color.primary : Color.secondary).fixedSize()
+            }.contentShape(Rectangle())
+        }.buttonStyle(.plain).help(Libelles.aideStatut(e))
+    }
+    private func choisir(_ e: String) { withAnimation { statut = e } }
 }

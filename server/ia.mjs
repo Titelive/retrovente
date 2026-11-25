@@ -287,6 +287,22 @@ export async function cadrer(photo) {
   return cadreDe(o && o.cadre);
 }
 
+/* Photo de détail (gros plan d'un coin, d'une tranche, d'un défaut, objet tenu en main) : le rectangle à garder
+   pour bien montrer ce détail, sans la main ni le fond. null si la photo montre l'objet entier ou si l'IA hésite. */
+export async function zoomDetail(photo) {
+  checkPhoto(photo);
+  if (FAKE()) return process.env.IA_FAKE_ZOOM ? { x: 0.4, y: 0.3, w: 0.5, h: 0.5 } : null;
+  const o = await claude([image(photo), { type: "text", text: `Cette photo d'un objet vendu d'occasion (jeu vidéo, console, accessoire) est-elle un gros plan de détail : un coin, une tranche, un connecteur, une étiquette ou un défaut, l'objet étant souvent coupé ou tenu en main ?
+Si oui, donne le rectangle à garder pour BIEN montrer ce détail : serré sur le coin, la tranche ou le défaut montré, avec juste un peu de contexte autour, sans la main ni le fond inutile, et jamais coupé au milieu du détail.
+Réponds uniquement par un objet JSON : {"detail": true, "cadre": {"x", "y", "w", "h"}} en fractions de la largeur et de la hauteur de l'image (entre 0 et 1, origine en haut à gauche), ou {"detail": false} si la photo montre l'objet entier ou si tu hésites.` }], { max: 200, effort: "low" });
+  if (!o || o.detail !== true) return null;
+  const c = cadreDe(o.cadre);
+  if (!c || c.w * c.h > 0.8) return null;
+  // Un peu d'air autour du détail, sans sortir de la photo.
+  const m = 0.04, x = Math.max(0, c.x - m), y = Math.max(0, c.y - m);
+  return { x, y, w: Math.min(1, c.x + c.w + m) - x, h: Math.min(1, c.y + c.h + m) - y };
+}
+
 /* Sens de la photo : où pointe le haut des lettres de l'étiquette ? (plus fiable que de demander un angle)
    haut → 0, gauche → 90 (quart de tour horaire), bas → 180, droite → 270. « incertain » : on ne tourne pas. */
 const SENS = { haut: 0, gauche: 90, bas: 180, droite: 270 };
