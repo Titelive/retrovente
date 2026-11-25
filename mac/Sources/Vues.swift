@@ -384,6 +384,7 @@ struct Fiche: View {
     @State private var ajoutEnCours = 0
     @State private var cibleGalerie = false
     @State private var redaction = false
+    @State private var clavier: Any?
     /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
     @State private var aRetirerDePhotos: [String] = []
     private var aEnregistrer: Bool { article != original || !aRetirerDePhotos.isEmpty }
@@ -523,7 +524,19 @@ struct Fiche: View {
             guard let n = l.first(where: { $0.id == article.id }), n != original, article == original else { return }
             article = n; original = n
         }
-        .onAppear { original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article) }
+        .onAppear {
+            original = article; photo = article.photos.first; appli.verif.appli = appli; appli.verif.verifierMaintenant(article)
+            // Clavier : ← → passent d'une photo à l'autre, sauf pendant la saisie d'un texte ou quand la visionneuse est ouverte (elle gère ses flèches).
+            clavier = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+                guard e.keyCode == 123 || e.keyCode == 124,
+                      e.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+                      appli.visionneuse == nil, !appli.messagesOuvert,
+                      !(e.window?.firstResponder is NSText), article.photos.count > 1 else { return e }
+                allerPhoto(e.keyCode == 123 ? -1 : 1)
+                return nil
+            }
+        }
+        .onDisappear { if let c = clavier { NSEvent.removeMonitor(c); clavier = nil } }
         // Annonce vide : l'IA la rédige tout de suite (il reste à enregistrer).
         .task(id: article.id) { await rediger(forcer: false) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
@@ -540,6 +553,22 @@ struct Fiche: View {
         withAnimation(.easeOut(duration: 0.2)) { appli.visionneuse = (article.id, n) }
     }
 
+    private var indexPhoto: Int { photo.flatMap { x in article.photos.firstIndex(where: { $0.id == x.id }) } ?? 0 }
+    private func allerPhoto(_ d: Int) {
+        guard !article.photos.isEmpty else { return }
+        let n = indexPhoto + d
+        guard n >= 0, n < article.photos.count else { return }
+        withAnimation(.easeOut(duration: 0.15)) { photo = article.photos[n] }
+    }
+    private func flechePhoto(_ symbole: String, _ d: Int, aide: String) -> some View {
+        let n = indexPhoto + d
+        let possible = n >= 0 && n < article.photos.count
+        return Button { allerPhoto(d) } label: {
+            Image(systemName: symbole).font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                .frame(width: 34, height: 34).background(.black.opacity(0.45), in: Circle()).contentShape(Circle())
+        }.buttonStyle(.plain).opacity(possible ? 1 : 0.3).disabled(!possible).help(aide)
+    }
+
     private var galerie: some View {
         VStack(spacing: 12) {
             Color.clear.aspectRatio(1, contentMode: .fit).overlay { Vignette(article: article, photo: photo, taille: .grande) }.clipShape(RoundedRectangle(cornerRadius: 22))
@@ -552,11 +581,29 @@ struct Fiche: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { ouvrirVisionneuse(photo) }
-                .help("Cliquer pour voir la photo en grand (← → pour naviguer)")
+                .help("Cliquer pour voir la photo en grand (← → pour passer d'une photo à l'autre)")
+                // Flèches de navigation et position de la photo (au-dessus du clic qui ouvre la visionneuse).
+                .overlay {
+                    if article.photos.count > 1 {
+                        HStack {
+                            flechePhoto("chevron.left", -1, aide: "Photo précédente (←)")
+                            Spacer()
+                            flechePhoto("chevron.right", 1, aide: "Photo suivante (→)")
+                        }.padding(.horizontal, 10)
+                    }
+                }
+                .overlay(alignment: .bottomLeading) {
+                    if article.photos.count > 1 {
+                        Text("\(indexPhoto + 1) / \(article.photos.count)").font(.caption.weight(.semibold).monospacedDigit()).foregroundStyle(.white)
+                            .padding(.horizontal, 9).padding(.vertical, 5).background(.black.opacity(0.45), in: Capsule()).padding(10).allowsHitTesting(false)
+                    }
+                }
+            ScrollViewReader { defile in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(article.photos) { p in
                         Vignette(article: article, photo: p, taille: .mini).frame(width: 58, height: 58).clipShape(RoundedRectangle(cornerRadius: 12))
+                            .id(p.id)
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrAccent : .clear, lineWidth: 2))
                             .onTapGesture(count: 2) { ouvrirVisionneuse(p) }
                             .onTapGesture { photo = p }
@@ -568,6 +615,12 @@ struct Fiche: View {
                     Button { choisirPhoto() } label: { Image(systemName: "folder").font(.title3).frame(width: 58, height: 58) }
                         .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter des photos depuis un dossier")
                 }.padding(2)
+            }
+            // La vignette choisie (flèches, clavier) reste visible dans la bande.
+            .onChange(of: photo?.id) { id in
+                guard let id else { return }
+                withAnimation(.easeOut(duration: 0.2)) { defile.scrollTo(id, anchor: .center) }
+            }
             }
             .photosPicker(isPresented: $photosOuvert, selection: $choixPhotos, maxSelectionCount: 20, selectionBehavior: .ordered,
                           matching: .images, preferredItemEncoding: .automatic, photoLibrary: .shared())
