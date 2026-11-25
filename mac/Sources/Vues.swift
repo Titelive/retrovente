@@ -385,6 +385,7 @@ struct Fiche: View {
     @State private var cibleGalerie = false
     @State private var redaction = false
     @State private var clavier: Any?
+    @State private var glissee: Photo?   // vignette qu'on fait glisser pour changer l'ordre des photos
     /// Photos venues de l'app Photos : notées une fois la fiche enregistrée, retirées de Photos une fois l'annonce publiée.
     @State private var aRetirerDePhotos: [String] = []
     private var aEnregistrer: Bool { article != original || !aRetirerDePhotos.isEmpty }
@@ -553,6 +554,22 @@ struct Fiche: View {
         withAnimation(.easeOut(duration: 0.2)) { appli.visionneuse = (article.id, n) }
     }
 
+    private func deplacer(_ p: Photo, vers n: Int) {
+        guard let i = article.photos.firstIndex(of: p), n >= 0, n < article.photos.count, n != i else { return }
+        withAnimation(.easeOut(duration: 0.2)) { article.photos.move(fromOffsets: IndexSet(integer: i), toOffset: n > i ? n + 1 : n) }
+        ordreChange()
+    }
+    /// Nouvel ordre des photos : la liste « Photos : » de l'annonce suit, et il est enregistré tout de suite
+    /// si rien d'autre n'est en cours de modification sur la fiche.
+    private func ordreChange() {
+        if article.texteAnnonce.range(of: "Photos :") != nil {
+            article.texteAnnonce = Article.avecPhotos(article.texteAnnonce, article.photos.map(\.legende))
+        }
+        guard var o = original else { return }
+        o.photos = article.photos; o.texteAnnonce = article.texteAnnonce
+        guard o == article else { appli.message = "Nouvel ordre des photos : enregistre la fiche pour le garder."; return }
+        Task { if let n = await appli.enregistrer(article) { article = n; original = n; appli.message = "Ordre des photos enregistré." } }
+    }
     private var indexPhoto: Int { photo.flatMap { x in article.photos.firstIndex(where: { $0.id == x.id }) } ?? 0 }
     private func allerPhoto(_ d: Int) {
         guard !article.photos.isEmpty else { return }
@@ -607,7 +624,18 @@ struct Fiche: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(p == photo ? Color.rrAccent : .clear, lineWidth: 2))
                             .onTapGesture(count: 2) { ouvrirVisionneuse(p) }
                             .onTapGesture { photo = p }
-                            .contextMenu { Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } } }
+                            .opacity(glissee == p ? 0.4 : 1)
+                            // Glisser une vignette sur une autre pour changer l'ordre (la 1re photo est la photo principale).
+                            .onDrag { glissee = p; return NSItemProvider(object: p.id as NSString) }
+                            .onDrop(of: [.text], delegate: OrdrePhotos(cible: p, photos: $article.photos, glissee: $glissee) { fin in if fin { ordreChange() } })
+                            .contextMenu {
+                                let i = article.photos.firstIndex(of: p) ?? 0
+                                Button("Mettre en premier") { deplacer(p, vers: 0) }.disabled(i == 0)
+                                Button("Déplacer à gauche") { deplacer(p, vers: i - 1) }.disabled(i == 0)
+                                Button("Déplacer à droite") { deplacer(p, vers: i + 1) }.disabled(i >= article.photos.count - 1)
+                                Divider()
+                                Button("Retirer la photo", role: .destructive) { Task { await appli.retirerPhoto(article, p); recharger() } }
+                            }
                     }
                     if ajoutEnCours > 0 { ProgressView().controlSize(.small).frame(width: 58, height: 58) }
                     Button { photosOuvert = true } label: { Image(systemName: "photo.on.rectangle.angled").font(.title3).frame(width: 58, height: 58) }
@@ -615,6 +643,11 @@ struct Fiche: View {
                     Button { choisirPhoto() } label: { Image(systemName: "folder").font(.title3).frame(width: 58, height: 58) }
                         .buttonStyle(.plain).verre(RoundedRectangle(cornerRadius: 12), interactif: true).help("Ajouter des photos depuis un dossier")
                 }.padding(2)
+                // Vignette lâchée à côté des autres (entre deux, au bout de la bande) : l'ordre déjà pris est gardé.
+                .onDrop(of: [.text], isTargeted: nil) { _ in
+                    guard glissee != nil else { return false }
+                    glissee = nil; ordreChange(); return true
+                }
             }
             // La vignette choisie (flèches, clavier) reste visible dans la bande.
             .onChange(of: photo?.id) { id in
@@ -1042,4 +1075,25 @@ struct ParcoursStatut: View {
         }.buttonStyle(.plain).help(Libelles.aideStatut(e))
     }
     private func choisir(_ e: String) { withAnimation { statut = e } }
+}
+
+
+/// Glisser-déposer des vignettes de la fiche : la photo glissée prend la place de celle survolée.
+struct OrdrePhotos: DropDelegate {
+    let cible: Photo
+    @Binding var photos: [Photo]
+    @Binding var glissee: Photo?
+    let fini: (Bool) -> Void
+    func validateDrop(info: DropInfo) -> Bool { glissee != nil }
+    func dropEntered(info: DropInfo) {
+        guard let g = glissee, g != cible, let de = photos.firstIndex(of: g), let a = photos.firstIndex(of: cible) else { return }
+        withAnimation(.easeOut(duration: 0.15)) { photos.move(fromOffsets: IndexSet(integer: de), toOffset: a > de ? a + 1 : a) }
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool {
+        let bouge = glissee != nil
+        glissee = nil
+        fini(bouge)
+        return true
+    }
 }
