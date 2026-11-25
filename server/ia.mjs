@@ -292,12 +292,17 @@ export async function cadrer(photo) {
 export async function zoomDetail(photo) {
   checkPhoto(photo);
   if (FAKE()) return process.env.IA_FAKE_ZOOM ? { x: 0.4, y: 0.3, w: 0.5, h: 0.5 } : null;
-  const o = await claude([image(photo), { type: "text", text: `Cette photo d'un objet vendu d'occasion (jeu vidéo, console, accessoire) est-elle un gros plan de détail : un coin, une tranche, un connecteur, une étiquette ou un défaut, l'objet étant souvent coupé ou tenu en main ?
-Si oui, donne le rectangle à garder pour BIEN montrer ce détail : serré sur le coin, la tranche ou le défaut montré, avec juste un peu de contexte autour, sans la main ni le fond inutile, et jamais coupé au milieu du détail.
-Réponds uniquement par un objet JSON : {"detail": true, "cadre": {"x", "y", "w", "h"}} en fractions de la largeur et de la hauteur de l'image (entre 0 et 1, origine en haut à gauche), ou {"detail": false} si la photo montre l'objet entier ou si tu hésites.` }], { max: 200, effort: "low" });
+  const o = await claude([image(photo), { type: "text", text: `Photo d'un objet vendu d'occasion (jeu vidéo, console, accessoire), où l'objet est coupé par le bord ou tenu en main. Quel est le SUJET de cette photo, c'est-à-dire ce que le vendeur a voulu montrer ?
+- Un gros plan de détail (un coin, une tranche, un connecteur, une étiquette, un défaut) : le rectangle serré sur ce détail, avec un peu de contexte autour, sans la main ni le fond inutile.
+- L'intérieur d'une boîte ouverte, le contenu (jeu, notice, feuillets), le dos ou toute une face : le rectangle qui garde CE SUJET EN ENTIER (par exemple tout l'intérieur du boîtier ouvert), jamais un seul élément secondaire (un feuillet, un autocollant, un logo).
+Ne coupe jamais le sujet ; dans le doute, garde-le plus large.
+Réponds uniquement par un objet JSON : {"detail": true, "sujet": "coin" | "tranche" | "connecteur" | "etiquette" | "defaut" | "interieur" | "face", "cadre": {"x", "y", "w", "h"}} en fractions de la largeur et de la hauteur de l'image (entre 0 et 1, origine en haut à gauche), ou {"detail": false} si la photo entière montre déjà bien le sujet ou si tu hésites.` }], { max: 250, effort: "low" });
   if (!o || o.detail !== true) return null;
   const c = cadreDe(o.cadre);
   if (!c || c.w * c.h > 0.8) return null;
+  // Intérieur, face entière : on garde large (le sujet en entier) ; un zoom très serré n'est permis que sur un vrai détail.
+  const large = ["interieur", "face"].includes(String(o.sujet || ""));
+  if (c.w * c.h < (large ? 0.35 : 0.06)) return null;
   // Un peu d'air autour du détail, sans sortir de la photo.
   const m = 0.04, x = Math.max(0, c.x - m), y = Math.max(0, c.y - m);
   return { x, y, w: Math.min(1, c.x + c.w + m) - x, h: Math.min(1, c.y + c.h + m) - y };
