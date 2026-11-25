@@ -385,7 +385,7 @@ struct Fiche: View {
     @State private var cibleGalerie = false
     @State private var redaction = false
     @State private var clavier: Any?
-    /// Photos venues de l'app Photos : retirées de Photos seulement une fois la fiche enregistrée.
+    /// Photos venues de l'app Photos : notées une fois la fiche enregistrée, retirées de Photos une fois l'annonce publiée.
     @State private var aRetirerDePhotos: [String] = []
     private var aEnregistrer: Bool { article != original || !aRetirerDePhotos.isEmpty }
 
@@ -470,10 +470,10 @@ struct Fiche: View {
         await apresEnregistrement()
         appli.fenetre?.modifierEnCoulisses(article)
     }
-    /// Fiche enregistrée : les photos ajoutées depuis Photos peuvent maintenant en être retirées.
+    /// Fiche enregistrée : les photos ajoutées depuis Photos sont notées ; elles n'en seront retirées qu'une fois l'annonce publiée.
     private func apresEnregistrement() async {
         let l = aRetirerDePhotos; aRetirerDePhotos = []
-        if !l.isEmpty { await Phototheque.retirer(l) }
+        Phototheque.noter(l, pour: article.id)
     }
 
     var body: some View {
@@ -821,7 +821,7 @@ struct Nouveau: View {
     @State private var cible = false
     @State private var photosOuvert = false
     @State private var choixPhoto: PhotosPickerItem? = nil
-    @State private var idPhotos = ""   // photo venue de l'app Photos : retirée de la photothèque une fois l'article créé
+    @State private var idPhotos = ""   // photo venue de l'app Photos : retirée de la photothèque une fois l'annonce publiée
     @State private var film = false    // ouvert depuis « Un film » : l'IA cherche un film sur la jaquette
 
     var body: some View {
@@ -883,7 +883,7 @@ struct Nouveau: View {
                             etape = 3
                             if let n = await appli.creer(article, photo: image.flatMap { jpegData($0) }) {
                                 let id = idPhotos; fermer(); appli.selection = n.id
-                                if !n.photos.isEmpty { await Phototheque.retirer([id]) }
+                                if !n.photos.isEmpty { Phototheque.noter([id], pour: n.id) }   // retirée de Photos une fois l'annonce publiée
                             } else { etape = 2 }
                         }
                     } label: { Label("Créer l'article", systemImage: "checkmark") }
