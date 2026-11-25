@@ -662,7 +662,7 @@ final class Appli: ObservableObject {
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
     struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String] }
     /// Légendes de chaque photo de l'article (l'IA regarde les photos une par une).
-    func legender(_ a: Article) async -> [String] {
+    func legender(_ a: Article) async -> (legendes: [String], code: String) {
         var datas: [String] = []
         // Le serveur refuse un envoi de plus de 4 Mo : toutes les photos ensemble doivent tenir dans ~3,2 Mo.
         // (Avant, 8 photos à 900 Ko étaient refusées : l'IA n'avait aucune légende et inventait sa propre liste.)
@@ -672,13 +672,14 @@ final class Appli: ObservableObject {
             guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: poids) else { break }
             datas.append(j)
         }
-        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return [] }
-        return (j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return ([], "") }
+        // « code » : « non_utilise » ou « utilise » quand une photo montre un code (téléchargement, DLC, bonus), "" sinon.
+        return ((j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }, j["code"] as? String ?? "")
     }
     /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche ET de chaque photo, décrite une par une.
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
     func rediger(_ a: Article) async -> Redaction {
-        let legendes = await legender(a)
+        let (legendes, code) = await legender(a)
         if legendes.allSatisfy({ $0.isEmpty }), !a.photos.isEmpty { message = "Les photos n'ont pas pu être décrites cette fois : l'annonce est rédigée sans la liste des photos." }
         var fiche: [String: Any] = [:]
         let e = a.envoi
@@ -691,6 +692,9 @@ final class Appli: ObservableObject {
         if !liste.isEmpty {
             consigne += " La description tient en 3 ou 4 lignes courtes : nom, console, version et langue ; contenu et état général en une seule phrase ; une particularité seulement si elle compte pour l'acheteur ; « Remise en main propre ou envoi. ». Ne reprends pas, même reformulé, le détail photo par photo (face avant, dos, tranche, contacts…) et ne parle ni des couleurs ni du décor imprimé. Pour info, voici ce que montrent mes photos :\n\(liste)\n L'état doit correspondre aux photos : sans film plastique d'origine (blister) visible, ce n'est pas neuf, alors mets etat à tres_bon (ou moins s'il y a un défaut) et n'écris pas « neuf »."
         }
+        // Code vu sur les photos : l'annonce le dit (un code non utilisé compte pour l'acheteur). Sans indice, on n'en parle pas.
+        if code == "non_utilise" { consigne += " Une photo montre un code (téléchargement, DLC ou bonus) non utilisé : dis-le dans le texte (« avec le code … non utilisé »)." }
+        if code == "utilise" { consigne += " Une photo montre un code déjà gratté : écris « code déjà utilisé »." }
         if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
         var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)
         if let j = try? await API.json("POST", "/api/ia/dialoguer", ["messages": [["role": "vendeur", "texte": consigne]], "fiche": fiche]),

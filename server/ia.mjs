@@ -171,7 +171,7 @@ export async function identifier(photo, indice) {
   const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire, une carte Pokémon ou un film en Blu-Ray, Blu-Ray 4K ou DVD). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
-"titre" (nom exact et officiel, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards »),
+"titre" (nom exact et officiel, avec ses majuscules d'origine, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards », « Xenoblade Chronicles X: Definitive Edition »),
 "categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, « films » pour un film (Blu-Ray, Blu-Ray 4K UHD, DVD, VHS), ou « autres »),
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (version précise, déduite de la boîte, de l'étiquette ou du code produit : le suffixe du code donne le pays (-FRA France, -GER ou -NOE Allemagne, -UKV Royaume-Uni, -ITA Italie, -ESP Espagne, -HOL Pays-Bas, -SCN Scandinavie, -EUR Europe, -USA, -JPN), la classification aussi (USK : Allemagne, PEGI : Europe, ESRB : États-Unis, CERO : Japon), et la langue des textes de la jaquette. Écris « PAL FR » pour une version française, « PAL allemande », « PAL UK », « PAL italienne »… pour une version d'un autre pays d'Europe, « PAL EUR » si seul « Europe » est sûr, « NTSC-U » ou « NTSC-J » ; "" si inconnue),
@@ -190,7 +190,7 @@ ${CADRE_CONSIGNE},
 Jeu en loose : cartouche seule, d'origine, testée et fonctionnelle, sans boîte ni notice.
 Étiquette propre et bien lisible, cartouche en bon état.
 Remise en main propre ou envoi. »
-Ligne 1 : nom, console, version et référence si elle est lisible sur la photo ; pour une version d'un autre pays que la France, dis-le (« version allemande ») et, si les langues lues sur la boîte comprennent le français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ». Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas ; ne parle de jaunissement que pour une cartouche, une console ou une manette, jamais pour un boîtier). Ne parle de film plastique, de blister ou de « neuf » que si le blister se voit clairement. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
+Ligne 1 : nom, console, version et référence si elle est lisible sur la photo ; pour une version d'un autre pays que la France, dis-le (« version allemande ») et, si les langues lues sur la boîte comprennent le français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ». Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. ${TESTE_JEU} ${CODE_PHOTO} Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas ; ne parle de jaunissement que pour une cartouche, une console ou une manette, jamais pour un boîtier). Ne parle de film plastique, de blister ou de « neuf » que si le blister se voit clairement. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
 ${consigneCarte()}
 ${consigneFilm()}${indice === "films" ? `
 Le vendeur a précisé que c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD ou VHS) : la catégorie est « films », sauf si la photo montre clairement autre chose.` : ""}`;
@@ -209,7 +209,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
   return {
     ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
-    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: titreSansVersion(txt(o.annonce, 100)), description: affirme(txt(o.description, 1500)), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
+    etat: parmi(o.etat, ETATS, ""), contenu: parmi(o.contenu, CONTENUS, ""), remarques: affirme(txt(o.remarques, 300)), particularites: (Array.isArray(o.particularites) ? o.particularites : []).map((x) => txt(x, 80)).filter(Boolean).slice(0, 5), annonce: titreSansVersion(txt(o.annonce, 100)), description: testeSurJeu(affirme(txt(o.description, 1500))), cadre: cadreDe(o.cadre), rotation: [0, 90, 180, 270].includes(Number(o.rotation)) ? Number(o.rotation) : 0,
     ...(sansNotice(o.plateforme) && o.contenu === "boite" ? { contenu: "complet" } : {}),
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
@@ -527,6 +527,12 @@ export const rondCarte = (x) => { if (x == null || !isFinite(x)) return null; if
 // Galerie : une courte légende par photo (ce qu'elle montre, défaut visible), dans l'ordre, pour la description « Photo 1 : … ».
 /* Pas d'à-peu-près dans une annonce : on affirme ce que la photo montre, sinon on n'en parle pas.
    Filet de sécurité si le modèle glisse malgré la consigne un « apparemment », « semble », « visible »… */
+export function testeSurJeu(t) {
+  return String(t || "").replace(/\b(boîtier|boitier|boîte|boite|jaquette)\s+et\s+(jeu|cartouche|disque|console)\s+d'origine,\s*testé(?:e)?s\s+et\s+fonctionnel(?:le)?s\b/gi, (_, emb, jeu) => {
+    const f = /cartouche|console/i.test(jeu);
+    return `${emb} et ${jeu} d'origine, ${jeu.toLowerCase()} testé${f ? "e" : ""} et fonctionnel${f ? "le" : ""}`;
+  });
+}
 export function affirme(t) {
   // Un passage incertain (« apparemment propre », « probablement testée ») ne devient pas une affirmation : on le retire.
   const DOUTE = /\b(?:apparemment|probablement|sans doute|a priori|à priori|vraisemblablement|semble-t-il|en apparence|il semble|semble|semblent|a l'air|ont l'air|para[iî]t|paraissent|peut-être|on dirait)\b/i;
@@ -543,6 +549,10 @@ export function affirme(t) {
   };
   return String(t || "").split("\n").map((l) => (l.trim() ? ligne(l.trim()) : "")).filter((l, i, a) => l || (i > 0 && a[i - 1])).join("\n").trim();
 }
+// On teste un jeu, pas son emballage : « testé et fonctionnel » ne qualifie jamais la boîte, le boîtier, la notice ou la jaquette.
+const TESTE_JEU = "« Testé(e) et fonctionnel(le) » ne s'applique qu'au jeu (cartouche, disque), à la console ou à l'accessoire, jamais à la boîte, au boîtier, à la notice ou à la jaquette, qu'on ne teste pas : écris « En boîte : boîtier d'origine et cartouche d'origine, testée et fonctionnelle », jamais « boîtier et jeu testés et fonctionnels ».";
+// Un code (téléchargement, DLC, bonus) se signale seulement s'il se voit sur une photo.
+const CODE_PHOTO = "Si une photo montre un code (carte ou papier de code de téléchargement, de DLC ou de bonus) encore caché, non gratté ou sous blister, ajoute à la ligne 2 « avec le code … non utilisé » et « Code non utilisé » dans \"particularites\" ; s'il est gratté ou révélé, « code déjà utilisé » ; s'il n'y a aucun code sur la photo, n'en parle pas.";
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 // L'état, pas le design : le décor imprimé d'origine (couleurs, bandeau, logo) n'est ni un défaut ni une particularité.
@@ -587,13 +597,16 @@ export async function legender(photos, v = {}, trace = null, progres = () => {})
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} ${ETAT_SEUL} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Une lumière chaude ou le reflet du bois, d'un mur ou de la main donne une teinte crème à un plastique sain : ce n'est pas du jaunissement. Réponds « leger » ou « net » seulement si une zone du plastique est nettement plus jaune qu'une autre zone éclairée pareil ; dans le doute, ou si l'objet n'est pas en plastique, « non ». Ne parle pas de jaunissement dans la légende : réponds-le seulement dans "jauni".`}
-Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"}` : `{"legende": "…", "jauni": "non"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
+${film ? "" : `
+Regarde enfin s'il y a sur CETTE photo un code (carte ou papier de code de téléchargement, de DLC ou de bonus) : "code" vaut « intact » si la zone du code est encore cachée, non grattée ou sous blister, « utilise » si elle est grattée ou le code lisible en entier, « aucun » s'il n'y a pas de code ou si tu n'es pas sûr.`}
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"${film ? "" : `, "code": "aucun"`}}` : `{"legende": "…", "jauni": "non", "code": "aucun"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
     const j = carte ? "non" : parmi((o && o.jauni) || (/"jauni"\s*:\s*"(non|leger|net)"/.exec(brut) || [])[1], ["non", "leger", "net"], /nettement jauni/i.test(leg) ? "net" : /jauni/i.test(leg) ? "leger" : "non");
     // Le jaunissement n'est écrit qu'après l'avis d'ensemble (plus fiable) : on l'ôte de la légende photo par photo.
-    return { legende: sansJauni(leg).slice(0, 200), jauni: j };
+    const code = parmi((o && o.code) || (/"code"\s*:\s*"(aucun|intact|utilise)"/.exec(brut) || [])[1], ["aucun", "intact", "utilise"], "aucun");
+    return { legende: sansJauni(leg).slice(0, 200), jauni: j, code };
   };
   // Deux requêtes à la fois au plus, et jusqu'à 3 essais par photo (limite de débit, service surchargé, réponse vide) :
   // six requêtes simultanées dépassaient la limite de l'API, seule la première photo était décrite.
@@ -632,7 +645,10 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
     });
   }
   if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos (" + (out[0].erreur || "erreur") + "), réessaie.");
-  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur) };
+  // Code : signalé seulement si une photo le montre ; un code gratté sur une photo l'emporte (déjà utilisé).
+  const codes = out.map((x) => x.code || "aucun");
+  const code = codes.includes("utilise") ? "utilise" : codes.includes("intact") ? "non_utilise" : "";
+  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur), code };
 }
 
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin ou eBay) =====
@@ -1123,7 +1139,7 @@ export function changementsSurs(c) {
     else if (k === "origine") { if (ORIGINES_D.includes(v)) out[k] = v; }
     else if (k === "etatCarte") { if (ETATS_CARTE.includes(v)) out[k] = v; }
     else if (k === "annee") { if (/^(18|19|20)\d{2}$/.test(String(v).trim())) out[k] = String(v).trim(); }
-    else if (k === "texteAnnonce") out[k] = affirme(txt(v, 4000));
+    else if (k === "texteAnnonce") out[k] = testeSurJeu(affirme(txt(v, 4000)));
     else if (k === "titreAnnonce") out[k] = titreSansVersion(txt(v, 100));
     else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 80, gradation: 30, realisateur: 80 }[k]);
   }
@@ -1165,6 +1181,9 @@ Règles :
 - Ce que dit le vendeur sur son objet est vrai : reporte-le dans les champs concernés ET dans texteAnnonce, pour que tout reste cohérent.
 - Quand tu modifies texteAnnonce, garde son style et tout ce qui reste vrai ; renvoie le texte complet. N'ajoute aucune information que le vendeur ou la fiche ne donne pas. N'emploie jamais « apparemment », « semble », « probablement », « a priori », « visible » ni « apparent ». Dans l'état décrit, ne parle pas du décor d'origine (couleurs, bandeau, logos imprimés) et n'appelle pas « étiquette » une jaquette ou un boîtier imprimé : seuls les autocollants réellement collés sont des étiquettes.
 - Sur Switch, Switch 2, PS5 et Xbox Series, il n'y a pas de notice papier : n'en parle jamais (ni « sans notice »).
+- ${TESTE_JEU}
+- Garde le nom officiel du jeu avec ses majuscules d'origine (« Definitive Edition », pas « definitive Edition »).
+- Si particularites ou le vendeur parle d'un code non utilisé (téléchargement, DLC, bonus), dis-le dans texteAnnonce (« avec le code … non utilisé ») ; sans cette information, ne parle jamais de code.
 - Ne change jamais l'état et ne parle jamais de film plastique, de blister ou de « neuf » si le vendeur ne le dit pas.
 - Version d'un autre pays que la France (ex. region « PAL allemande ») : dis-le dans texteAnnonce (« version allemande ») ; si le vendeur ou la fiche dit qu'elle est en français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ».
 - Pour un conseil de prix, appuie-toi sur la cote si elle existe ; ne change prixDemande que si le vendeur le demande.

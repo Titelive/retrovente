@@ -329,6 +329,13 @@ test("légendes et annonces : jamais d'« apparemment », on affirme ou on se ta
   assert.equal(affirme("Cartouche visiblement d'origine, probablement testée"), "Cartouche d'origine");
 });
 
+test("annonces : « testé et fonctionnel » qualifie le jeu, jamais le boîtier", async () => {
+  const { testeSurJeu } = await import("../server/ia.mjs");
+  assert.equal(testeSurJeu("En boîte : boîtier et jeu d'origine, testés et fonctionnels."), "En boîte : boîtier et jeu d'origine, jeu testé et fonctionnel.");
+  assert.equal(testeSurJeu("Boîte et cartouche d'origine, testées et fonctionnelles."), "Boîte et cartouche d'origine, cartouche testée et fonctionnelle.");
+  assert.equal(testeSurJeu("Cartouche seule, d'origine, testée et fonctionnelle."), "Cartouche seule, d'origine, testée et fonctionnelle.");
+});
+
 test("menu du site : l'indice de connexion est rattrapé pour les anciennes sessions", async () => {
   const { indiceConnexion } = await import("../server/auth.mjs");
   const c = await compte("indice@exemple.fr");
