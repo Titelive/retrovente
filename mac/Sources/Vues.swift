@@ -396,8 +396,8 @@ struct Fiche: View {
             Image(systemName: "exclamationmark.triangle.fill").font(.title2).foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cette annonce n'est plus en ligne sur Le Bon Coin").font(.headline)
-                Text(article.estLot ? "Elle est désactivée, supprimée ou expirée. Redépose le lot : son titre accrocheur et son annonce sont refaits avec ses articles."
-                                    : "Elle est désactivée, supprimée ou expirée. Redépose-la, ou retrouve-la si tu l'as republiée sous un autre lien.")
+                Text(article.estLot ? LocalizedStringKey("Elle est **désactivée, supprimée ou expirée**. **Redépose le lot** : son titre accrocheur et son annonce sont refaits avec ses articles.")
+                                    : "Elle est **désactivée, supprimée ou expirée**. **Redépose-la**, ou retrouve-la si tu l'as republiée sous un autre lien.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }.frame(maxWidth: .infinity, alignment: .leading)
           }
@@ -541,10 +541,10 @@ struct Fiche: View {
         .task(id: article.id) { await rediger(forcer: false) }
         .confirmationDialog("Supprimer « \(article.titre) » ?", isPresented: $confirmer) {
             Button("Supprimer", role: .destructive) { Task { await appli.supprimer(article) } }
-        } message: { Text("La fiche et ses photos seront effacées.") }
+        } message: { Text("La fiche et ses photos seront **effacées**.") }
         .confirmationDialog("Supprimer l'annonce de Le Bon Coin ?", isPresented: $retirer) {
             Button("Supprimer de Le Bon Coin", role: .destructive) { appli.fenetre?.supprimerEnCoulisses(article) }
-        } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera retirée de Le Bon Coin. Ta fiche RetroRevente est gardée.") }
+        } message: { Text("L'annonce « \(article.titreAnnonce.isEmpty ? article.titre : article.titreAnnonce) » sera **retirée de Le Bon Coin**. Ta fiche RetroRevente **est gardée**.") }
     }
 
     private func ouvrirVisionneuse(_ p: Photo?) {
@@ -750,7 +750,7 @@ struct Fiche: View {
                 HStack(spacing: 8) {
                     if redaction {
                         ProgressView().controlSize(.small)
-                        Text("L'IA regarde chaque photo et rédige ton annonce…").font(.callout).foregroundStyle(.secondary)
+                        Text("L'IA **regarde chaque photo** et **rédige ton annonce**…").font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button { Task { await rediger(forcer: true) } } label: {
@@ -839,7 +839,7 @@ struct Nouveau: View {
                         VStack(spacing: 12) {
                             Image(systemName: film ? "film" : "camera.viewfinder").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text(film ? "Glisse la photo de la jaquette ici" : "Glisse une photo ici").font(.title3.weight(.semibold))
-                            Text(film ? "Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA reconnaît le film et remplit la fiche." : "L'IA reconnaît le jeu, la console ou la carte et remplit la fiche.").foregroundStyle(.secondary)
+                            Text(film ? LocalizedStringKey("Blu-Ray, Blu-Ray 4K UHD ou DVD : l'IA **reconnaît le film** et **remplit la fiche**.") : "L'IA **reconnaît le jeu, la console ou la carte** et **remplit la fiche**.").foregroundStyle(.secondary)
                             HStack(spacing: 10) {
                                 Button { photosOuvert = true } label: { Label("Depuis Photos…", systemImage: "photo.on.rectangle.angled") }.boutonVerre(principal: true).controlSize(.large)
                                 Button { choisir() } label: { Label("Un fichier…", systemImage: "folder") }.boutonVerre().controlSize(.large)
@@ -943,7 +943,7 @@ struct Fete: View {
             VStack(spacing: 8) {
                 Text("🎉").font(.system(size: 56))
                 Text("Annonce publiée !").font(.system(size: 28, weight: .heavy, design: .rounded))
-                Text("« \(titre) » est en ligne sur Le Bon Coin.").foregroundStyle(.secondary)
+                Text("« \(titre) » est **en ligne** sur Le Bon Coin.").foregroundStyle(.secondary)
             }.padding(30).verre(RoundedRectangle(cornerRadius: 28))
         }.onAppear { debut = Date() }
     }

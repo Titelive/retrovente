@@ -107,7 +107,7 @@ private struct LotsAEffacer: View {
         let lbc = e.annonce.isEmpty ? (lot?.annonce ?? "") : e.annonce
         let eb = e.annonceEbay.isEmpty ? (lot?.annonceEbay ?? "") : e.annonceEbay
         let reste: Text = {
-            guard let lot = lot, !e.defait else { return Text("Le lot est défait : son annonce est à supprimer.") }
+            guard let lot = lot, !e.defait else { return Text("Le lot est défait : son annonce est **à supprimer**.") }
             let n = lot.membres?.count ?? 0
             return Text("Le lot garde \(n) article\(n > 1 ? "s" : "")" + (lot.prixDemande.map { " à " + Libelles.prix($0) } ?? "") + " : supprime l'annonce, puis republie-le si tu veux.")
         }()
@@ -192,7 +192,7 @@ private struct CalculTemps: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Temps gagné").font(.title3.weight(.heavy))
-                Text("Ce que tu aurais passé à la main, étape par étape. Ajuste les minutes à ta façon de faire.").font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text("Ce que tu aurais passé **à la main**, étape par étape. **Ajuste les minutes** à ta façon de faire.").font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             VStack(spacing: 10) {
                 ForEach(TempsGagne.cles, id: \.self) { k in
@@ -352,7 +352,7 @@ private struct GraphiqueVentes: View {
                 if sans {
                     VStack(spacing: 4) {
                         Text("Ton premier graphique arrive").font(.callout.weight(.bold))
-                        Text("Passe un article en « Vendu » avec sa date : tes ventes s'afficheront ici, mois par mois.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        Text("Passe un article en **« Vendu »** avec sa date : tes ventes s'afficheront ici, **mois par mois**.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }
                     .padding(16).frame(maxWidth: 340).verre(RoundedRectangle(cornerRadius: 16))
                 }
@@ -478,7 +478,7 @@ struct CartesPhoto: View {
                         VStack(spacing: 12) {
                             Image(systemName: "rectangle.stack").font(.system(size: 52, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text("Glisse une photo de tes cartes ici").font(.title3.weight(.semibold))
-                            Text("Une page de classeur ou des cartes étalées : je repère chaque carte et je cherche sa cote.").foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Text("Une **page de classeur** ou des **cartes étalées** : je repère chaque carte et je cherche **sa cote**.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                             HStack(spacing: 10) {
                                 Button { photosOuvert = true } label: { Label("Depuis Photos…", systemImage: "photo.on.rectangle.angled") }.boutonVerre(principal: true).controlSize(.large)
                                 Button { choisir() } label: { Label("Un fichier…", systemImage: "folder") }.boutonVerre().controlSize(.large)

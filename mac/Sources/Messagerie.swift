@@ -497,11 +497,11 @@ struct MessagesVue: View {
                             isPresented: Binding(get: { aSupprimer != nil }, set: { if !$0 { aSupprimer = nil } }), presenting: aSupprimer) { c in
             Button("Supprimer sur Le Bon Coin", role: .destructive) { Task { await m.supprimer(c) } }
             Button("Seulement la masquer ici") { m.masquer(c) }
-        } message: { _ in Text("Supprimée sur Le Bon Coin, elle ne pourra pas être récupérée. Masquée, elle reste sur Le Bon Coin et tu peux la faire réapparaître.") }
+        } message: { _ in Text("**Supprimée** sur Le Bon Coin, elle **ne pourra pas être récupérée**. **Masquée**, elle reste sur Le Bon Coin et tu peux la faire réapparaître.") }
         .confirmationDialog("Bloquer \(aBloquer.map { $0.acheteur.isEmpty ? $0.nom : $0.acheteur } ?? "") ?",
                             isPresented: Binding(get: { aBloquer != nil }, set: { if !$0 { aBloquer = nil } }), presenting: aBloquer) { c in
             Button("Bloquer sur Le Bon Coin", role: .destructive) { Task { await m.bloquer(c) } }
-        } message: { _ in Text("Cette personne ne pourra plus t'écrire ni t'envoyer d'offre. Tu pourras la débloquer plus tard sur Le Bon Coin.") }
+        } message: { _ in Text("Cette personne **ne pourra plus t'écrire** ni t'envoyer d'offre. Tu pourras la **débloquer** plus tard sur Le Bon Coin.") }
     }
 
     // MARK: Liste des conversations
@@ -534,7 +534,7 @@ struct MessagesVue: View {
             case .connexion:
                 VStack(spacing: 12) {
                     Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 38)).foregroundStyle(Color.rrAccent)
-                    Text("Le Bon Coin te demande de te connecter.").multilineTextAlignment(.center)
+                    Text("Le Bon Coin te demande de **te connecter**.").multilineTextAlignment(.center)
                     Button("Ouvrir Le Bon Coin") { appli.fenetre?.allerSurLeSite(.messages) }.boutonVerre(principal: true)
                 }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .erreur(let t):
@@ -634,7 +634,7 @@ struct MessagesVue: View {
                     Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 44)).foregroundStyle(Color.rrAccent)
                 }
                 Text("Choisis une conversation").font(.title2.weight(.heavy))
-                Text("L'IA lit le dernier message et te propose des réponses.\nRien ne part sans ton clic.").multilineTextAlignment(.center).foregroundStyle(.secondary)
+                Text("L'IA lit le dernier message et te **propose des réponses**.\n**Rien ne part sans ton clic.**").multilineTextAlignment(.center).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 0) {
@@ -662,7 +662,7 @@ struct MessagesVue: View {
                         Image(systemName: "nosign").font(.title3).foregroundStyle(.red)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Utilisateur bloqué").font(.headline)
-                            Text("Le Bon Coin ne vous laisse plus vous écrire. Si tu changes d'avis, tu peux débloquer ce compte sur le site.").font(.callout).foregroundStyle(.secondary)
+                            Text("Le Bon Coin **ne vous laisse plus vous écrire**. Si tu changes d'avis, tu peux **débloquer ce compte** sur le site.").font(.callout).foregroundStyle(.secondary)
                         }
                         Spacer()
                     }
@@ -796,7 +796,7 @@ struct MessagesVue: View {
                     .buttonStyle(.borderless).foregroundStyle(Color.rrAccent).disabled(m.iaCharge)
             }
             if !m.iaErreur.isEmpty { Text(m.iaErreur).font(.callout).foregroundStyle(.orange) }
-            else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as répondu en dernier : je te proposerai une réponse dès que l'acheteur écrit.").font(.callout).foregroundStyle(.secondary) }
+            else if m.fil.dernierMoi && m.reponses.isEmpty && !m.iaCharge { Text("Tu as **répondu en dernier** : je te proposerai une réponse **dès que l'acheteur écrit**.").font(.callout).foregroundStyle(.secondary) }
             else if !m.resume.isEmpty { Text(Messagerie.enGras(m.resume, nom: acheteurOuvert)).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
             if !m.reponses.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {

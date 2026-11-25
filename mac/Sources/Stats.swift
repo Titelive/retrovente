@@ -270,7 +270,7 @@ struct BlocStats: View {
                 Spacer()
                 Text("Relevé " + StatsTexte.depuis(x.date)).font(.caption).foregroundStyle(.secondary)
             } else if releve.connexion.contains(s) {
-                Text("Connecte-toi à \(StatsTexte.noms[s] ?? s) dans l'app pour relever les vues.").font(.callout).foregroundStyle(.secondary)
+                Text("**Connecte-toi à \(StatsTexte.noms[s] ?? s)** dans l'app pour relever les vues.").font(.callout).foregroundStyle(.secondary)
             } else {
                 Text(releve.enCours == s ? "Relevé en cours…" : "Pas encore relevé.").font(.callout).foregroundStyle(.secondary)
             }

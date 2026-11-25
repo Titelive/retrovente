@@ -60,7 +60,7 @@ struct ListeNotifs: View {
                 VStack(spacing: 8) {
                     Image(systemName: "bell.slash").font(.system(size: 28, weight: .light)).foregroundStyle(Color.rrAccent)
                     Text("Rien de nouveau").font(.callout.weight(.semibold))
-                    Text("Annonces prêtes à publier, messages et demandes de Le Bon Coin s'afficheront ici.")
+                    Text("**Annonces prêtes à publier**, **messages** et **demandes** de Le Bon Coin s'afficheront ici.")
                         .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }.frame(maxWidth: .infinity).padding(28)
             } else {

@@ -27,7 +27,7 @@ struct FeuilleDepot: View {
             switch depot.etape {
             case .remplissage(let t):
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text(t).font(.headline) }
-                Text("Le Bon Coin se remplit en coulisses : photos, titre, description, prix, catégorie. Rien ne sera publié sans toi.")
+                Text("Le Bon Coin se remplit **en coulisses** : photos, titre, description, prix, catégorie. **Rien ne sera publié sans toi.**")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
@@ -39,7 +39,7 @@ struct FeuilleDepot: View {
                     Label("Une option payante est cochée sur Le Bon Coin. Vérifie-la avant de publier.", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout.weight(.semibold)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Aucune option payante n'est cochée. Rien n'est publié tant que tu ne cliques pas sur « Publier ».")
+                    Text("**Aucune option payante** n'est cochée. Rien n'est publié tant que tu ne cliques pas sur **« Publier »**.")
                         .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 if let t = article?.texteAnnonce, !t.isEmpty {
@@ -56,7 +56,7 @@ struct FeuilleDepot: View {
             case .aide(let t):
                 Label("Le Bon Coin a besoin de toi", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
                 Text(t).font(.callout).fixedSize(horizontal: false, vertical: true)
-                Text("Rien n'a été publié. Le Bon Coin reste caché : tu peux réessayer, ou l'ouvrir pour régler ça toi-même.")
+                Text("**Rien n'a été publié.** Le Bon Coin reste caché : tu peux **réessayer**, ou l'ouvrir pour régler ça toi-même.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
@@ -90,7 +90,7 @@ struct ChoixDepot: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Déposer une annonce").font(.title2.weight(.heavy))
-                Text("Choisis l'article : l'annonce se remplit en coulisses, tu la relis puis tu publies, sans voir Le Bon Coin.")
+                Text("**Choisis l'article** : l'annonce se remplit en coulisses, tu la **relis** puis tu **publies**, sans voir Le Bon Coin.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 6) {
@@ -98,7 +98,7 @@ struct ChoixDepot: View {
                 TextField("Chercher un article", text: $recherche).textFieldStyle(.plain)
             }.padding(.horizontal, 10).padding(.vertical, 7).verre(Capsule())
             if l.isEmpty {
-                Text(recherche.isEmpty ? "Tous tes articles en vente sont déjà sur Le Bon Coin." : "Aucun article ne correspond.")
+                Text(recherche.isEmpty ? LocalizedStringKey("Tous tes articles en vente sont **déjà sur Le Bon Coin**.") : "Aucun article ne correspond.")
                     .foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 30)
             } else {
                 ScrollView {
@@ -149,7 +149,7 @@ struct ChampAdresse: View {
                 .help(explication)
             TextField("Ex. 54000 Nancy", text: $adresse).textFieldStyle(.roundedBorder).onSubmit(continuer)
             if !erreur.isEmpty { Text(erreur).font(.callout).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
-            Text("Elle est enregistrée dans Mon compte. Le Bon Coin n'affiche que la ville aux acheteurs. Rien n'a été publié.").font(.caption).foregroundStyle(.secondary)
+            Text("Elle est enregistrée dans **Mon compte**. Le Bon Coin n'affiche que **la ville** aux acheteurs. Rien n'a été publié.").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Annuler") { appli.fenetre?.annulerCoulisses() }.keyboardShortcut(.cancelAction).boutonVerre()
                 Spacer()

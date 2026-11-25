@@ -253,7 +253,7 @@ struct Grille: View {
                             Image(systemName: "shippingbox").font(.system(size: 44, weight: .light)).foregroundStyle(Color.rrAccent)
                             Text(appli.articles.isEmpty ? "Aucun article pour l'instant" : "Aucun article dans cette catégorie").font(.title3.weight(.semibold))
                             if appli.articles.isEmpty {
-                                Text("Prends ton premier article en photo : l'annonce se remplit toute seule.").foregroundStyle(.secondary)
+                                Text("Prends ton premier article **en photo** : l'annonce **se remplit toute seule**.").foregroundStyle(.secondary)
                                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).controlSize(.large)
                             }
                         }.frame(maxWidth: .infinity).padding(.top, 80)
@@ -565,7 +565,7 @@ struct IdeesLots: View {
                     else {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Pas encore d'idée de lot").font(.callout.weight(.bold))
-                            Text("Quand tu auras plusieurs jeux d'une même série, d'un même studio ou à petit prix, je te proposerai de les réunir. Tu peux aussi composer ton lot toi-même.")
+                            Text("Quand tu auras plusieurs jeux d'une **même série**, d'un **même studio** ou à **petit prix**, je te proposerai de les réunir. Tu peux aussi **composer ton lot** toi-même.")
                                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(14).frame(maxWidth: 360, alignment: .leading)
@@ -609,7 +609,7 @@ struct CarteIdee: View {
                     Text(Libelles.prix(c)).font(.title3.weight(.heavy))
                     if let s = idee.somme, c < s.rounded() { Text(Libelles.prix(s.rounded()) + " à l'unité").font(.caption).strikethrough().foregroundStyle(.secondary) }
                     if let a = idee.ajust { let p = Int((a * 100).rounded()); Text(p > 0 ? "+\(p) %" : "−\(-p) %").font(.caption.weight(.bold)).foregroundStyle(p > 0 ? Color.green : Color.secondary) }
-                } else { Text("Ajoute un prix à ces articles pour estimer le lot.").font(.caption).foregroundStyle(.secondary) }
+                } else { Text("Ajoute **un prix** à ces articles pour estimer le lot.").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 0)
             HStack {
@@ -637,7 +637,7 @@ struct BarreLot: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(n > 0 ? "\(n) article\(n > 1 ? "s" : "") dans ton lot" : "Choisis les articles").font(.headline)
                 if let t = appli.choixTheme { Text(t.theme).font(.caption).foregroundStyle(.secondary) }
-                else { Text("Clique sur les cartes pour les ajouter ou les retirer.").font(.caption).foregroundStyle(.secondary) }
+                else { Text("**Clique sur les cartes** pour les ajouter ou les retirer.").font(.caption).foregroundStyle(.secondary) }
             }
             if n >= 2, let c = cote.conseille {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
