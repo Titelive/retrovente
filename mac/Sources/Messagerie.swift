@@ -51,11 +51,11 @@ struct MessageLbc: Identifiable, Equatable {
 }
 
 struct FilLbc: Equatable {
-    var cle = "", acheteur = "", annonce: [String] = [], dernierMoi = false, messages: [MessageLbc] = []
+    var cle = "", acheteur = "", annonce: [String] = [], dernierMoi = false, bloque = false, messages: [MessageLbc] = []
     init() {}
     init(_ d: [String: Any]) {
         cle = d["cle"] as? String ?? ""; acheteur = d["acheteur"] as? String ?? ""; annonce = d["annonce"] as? [String] ?? []
-        dernierMoi = d["dernierMoi"] as? Bool ?? false
+        dernierMoi = d["dernierMoi"] as? Bool ?? false; bloque = d["bloque"] as? Bool ?? false
         let bruts = (d["messages"] as? [[String: Any]] ?? []).enumerated().map { i, m in
             MessageLbc(id: i, cote: m["cote"] as? String ?? "lui", texte: (m["texte"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines), meta: m["meta"] as? String ?? "")
         }
@@ -105,6 +105,11 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var masquees: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "conversationsMasquees") ?? []) {
         didSet { UserDefaults.standard.set(Array(masquees), forKey: "conversationsMasquees") }
     }
+    /// Conversations dont l'acheteur est bloqué (vu dans Le Bon Coin ou bloqué depuis l'app).
+    @Published var bloques: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "conversationsBloquees") ?? []) {
+        didSet { UserDefaults.standard.set(Array(bloques), forKey: "conversationsBloquees") }
+    }
+    var ouverteBloquee: Bool { fil.bloque || (ouverte.map { bloques.contains($0) } ?? false) }
     @Published var suppression: String? = nil
 
     weak var fenetre: Fenetre?
@@ -302,8 +307,9 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         guard let r = r else { return }
         if r["erreur"] != nil { avis = "Cette conversation n'est plus dans la liste."; await lire(); return }
         fil = FilLbc(r)
+        if fil.bloque { bloques.insert(c.cle) }
         await lire()
-        if jeton == jetonOuverture, !fil.dernierMoi { await proposer() }
+        if jeton == jetonOuverture, !fil.dernierMoi, !ouverteBloquee { await proposer() }
     }
 
     // Non lus : le rond jaune n'apparaît que sur une conversation dont le dernier message a changé depuis que tu l'as
@@ -400,6 +406,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         fenetre?.modele.message = "Blocage de \(qui) sur Le Bon Coin…"
         let r = await appel("return await window.rrMessagerie.bloquer(cle, lignes);", ["cle": c.cle, "lignes": c.lignes])
         if (r?["ok"] as? Bool) == true, (r?["verifie"] as? Bool) == true {
+            bloques.insert(c.cle); if ouverte == c.cle { reponses = []; resume = "" }
             fenetre?.modele.message = (r?["deja"] as? Bool) == true ? "Ce compte était déjà bloqué sur Le Bon Coin." : "Le Bon Coin confirme le blocage : \(qui) ne peut plus t'écrire."
         } else if (r?["ok"] as? Bool) == true {
             fenetre?.modele.message = "⚠️ J'ai cliqué « Bloquer », mais Le Bon Coin ne l'a pas confirmé. Vérifie sur le site."
@@ -411,7 +418,7 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
 
     /// Réponses de l'IA pour la conversation ouverte (avec une consigne : « dis-lui que… »).
     func proposer(_ consigne: String = "") async {
-        guard let pour = ouverte else { return }
+        guard let pour = ouverte, !ouverteBloquee else { return }
         jetonIA += 1; let j = jetonIA
         iaCharge = true; iaErreur = ""; defer { if j == jetonIA { iaCharge = false } }
         let rep = await appel("return await window.rrMessagerie.suggestions(consigne);", ["consigne": consigne])
@@ -552,6 +559,10 @@ struct MessagesVue: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(c.acheteur.isEmpty ? c.nom : c.acheteur).font(.system(size: 13.5, weight: c.nonLu ? .heavy : .semibold, design: .rounded)).lineLimit(1)
+                        if m.bloques.contains(c.cle) {
+                            Label("Bloqué", systemImage: "nosign").labelStyle(.titleAndIcon).font(.caption2.weight(.bold)).foregroundStyle(.red)
+                                .padding(.horizontal, 6).padding(.vertical, 2).background(Color.red.opacity(0.1), in: Capsule())
+                        }
                         Spacer(minLength: 4)
                         Text(c.date).font(.caption2.weight(c.nonLu ? .bold : .regular)).foregroundStyle(c.nonLu ? Color.rrAccent : .secondary).lineLimit(1)
                     }
@@ -615,7 +626,20 @@ struct MessagesVue: View {
                 .background(
                     LinearGradient(colors: [Color.rrAccent.opacity(0.04), .clear], startPoint: .top, endPoint: .bottom)
                 )
-                redaction
+                if m.ouverteBloquee {
+                    HStack(spacing: 10) {
+                        Image(systemName: "nosign").font(.title3).foregroundStyle(.red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Utilisateur bloqué").font(.headline)
+                            Text("Le Bon Coin ne vous laisse plus vous écrire. Si tu changes d'avis, tu peux débloquer ce compte sur le site.").font(.callout).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16).background(Color.red.opacity(0.07))
+                    .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
+                } else {
+                    redaction
+                }
             }
         }
     }

@@ -1966,7 +1966,21 @@
       out.push({ el: b, cote: cote, texte: t, meta: "" });
     }
     var enc = texteEncadre().split("\n").map(function (l) { return l.trim(); }).filter(Boolean).slice(0, 6);
-    return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(),
+    // Utilisateur bloqué : Le Bon Coin l'écrit dans la conversation, et la mise en page change (la liste et la fiche
+    // « À propos de cet acheteur » se retrouvent dans la colonne). On le signale, et on écarte ces morceaux du fil.
+    var BLOQUE = /l.utilisateur est bloqu|vous avez bloqu|impossible de recevoir ou d.envoyer des messages/i;
+    var bloque = BLOQUE.test(col.innerText || "") || out.some(function (m) { return BLOQUE.test(m.texte); });
+    var lignesListe = {};
+    if (bloque) entreesConversations().forEach(function (x) { (x.innerText || "").split("\n").forEach(function (l) { l = norm(l); if (l) lignesListe[l] = 1; }); });
+    var FICHE = /^(à propos de|a propos de|membre depuis|\d+ transactions?|temps de r[ée]ponse|derni[èe]re activit[ée]|l.utilisateur est bloqu|impossible de recevoir|r[ée]pond (en|g[ée]n[ée]ralement)|[(]\s*\d+\s*[)]$|[0-5]([.,]\d)?$|-$)/i;
+    out = out.filter(function (m) {
+      var ls = m.texte.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+      if (!ls.length || FICHE.test(ls[0])) return false;
+      if (ls.every(function (l) { return lignesListe[norm(l)] || l === "-" || DATE_ENTREE.test(l); })) return false;
+      if (ls.length === 1 && norm(ls[0]) === norm(acheteurLu())) return false;
+      return true;
+    });
+    return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(), bloque: bloque,
              messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
   }
   // Liste des conversations, ou null quand la page ne montre que la conversation ouverte (mise en page étroite) :
