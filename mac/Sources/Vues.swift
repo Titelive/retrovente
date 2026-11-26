@@ -289,28 +289,82 @@ struct Accueil: View {
     }
 }
 
+/// Carte de joueur du membre, en bas de la barre latérale : avatar avec son niveau, pseudo, nom du niveau, formule,
+/// barre d'XP et trophées. Mêmes niveau et XP que sur le site (calculés à partir des articles et des trophées).
 struct CarteCompte: View {
     @ObservedObject var appli: Appli
     var actif = false
     var body: some View {
+        let tr = Trophees.liste(appli), n = Niveau(appli, trophees: tr)
         Button { appli.compteOuvert = true } label: {
-            HStack(spacing: 10) {
-                Avatar(profil: appli.profil, taille: 34)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(appli.profil.nom).font(.callout.weight(.semibold)).lineLimit(1)
-                    Text(appli.profil.formule).font(.caption.weight(.bold)).foregroundStyle(statut)
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(spacing: 10) {
+                    ZStack(alignment: .bottomTrailing) {
+                        Avatar(profil: appli.profil, taille: 42)
+                            .overlay(Circle().stroke(statut, lineWidth: 2.5))
+                        Text("\(n.niv)").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(.white)
+                            .frame(minWidth: 18, minHeight: 18).padding(.horizontal, 2)
+                            .background(Capsule().fill(Color.black.opacity(0.85))).overlay(Capsule().stroke(statut, lineWidth: 1.5))
+                            .offset(x: 5, y: 4)
+                            .help("Niveau \(n.niv)")
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appli.profil.nom).font(.system(size: 14, weight: .heavy, design: .rounded)).lineLimit(1)
+                        Text(n.nom.uppercased()).font(.system(size: 9, weight: .heavy, design: .monospaced)).tracking(0.6).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
-            }.padding(10).contentShape(Rectangle())
+                // Barre d'XP vers le niveau suivant
+                VStack(alignment: .leading, spacing: 4) {
+                    GeometryReader { g in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.primary.opacity(0.1))
+                            Capsule().fill(LinearGradient(colors: [statut.opacity(0.75), statut], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: max(6, g.size.width * n.part))
+                        }
+                    }.frame(height: 7)
+                    HStack {
+                        Text("\(n.xp - n.de) / \(n.a - n.de) XP").font(.system(size: 9.5, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                        Spacer(minLength: 4)
+                        Text("NIV. \(n.niv + 1)").font(.system(size: 9.5, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text(appli.profil.formule.uppercased()).font(.system(size: 9.5, weight: .black, design: .monospaced)).tracking(0.8)
+                        .foregroundStyle(.white).padding(.horizontal, 8).padding(.vertical, 4).background(Capsule().fill(statut))
+                    Spacer(minLength: 0)
+                    Label("\(tr.filter(\.ok).count)/\(tr.count)", systemImage: "trophy.fill").font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(statut).help("Trophées débloqués")
+                }
+            }.padding(12).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // La carte du membre garde la couleur de son statut (Découverte, Vendeur, Collectionneur, Pass).
         .verre(RoundedRectangle(cornerRadius: 16), teinte: statut, interactif: true)
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(statut.opacity(actif ? 1 : 0.55), lineWidth: actif ? 2 : 1.2))
-        .help("Mon compte (⇧⌘K)")
+        .help("Mon compte (⇧⌘K) · Niveau \(n.niv) : \(n.xp) XP")
     }
     private var statut: Color { Color.statut(appli.profil.formuleId) }
+}
+
+/// Niveau et XP du vendeur, comme sur le site (rien n'est stocké) : chaque étape de la vente rapporte, la vente le plus,
+/// chaque trophée un gros bonus. Niveau n atteint à 50 × n × (n − 1) XP : 100, 300, 600, 1 000…
+struct Niveau {
+    static let noms = ["Joueur du dimanche", "Chineur", "Fouineur", "Brocanteur", "Marchand de pixels", "Négociant", "Expert rétro", "Chasseur de pépites", "Maître du grenier", "Légende 8 bits", "Légende 16 bits", "Légende 64 bits"]
+    static func seuil(_ n: Int) -> Int { 50 * n * (n - 1) }
+    static func nom(_ n: Int) -> String { n <= noms.count ? noms[n - 1] : "Boss final" }
+    let xp: Int, niv: Int, de: Int, a: Int
+    var nom: String { Niveau.nom(niv) }
+    var part: CGFloat { a > de ? CGFloat(xp - de) / CGFloat(a - de) : 0 }
+    init(_ appli: Appli, trophees: [Trophees.T]) {
+        let l = appli.articles.filter { !$0.estLot }, v = l.filter(\.vendu)   // comme le site : les lots ne comptent qu'à part
+        let eur = v.reduce(0) { $0 + min(100, max(0, Int(($1.prixVente ?? 0).rounded()))) }
+        var x = l.count * 10 + l.filter { !$0.photos.isEmpty }.count * 5 + l.filter { $0.statut != "retire" }.count * 10
+        x += v.count * 40 + appli.articles.filter { $0.estLot && $0.vendu }.count * 20 + eur + trophees.filter(\.ok).count * 100
+        var n = 1; while x >= Niveau.seuil(n + 1) { n += 1 }
+        xp = x; niv = n; de = Niveau.seuil(n); a = Niveau.seuil(n + 1)
+    }
 }
 
 extension Color {
