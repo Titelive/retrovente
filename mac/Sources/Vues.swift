@@ -450,6 +450,7 @@ struct Fiche: View {
         // prix conseillé suit le nouveau (un prix tapé à la main n'est jamais touché).
         if let d = r.defauts, d != article.defauts {
             article.defauts = d
+            article.notes = Appli.notesAvecDefauts(article.notes, d)
             if article.cote != nil {
                 let suit = article.prixDemande == nil || article.prixDemande == article.cote?.conseille
                 var b = article; if suit { b.prixDemande = nil }
@@ -792,6 +793,21 @@ struct Fiche: View {
                         champ("Contenu") { Picker("", selection: $article.contenu) { ForEach(Libelles.contenus(pour: article.plateforme), id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
                             .onAppear { if Libelles.sansNotice(article.plateforme), article.contenu == "boite" { article.contenu = "complet" } }
                             .onChange(of: article.plateforme) { p in if Libelles.sansNotice(p), article.contenu == "boite" { article.contenu = "complet" } }
+                        // Rareté sur le marché de l'occasion, comme sur le site : établie par l'IA, pas modifiable à la main.
+                        if !article.estLot {
+                            champ("Rareté") {
+                                HStack(spacing: 8) {
+                                    if article.rangRarete >= 2 { BadgeRarete(article: article) }
+                                    else if article.rareteJeu == "commun" {
+                                        Text("Commun").font(.system(size: 11, weight: .heavy, design: .rounded)).foregroundStyle(.secondary)
+                                            .padding(.horizontal, 8).frame(height: 22).background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.07)))
+                                    }
+                                    Text(article.rareteJeu.isEmpty ? "Établie par l'IA à l'enregistrement" : "établie par l'IA").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                                .frame(height: 22)
+                                .help("Rareté du jeu sur le marché de l'occasion, estimée par l'IA puis précisée par la cote")
+                            }
+                        }
                     }
                 }
             }
