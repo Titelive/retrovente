@@ -307,6 +307,13 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         guard let r = r else { return }
         if r["erreur"] != nil { avis = "Cette conversation n'est plus dans la liste."; await lire(); return }
         fil = purger(FilLbc(r))
+        // Fil vide : Le Bon Coin charge parfois les messages après coup. On relit la page deux fois avant d'abandonner.
+        for _ in 0..<2 where !fil.messages.contains(where: { $0.genre != .heure }) {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard jeton == jetonOuverture else { return }
+            if let r2 = await appel("return window.rrMessagerie.fil();"), r2["erreur"] == nil, r2["absent"] == nil { fil = purger(FilLbc(r2)) }
+        }
+        guard jeton == jetonOuverture else { return }
         if fil.bloque { bloques.insert(c.cle) }
         await lire()
         if jeton == jetonOuverture, !fil.dernierMoi, !ouverteBloquee { await proposer() }
@@ -405,8 +412,17 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
             guard let premiere = ls.first else { return false }
             if premiere.range(of: fiche, options: [.regularExpression, .caseInsensitive]) != nil { return false }
             if ls.count == 1, noms.contains(n(premiere)) { return false }
-            if m.cote != "moi", ls.allSatisfy({ liste.contains(n($0)) || noms.contains(n($0)) || $0 == "-" || ConversationLbc.estDate($0) }) { return false }
+            // Morceaux de la liste des conversations collés dans le fil : seulement quand la mise en page a changé (bloqué)
+            // ou pour un bloc de plusieurs lignes. Un message d'une ligne identique à un aperçu de la liste est un vrai message.
+            if m.cote != "moi", f.bloque || ls.count > 1, ls.allSatisfy({ liste.contains(n($0)) || noms.contains(n($0)) || $0 == "-" || ConversationLbc.estDate($0) }) { return false }
             return true
+        }
+        // Filet de sécurité : si le tri a tout retiré alors que la page montrait des messages, on garde ceux de la page.
+        if !g.messages.contains(where: { $0.genre != .heure }) {
+            g.messages = f.messages.filter { m in
+                guard let p = m.texte.split(separator: "\n").first.map(String.init) else { return false }
+                return m.genre != .heure && p.range(of: fiche, options: [.regularExpression, .caseInsensitive]) == nil
+            }
         }
         // Une heure restée seule en fin de fil (son message a été retiré) ne sert à rien.
         while g.messages.last?.genre == .heure { g.messages.removeLast() }

@@ -2060,12 +2060,14 @@
       // Déjà ouverte sur la page (Le Bon Coin ouvre souvent la première conversation tout seul) : l'id ne changera pas,
       // on s'arrête dès que la colonne montre le bon acheteur et la bonne annonce au lieu d'attendre 10 s.
       var l = lireEntree(x).lignes.filter(function (t) { return !DATE_ENTREE.test(t); });
-      var nom = norm(l[0] || ""), titre = norm((l[1] || "").replace(/(\.\.\.|…)$/, "")).slice(0, 25);
+      var nom = norm(l[0] || ""), titre = norm((l[1] || "").replace(/(\.\.\.|…)$/, "")).slice(0, 40);
       var montre = function () { var t = norm(colonneConversation().innerText.slice(0, 2000)); return t.length > 40 && (!nom || t.indexOf(nom) >= 0) && (!titre || t.indexOf(titre) >= 0); };
       cliquer(cible);
       for (var i = 0; i < 40; i++) { await attendre(250); if ((idConversation() !== avant && colonneConversation().innerText.trim().length > 40) || (i >= 3 && montre())) break; }
-      await attendre(600);
-      return filActuel();
+      // Les messages arrivent parfois après l'en-tête : on attend qu'ils soient là (jusqu'à 4 s) avant de lire le fil.
+      var f = null;
+      for (var k = 0; k < 10; k++) { await attendre(k ? 400 : 600); f = filActuel(); if (f.messages.length && (!titre || montre())) break; }
+      return f;
     },
     suggestions: async function (consigne) {
       if (!etat.annonces) { try { var j = await rrDemander({ type: "annonces" }); etat.annonces = j.annonces || []; etat.vendeur = (j.profil && j.profil.vendeur) || {}; } catch (e) {} }
