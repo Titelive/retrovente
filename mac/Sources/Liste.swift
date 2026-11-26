@@ -70,13 +70,14 @@ extension Appli {
             }
         }
     }
+    static let groupesStatut = ["en_vente": "En vente", "reserve": "Réservés", "vendu": "Vendus", "envoye": "Envoyés", "recu": "Reçus", "retire": "Retirés"]
     func grouper(_ l: [Article]) -> [GroupeArticles] {
         guard !groupe.isEmpty else { return [GroupeArticles(nom: "", articles: l)] }
         func cle(_ o: Article) -> String {
             if o.estLot && groupe != "statut" { return groupe == "console" && !o.plateforme.isEmpty ? o.plateforme.trimmingCharacters(in: .whitespaces) : "Lots" }
             switch groupe {
             case "categorie": return Libelles.nomsCategories[o.categorie] ?? "Autres"
-            case "statut": return ["en_vente": "En vente", "reserve": "Réservés", "vendu": "Vendus", "envoye": "Vendus", "recu": "Vendus", "retire": "Retirés"][o.statut] ?? "Autres"
+            case "statut": return Self.groupesStatut[o.statut] ?? "Autres"   // chaque statut a son groupe : vendu, envoyé et reçu sont différents
             case "rarete": return o.categorie == "cartes" ? "Cartes Pokémon" : o.categorie == "films" ? "Films" : Libelles.rareteGroupe[o.rareteJeu] ?? "Rareté non indiquée"
             default:
                 if o.categorie == "cartes" { return "Cartes Pokémon" }
@@ -87,7 +88,7 @@ extension Appli {
         var ordre: [String] = [], par: [String: (String, [Article])] = [:]
         for o in l { let k = cle(o), kk = k.lowercased(); if par[kk] == nil { par[kk] = (k, []); ordre.append(kk) }; par[kk]!.1.append(o) }
         let fixe: [String]? = groupe == "categorie" ? ["Lots", "Jeux vidéo", "Consoles", "Accessoires", "Cartes Pokémon", "Films", "Autres"]
-            : groupe == "statut" ? ["En vente", "Réservés", "Vendus", "Retirés"]
+            : groupe == "statut" ? Libelles.ordreStatuts.compactMap { Self.groupesStatut[$0] }
             : groupe == "rarete" ? ["Lots", "Très rares", "Rares", "Peu communs", "Communs", "Rareté non indiquée", "Cartes Pokémon", "Films"] : nil
         let gs = ordre.map { par[$0]! }
         return gs.sorted { a, b in
@@ -271,6 +272,12 @@ struct Grille: View {
                                 if !g.nom.isEmpty {
                                     let tot = g.articles.reduce(0) { $0 + ($1.prixAffiche ?? 0) }
                                     HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        // Groupé par statut : l'icône et la couleur du statut, comme dans le menu de statut.
+                                        if appli.groupe == "statut", let st = Appli.groupesStatut.first(where: { $0.value == g.nom })?.key {
+                                            let c = Libelles.couleursStatut(st)
+                                            Image(systemName: Libelles.symboleStatut(st)).font(.system(size: 13, weight: .bold)).foregroundStyle(c.texte)
+                                                .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 7).fill(c.fond)).alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 6 }
+                                        }
                                         Text(g.nom).font(.title3.weight(.heavy))
                                         Text("\(g.articles.count) article\(g.articles.count > 1 ? "s" : "")\(tot > 0 ? " · " + Libelles.prix(tot) : "")").font(.callout).foregroundStyle(.secondary)
                                     }

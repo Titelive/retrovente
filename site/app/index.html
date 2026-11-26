@@ -2320,7 +2320,7 @@ function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(rareteAttendue)){RAR_S
     if(chg)dessiner();suivreRaretes()}).catch(function(){})},RAR_SUIVI<2?5000:12000)}
 function cleObj(o){return [o.titre,o.plateforme,o.region,o.contenu].map(function(x){return String(x||"").trim().toLowerCase()}).join("|")}
 function cleFiche(){return cleObj({titre:$("f_titre").value,plateforme:$("f_plateforme").value,region:$("f_region").value,contenu:$("f_contenu").value})}
-var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Vendus",recu:"Vendus",retire:"Retirés"};
+var STA_GRP={en_vente:"En vente",reserve:"Réservés",vendu:"Vendus",envoye:"Envoyés",recu:"Reçus",retire:"Retirés"};
 function grouperArticles(l){
   if(!GRP)return [{nom:"",l:l}];
   var cle=function(o){
@@ -2333,7 +2333,7 @@ function grouperArticles(l){
     return (o.plateforme||"").trim()||"Sans console"};
   var par={},ordre=[];
   l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
-  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Retirés"]:GRP==="rarete"?["Lots","Très rares","Rares","Peu communs","Communs","Rareté non indiquée","Cartes Pokémon","Films"]:null;
+  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Envoyés","Reçus","Retirés"]:GRP==="rarete"?["Lots","Très rares","Rares","Peu communs","Communs","Rareté non indiquée","Cartes Pokémon","Films"]:null;
   return ordre.sort(function(a,b){
     if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
     var fin=function(g){return g.nom==="Lots"?-1:g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
