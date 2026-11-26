@@ -61,6 +61,8 @@ function nettoyer(v, avant) {
     titreAnnonce: txt(v.titreAnnonce, 100), texteAnnonce: txt(v.texteAnnonce, 4000),
     annonce: lien(v.annonce), annonceEbay: ebayOuErreur(v.annonceEbay), notes: txt(v.notes, 1000),
     origine: parmi(v.origine, ORIGINES, "origine"), modif: txt(v.modif, 160), particularites: txt(v.particularites, 300),
+    // Défauts vus par l'IA sur les photos (film du boîtier déchiré, jaquette pliée…) : repris par la cote et l'annonce.
+    defauts: ia.lireDefautsFiche(v.defauts),
     cote: ia.coteDe(v.cote),
     // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
     note: Math.max(0, Math.min(5, Math.round(Number(v.note) || 0))),

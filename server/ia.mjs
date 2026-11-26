@@ -348,18 +348,19 @@ export async function estimerCote(v) {
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   const cible = { etat: parmi(v.etat, ETATS, ""), contenu: parmi(v.contenu, CONTENUS, "") };
   if (sansNotice(v.plateforme) && cible.contenu === "boite") cible.contenu = "complet";   // pas de notice sur ces consoles
-  if (FAKE()) return coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", rarete: "peu_commun", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
+  if (FAKE()) return coteDefauts(coteCalculee({ resume: "Le prix dépend surtout de la boîte et de la notice, et de l'état de l'étiquette.", rarete: "peu_commun", sources: ["https://www.ebay.fr/", "https://www.pricecharting.com/"],
     releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: 45, date: "2026-11-02", url: "https://www.ebay.fr/itm/1", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "eBay", titre: "Autre vente conclue", prix: 52, date: "2026-10-20", url: "https://www.ebay.fr/itm/2", type: "vente", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
       { site: "Le Bon Coin", titre: "Annonce en ligne", prix: 60, date: "2026-11-10", url: "https://www.leboncoin.fr/ad/1", type: "annonce", etat: cible.etat || "tres_bon", contenu: cible.contenu || "complet" },
-      { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/", type: "cote", contenu: cible.contenu || "complet" }] }, cible);
+      { site: "PriceCharting", titre: "Cote moyenne", prix: 48, date: "2026-11-10", url: "https://www.pricecharting.com/", type: "cote", contenu: cible.contenu || "complet" }] }, cible), lireDefautsFiche(v.defauts));
   // Version importée (allemande, UK, US…) : on cherche la cote du jeu de base (version française ou européenne),
   // puis on propose un peu moins, parce qu'une version étrangère se vend moins bien en France.
   const region = txt(v.region, 30), importe = estImport(region);
   const quoi = [titre, txt(v.plateforme, 60), importe ? "" : region, sansNotice(v.plateforme) && cible.contenu === "complet" ? "en boîte (la console n'a pas de notice papier)" : LIB_CONTENU[cible.contenu], LIB_ETAT[v.etat]].filter(Boolean).join(", ");
   // Première photo de la fiche (la face de l'objet) : la cote part TOUJOURS d'elle, pour la bonne édition et le bon contenu.
   let ph = null; try { ph = v.photo ? image(v.photo) : null; } catch { ph = null; }
-  const demande = `Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.${ph ? `
+  const defauts = lireDefautsFiche(v.defauts);
+  const demande = `Relève les prix d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.${defauts.length ? ` Défauts vus sur les photos : ${defauts.map((d) => d.texte).join(" ; ")}.` : ""}${ph ? `
 La photo jointe est la première photo de l'annonce, la face de l'objet : sers-t'en pour reconnaître l'édition exacte (compilation, édition limitée, version, packaging) et ce qui est fourni, et cherche les prix de CETTE édition.` : ""}
 Cherche sur le web les prix réellement pratiqués : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et sites de cote comme PriceCharting ou Retroplace. Note pour chaque prix l'état et ce qui est fourni (loose, en boîte, complet), qui changent beaucoup le prix des jeux rétro. Ne calcule pas de prix conseillé : le calcul est fait ensuite à partir de tes relevés.
 Réponds uniquement par un objet JSON avec les clés :
@@ -378,7 +379,22 @@ Réponds uniquement par un objet JSON avec les clés :
   // on ne garde que les liens qui sont vraiment sortis de la recherche web
   const c = coteCalculee(o, cible, o && o._vus);
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la console.");
-  return importe ? coteImport(c, region) : c;
+  return coteDefauts(importe ? coteImport(c, region) : c, defauts);
+}
+/* Défauts vus sur les photos : les relevés sont ceux d'objets sans ce défaut, on retire donc un pourcentage selon le pire
+   (petite trace 5 %, défaut qui se voit 15 %, casse ou déchirure 30 %). Le texte « Méthode » le dit. */
+export const DECOTE_DEFAUT = { leger: 0.05, marque: 0.15, grave: 0.3 };
+export function lireDefautsFiche(l) {
+  return (Array.isArray(l) ? l : []).map((d) => (typeof d === "string" ? { texte: txt(d, 90), gravite: "marque" } : { texte: txt(d && d.texte, 90), gravite: parmi(d && d.gravite, GRAVITES, "marque") })).filter((d) => d.texte).slice(0, 6);
+}
+export function coteDefauts(c, defauts) {
+  if (!c || !defauts || !defauts.length) return c;
+  const g = defauts.reduce((m, d) => (DECOTE_DEFAUT[d.gravite] > DECOTE_DEFAUT[m] ? d.gravite : m), "leger"), k = 1 - DECOTE_DEFAUT[g];
+  const r = (x) => (x == null ? x : Math.max(1, Math.round(x * k)));
+  const pc = Math.round(DECOTE_DEFAUT[g] * 100), liste = defauts.map((d) => d.texte).join(", ");
+  return coteDe({ ...c, bas: r(c.bas), haut: r(c.haut), probable: r(c.probable), conseille: r(c.conseille), rapide: r(c.rapide),
+    resume: `Défaut vu sur les photos (${liste}) : environ ${pc} % de moins que pour un exemplaire sans défaut. ` + (c.resume || ""),
+    methode: (c.methode ? c.methode + " " : "") + `Défaut (${liste}) : prix diminués d'environ ${pc} %.` });
 }
 // Consoles récentes sans notice papier : un jeu en boîte y est complet.
 export const sansNotice = (plateforme) => /switch|ps5|playstation 5|xbox series/i.test(String(plateforme || ""));
@@ -604,11 +620,32 @@ Réponds uniquement par un objet JSON : {"jauni": "non", "certitude": "forte", "
   const certitude = parmi((o && o.certitude) || (/"certitude"\s*:\s*"(forte|moyenne|faible)"/.exec(b) || [])[1], ["forte", "moyenne", "faible"], "faible");
   return { jauni, certitude, photos: [...new Set(ph)], ou: court(txt(o && o.ou, 300), 60) };
 }
+/* Défauts réels de l'objet, vus sur l'ensemble des photos par un modèle attentif : la légende photo par photo
+   (modèle rapide) les manquait (film plastique du boîtier déchiré le long de la jaquette, laissé en « très bon état »).
+   Le résultat règle l'état, la cote (décote) et le texte de l'annonce. */
+export const GRAVITES = ["leger", "marque", "grave"];
+export const ETAT_DEFAUT = { leger: "tres_bon", marque: "bon", grave: "correct" };   // état au mieux, selon le pire défaut
+const RANG = { neuf: 0, tres_bon: 1, bon: 2, correct: 3, pieces: 4 };
+export const pireEtat = (a, b) => (!a ? b || "" : !b ? a : RANG[a] >= RANG[b] ? a : b);
+export function lireDefauts(o, n) {
+  return (Array.isArray(o && o.defauts) ? o.defauts : []).map((d) => ({ photo: Number(d && d.photo) || 0, texte: affirme(txt(d && d.texte, 90)).replace(/\.$/, "").replace(/^\p{Lu}(?=\p{Ll})/u, (c) => c.toLowerCase()), gravite: parmi(d && d.gravite, GRAVITES, "") }))
+    .filter((d) => d.texte && d.gravite && d.photo >= 1 && d.photo <= n).slice(0, 6);
+}
+async function defautsEnsemble(photos, quoi, film, trace) {
+  const n = Math.min(photos.length, 8);
+  const o = await claude([...photos.slice(0, n).map(image), { type: "text", text: `Ces ${n} photos (dans l'ordre, numérotées à partir de 1) montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Un acheteur va regarder chaque photo de près : relève TOUS les défauts physiques réels de l'objet, même sur une seule photo, en regardant chaque bord et chaque coin.
+Exemples : film plastique transparent du boîtier déchiré, arraché ou en lambeaux (le long de la jaquette, souvent près de la charnière), boîtier fendu, cassé ou ergot d'attache cassé, jaquette pliée, froissée, déchirée, gondolée ou tachée, coin écrasé, autocollant ou étiquette de prix collé, reste de colle, ${film ? "disque rayé, steelbook cabossé" : "cartouche ou disque rayé, étiquette de cartouche décollée ou déchirée, contacts oxydés"}, notice abîmée.
+Ne compte PAS le décor d'origine (illustrations, logos, bandeau, texte imprimé, PEGI), ni un reflet, une ombre, la mise au point ou le fond de la photo. ${CERTAIN}
+"gravite" : « leger » pour une petite trace qu'il faut chercher, « marque » pour un défaut qu'on voit tout de suite sur la photo, « grave » pour une casse ou une déchirure qui abîme nettement l'objet.
+Réponds uniquement par un objet JSON : {"defauts": [{"photo": 3, "texte": "film plastique du boîtier déchiré le long de la jaquette", "gravite": "marque"}]}, "texte" en 4 à 12 mots en français, sans point final ; {"defauts": []} s'il n'y en a aucun.` }], { max: 1800, timeout: 70000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+  return lireDefauts(o, n);
+}
 export async function legender(photos, v = {}, trace = null, progres = () => {}) {
   const l = (Array.isArray(photos) ? photos : []).slice(0, 12);
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
-  if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } return { legendes: l.map((_, i) => (i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) && v.categorie !== "films" ? process.env.IA_FAKE_JAUNI : "non")) }; }
+  if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } const defauts = process.env.IA_FAKE_DEFAUT && l.length > 1 ? [{ photo: 2, texte: process.env.IA_FAKE_DEFAUT, gravite: "marque" }] : [];
+    return { defauts, etatMax: defauts.length ? ETAT_DEFAUT.marque : "", legendes: l.map((_, i) => (defauts.length && i === 1 ? "Détail : " + defauts[0].texte : i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) && v.categorie !== "films" ? process.env.IA_FAKE_JAUNI : "non")) }; }
   const film = v.categorie === "films", carte = v.categorie === "cartes" || film;   // ni carte ni film n'ont de plastique qui jaunit
   const quoi = film ? ["le film " + (txt(v.titre, 160) || ""), txt(v.plateforme, 60), txt(v.edition, 80) && "édition " + txt(v.edition, 80)].filter(Boolean).join(", ")
     : v.categorie === "cartes" ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
@@ -636,7 +673,7 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
   // Deux requêtes à la fois au plus, et jusqu'à 3 essais par photo (limite de débit, service surchargé, réponse vide) :
   // six requêtes simultanées dépassaient la limite de l'API, seule la première photo était décrite.
   const out = new Array(l.length);
-  let suivant = 0, jg = null;
+  let suivant = 0, jg = null, vus = [];
   const ouvrier = async () => {
     while (suivant < l.length) {
       const i = suivant++;
@@ -650,7 +687,8 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
       out[i] = r && r.legende ? { ...r, erreur: "" } : { legende: "", jauni: "non", erreur: err };
     }
   };
-  await Promise.all([ouvrier(), ouvrier(), carte ? null : (progres({ etape: "jauni", n: l.length }), jauniEnsemble(l, quoi, trace)).then((g) => { jg = g; }, () => {})]);
+  await Promise.all([ouvrier(), ouvrier(), carte ? null : (progres({ etape: "jauni", n: l.length }), jauniEnsemble(l, quoi, trace)).then((g) => { jg = g; }, () => {}),
+    v.categorie === "cartes" ? null : defautsEnsemble(l, quoi, film, trace).then((d) => { vus = d; }, (e) => console.error("IA : défauts", e && e.message))]);
   // Décision : seulement si l'avis d'ensemble (toutes les photos, modèle attentif) est sûr de lui. Dans le doute, rien n'est signalé :
   // une lumière chaude ou le reflet du bois faisait passer des cartouches saines pour jaunies.
   const oui = jg && jg.jauni !== "non" && (jg.certitude === "forte" || (jg.jauni === "net" && jg.certitude === "moyenne"));
@@ -669,11 +707,21 @@ Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${cart
       x.legende = (reste.length ? vue + " : " + [...garde, dit].join(", ") : (garde.length ? x.legende + ", " : "") + dit).slice(0, 200);
     });
   }
+  // Défauts vus sur l'ensemble : écrits dans la légende de leur photo, à la place d'un « bon état » ou « sans défaut ».
+  for (const d of vus) {
+    const x = out[d.photo - 1];
+    if (!x || !x.legende || x.legende.toLowerCase().includes(d.texte.toLowerCase())) continue;
+    const [vue, ...reste] = x.legende.split(" : ");
+    const garde = reste.join(" : ").split(/,\s*/).filter((c) => c && !/sans défaut|bon état|impeccable|parfait|intact|aucun/i.test(c));
+    x.legende = (reste.length ? vue : x.legende) + " : " + [...garde, d.texte].join(", ");
+    x.legende = x.legende.slice(0, 200);
+  }
+  const etatMax = vus.reduce((e, d) => pireEtat(e, ETAT_DEFAUT[d.gravite]), "");
   if (!out.some((x) => x.legende)) throw new IaError("Je n'ai pas pu décrire les photos (" + (out[0].erreur || "erreur") + "), réessaie.");
   // Code : signalé seulement si une photo le montre ; un code gratté sur une photo l'emporte (déjà utilisé).
   const codes = out.map((x) => x.code || "aucun");
   const code = codes.includes("utilise") ? "utilise" : codes.includes("intact") ? "non_utilise" : "";
-  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur), code };
+  return { legendes: out.map((x) => x.legende), jaunis: out.map((x) => x.jauni), erreurs: out.map((x) => x.erreur), code, defauts: vus, etatMax };
 }
 
 /* ===== Réponse aux acheteurs (extension, messagerie Le Bon Coin ou eBay) =====

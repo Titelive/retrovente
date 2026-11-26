@@ -39,6 +39,13 @@ extension Article {
 /// Lot dont l'annonce propose encore un article vendu : à supprimer sur les sites (comme l'encart de l'accueil du site).
 struct LotAEffacer: Hashable { var id, titre, annonce, annonceEbay: String; var defait: Bool }
 
+/// Défaut réel de l'objet vu sur les photos (« film plastique du boîtier déchiré »), avec sa gravité : leger, marque, grave.
+struct Defaut: Hashable { var texte: String; var gravite: String
+    init(texte: String, gravite: String) { self.texte = texte; self.gravite = gravite }
+    init?(_ d: [String: Any]) { guard let t = d["texte"] as? String, !t.isEmpty else { return nil }; texte = t; gravite = d["gravite"] as? String ?? "marque" }
+    var brut: [String: String] { ["texte": texte, "gravite": gravite] }
+}
+
 struct Article: Identifiable, Hashable {
     var id: String = ""
     var titre = "", categorie = "jeux", plateforme = "", region = "", etat = "", contenu = ""
@@ -58,6 +65,7 @@ struct Article: Identifiable, Hashable {
     var coteLot = false                    // la cote conseille de vendre en lot
     var stats: [String: StatsSite] = [:]   // vues et favoris relevés sur les sites (« lbc », « ebay »), voir Stats.swift
     var lotsAEffacer: [LotAEffacer] = []    // article vendu : les lots qui le proposent encore en ligne
+    var defauts: [Defaut] = []              // défauts vus par l'IA sur les photos : ils baissent l'état et la cote
 
     init() {}
     init(_ d: [String: Any]) {
@@ -88,6 +96,7 @@ struct Article: Identifiable, Hashable {
         suiviLibelle = (d["suiviEtat"] as? [String: Any])?["libelle"] as? String ?? ""
         coteLot = (d["cote"] as? [String: Any])?["lot"] as? Bool ?? false
         stats = Article.lireStats(d)
+        defauts = (d["defauts"] as? [[String: Any]] ?? []).compactMap(Defaut.init)
         lotsAEffacer = (d["lotsAEffacer"] as? [[String: Any]] ?? []).compactMap { e in
             guard let i = e["id"] as? String, !i.isEmpty else { return nil }
             return LotAEffacer(id: i, titre: e["titre"] as? String ?? "", annonce: e["annonce"] as? String ?? "",
@@ -117,7 +126,7 @@ struct Article: Identifiable, Hashable {
         return ["titre": titre, "categorie": categorie, "plateforme": plateforme, "region": region, "etat": etat, "contenu": contenu,
                 "prixAchat": p(prixAchat), "prixDemande": p(prixDemande), "prixVente": p(prixVente), "frais": p(frais),
                 "statut": statut, "titreAnnonce": titreAnnonce, "texteAnnonce": texteAnnonce, "annonce": annonce, "notes": notes, "ia": ia,
-                "remise": remise, "cote": cote?.brut ?? NSNull(), "photos": photos.map { ["id": $0.id, "legende": $0.legende] }]
+                "remise": remise, "cote": cote?.brut ?? NSNull(), "defauts": defauts.map(\.brut), "photos": photos.map { ["id": $0.id, "legende": $0.legende] }]
     }
     var publiee: Bool { !annonce.isEmpty }
     var sousTitre: String { [plateforme, region].filter { !$0.isEmpty }.joined(separator: " · ") }
@@ -681,9 +690,15 @@ final class Appli: ObservableObject {
     }
     /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche (comme le dialogue de la fiche sur le site).
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
-    struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String] }
+    struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String]; var defauts: [Defaut]? = nil }
+    /// Le moins bon des deux états (neuf < très bon < bon < correct < pour pièces) : un défaut ne fait que baisser l'état.
+    static func pireEtat(_ a: String, _ b: String) -> String {
+        let rang = ["neuf": 0, "tres_bon": 1, "bon": 2, "correct": 3, "pieces": 4]
+        guard let x = rang[a] else { return b }; guard let y = rang[b] else { return a }
+        return x >= y ? a : b
+    }
     /// Légendes de chaque photo de l'article (l'IA regarde les photos une par une).
-    func legender(_ a: Article) async -> (legendes: [String], code: String) {
+    func legender(_ a: Article) async -> (legendes: [String], code: String, defauts: [Defaut]?, etatMax: String) {
         var datas: [String] = []
         // Le serveur refuse un envoi de plus de 4 Mo : toutes les photos ensemble doivent tenir dans ~3,2 Mo.
         // (Avant, 8 photos à 900 Ko étaient refusées : l'IA n'avait aucune légende et inventait sa propre liste.)
@@ -693,14 +708,16 @@ final class Appli: ObservableObject {
             guard let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)), let i = NSImage(data: d), let j = jpegData(i, max: 1200, poids: poids) else { break }
             datas.append(j)
         }
-        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return ([], "") }
+        guard !datas.isEmpty, let j = try? await API.json("POST", "/api/ia/legender", ["photos": datas, "objet": ["titre": a.titre, "plateforme": a.plateforme, "categorie": a.categorie]]) else { return ([], "", nil, "") }
         // « code » : « non_utilise » ou « utilise » quand une photo montre un code (téléchargement, DLC, bonus), "" sinon.
-        return ((j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }, j["code"] as? String ?? "")
+        // « defauts » : défauts réels vus sur l'ensemble des photos ; « etatMax » : le meilleur état qu'ils permettent.
+        let defauts = (j["defauts"] as? [[String: Any]]).map { $0.compactMap(Defaut.init) }
+        return ((j["legendes"] as? [String] ?? []).map { $0.trimmingCharacters(in: .whitespaces) }, j["code"] as? String ?? "", defauts, j["etatMax"] as? String ?? "")
     }
     /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche ET de chaque photo, décrite une par une.
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
     func rediger(_ a: Article) async -> Redaction {
-        let (legendes, code) = await legender(a)
+        let (legendes, code, defauts, etatMax) = await legender(a)
         if legendes.allSatisfy({ $0.isEmpty }), !a.photos.isEmpty { message = "Les photos n'ont pas pu être décrites cette fois : l'annonce est rédigée sans la liste des photos." }
         var fiche: [String: Any] = [:]
         let e = a.envoi
@@ -717,13 +734,19 @@ final class Appli: ObservableObject {
         if code == "non_utilise" { consigne += " Une photo montre un code (téléchargement, DLC ou bonus) non utilisé : dis-le dans le texte (« avec le code … non utilisé »)." }
         if code == "utilise" { consigne += " Une photo montre un code déjà gratté : écris « code déjà utilisé »." }
         if Libelles.sansNotice(a.plateforme) { consigne += " Cette console n'a pas de notice papier : n'en parle pas." }
-        var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes)
+        // Défauts vus sur les photos : l'annonce les dit franchement (l'acheteur les verra), et l'état suit.
+        if let d = defauts, !d.isEmpty {
+            consigne += " Défauts réels vus sur mes photos : \(d.map(\.texte).joined(separator: " ; ")). Dis-les clairement dans la phrase d'état, sans les minimiser ni en rajouter, et n'écris ni « très bon état » ni « impeccable »."
+            if !etatMax.isEmpty { consigne += " Mets etat à \(etatMax) au mieux." }
+        }
+        var r = Redaction(titre: Article.titreSimple(a), texte: Article.texteSimple(a), etat: nil, legendes: legendes, defauts: defauts)
         if let j = try? await API.json("POST", "/api/ia/dialoguer", ["messages": [["role": "vendeur", "texte": consigne]], "fiche": fiche]),
            let ch = j["changements"] as? [String: Any] {
             if let t = ch["titreAnnonce"] as? String, !t.isEmpty { r.titre = t }
             if let d = ch["texteAnnonce"] as? String, !d.isEmpty { r.texte = d }
             if let et = ch["etat"] as? String, !et.isEmpty { r.etat = et }
         }
+        if !etatMax.isEmpty { r.etat = Appli.pireEtat(r.etat ?? a.etat, etatMax) }
         r.texte = Article.avecPhotos(r.texte, legendes)
         return r
     }
@@ -731,7 +754,7 @@ final class Appli: ObservableObject {
     /// Cote IA de l'article, gardée dans sa fiche.
     func estimerCote(_ a: Article) async -> Article? {
         do {
-            var objet: [String: Any] = ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu]
+            var objet: [String: Any] = ["titre": a.titre, "categorie": a.categorie, "plateforme": a.plateforme, "region": a.region, "etat": a.etat, "contenu": a.contenu, "defauts": a.defauts.map(\.brut)]
             // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
             if let p = a.photos.first, let (d, _) = try? await URLSession.shared.data(from: API.urlPhoto(a.id, p.id)),
                let i = NSImage(data: d), let jp = jpegData(i, max: 1200, poids: 450_000) { objet["photo"] = jp }
