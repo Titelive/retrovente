@@ -483,6 +483,7 @@ struct MessagesVue: View {
     @State private var survol: String? = nil
     @State private var aSupprimer: ConversationLbc? = nil
     @State private var aBloquer: ConversationLbc? = nil
+    @State private var ouverts: Set<String> = []   // groupes d'une même annonce dépliés
     @Environment(\.accessibilityReduceMotion) private var sansMouvement
 
     var body: some View {
@@ -545,9 +546,18 @@ struct MessagesVue: View {
                     etatVide(symbole: "tray", texte: "Aucune conversation pour l'instant.")
                 } else {
                     ScrollView {
+                        // Plusieurs acheteurs sur la même annonce : une seule ligne dépliable, avec l'avis sur chaque offre.
+                        let avis = AvisOffre.pour(m.conversations, appli: appli)
                         LazyVStack(spacing: 6) {
-                            ForEach(m.conversations) { c in
-                                ligne(c).transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
+                            ForEach(GroupeConversations.ranger(m.conversations)) { g in
+                                if g.conversations.count == 1, let c = g.conversations.first {
+                                    ligne(c, avis: avis[c.cle]).transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
+                                } else {
+                                    enteteGroupe(g, avis: avis)
+                                    if ouverts.contains(g.id) || g.conversations.contains(where: { $0.cle == m.ouverte }) {
+                                        ForEach(g.conversations) { c in ligne(c, avis: avis[c.cle]).padding(.leading, 18) }
+                                    }
+                                }
                             }
                         }.padding(.horizontal, 12).padding(.bottom, 14)
                     }
@@ -574,7 +584,43 @@ struct MessagesVue: View {
         .overlay(RoundedRectangle(cornerRadius: rayon, style: .continuous).stroke(Color.primary.opacity(0.08)))
     }
 
-    private func ligne(_ c: ConversationLbc) -> some View {
+    /// En-tête d'un groupe : l'annonce, le nombre de conversations et d'offres, la meilleure offre.
+    private func enteteGroupe(_ g: GroupeConversations, avis: [String: AvisOffre]) -> some View {
+        let offres = g.conversations.compactMap { avis[$0.cle]?.enAttente == true ? avis[$0.cle]?.offre : nil }
+        let ouvert = ouverts.contains(g.id), nonLus = g.conversations.filter(\.nonLu).count
+        return Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { if ouvert { ouverts.remove(g.id) } else { ouverts.insert(g.id) } } } label: {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    vignette(g.conversations[0].image, taille: 46, rayon: 12).offset(x: 5, y: -5).opacity(0.55)
+                    vignette(g.conversations[0].image, taille: 50, rayon: 13).shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+                }
+                .frame(width: 56, height: 56)
+                .overlay(alignment: .topTrailing) {
+                    if nonLus > 0 {
+                        Text("\(nonLus)").font(.system(size: 10, weight: .heavy)).foregroundStyle(.white).frame(minWidth: 18, minHeight: 18)
+                            .background(Circle().fill(Color.rrAccent)).overlay(Circle().stroke(Color.rrFond, lineWidth: 2)).offset(x: 6, y: -6)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(g.id).font(.system(size: 13, weight: .heavy, design: .rounded)).lineLimit(1)
+                    Text(LocalizedStringKey("**\(g.conversations.count) acheteurs**" + (offres.isEmpty ? "" : " · \(offres.count) offre\(offres.count > 1 ? "s" : "") · meilleure **\(Libelles.prix(offres.max()))**")))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if let a = g.conversations.compactMap({ avis[$0.cle] }).first(where: { $0.conseil == .accepter || $0.conseil == .contre }) {
+                        Text(a.resumeGroupe).font(.caption.weight(.semibold)).foregroundStyle(a.couleur).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.secondary).rotationEffect(.degrees(ouvert ? 90 : 0))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.rrAccent.opacity(ouvert ? 0.1 : 0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.rrAccent.opacity(0.25)))
+        }
+        .buttonStyle(.plain)
+        .help(ouvert ? "Replier" : "Voir les \(g.conversations.count) conversations")
+    }
+
+    private func ligne(_ c: ConversationLbc, avis: AvisOffre? = nil) -> some View {
         let active = m.ouverte == c.cle, survole = survol == c.cle
         return Button { Task { await m.ouvrir(c) } } label: {
             HStack(alignment: .center, spacing: 12) {
@@ -602,6 +648,12 @@ struct MessagesVue: View {
                     }
                     Text(c.apercu.isEmpty ? (c.details.last ?? "") : c.apercu).font(.caption)
                         .foregroundStyle(c.nonLu ? .primary : .secondary).lineLimit(1)
+                    // Avis sur l'offre : accepter, contre-proposition ou refuser (rien ne part sans ton clic).
+                    if let a = avis, a.enAttente {
+                        Label(a.titre, systemImage: a.symbole).font(.caption2.weight(.heavy)).foregroundStyle(a.couleur)
+                            .padding(.horizontal, 7).padding(.vertical, 3).background(a.couleur.opacity(0.12), in: Capsule())
+                            .help(a.raison)
+                    }
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
@@ -846,5 +898,103 @@ struct MessagesVue: View {
         .padding(18)
         .background(Color.rrFond)
         .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.06)).frame(height: 1) }
+    }
+}
+
+
+// MARK: Offres : regroupement par annonce et avis
+
+/// Conversations d'une même annonce, à la place de la plus récente d'entre elles dans la liste.
+struct GroupeConversations: Identifiable {
+    let id: String; var conversations: [ConversationLbc]
+    static func ranger(_ l: [ConversationLbc]) -> [GroupeConversations] {
+        var ordre: [String] = [], par: [String: [ConversationLbc]] = [:]
+        for c in l {
+            let k = c.acheteur.isEmpty ? "#" + c.cle : c.nom   // sans acheteur identifié : jamais groupée
+            if par[k] == nil { ordre.append(k) }
+            par[k, default: []].append(c)
+        }
+        return ordre.map { GroupeConversations(id: $0.hasPrefix("#") ? $0 : $0, conversations: par[$0]!) }
+    }
+}
+
+/// Avis sur une offre reçue, calculé comme côté serveur (analyseOffre) : prix demandé de l'article, plancher tiré du
+/// profil de vendeur, et les autres offres sur la même annonce. Rien n'est envoyé : c'est un conseil.
+struct AvisOffre {
+    enum Conseil { case accepter, contre, refuser }
+    let offre: Double, prix: Double, conseil: Conseil, contre: Double?, raison: String, enAttente: Bool, nbOffres: Int
+    var titre: String {
+        switch conseil {
+        case .accepter: return "Accepter \(Libelles.prix(offre))"
+        case .contre: return "Contre-proposer \(Libelles.prix(contre))"
+        case .refuser: return "Refuser"
+        }
+    }
+    var symbole: String { conseil == .accepter ? "checkmark.circle.fill" : conseil == .contre ? "arrow.left.arrow.right.circle.fill" : "xmark.circle.fill" }
+    var couleur: Color { conseil == .accepter ? .green : conseil == .contre ? .orange : .red }
+    var resumeGroupe: String {
+        conseil == .contre ? "Forte demande : contre-propose \(Libelles.prix(contre)) aux meilleures offres" : "Conseil : accepter la meilleure offre (\(Libelles.prix(offre)))"
+    }
+
+    /// Montant d'une offre lu dans l'aperçu (« Votre offre d'un montant de 180 € a été envoyée », « offre de 60 € »).
+    static func montant(_ t: String) -> Double? {
+        guard t.range(of: "offre", options: .caseInsensitive) != nil,
+              let r = t.range(of: #"(\d[\d\s\x{a0}\x{202f}]*(?:[,.]\d{1,2})?)\s*€"#, options: .regularExpression) else { return nil }
+        let n = t[r].replacingOccurrences(of: "€", with: "").components(separatedBy: .whitespaces).joined()
+            .replacingOccurrences(of: "\u{a0}", with: "").replacingOccurrences(of: "\u{202f}", with: "").replacingOccurrences(of: ",", with: ".")
+        return Double(n)
+    }
+    /// Article de l'annonce : son titre d'annonce (ou son titre) au début du titre de la conversation.
+    @MainActor static func article(_ c: ConversationLbc, _ appli: Appli) -> Article? {
+        func n(_ s: String) -> String { s.lowercased().folding(options: .diacriticInsensitive, locale: nil).replacingOccurrences(of: "…", with: "").trimmingCharacters(in: .whitespaces) }
+        let t = n(c.nom.replacingOccurrences(of: "...", with: ""))
+        guard !t.isEmpty else { return nil }
+        let l = appli.articles.filter { !$0.vendu && $0.prixDemande != nil }
+        return l.first { let a = n($0.titreAnnonce); return !a.isEmpty && (a.hasPrefix(t) || t.hasPrefix(a)) }
+            ?? l.first { let a = n($0.titre); return a.count >= 4 && t.contains(a) }
+    }
+    static func rond(_ x: Double, haut: Bool = false) -> Double { let pas: Double = x >= 100 ? 10 : 5; return max(pas, ((haut ? (x / pas).rounded(.up) : (x / pas).rounded())) * pas) }
+
+    @MainActor static func pour(_ l: [ConversationLbc], appli: Appli) -> [String: AvisOffre] {
+        let v = appli.profil.vendeur, ferme = v["prix"] == "ferme"
+        var part = 0.85
+        if v["rythme"] == "patient" { part += 0.05 }; if v["rythme"] == "rapide" { part -= 0.05 }; if v["prix"] == "souple" { part -= 0.05 }
+        part = min(0.9, max(0.75, part))
+        var out: [String: AvisOffre] = [:]
+        for g in GroupeConversations.ranger(l) {
+            guard let a = article(g.conversations[0], appli), let px = a.prixDemande, px > 0 else { continue }
+            // Offres de chaque acheteur ; « refusée » ou « acceptée » : déjà traitée, plus de conseil.
+            let lues: [(ConversationLbc, Double, Bool)] = g.conversations.compactMap { c in
+                let t = c.apercu.isEmpty ? (c.details.last ?? "") : c.apercu
+                guard let o = montant(t) else { return nil }
+                return (c, o, t.range(of: #"refus|accept|expir"#, options: [.regularExpression, .caseInsensitive]) == nil)
+            }
+            let attente = lues.filter(\.2)
+            let plancher = ferme ? px : min(px, rond(px * part, haut: true))
+            let meilleure = attente.map(\.1).max() ?? 0
+            let bonnes = attente.filter { $0.1 >= plancher }.count
+            // La plus ancienne des meilleures offres (la liste va de la plus récente à la plus ancienne).
+            let premiere = attente.last { $0.1 == meilleure }?.0.cle
+            for (c, o, enAttente) in lues {
+                let ecart = Int(((px - o) / px * 100).rounded())
+                var conseil = AvisOffre.Conseil.refuser, contre: Double? = nil, raison = ""
+                if o >= px {
+                    conseil = .accepter; raison = "Offre au prix demandé (\(Libelles.prix(px)))."
+                } else if bonnes >= 3 && o == meilleure {
+                    // Plusieurs acheteurs prêts à payer près du prix : on peut tenir son prix.
+                    conseil = .contre; contre = px; raison = "\(attente.count) offres sur cette annonce, dont \(bonnes) au-dessus de ton plancher : la demande est forte, propose ton prix (\(Libelles.prix(px)))."
+                } else if o >= plancher {
+                    if c.cle == premiere { conseil = .accepter; raison = "\(ecart) % sous ton prix (\(Libelles.prix(px))), au-dessus de ton plancher (\(Libelles.prix(plancher))) : c'est la meilleure offre\(attente.count > 1 ? ", et la première arrivée" : "")." }
+                    else { conseil = .refuser; raison = o < meilleure ? "Une meilleure offre est arrivée (\(Libelles.prix(meilleure)))." : "Un autre acheteur a fait la même offre avant." }
+                } else if ecart >= 30 || ferme {
+                    conseil = .refuser; raison = ferme ? "Tu tiens à ton prix (\(Libelles.prix(px)))." : "\(ecart) % sous ton prix : trop bas pour négocier."
+                } else {
+                    conseil = .contre; contre = max(plancher, rond(px * 0.95)); if contre! >= px { contre = px }
+                    raison = "\(ecart) % sous ton prix, sous ton plancher (\(Libelles.prix(plancher))) : propose \(Libelles.prix(contre))."
+                }
+                out[c.cle] = AvisOffre(offre: o, prix: px, conseil: conseil, contre: contre, raison: raison, enAttente: enAttente, nbOffres: attente.count)
+            }
+        }
+        return out
     }
 }
