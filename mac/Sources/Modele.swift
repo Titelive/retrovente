@@ -691,6 +691,22 @@ final class Appli: ObservableObject {
     /// Titre et texte de l'annonce rédigés par l'IA à partir de la fiche (comme le dialogue de la fiche sur le site).
     /// Sans réponse de l'IA : une annonce simple composée à partir des champs.
     struct Redaction { var titre: String; var texte: String; var etat: String?; var legendes: [String]; var defauts: [Defaut]? = nil }
+    /// Notes de la fiche après des défauts vus sur les photos : les phrases qui disent le contraire (« sans défaut »,
+    /// « en bon état », « impeccable »…) sont retirées, le reste est gardé, et chaque défaut est ajouté s'il n'y est pas.
+    static func notesAvecDefauts(_ notes: String, _ d: [Defaut]) -> String {
+        guard !d.isEmpty else { return notes }
+        let contraire = try? NSRegularExpression(pattern: "sans (aucun )?défaut|aucun défaut|(très )?bon état|impeccable|parfait|comme neuf|intact", options: [.caseInsensitive])
+        var phrases: [String] = []
+        notes.enumerateSubstrings(in: notes.startIndex..., options: .bySentences) { p, _, _, _ in
+            guard let p = p?.trimmingCharacters(in: .whitespacesAndNewlines), !p.isEmpty else { return }
+            if contraire?.firstMatch(in: p, range: NSRange(p.startIndex..., in: p)) == nil { phrases.append(p) }
+        }
+        let bas = notes.lowercased()
+        for x in d where !bas.contains(x.texte.lowercased()) {
+            phrases.append(x.texte.prefix(1).uppercased() + x.texte.dropFirst() + ".")
+        }
+        return phrases.joined(separator: " ")
+    }
     /// Le moins bon des deux états (neuf < très bon < bon < correct < pour pièces) : un défaut ne fait que baisser l'état.
     static func pireEtat(_ a: String, _ b: String) -> String {
         let rang = ["neuf": 0, "tres_bon": 1, "bon": 2, "correct": 3, "pieces": 4]
