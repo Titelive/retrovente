@@ -260,6 +260,18 @@ img[data-ph]:not([src]){visibility:hidden}
 .tr:not(.ok) h3{color:color-mix(in srgb,var(--encre) 70%,transparent)}
 .tr.neuf .med{animation:trBrille 1.2s steps(4,end) 3}
 @keyframes trBrille{50%{transform:scale(1.12) rotate(-6deg)}}
+/* Trophées rangés par famille : un titre, un compteur et une grille par famille */
+.tr-groupes{display:grid;gap:30px}
+.tr-gt{display:flex;align-items:center;gap:12px;margin:0 0 14px;font-size:20px;line-height:1.2}
+.tr-gt .tr-gi{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--nuit);background:linear-gradient(135deg,var(--anis),var(--anis-f));box-shadow:3px 3px 0 var(--nuit)}
+.tr-gt .tr-gi svg{width:18px;height:18px}
+.tr-gt small{margin-left:auto;padding:6px 9px;border-radius:8px;font:400 10px/1 var(--pixel);letter-spacing:.06em;color:var(--gris);box-shadow:inset 0 0 0 1px var(--trait)}
+.tr-gt small.plein{background:var(--nuit);color:var(--anis);box-shadow:none}
+.tr{transition:transform .25s var(--ease,ease),box-shadow .25s var(--ease,ease)}
+@media(hover:hover){.tr:hover{transform:translateY(-3px)}.tr:not(.ok):hover{box-shadow:inset 0 0 0 1px var(--trait),0 16px 30px -22px rgba(0,0,0,.45)}}
+.tr-groupe.a-voir:not(.vu) .tr{opacity:0;transform:translateY(14px)}
+.tr-groupe.vu .tr{transition:opacity .45s var(--ease,ease) calc(var(--i,0) * 35ms),transform .45s var(--ease,ease) calc(var(--i,0) * 35ms),box-shadow .25s}
+@media(prefers-reduced-motion:reduce){.tr,.tr-groupe .tr,.tr-groupe.vu .tr{transition:none!important;opacity:1!important;transform:none!important}}
 /* Grille équilibrée (JS) : 2 demi-colonnes par carte, la dernière ligne incomplète est centrée */
 .tr-grille.equil{grid-template-columns:repeat(calc(var(--tr-c,4) * 2),minmax(0,1fr))}.tr-grille.equil>.tr{grid-column:span 2}
 @media(max-width:560px){.tr-grille{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.tr{padding:14px 12px}.tr .med{width:48px;height:48px;border-radius:14px}.tr .med svg{width:24px;height:24px}.tr.ok::after{right:10px;top:12px}}
@@ -1627,7 +1639,7 @@ html.sans-anim .vt-b.pousse{animation:none}
   <div class="tete"><div><p class="pixel">Trophées</p><h1 style="margin-top:8px">Ta salle des trophées</h1><p style="color:var(--gris);margin:8px 0 0">Débloque-les en vendant : chaque article, chaque vente compte.</p></div></div>
   <section class="niv" data-niv="trophees" aria-label="Mon niveau"></section>
   <section class="tr-score"><div class="tr-jauge"><b id="trNb">0</b><small id="trSur">/ 0 débloqués</small></div><div class="tr-barre"><i id="trBarre"></i></div><p id="trProchain"></p></section>
-  <ol class="tr-grille" id="trGrille"></ol>
+  <div class="tr-groupes" id="trGroupes"></div>
 </main>
 
 <main class="app wrap vue" id="compte" hidden>
@@ -1966,16 +1978,19 @@ $("dIaRenv").onclick=function(){renvoyerVerif(this)};
 $("dIaFormules").onclick=function(){$("dIa").close();if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche, puis va dans Mon compte.","bad");return}compte()};
 $("iaNote").addEventListener("click",function(e){if(e.target.closest("[data-renv]"))renvoyerVerif(e.target.closest("[data-renv]"));if(e.target.closest("[data-formules]"))compte()});
 /* ===== Trophées : calculés à partir des articles et de l'activité (rien n'est stocké) ===== */
-var TR_ICO={manette:'<circle cx="12" cy="6" r="3"/><path d="M12 9v6M4 20l1.5-5h13L20 20z"/>',photo:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',maison:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10M10 20v-5h4v5"/>',entrepot:'<path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-8h10v8M7 17h10"/>',etiquette:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',flamme:'<path d="M12 3c.5 3.5 6 6 6 11a6 6 0 0 1-12 0c0-2.5 1.5-4 2.5-5.5.5 2 1.5 3 2.5 3.5 0-3 0-6 1-9z"/>',trophee:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',billet:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 10v4M18 10v4"/>',pieces:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',diamant:'<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M12 21 8 9l4-6 4 6z"/>',cible:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',fusee:'<path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1z"/><path d="M12 15l-3-3a22 22 0 0 1 2-4A13 13 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>',lettre:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',champi:'<path d="M3 12a9 8 0 0 1 18 0z"/><path d="M8 12v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-5"/><circle cx="9" cy="8" r="1.2" fill="currentColor"/><circle cx="15" cy="8" r="1.2" fill="currentColor"/>',consoles:'<rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15.5" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="13" r=".6" fill="currentColor"/>',eclair:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',clap:'<rect x="3" y="10" width="18" height="11" rx="2"/><path d="M3 10 19.5 5.5l1 3.5M8 8.6l2.2 3M13.6 7l2.2 3"/>',lot:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 12 10 5 10-5M2 17l10 5 10-5"/>',cassette:'<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M10 11h4M6 19l2-4h8l2 4"/>',ia:'<path d="M10 3l1.8 4.7 4.7 1.8-4.7 1.8L10 16l-1.8-4.7L3.5 9.5l4.7-1.8z"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/>',chrono:'<circle cx="12" cy="14" r="8"/><path d="M12 10v4l2.5 2M10 2h4M12 2v4"/>',calendrier:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'};
+var TR_ICO={manette:'<circle cx="12" cy="6" r="3"/><path d="M12 9v6M4 20l1.5-5h13L20 20z"/>',photo:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',maison:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10M10 20v-5h4v5"/>',entrepot:'<path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-8h10v8M7 17h10"/>',etiquette:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',flamme:'<path d="M12 3c.5 3.5 6 6 6 11a6 6 0 0 1-12 0c0-2.5 1.5-4 2.5-5.5.5 2 1.5 3 2.5 3.5 0-3 0-6 1-9z"/>',trophee:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',billet:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 10v4M18 10v4"/>',pieces:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',diamant:'<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M12 21 8 9l4-6 4 6z"/>',cible:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',fusee:'<path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1z"/><path d="M12 15l-3-3a22 22 0 0 1 2-4A13 13 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>',lettre:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',champi:'<path d="M3 12a9 8 0 0 1 18 0z"/><path d="M8 12v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-5"/><circle cx="9" cy="8" r="1.2" fill="currentColor"/><circle cx="15" cy="8" r="1.2" fill="currentColor"/>',consoles:'<rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4"/><circle cx="15.5" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="13" r=".6" fill="currentColor"/>',eclair:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',clap:'<rect x="3" y="10" width="18" height="11" rx="2"/><path d="M3 10 19.5 5.5l1 3.5M8 8.6l2.2 3M13.6 7l2.2 3"/>',lot:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 12 10 5 10-5M2 17l10 5 10-5"/>',cassette:'<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><circle cx="16" cy="11" r="2"/><path d="M10 11h4M6 19l2-4h8l2 4"/>',ia:'<path d="M10 3l1.8 4.7 4.7 1.8-4.7 1.8L10 16l-1.8-4.7L3.5 9.5l4.7-1.8z"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/>',chrono:'<circle cx="12" cy="14" r="8"/><path d="M12 10v4l2.5 2M10 2h4M12 2v4"/>',calendrier:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>',inventaire:'<rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/>',paparazzi:'<path d="M3 9h3l2-3h5l2 3h3v10H3z"/><circle cx="10.5" cy="14" r="3"/><path d="M21 2l-2 4h3l-2 4"/>',cib:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',etoile:'<path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6l-5.4 2.9 1.2-6-4.5-4.2 6.1-.7z"/>',tele:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m8 3 4 4 4-4M17 11v6"/><rect x="5" y="10" width="9" height="8" rx="1"/>',prise:'<path d="M9 2v5M15 2v5M7 7h10v4a5 5 0 0 1-10 0zM12 16v6"/>',combo:'<path d="M10 3c.5 3.5 6 6 6 11a6 6 0 0 1-12 0c0-2.5 1.5-4 2.5-5.5.5 2 1.5 3 2.5 3.5 0-3 0-6 1-9z"/><path d="M19.5 3v6M22.5 6h-6"/>',medaille:'<circle cx="12" cy="15" r="6"/><path d="M8.5 10 6 2h4l2 5 2-5h4l-2.5 8"/><path d="m12 12.3.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/>',drapeau:'<path d="M5 22V3M5 4h13l-3 4.5L18 13H5"/>',tortue:'<path d="M4 15a8 7 0 0 1 16 0z"/><path d="M20 15h1.5a1.5 1.5 0 0 0 0-3H19M7 15l-1 3M17 15l1 3M4 15H2"/><path d="m8 12 2-2.5 2 2.5 2-2.5 2 2.5"/>',marteau:'<path d="m14 13-8.5 8.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m16 16 6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/>',cadeau:'<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18M12 8v13M12 8S10 3.5 7.5 4.5 8 8 12 8zM12 8s2-4.5 4.5-3.5S16 8 12 8"/>',cle:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',jackpot:'<rect x="2" y="5" width="17" height="14" rx="2"/><path d="M7.5 9v6M13.5 9v6M19 10h2V6"/><circle cx="21" cy="4.5" r="1.5"/>',couronne:'<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 22h14"/>',graal:'<path d="M6 3h12v4a6 6 0 0 1-12 0zM12 13v5M8 21h8M9.5 18h5"/>',trefle:'<circle cx="12" cy="7.5" r="3.5"/><circle cx="7.5" cy="12" r="3.5"/><circle cx="16.5" cy="12" r="3.5"/><path d="M12 13c0 4 1 6 3 9"/>',courbe:'<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7M15 7h5v5"/>',"boite-lettres":'<path d="M4 21V11a5 5 0 0 1 10 0v10M14 21h6V11a5 5 0 0 0-5-5H9"/><path d="M15 6V2h4"/><path d="M7 12h4M3 21h18"/>',loupe:'<circle cx="11" cy="11" r="7"/><path d="m21 21-5-5M8 11h6"/>',"maison-ok":'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="m9 15 2 2 4-4"/>',repere:'<path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',anneau:'<circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="4.5"/><path d="M20 2v4M18 4h4"/>',gameboy:'<rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="6" rx="1"/><path d="M8 16h3M9.5 14.5v3"/><circle cx="15.5" cy="16" r=".8" fill="currentColor"/>',disque:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 6.5A5.5 5.5 0 0 0 6.5 12"/>',torii:'<path d="M3 5c6 1.2 12 1.2 18 0M4.5 9.5h15M7 6v15M17 6v15M12 6.3v3.2"/>',epees:'<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/>',cartes:'<rect x="8" y="3" width="13" height="17" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h9"/><circle cx="14.5" cy="11.5" r="3.5"/><path d="M11 11.5h7"/>',pokedex:'<path d="M4 4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2z"/><path d="M4 18a2 2 0 0 1 2-2h14"/><circle cx="12" cy="8.5" r="3.5"/><path d="M8.5 8.5h7"/>',bouclier:'<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/>',popcorn:'<path d="M6 10h12l-2 11H8z"/><path d="M10 10l.5 11M14 10l-.5 11"/><path d="M6 10a2.5 2.5 0 0 1 2-4.5 3 3 0 0 1 5-1.5 3 3 0 0 1 4 2A2.5 2.5 0 0 1 18 10"/>',puce:'<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',argus:'<path d="M3 21h18M6 18v-5M11 18V7M16 18v-8M20 5l-3 3"/>',ticket:'<path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>',joueurs:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14a5 5 0 0 1 5 5"/>',sablier:'<path d="M6 2h12M6 22h12M7 2v4l5 6-5 6v4M17 2v4l-5 6 5 6v4"/>',continuer:'<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/><path d="m10 9 5 3-5 3z"/>'};
 function trIco(k){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(TR_ICO[k]||TR_ICO.trophee)+"</svg>"}
 /* Choisit le nombre de colonnes qui laisse le moins de vide sur la dernière ligne
    (sans descendre sous 3/4 du maximum possible), puis centre cette dernière ligne. */
-function equilibrerTrophees(){var g=$("trGrille");if(!g||!g.offsetWidth)return;var li=[].slice.call(g.children),n=li.length;if(!n)return;
+function equilibrerTrophees(){[].forEach.call(document.querySelectorAll("#trGroupes .tr-grille"),equilibrerGrille)}
+function equilibrerGrille(g){if(!g||!g.offsetWidth)return;var li=[].slice.call(g.children),n=li.length;if(!n)return;
   var w=g.clientWidth,max=matchMedia("(max-width:560px)").matches?2:Math.max(1,Math.floor((w+14)/(210+14))),c=max,best=2;
-  for(var k=max;k>=Math.max(2,Math.ceil(max*.75));k--){var vide=(k-n%k)%k/k;if(vide<best-1e-9){best=vide;c=k}}
+  /* une carte seule sur la dernière ligne compte comme le pire cas : on essaie d'abord un autre nombre de colonnes */
+  for(var k=max;k>=Math.max(2,Math.ceil(max*.6));k--){var r0=n%k,vide=r0===1&&n>1?1.5:(k-r0)%k/k;if(vide<best-1e-9){best=vide;c=k}}
   c=Math.min(c,n);g.style.setProperty("--tr-c",c);g.classList.add("equil");
-  var r=n%c;li.forEach(function(e,i){e.style.gridColumn=r&&i===n-r?(c-r+1)+" / span 2":""})}
-if(window.ResizeObserver)new ResizeObserver(function(){equilibrerTrophees()}).observe($("trGrille"));
+  /* reste une carte seule : elle prend toute la largeur ; sinon la dernière ligne incomplète est centrée */
+  var r=n%c;li.forEach(function(e,i){e.style.gridColumn=r&&i===n-r?(r===1?"1 / -1":(c-r+1)+" / span 2"):""})}
+if(window.ResizeObserver)new ResizeObserver(function(){equilibrerTrophees()}).observe($("trGroupes"));
 /* Outils photos : nombre de colonnes choisi pour éviter une ligne orpheline (même logique que les trophées) */
 function equilibrerOutils(){var g=document.querySelector(".outils-ph");if(!g||!g.offsetWidth)return;
   var li=[].filter.call(g.children,function(e){return e.classList.contains("ot")&&getComputedStyle(e).display!=="none"}),n=li.length;if(!n)return;
@@ -1990,41 +2005,93 @@ function equilibrerOutils(){var g=document.querySelector(".outils-ph");if(!g||!g
 function trophees(){montrer("trophees");dessinerTrophees()}
 function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
     plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
-  var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
-    cartes=OBJ.filter(function(o){return o.categorie==="cartes"}).length,
-    films=OBJ.filter(function(o){return o.categorie==="films"}).length,
-    ia=OBJ.filter(function(o){return o.ia||(o.texteAnnonce||"").trim()}).length,
-    photos=OBJ.filter(function(o){return o.photo}).length,
+  /* compte les articles (ou les ventes, avec la liste l) qui passent le test f */
+  var nb=function(f,l){return (l||OBJ).filter(f).length},txt=function(x){return String(x||"").trim()},a=function(x){return x!=null&&x!==""&&!isNaN(+x)},
+    jeuPlat=function(re){return nb(function(o){return o.categorie!=="cartes"&&o.categorie!=="films"&&re.test(o.plateforme||"")})},
     jours=function(a,b){return (new Date(b)-new Date(a))/864e5},
+    jj=function(o){return o.dateMiseEnVente&&o.dateVente?jours(String(o.dateMiseEnVente).slice(0,10),String(o.dateVente).slice(0,10)):null};
+  var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
+    cartes=nb(function(o){return o.categorie==="cartes"}),
+    films=nb(function(o){return o.categorie==="films"}),
+    ia=nb(function(o){return o.ia||txt(o.texteAnnonce)}),
+    photos=nb(function(o){return o.photo}),
     eclair=v.filter(function(o){return o.dateMiseEnVente&&o.dateVente&&jours(o.dateMiseEnVente,o.dateVente)<=7}).length,
     plein=v.filter(function(o){return o.prixDemande&&+o.prixVente>=+o.prixDemande}).length,
     rare=v.filter(function(o){return +o.prixVente>=100}).length,
     envois=v.filter(function(o){return o.statut==="envoye"||o.statut==="recu"||o.remise==="envoi"}).length,
+    benef=Math.max(0,Math.floor(v.filter(function(o){return a(o.prixAchat)}).reduce(function(s,o){return s+(+o.prixVente||0)-(+o.prixAchat)-(+o.frais||0)},0))),
+    minutes=tempsGagne(),
     anc=ME.cree?Math.floor(jours(ME.cree,new Date())):0;
-  return [
-    ["manette","Insert Coin","Ajoute ton tout premier article.",OBJ.length,1],
-    ["photo","Photographe","10 articles avec une photo.",photos,10],
-    ["maison","Grenier vidé","10 articles ajoutés.",OBJ.length,10],
-    ["entrepot","Entrepôt","50 articles ajoutés.",OBJ.length,50],
-    ["etiquette","Première vente","Vends ton premier article.",v.length,1],
-    ["flamme","Combo ×5","5 articles vendus.",v.length,5],
-    ["trophee","High Score","25 articles vendus.",v.length,25],
-    ["billet","Cent balles","100 € encaissés.",Math.floor(enc),100],
-    ["pieces","Tirelire pleine","1 000 € encaissés.",Math.floor(enc),1000],
-    ["diamant","Pièce rare","Un article vendu 100 € ou plus.",rare,1],
-    ["cible","Pas un centime de moins","Vends au prix demandé (ou plus).",plein,1],
-    ["fusee","Vente éclair","Vends un article moins de 7 jours après sa mise en vente.",eclair,1],
-    ["lettre","Le facteur sonne","5 ventes envoyées par la poste.",envois,5],
-    ["champi","64 bits","Ajoute un jeu Nintendo 64.",n64,1],
-    ["consoles","Multi-consoles","Des articles sur 5 plateformes différentes.",Object.keys(plat).length,5],
-    ["eclair","Attrapez-les tous","Ajoute une carte Pokémon.",cartes,1],
-    ["clap","Moteur, ça tourne !","Ajoute un film.",films,1],
-    ["lot","Tout en un","Vends un lot de plusieurs articles.",lots,1],
-    ["cassette","Vidéoclub","10 films dans tes articles.",films,10],
-    ["ia","Duo avec l'IA","10 annonces rédigées avec l'IA.",ia,10],
-    ["chrono","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(tempsGagne()/60),10],
-    ["calendrier","Vétéran","Membre depuis un an.",anc,365]
-  ].map(function(t){return{ico:t[0],nom:t[1],desc:t[2],val:Math.min(t[3],t[4]),max:t[4],ok:t[3]>=t[4]}})}
+  var G=[
+    ["Collection",[
+      ["manette","Insert Coin","Ajoute ton tout premier article.",OBJ.length,1],
+      ["maison","Grenier vidé","10 articles ajoutés.",OBJ.length,10],
+      ["entrepot","Entrepôt","50 articles ajoutés.",OBJ.length,50],
+      ["inventaire","Inventaire plein","100 articles ajoutés. Il va falloir un sac sans fond.",OBJ.length,100],
+      ["photo","Photographe","10 articles avec une photo.",photos,10],
+      ["paparazzi","Paparazzi","50 articles avec une photo.",photos,50],
+      ["cib","CIB ou rien","5 jeux complets en boîte, avec la notice.",nb(function(o){return o.contenu==="complet"}),5],
+      ["etoile","Shiny","Un article estimé très rare dans ta collection.",nb(function(o){return o.rareteJeu==="tres_rare"}),1],
+      ["tele","Branche la Péritel","Ajoute une console.",nb(function(o){return o.categorie==="consoles"}),1],
+      ["prise","Câble link","3 accessoires ajoutés.",nb(function(o){return o.categorie==="accessoires"}),3]]],
+    ["Ventes",[
+      ["etiquette","Première vente","Vends ton premier article.",v.length,1],
+      ["flamme","Combo ×5","5 articles vendus.",v.length,5],
+      ["combo","Super Combo","10 articles vendus.",v.length,10],
+      ["trophee","High Score","25 articles vendus.",v.length,25],
+      ["medaille","Hall of Fame","100 articles vendus.",v.length,100],
+      ["fusee","Vente éclair","Vends un article moins de 7 jours après sa mise en vente.",eclair,1],
+      ["drapeau","Speedrun","Vends un article le jour même de sa mise en vente.",nb(function(o){var d=jj(o);return d!=null&&d<1},v),1],
+      ["tortue","Rien ne sert de courir","Vends un article plus de 90 jours après sa mise en vente.",nb(function(o){return jj(o)>=90},v),1],
+      ["cible","Pas un centime de moins","Vends au prix demandé (ou plus).",plein,1],
+      ["marteau","Enchère gagnante","Vends un article plus cher que le prix demandé.",nb(function(o){return +o.prixDemande>0&&+o.prixVente>+o.prixDemande},v),1],
+      ["lot","Tout en un","Vends un lot de plusieurs articles.",lots,1],
+      ["cadeau","Pack collector","5 lots vendus.",lots,5],
+      ["cle","Trésor caché","Vends un article estimé rare ou très rare.",nb(function(o){return o.rareteJeu==="rare"||o.rareteJeu==="tres_rare"},v),1]]],
+    ["Argent",[
+      ["billet","Cent balles","100 € encaissés.",Math.floor(enc),100],
+      ["pieces","Tirelire pleine","1 000 € encaissés.",Math.floor(enc),1000],
+      ["jackpot","Jackpot","5 000 € encaissés.",Math.floor(enc),5000],
+      ["diamant","Pièce rare","Un article vendu 100 € ou plus.",rare,1],
+      ["couronne","Big Boss","Un article vendu 300 € ou plus.",nb(function(o){return +o.prixVente>=300},v),1],
+      ["graal","Le Graal","Un article vendu 500 € ou plus.",nb(function(o){return +o.prixVente>=500},v),1],
+      ["trefle","Bonne affaire","Vends un article au moins le double de son prix d'achat.",nb(function(o){return +o.prixAchat>0&&+o.prixVente>=2*o.prixAchat},v),1],
+      ["courbe","Plus-value","500 € de bénéfice (prix d'achat et frais déduits).",benef,500]]],
+    ["Colis",[
+      ["lettre","Le facteur sonne","5 ventes envoyées par la poste.",envois,5],
+      ["boite-lettres","Postier de l'année","25 ventes envoyées par la poste.",envois,25],
+      ["loupe","Suivi à la trace","5 ventes avec un numéro de suivi.",nb(function(o){return txt(o.suivi)},v),5],
+      ["maison-ok","Livré à bon port","10 colis reçus par l'acheteur.",nb(function(o){return o.statut==="recu"},v),10],
+      ["repere","Rendez-vous IRL","3 ventes remises en main propre.",nb(function(o){return o.remise==="main_propre"},v),3]]],
+    ["Consoles",[
+      ["champi","64 bits","Ajoute un jeu Nintendo 64.",n64,1],
+      ["anneau","Sega c'est plus fort que toi","Ajoute un article Sega.",jeuPlat(/sega|mega ?drive|genesis|saturn|dreamcast|master ?system|game ?gear|mega[- ]?cd|32x/i),1],
+      ["gameboy","Piles incluses","Ajoute un article Game Boy.",jeuPlat(/game ?boy|\bgb[ac]?\b/i),1],
+      ["disque","Génération PlayStation","Ajoute un article PlayStation.",jeuPlat(/playstation|\bps ?[1-5]\b|\bpsx\b|\bps ?one\b|\bpsp\b|\bvita\b/i),1],
+      ["torii","Import japonais","Ajoute un article en version japonaise.",nb(function(o){return /ntsc[- ]?j|jap|\bjp\b/i.test(o.region||"")}),1],
+      ["consoles","Multi-consoles","Des articles sur 5 plateformes différentes.",Object.keys(plat).length,5],
+      ["epees","Console war","Des articles sur 10 plateformes différentes.",Object.keys(plat).length,10]]],
+    ["Cartes et films",[
+      ["eclair","Attrapez-les tous","Ajoute une carte Pokémon.",cartes,1],
+      ["cartes","Dresseur","10 cartes Pokémon.",cartes,10],
+      ["pokedex","Pokédex complet","151 cartes Pokémon, comme au premier jour.",cartes,151],
+      ["bouclier","Sous coque","Ajoute une carte gradée.",nb(function(o){return o.categorie==="cartes"&&txt(o.gradation)}),1],
+      ["clap","Moteur, ça tourne !","Ajoute un film.",films,1],
+      ["cassette","Vidéoclub","10 films dans tes articles.",films,10],
+      ["popcorn","Cinémathèque","25 films dans tes articles.",films,25]]],
+    ["Outils",[
+      ["ia","Duo avec l'IA","10 annonces rédigées avec l'IA.",ia,10],
+      ["puce","Cerveau électronique","50 annonces rédigées avec l'IA.",ia,50],
+      ["argus","L'Argus","10 articles cotés.",nb(function(o){return o.cote}),10],
+      ["ticket","Comptable","Prix d'achat renseigné sur 10 articles.",nb(function(o){return a(o.prixAchat)}),10],
+      ["joueurs","Multijoueur","Un article en ligne sur leboncoin et sur eBay.",nb(function(o){return txt(o.annonce)&&txt(o.annonceEbay)}),1]]],
+    ["Temps et fidélité",[
+      ["chrono","Maître du temps","10 heures gagnées avec RetroRevente.",Math.floor(minutes/60),10],
+      ["sablier","Voyageur temporel","50 heures gagnées avec RetroRevente.",Math.floor(minutes/60),50],
+      ["continuer","Continue ?","Membre depuis un mois.",anc,30],
+      ["calendrier","Vétéran","Membre depuis un an.",anc,365]]]
+  ];
+  return [].concat.apply([],G.map(function(g){return g[1].map(function(t){return{groupe:g[0],ico:t[0],nom:t[1],desc:t[2],val:Math.max(0,Math.min(t[3],t[4])),max:t[4],ok:t[3]>=t[4]}})}))}
 /* ===== Niveau et XP du vendeur : calculés à partir des articles et des trophées (rien n'est stocké) =====
    Barème : chaque étape de la vente rapporte, la vente rapporte le plus, chaque trophée donne un gros bonus.
    Niveau n atteint à 50 × n × (n − 1) XP : 100, 300, 600, 1 000, 1 500… (chaque niveau demande 100 XP de plus que le précédent). */
@@ -2066,9 +2133,16 @@ function dessinerTrophees(){var l=majTrophNav(),ok=l.filter(function(t){return t
   $("trNb").textContent=ok.length;$("trSur").textContent="/ "+l.length+" débloqués";requestAnimationFrame(function(){$("trBarre").style.width=(100*ok.length/l.length)+"%"});
   var pro=l.filter(function(t){return !t.ok}).sort(function(a,b){return b.val/b.max-a.val/a.max})[0];
   $("trProchain").innerHTML=pro?"Prochain : <b>"+esc(pro.nom)+"</b>, "+esc(pro.desc.charAt(0).toLowerCase()+pro.desc.slice(1))+" ("+pro.val+"/"+pro.max+")":"Tous débloqués. Game over… mais quel score !";
-  $("trGrille").innerHTML=l.map(function(t){var neuf=t.ok&&!vus[t.nom];if(t.ok)vus[t.nom]=1;
-    return '<li class="tr'+(t.ok?" ok":"")+(neuf?" neuf":"")+'"><span class="med" aria-hidden="true">'+trIco(t.ico)+'</span><h3>'+esc(t.nom)+'</h3><p>'+esc(t.desc)+'</p>'+
-      '<div class="pr" aria-label="Progression '+t.val+' sur '+t.max+'"><span><i style="width:'+(100*t.val/t.max)+'%"></i></span>'+t.val+'/'+t.max+'</div>'+'</li>'}).join("");
+  var TR_GICO={"Collection":"maison","Ventes":"etiquette","Argent":"pieces","Colis":"lettre","Consoles":"consoles","Cartes et films":"clap","Outils":"ia","Temps et fidélité":"chrono"},groupes=[];
+  l.forEach(function(t){var g=groupes.filter(function(x){return x.nom===t.groupe})[0];if(!g)groupes.push(g={nom:t.groupe,l:[]});g.l.push(t)});
+  $("trGroupes").innerHTML=groupes.map(function(g){var k=g.l.filter(function(t){return t.ok}).length;
+    return '<section class="tr-groupe" aria-label="'+esc(g.nom)+'"><h2 class="tr-gt"><span class="tr-gi" aria-hidden="true">'+trIco(TR_GICO[g.nom])+'</span>'+esc(g.nom)+'<small'+(k===g.l.length?' class="plein"':'')+'>'+k+' / '+g.l.length+'</small></h2><ol class="tr-grille">'+
+    g.l.map(function(t,i){var neuf=t.ok&&!vus[t.nom];if(t.ok)vus[t.nom]=1;
+    return '<li class="tr'+(t.ok?" ok":"")+(neuf?" neuf":"")+'" style="--i:'+i+'"><span class="med" aria-hidden="true">'+trIco(t.ico)+'</span><h3>'+esc(t.nom)+'</h3><p>'+esc(t.desc)+'</p>'+
+      '<div class="pr" aria-label="Progression '+t.val+' sur '+t.max+'"><span><i style="width:'+(100*t.val/t.max)+'%"></i></span>'+t.val+'/'+t.max+'</div>'+'</li>'}).join("")+'</ol></section>'}).join("");
+  /* apparition au défilement, famille par famille (tout reste visible sans IntersectionObserver) */
+  if(window.IntersectionObserver&&!matchMedia("(prefers-reduced-motion: reduce)").matches){var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){io.unobserve(x.target);var t=x.target;t.classList.add("vu");setTimeout(function(){t.classList.remove("a-voir","vu")},1400)}})},{rootMargin:"0px 0px -40px 0px"});
+    [].forEach.call($("trGroupes").children,function(sec){sec.classList.add("a-voir");io.observe(sec)})}
   equilibrerTrophees();try{localStorage.setItem("rr-troph",JSON.stringify(vus))}catch(e){}}
 $("cTroph").onclick=function(e){e.preventDefault();trophees()};
 function tempsGagne(){var e=tempsEtapes(),n=0;for(var k in e)n+=e[k]*TEMPS[k];return n}

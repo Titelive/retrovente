@@ -19,48 +19,117 @@ private func jours(_ a: String, _ b: String) -> Double? {
 // MARK: Trophées
 
 struct Trophees: View {
-    struct T: Identifiable { let ico, nom, desc: String; let val, max: Int; var id: String { nom }; var ok: Bool { val >= max } }
+    struct T: Identifiable { let groupe, ico, nom, desc: String; let val, max: Int; var id: String { nom }; var ok: Bool { val >= max } }
     @ObservedObject var appli: Appli
+
+    /// Familles de trophées, dans l'ordre d'affichage (mêmes familles et mêmes symboles que le site).
+    struct Famille: Hashable { let nom, symbole: String }
+    static let familles: [Famille] = [
+        .init(nom: "Collection", symbole: "house"), .init(nom: "Ventes", symbole: "tag"), .init(nom: "Argent", symbole: "eurosign.circle"),
+        .init(nom: "Colis", symbole: "shippingbox"), .init(nom: "Consoles", symbole: "gamecontroller"), .init(nom: "Cartes et films", symbole: "film"),
+        .init(nom: "Outils", symbole: "sparkles"), .init(nom: "Temps et fidélité", symbole: "stopwatch"),
+    ]
 
     static func liste(_ appli: Appli) -> [T] {
         let o = appli.articles.filter { !$0.estLot }, v = o.filter { $0.vendu }
+        let lots = appli.articles.filter { $0.estLot && $0.vendu }.count
         let enc = v.reduce(0) { $0 + ($1.prixVente ?? 0) }
         let plat = Set(o.filter { !["cartes", "films"].contains($0.categorie) }.map { $0.plateforme.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })
-        let n64 = o.filter { $0.plateforme.contains("64") && ($0.plateforme + " ").range(of: "nintendo|n64", options: [.regularExpression, .caseInsensitive]) != nil }.count
+        func vide(_ s: String) -> Bool { s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        func motif(_ s: String, _ re: String) -> Bool { s.range(of: re, options: [.regularExpression, .caseInsensitive]) != nil }
+        func jeuPlat(_ re: String) -> Int { o.filter { !["cartes", "films"].contains($0.categorie) && motif($0.plateforme, re) }.count }
+        func duree(_ a: Article) -> Double? { jours(a.dateMiseEnVente, a.dateVente) }
+        let n64 = o.filter { $0.plateforme.contains("64") && motif($0.plateforme + " ", "nintendo|n64") }.count
         let cartes = o.filter { $0.categorie == "cartes" }.count, films = o.filter { $0.categorie == "films" }.count
-        let ia = o.filter { $0.ia || !$0.texteAnnonce.trimmingCharacters(in: .whitespaces).isEmpty }.count
+        let ia = o.filter { $0.ia || !vide($0.texteAnnonce) }.count
         let photos = o.filter { !$0.photos.isEmpty }.count
-        let eclair = v.filter { a in jours(a.dateMiseEnVente, a.dateVente).map { $0 <= 7 } ?? false }.count
+        let eclair = v.filter { a in duree(a).map { $0 <= 7 } ?? false }.count
         let plein = v.filter { a in (a.prixDemande ?? 0) > 0 && (a.prixVente ?? 0) >= (a.prixDemande ?? 0) }.count
         let rare = v.filter { ($0.prixVente ?? 0) >= 100 }.count
         let envois = v.filter { $0.statut == "envoye" || $0.statut == "recu" || $0.remise == "envoi" }.count
+        // Bénéfice : seulement les ventes dont le prix d'achat est renseigné, frais déduits.
+        let benef = max(0, Int(v.filter { $0.prixAchat != nil }.reduce(0.0) { $0 + ($1.prixVente ?? 0) - ($1.prixAchat ?? 0) - ($1.frais ?? 0) }.rounded(.down)))
         let anc = Int(jours(appli.profil.cree, ISO8601DateFormatter().string(from: Date())) ?? 0)
         // Temps gagné (minutes par étape, valeurs par défaut de l'appli web).
         let minutes = TempsGagne.total(appli)   // même calcul que la tuile « Temps gagné » de l'accueil
-        let t: [(String, String, String, Int, Int)] = [
-            ("🕹️", "Insert Coin", "Ajoute ton tout premier article.", o.count, 1),
-            ("📸", "Photographe", "10 articles avec une photo.", photos, 10),
-            ("🧺", "Grenier vidé", "10 articles ajoutés.", o.count, 10),
-            ("📦", "Entrepôt", "50 articles ajoutés.", o.count, 50),
-            ("💰", "Première vente", "Vends ton premier article.", v.count, 1),
-            ("🔥", "Combo ×5", "5 articles vendus.", v.count, 5),
-            ("🏆", "High Score", "25 articles vendus.", v.count, 25),
-            ("💶", "Cent balles", "100 € encaissés.", Int(enc), 100),
-            ("🐷", "Tirelire pleine", "1 000 € encaissés.", Int(enc), 1000),
-            ("💎", "Pièce rare", "Un article vendu 100 € ou plus.", rare, 1),
-            ("🤝", "Pas un centime de moins", "Vends au prix demandé (ou plus).", plein, 1),
-            ("🚀", "Vente éclair", "Vends un article moins de 7 jours après sa mise en vente.", eclair, 1),
-            ("📬", "Le facteur sonne", "5 ventes envoyées par la poste.", envois, 5),
-            ("🍄", "64 bits", "Ajoute un jeu Nintendo 64.", n64, 1),
-            ("🎮", "Multi-consoles", "Des articles sur 5 plateformes différentes.", plat.count, 5),
-            ("⚡", "Attrapez-les tous", "Ajoute une carte Pokémon.", cartes, 1),
-            ("🎬", "Moteur, ça tourne !", "Ajoute un film.", films, 1),
-            ("📼", "Vidéoclub", "10 films dans tes articles.", films, 10),
-            ("🤖", "Duo avec l'IA", "10 annonces rédigées avec l'IA.", ia, 10),
-            ("⏱️", "Maître du temps", "10 heures gagnées avec RetroRevente.", minutes / 60, 10),
-            ("🗓️", "Vétéran", "Membre depuis un an.", anc, 365),
+        let g: [(String, [(String, String, String, Int, Int)])] = [
+            ("Collection", [
+                ("🕹️", "Insert Coin", "Ajoute ton tout premier article.", o.count, 1),
+                ("🧺", "Grenier vidé", "10 articles ajoutés.", o.count, 10),
+                ("📦", "Entrepôt", "50 articles ajoutés.", o.count, 50),
+                ("🗄️", "Inventaire plein", "100 articles ajoutés. Il va falloir un sac sans fond.", o.count, 100),
+                ("📸", "Photographe", "10 articles avec une photo.", photos, 10),
+                ("🖼️", "Paparazzi", "50 articles avec une photo.", photos, 50),
+                ("📘", "CIB ou rien", "5 jeux complets en boîte, avec la notice.", o.filter { $0.contenu == "complet" }.count, 5),
+                ("✨", "Shiny", "Un article estimé très rare dans ta collection.", o.filter { $0.rareteJeu == "tres_rare" }.count, 1),
+                ("📺", "Branche la Péritel", "Ajoute une console.", o.filter { $0.categorie == "consoles" }.count, 1),
+                ("🔌", "Câble link", "3 accessoires ajoutés.", o.filter { $0.categorie == "accessoires" }.count, 3),
+            ]),
+            ("Ventes", [
+                ("💰", "Première vente", "Vends ton premier article.", v.count, 1),
+                ("🔥", "Combo ×5", "5 articles vendus.", v.count, 5),
+                ("💥", "Super Combo", "10 articles vendus.", v.count, 10),
+                ("🏆", "High Score", "25 articles vendus.", v.count, 25),
+                ("🏅", "Hall of Fame", "100 articles vendus.", v.count, 100),
+                ("🚀", "Vente éclair", "Vends un article moins de 7 jours après sa mise en vente.", eclair, 1),
+                ("🏁", "Speedrun", "Vends un article le jour même de sa mise en vente.", v.filter { a in duree(a).map { $0 < 1 } ?? false }.count, 1),
+                ("🐢", "Rien ne sert de courir", "Vends un article plus de 90 jours après sa mise en vente.", v.filter { a in duree(a).map { $0 >= 90 } ?? false }.count, 1),
+                ("🤝", "Pas un centime de moins", "Vends au prix demandé (ou plus).", plein, 1),
+                ("🔨", "Enchère gagnante", "Vends un article plus cher que le prix demandé.", v.filter { ($0.prixDemande ?? 0) > 0 && ($0.prixVente ?? 0) > ($0.prixDemande ?? 0) }.count, 1),
+                ("🧩", "Tout en un", "Vends un lot de plusieurs articles.", lots, 1),
+                ("🎁", "Pack collector", "5 lots vendus.", lots, 5),
+                ("🗝️", "Trésor caché", "Vends un article estimé rare ou très rare.", v.filter { ["rare", "tres_rare"].contains($0.rareteJeu) }.count, 1),
+            ]),
+            ("Argent", [
+                ("💶", "Cent balles", "100 € encaissés.", Int(enc), 100),
+                ("🐷", "Tirelire pleine", "1 000 € encaissés.", Int(enc), 1000),
+                ("🎰", "Jackpot", "5 000 € encaissés.", Int(enc), 5000),
+                ("💎", "Pièce rare", "Un article vendu 100 € ou plus.", rare, 1),
+                ("👑", "Big Boss", "Un article vendu 300 € ou plus.", v.filter { ($0.prixVente ?? 0) >= 300 }.count, 1),
+                ("🏺", "Le Graal", "Un article vendu 500 € ou plus.", v.filter { ($0.prixVente ?? 0) >= 500 }.count, 1),
+                ("🍀", "Bonne affaire", "Vends un article au moins le double de son prix d'achat.", v.filter { ($0.prixAchat ?? 0) > 0 && ($0.prixVente ?? 0) >= 2 * ($0.prixAchat ?? 0) }.count, 1),
+                ("📈", "Plus-value", "500 € de bénéfice (prix d'achat et frais déduits).", benef, 500),
+            ]),
+            ("Colis", [
+                ("📬", "Le facteur sonne", "5 ventes envoyées par la poste.", envois, 5),
+                ("📮", "Postier de l'année", "25 ventes envoyées par la poste.", envois, 25),
+                ("🔍", "Suivi à la trace", "5 ventes avec un numéro de suivi.", v.filter { !vide($0.suivi) }.count, 5),
+                ("🏠", "Livré à bon port", "10 colis reçus par l'acheteur.", v.filter { $0.statut == "recu" }.count, 10),
+                ("📍", "Rendez-vous IRL", "3 ventes remises en main propre.", v.filter { $0.remise == "main_propre" }.count, 3),
+            ]),
+            ("Consoles", [
+                ("🍄", "64 bits", "Ajoute un jeu Nintendo 64.", n64, 1),
+                ("🦔", "Sega c'est plus fort que toi", "Ajoute un article Sega.", jeuPlat("sega|mega ?drive|genesis|saturn|dreamcast|master ?system|game ?gear|mega[- ]?cd|32x"), 1),
+                ("🔋", "Piles incluses", "Ajoute un article Game Boy.", jeuPlat("game ?boy|\\bgb[ac]?\\b"), 1),
+                ("💿", "Génération PlayStation", "Ajoute un article PlayStation.", jeuPlat("playstation|\\bps ?[1-5]\\b|\\bpsx\\b|\\bps ?one\\b|\\bpsp\\b|\\bvita\\b"), 1),
+                ("⛩️", "Import japonais", "Ajoute un article en version japonaise.", o.filter { motif($0.region, "ntsc[- ]?j|jap|\\bjp\\b") }.count, 1),
+                ("🎮", "Multi-consoles", "Des articles sur 5 plateformes différentes.", plat.count, 5),
+                ("⚔️", "Console war", "Des articles sur 10 plateformes différentes.", plat.count, 10),
+            ]),
+            ("Cartes et films", [
+                ("⚡", "Attrapez-les tous", "Ajoute une carte Pokémon.", cartes, 1),
+                ("🃏", "Dresseur", "10 cartes Pokémon.", cartes, 10),
+                ("📕", "Pokédex complet", "151 cartes Pokémon, comme au premier jour.", cartes, 151),
+                ("🛡️", "Sous coque", "Ajoute une carte gradée.", o.filter { $0.categorie == "cartes" && !vide($0.gradation) }.count, 1),
+                ("🎬", "Moteur, ça tourne !", "Ajoute un film.", films, 1),
+                ("📼", "Vidéoclub", "10 films dans tes articles.", films, 10),
+                ("🍿", "Cinémathèque", "25 films dans tes articles.", films, 25),
+            ]),
+            ("Outils", [
+                ("🤖", "Duo avec l'IA", "10 annonces rédigées avec l'IA.", ia, 10),
+                ("🧠", "Cerveau électronique", "50 annonces rédigées avec l'IA.", ia, 50),
+                ("📊", "L'Argus", "10 articles cotés.", o.filter { $0.cote != nil }.count, 10),
+                ("🧾", "Comptable", "Prix d'achat renseigné sur 10 articles.", o.filter { $0.prixAchat != nil }.count, 10),
+                ("👥", "Multijoueur", "Un article en ligne sur leboncoin et sur eBay.", o.filter { !vide($0.annonce) && !vide($0.annonceEbay) }.count, 1),
+            ]),
+            ("Temps et fidélité", [
+                ("⏱️", "Maître du temps", "10 heures gagnées avec RetroRevente.", minutes / 60, 10),
+                ("⌛", "Voyageur temporel", "50 heures gagnées avec RetroRevente.", minutes / 60, 50),
+                ("🔁", "Continue ?", "Membre depuis un mois.", anc, 30),
+                ("🗓️", "Vétéran", "Membre depuis un an.", anc, 365),
+            ]),
         ]
-        return t.map { T(ico: $0.0, nom: $0.1, desc: $0.2, val: min($0.3, $0.4), max: $0.4) }
+        return g.flatMap { f in f.1.map { T(groupe: f.0, ico: $0.0, nom: $0.1, desc: $0.2, val: max(0, min($0.3, $0.4)), max: $0.4) } }
     }
 
     var body: some View {
@@ -69,7 +138,21 @@ struct Trophees: View {
             EnTete(titre: "Ta salle des trophées", sousTitre: "\(n) trophée\(n > 1 ? "s" : "") débloqué\(n > 1 ? "s" : "") sur \(l.count)") { EmptyView() }
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                    ForEach(Array(l.enumerated()), id: \.element.id) { i, t in CarteTrophee(t: t, rang: i) }
+                    ForEach(Trophees.familles, id: \.self) { f in
+                        let tf = l.filter { $0.groupe == f.nom }, k = tf.filter { $0.ok }.count
+                        Section {
+                            ForEach(tf) { t in CarteTrophee(t: t, rang: l.firstIndex { $0.nom == t.nom } ?? 0) }
+                        } header: {
+                            HStack(spacing: 10) {
+                                Image(systemName: f.symbole).foregroundStyle(Color.rrAccent).font(.title3)
+                                Text(f.nom).font(.title3.weight(.semibold))
+                                Spacer()
+                                Text("\(k) / \(tf.count)").font(.callout.monospacedDigit()).foregroundStyle(k == tf.count ? AnyShapeStyle(Color.rrAccent) : AnyShapeStyle(.secondary))
+                                    .padding(.horizontal, 10).padding(.vertical, 4)
+                                    .background(Capsule().strokeBorder(k == tf.count ? Color.rrAccent : Color.primary.opacity(0.15)))
+                            }.padding(.top, f.nom == Trophees.familles[0].nom ? 0 : 14).padding(.bottom, 2)
+                        }
+                    }
                 }.padding(22)
             }
         }
