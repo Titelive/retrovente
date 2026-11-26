@@ -597,7 +597,7 @@ const CODE_PHOTO = "Si une photo montre un code (carte ou papier de code de tél
 const CERTAIN = "Affirme seulement ce que la photo montre avec certitude ; n'emploie jamais « apparemment », « semble », « visiblement », « probablement », « a priori » ni « visible » ou « apparent » : si tu n'es pas sûr d'un point, n'en parle pas.";
 
 // L'état, pas le design : le décor imprimé d'origine (couleurs, bandeau, logo) n'est ni un défaut ni une particularité.
-const ETAT_SEUL = "Décris l'état réel (usure, rayures, coins, défauts, présence du contenu), jamais le décor d'origine : ne parle ni des couleurs, ni du bandeau, ni des logos imprimés (le bandeau rouge d'une jaquette Switch, par exemple, est normal). N'écris « étiquette » que pour un autocollant réellement collé (étiquette d'une cartouche, étiquette de prix) : une jaquette ou un boîtier imprimé n'a pas d'étiquette.";
+const ETAT_SEUL = "Décris l'état réel (usure, rayures, coins, défauts, présence du contenu), jamais le décor d'origine : ne parle ni des couleurs, ni du bandeau, ni des logos imprimés (le bandeau rouge d'une jaquette Switch, par exemple, est normal). Ne dis pas qu'une jaquette est « sous film plastique » : c'est le cas de tous les boîtiers. N'écris « étiquette » que pour un autocollant réellement collé (étiquette d'une cartouche, étiquette de prix) : une jaquette ou un boîtier imprimé n'a pas d'étiquette.";
 const carte0 = (v) => v.categorie === "cartes";
 // Retire d'une légende les mentions de jaunissement (« plastique légèrement jauni »…), en gardant le reste.
 const sansJauni = (l) => {
@@ -634,10 +634,11 @@ export function lireDefauts(o, n) {
 async function defautsEnsemble(photos, quoi, film, trace) {
   const n = Math.min(photos.length, 8);
   const o = await claude([...photos.slice(0, n).map(image), { type: "text", text: `Ces ${n} photos (dans l'ordre, numérotées à partir de 1) montrent ${quoi}, vendu d'occasion sur Le Bon Coin. Un acheteur va regarder chaque photo de près : relève TOUS les défauts physiques réels de l'objet, même sur une seule photo, en regardant chaque bord et chaque coin.
-Exemples : film plastique transparent du boîtier déchiré, arraché ou en lambeaux (le long de la jaquette, souvent près de la charnière), boîtier fendu, cassé ou ergot d'attache cassé, jaquette pliée, froissée, déchirée, gondolée ou tachée, coin écrasé, autocollant ou étiquette de prix collé, reste de colle, ${film ? "disque rayé, steelbook cabossé" : "cartouche ou disque rayé, étiquette de cartouche décollée ou déchirée, contacts oxydés"}, notice abîmée.
+Exemples : plastique transparent du boîtier abîmé ou déchiré (celui qui tient la jaquette), boîtier fendu, cassé ou ergot d'attache cassé, jaquette pliée, froissée, déchirée, gondolée ou tachée, coin écrasé, autocollant ou étiquette de prix collé, reste de colle, ${film ? "disque rayé, steelbook cabossé" : "cartouche ou disque rayé, étiquette de cartouche décollée ou déchirée, contacts oxydés"}, notice abîmée.
 Ne compte PAS le décor d'origine (illustrations, logos, bandeau, texte imprimé, PEGI), ni un reflet, une ombre, la mise au point ou le fond de la photo. ${CERTAIN}
+Écris chaque défaut avec des mots simples qu'un acheteur comprend tout de suite, sans jargon ni image forte (« plastique abîmé », pas « film déchiré en lambeaux ») ; situe-le par rapport à ce que l'acheteur voit et manipule (« près de l'ouverture de la boîte », « coin en haut à droite », « au dos »), jamais par un terme technique comme « charnière ».
 "gravite" : « leger » pour une petite trace qu'il faut chercher, « marque » pour un défaut qu'on voit tout de suite sur la photo, « grave » pour une casse ou une déchirure qui abîme nettement l'objet.
-Réponds uniquement par un objet JSON : {"defauts": [{"photo": 3, "texte": "film plastique du boîtier déchiré le long de la jaquette", "gravite": "marque"}]}, "texte" en 4 à 12 mots en français, sans point final ; {"defauts": []} s'il n'y en a aucun.` }], { max: 1800, timeout: 70000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
+Réponds uniquement par un objet JSON : {"defauts": [{"photo": 3, "texte": "plastique abîmé près de l'ouverture de la boîte", "gravite": "marque"}]}, "texte" en 4 à 12 mots en français, sans point final ; {"defauts": []} s'il n'y en a aucun.` }], { max: 1800, timeout: 70000, brut: true, trace, model: process.env.CLAUDE_MODEL_FORT || "claude-sonnet-5-5" });
   return lireDefauts(o, n);
 }
 export async function legender(photos, v = {}, trace = null, progres = () => {}) {
