@@ -227,17 +227,25 @@ struct Grille: View {
     var body: some View {
         VStack(spacing: 0) {
             EnTete(titre: titre, sousTitre: articles.isEmpty ? "" : "\(articles.count) article\(articles.count > 1 ? "s" : "")") {
+                // Trier, Grouper et la présentation (tuiles ou liste) : trois commandes bien visibles, comme sur le site.
                 Menu {
                     Picker("Trier", selection: $appli.tri) {
                         Text("Plus récents").tag("recent"); Text("Plus anciens").tag("ancien"); Text("Prix décroissant").tag("prix_d")
                         Text("Prix croissant").tag("prix_c"); Text("Nom (A → Z)").tag("nom"); Text("Plus rares d'abord").tag("rarete")
                     }.pickerStyle(.inline)
+                } label: { Label("Trier", systemImage: "arrow.up.arrow.down") }
+                .menuStyle(.button).boutonVerre().fixedSize().help("Trier les articles")
+                Menu {
                     Picker("Grouper", selection: $appli.groupe) {
                         Text("Sans groupe").tag(""); Text("Par support").tag("console"); Text("Par catégorie").tag("categorie")
                         Text("Par statut").tag("statut"); Text("Par rareté").tag("rarete")
                     }.pickerStyle(.inline)
-                } label: { Label("Trier", systemImage: "arrow.up.arrow.down") }
-                .menuStyle(.button).boutonVerre().fixedSize().help("Trier et grouper les articles")
+                } label: { Label(appli.groupe.isEmpty ? "Grouper" : "Groupés", systemImage: "square.stack.3d.up") }
+                .menuStyle(.button).boutonVerre().fixedSize().help("Grouper les articles par support, catégorie, statut ou rareté")
+                Picker("Présentation", selection: $appli.affichage) {
+                    Image(systemName: "square.grid.2x2").help("En tuiles").tag("tuiles")
+                    Image(systemName: "list.bullet").help("En liste").tag("liste")
+                }.pickerStyle(.segmented).labelsHidden().fixedSize().help("Présentation en tuiles ou en liste")
                 if !(filtre == nil || filtre == "en_vente") || appli.articles.filter({ appli.libre($0) && $0.statut != "retire" }).count < 2 {
                     Button { appli.commencerChoix() } label: { Label("Composer un lot", systemImage: "shippingbox") }.boutonVerre().disabled(appli.choix != nil)
                 }
@@ -267,8 +275,12 @@ struct Grille: View {
                                         Text("\(g.articles.count) article\(g.articles.count > 1 ? "s" : "")\(tot > 0 ? " · " + Libelles.prix(tot) : "")").font(.callout).foregroundStyle(.secondary)
                                     }
                                 }
-                                LazyVGrid(columns: colonnes, alignment: .leading, spacing: 22) {
-                                    ForEach(g.articles) { a in CarteArticle(appli: appli, article: a) }
+                                if appli.affichage == "liste" {
+                                    LazyVStack(spacing: 8) { ForEach(g.articles) { a in LigneArticle(appli: appli, article: a) } }
+                                } else {
+                                    LazyVGrid(columns: colonnes, alignment: .leading, spacing: 22) {
+                                        ForEach(g.articles) { a in CarteArticle(appli: appli, article: a) }
+                                    }
                                 }
                             }
                         }
@@ -424,6 +436,56 @@ struct CarteArticle: View {
         let noms = ["colissimo": "Colissimo", "mondial_relay": "Mondial Relay", "relais_colis": "Relais Colis", "chronopost": "Chronopost", "dpd": "DPD", "ups": "UPS", "gls": "GLS", "lettre_suivie": "Lettre suivie"]
         let t = !article.livreLe.isEmpty ? "Livré le " + dateCourte(article.livreLe) : !article.suiviLibelle.isEmpty ? "En route" : article.statut == "envoye" ? "Suivi en cours" : "Numéro noté"
         return [noms[article.transporteur] ?? "", t].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+/// Un article en liste : petite photo, titre, support, rareté, vues, prix et statut sur une seule ligne.
+struct LigneArticle: View {
+    @ObservedObject var appli: Appli
+    let article: Article
+    @State private var survol = false
+    private var choisi: Bool { appli.choix?.contains(article.id) ?? false }
+    private var grise: Bool { appli.choix != nil && !appli.libre(article) }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            if appli.choix != nil, !article.estLot {
+                Image(systemName: choisi ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .semibold)).foregroundStyle(choisi ? Color.rrAccent : Color.secondary)
+            }
+            Color.clear.frame(width: 56, height: 56).overlay { Vignette(article: article) }.clipShape(RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(article.titre).font(.headline).lineLimit(1)
+                    if article.estLot { Text("LOT ×\(appli.membres(article).count)").font(.system(size: 10, weight: .heavy, design: .monospaced)).foregroundStyle(.white).padding(.horizontal, 6).padding(.vertical, 3).background(Capsule().fill(Color.rrAccent)) }
+                }
+                HStack(spacing: 8) {
+                    Text(article.estLot ? "\(appli.membres(article).count) articles" + (article.plateforme.isEmpty ? "" : " · " + article.plateforme) : article.ligne)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    StatsCarte(article: article).lineLimit(1).fixedSize()
+                }
+            }
+            Spacer(minLength: 8)
+            BadgeRarete(article: article)
+            Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize().frame(minWidth: 70, alignment: .trailing)
+            if appli.choix == nil { BoutonStatut(appli: appli, article: article).frame(minWidth: 120, alignment: .trailing) }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(choisi || survol ? Color.rrAccent.opacity(0.7) : Color.primary.opacity(0.08), lineWidth: choisi || survol ? 2 : 1))
+        .opacity(grise ? 0.45 : 1)
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onHover { survol = $0 }
+        .onTapGesture {
+            if appli.choix != nil { if !article.estLot { appli.basculerChoix(article) } }
+            else { appli.selection = article.id }
+        }
+        .contextMenu {
+            Button("Ouvrir la fiche") { appli.selection = article.id }
+            Menu("Statut") { ForEach(Libelles.ordreStatuts, id: \.self) { s in Button(Libelles.statut(s)) { Task { await appli.changerStatut(article, s) } }.disabled(s == article.statut) } }
+            if !article.estLot, !article.publiee { Button("Déposer sur Le Bon Coin") { appli.deposer(article) }.disabled(article.statut != "en_vente") }
+            if article.publiee { Button("Voir l'annonce Le Bon Coin") { appli.fenetre?.voirAnnonce(article) } }
+        }
+        .help(article.titre)
     }
 }
 

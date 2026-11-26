@@ -225,6 +225,7 @@ struct Profil: Equatable {
     var quotaMax: Int? = nil, quotaUtilise = 0, emailOk = true, emailEnAttente = ""
     var fiscal = false, abonnement = "", statutAbonnement = "", finAbonnement = "", resiliation = false, paiement = false, client = false
     var usageLbc = 0
+    var vendeur: [String: String] = [:]   // profil de vendeur : rythme, remise, echanges, prix, ton, note (comme sur le site)
     init() {}
     init(_ d: [String: Any]) {
         email = d["email"] as? String ?? ""; nom = d["nom"] as? String ?? email; avatar = d["avatar"] as? String ?? ""
@@ -232,6 +233,7 @@ struct Profil: Equatable {
         emailOk = d["emailOk"] as? Bool ?? true; emailEnAttente = d["emailEnAttente"] as? String ?? ""
         paiement = d["paiement"] as? Bool ?? false; client = d["client"] as? Bool ?? false
         usageLbc = ((d["usage"] as? [String: Any])?["lbc"] as? NSNumber)?.intValue ?? 0
+        vendeur = (d["vendeur"] as? [String: Any] ?? [:]).compactMapValues { $0 as? String }
         if let f = d["formule"] as? [String: Any] {
             formule = f["nom"] as? String ?? formule; formuleId = f["id"] as? String ?? formuleId
             fiscal = f["fiscal"] as? Bool ?? false; abonnement = f["abonnement"] as? String ?? ""
@@ -425,6 +427,8 @@ final class Appli: ObservableObject {
     // Liste, comme sur le site : tri et regroupement (gardés), idées de lots, composition d'un lot, recherche (⌘K)
     @Published var tri = UserDefaults.standard.string(forKey: "tri") ?? "recent" { didSet { UserDefaults.standard.set(tri, forKey: "tri") } }
     @Published var groupe = UserDefaults.standard.string(forKey: "groupe") ?? "" { didSet { UserDefaults.standard.set(groupe, forKey: "groupe") } }
+    /// Présentation des articles : « tuiles » (cartes avec grande photo) ou « liste » (une ligne par article).
+    @Published var affichage = UserDefaults.standard.string(forKey: "affichage") ?? "tuiles" { didSet { UserDefaults.standard.set(affichage, forKey: "affichage") } }
     @Published var idees: [IdeeLot] = []
     @Published var ideesIA = false
     @Published var ideesCharge = false
