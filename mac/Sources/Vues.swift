@@ -357,7 +357,7 @@ struct Niveau {
     let xp: Int, niv: Int, de: Int, a: Int
     var nom: String { Niveau.nom(niv) }
     var part: CGFloat { a > de ? CGFloat(xp - de) / CGFloat(a - de) : 0 }
-    init(_ appli: Appli, trophees: [Trophees.T]) {
+    @MainActor init(_ appli: Appli, trophees: [Trophees.T]) {
         let l = appli.articles.filter { !$0.estLot }, v = l.filter(\.vendu)   // comme le site : les lots ne comptent qu'à part
         let eur = v.reduce(0) { $0 + min(100, max(0, Int(($1.prixVente ?? 0).rounded()))) }
         var x = l.count * 10 + l.filter { !$0.photos.isEmpty }.count * 5 + l.filter { $0.statut != "retire" }.count * 10
