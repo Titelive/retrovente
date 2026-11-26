@@ -685,7 +685,9 @@ struct Fiche: View {
                         ajoutEnCours -= 1
                     }
                     recharger()
-                    aRetirerDePhotos += envoyees
+                    // Notées tout de suite (elles sont déjà sur la fiche) : avant, elles n'étaient notées qu'au clic sur
+                    // « Enregistrer », et une seule photo du Zelda sur huit avait été retirée de Photos après la publication.
+                    Phototheque.noter(envoyees, pour: article.id)
                 }
             }
             if !article.photos.isEmpty { outilsPhoto }
