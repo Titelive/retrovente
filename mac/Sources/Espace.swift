@@ -348,6 +348,7 @@ struct MonCompte: View {
                                 .boutonVerre().disabled(ancien.isEmpty || nouveau.count < 8)
                         }
                     }
+                    ProfilVendeur(appli: appli, info: $info)
                     carte("Le Bon Coin", "bolt.fill") {
                         let branche = !(Stockage.partage.texte("cle") ?? "").isEmpty
                         Text(branche ? LocalizedStringKey("**Branché** : remplissage du dépôt et réponses IA aux acheteurs actifs.") : "Pas encore branché.").font(.callout)
@@ -406,4 +407,65 @@ struct MonCompte: View {
         guard o.runModal() == .OK, let u = o.url, let i = NSImage(contentsOf: u), let d = jpegData(i, max: 256, poids: 110_000) else { return }
         Task { if await appli.modifierProfil(["avatar": d]) { info = "Photo de profil changée." } }
     }
+}
+
+
+/// « Mon profil de vendeur », comme sur le site (même champ « vendeur » du compte) : l'IA s'en sert pour les réponses
+/// aux acheteurs (ton, négociation, main propre ou envoi) et pour le prix plancher des offres.
+struct ProfilVendeur: View {
+    @ObservedObject var appli: Appli
+    @Binding var info: String
+    @State private var choix: [String: String] = [:]
+    @State private var note = ""
+    private static let questions: [(cle: String, titre: String, symbole: String, options: [(String, String)])] = [
+        ("rythme", "Ton rythme", "hourglass", [("patient", "Patient, j'attends le bon prix"), ("equilibre", "Entre les deux"), ("rapide", "Besoin de vendre vite")]),
+        ("remise", "Pour la remise", "hand.raised", [("main_propre", "Main propre de préférence"), ("les_deux", "Les deux me vont"), ("envoi", "Envoi de préférence")]),
+        ("echanges", "Les échanges", "arrow.left.arrow.right", [("oui", "Ouvert aux échanges"), ("non", "Pas d'échange, vente seulement")]),
+        ("prix", "Tes prix", "tag", [("souple", "Je négocie volontiers"), ("raisonnable", "Un petit geste, pas plus"), ("ferme", "Prix ferme, pas de marchandage")]),
+        ("ton", "Le ton de tes messages", "bubble.left", [("diplomate", "Très diplomate et affable"), ("chaleureux", "Chaleureux et passionné"), ("direct", "Direct et efficace"), ("humour", "Avec une touche d'humour")]),
+    ]
+    private var modifie: Bool {
+        var a = appli.profil.vendeur; a["note"] = nil
+        return a != choix || note != (appli.profil.vendeur["note"] ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label { Text("Mon profil de vendeur").font(.headline) } icon: { Image(systemName: "person.text.rectangle").foregroundStyle(Color.rrAccent) }
+            Label { Text("L'IA s'en sert pour te proposer des **réponses aux acheteurs qui te ressemblent** : ton ton, ta façon de négocier, la main propre ou l'envoi.") }
+                icon: { Image(systemName: "sparkles").foregroundStyle(Color.rrAccent) }
+                .font(.callout).padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.rrAccent.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+            ForEach(Self.questions, id: \.cle) { q in
+                VStack(alignment: .leading, spacing: 8) {
+                    Label { Text(q.titre).font(.subheadline.weight(.semibold)) } icon: { Image(systemName: q.symbole).foregroundStyle(.secondary) }
+                    HStack(spacing: 8) {
+                        ForEach(q.options, id: \.0) { o in
+                            let pris = choix[q.cle] == o.0
+                            Button { choix[q.cle] = pris ? nil : o.0 } label: {
+                                Label { Text(o.1) } icon: { if pris { Image(systemName: "checkmark") } }
+                                    .font(.callout.weight(pris ? .semibold : .regular))
+                                    .padding(.horizontal, 12).padding(.vertical, 7)
+                                    .foregroundStyle(pris ? Color.white : Color.primary)
+                                    .background(Capsule().fill(pris ? Color.rrAccent : Color.primary.opacity(0.06)))
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("**Autre chose que l'IA doit savoir ?** (facultatif)").font(.subheadline)
+                TextField("ex. Pas d'envoi le dimanche, rendez-vous possible à la gare de Metz", text: $note, axis: .vertical)
+                    .lineLimit(2...4).textFieldStyle(.roundedBorder)
+            }
+            Button("Enregistrer mon profil") {
+                var v: [String: Any] = choix; v["note"] = note
+                Task { if await appli.modifierProfil(["vendeur": v]) { info = "Profil de vendeur enregistré : l'IA en tient compte dans ses réponses."; lire() } }
+            }.boutonVerre(principal: true).disabled(!modifie)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).verre(RoundedRectangle(cornerRadius: 22))
+        .onAppear(perform: lire)
+        .onChange(of: appli.profil) { _ in lire() }
+    }
+    private func lire() { var a = appli.profil.vendeur; note = a["note"] ?? ""; a["note"] = nil; choix = a }
 }
