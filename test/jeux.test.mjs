@@ -83,3 +83,16 @@ test("genres en français, nom japonais retiré du descriptif", async () => {
   assert.deepEqual(v.genres, ["Quiz", "Jeu de société", "Plateforme"]);
   assert.equal(v.description, "Mario Party est un jeu vidéo.");
 });
+
+// Défaut vu sur les photos (Zelda Echoes of Wisdom : film plastique du boîtier déchiré) : état, cote et annonce suivent.
+test("défauts vus sur les photos : état au mieux et décote", async () => {
+  const ia = await import("../server/ia.mjs");
+  const d = ia.lireDefauts({ defauts: [{ photo: 3, texte: "Film plastique du boîtier déchiré.", gravite: "marque" }, { photo: 12, texte: "hors photos", gravite: "leger" }, { photo: 1, texte: "", gravite: "grave" }] }, 8);
+  assert.deepEqual(d, [{ photo: 3, texte: "film plastique du boîtier déchiré", gravite: "marque" }]);
+  assert.equal(ia.pireEtat("tres_bon", ia.ETAT_DEFAUT.marque), "bon");
+  assert.equal(ia.pireEtat("correct", ia.ETAT_DEFAUT.leger), "correct");
+  const c = ia.coteDefauts({ bas: 30.9, haut: 35.8, conseille: 34, rapide: 31, probable: 33, resume: "", methode: "" }, ia.lireDefautsFiche(d));
+  assert.deepEqual([c.conseille, c.rapide, c.bas, c.haut], [29, 26, 26, 30]);
+  assert.match(c.resume, /film plastique du boîtier déchiré.*15 %/);
+  assert.equal(ia.coteDefauts({ conseille: 34 }, []).conseille, 34);
+});

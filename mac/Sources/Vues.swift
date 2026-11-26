@@ -446,6 +446,21 @@ struct Fiche: View {
         if let e = r.etat { article.etat = e }
         // Chaque photo garde sa légende (même ordre que les photos envoyées).
         for (i, l) in r.legendes.enumerated() where i < article.photos.count && !l.isEmpty { article.photos[i].legende = l }
+        // Défauts vus sur les photos : la cote est refaite en en tenant compte, et un prix demandé égal à l'ancien
+        // prix conseillé suit le nouveau (un prix tapé à la main n'est jamais touché).
+        if let d = r.defauts, d != article.defauts {
+            article.defauts = d
+            if article.cote != nil {
+                let suit = article.prixDemande == nil || article.prixDemande == article.cote?.conseille
+                var b = article; if suit { b.prixDemande = nil }
+                if let n = await appli.estimerCote(b), article.id == avant.id {
+                    article.cote = n.cote; if suit { article.prixDemande = n.prixDemande }
+                    original = n
+                    if !d.isEmpty { appli.message = "Défaut vu sur les photos : \(d.map(\.texte).joined(separator: ", ")). État, cote et prix ajustés." }
+                    return
+                }
+            }
+        }
         // Rédaction automatique d'une fiche sans autre modification en cours : enregistrée tout de suite.
         if !forcer, avant == original, let n = await appli.enregistrer(article) { article = n; original = n }
     }
