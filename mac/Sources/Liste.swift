@@ -254,8 +254,8 @@ struct Grille: View {
                 Button { appli.nouveauOuvert = true } label: { Label("Nouvel article", systemImage: "plus") }.boutonVerre(principal: true).keyboardShortcut("n").help("Nouvel article (⌘N)")
             }
             ScrollView {
-                // Pile paresseuse : seules les cartes visibles (et leurs photos) sont construites pendant le défilement.
-                LazyVStack(alignment: .leading, spacing: 26) {
+                // Pile simple : la grille (ou la liste) en dessous est paresseuse, seules les cartes visibles sont construites.
+                VStack(alignment: .leading, spacing: 26) {
                     if appli.choix == nil, filtre == nil || filtre == "en_vente" { AccueilTableau(appli: appli); IdeesLots(appli: appli) }
                     if articles.isEmpty {
                         VStack(spacing: 12) {
@@ -267,27 +267,22 @@ struct Grille: View {
                             }
                         }.frame(maxWidth: .infinity).padding(.top, 80)
                     } else {
-                        ForEach(appli.grouper(articles)) { g in
-                            VStack(alignment: .leading, spacing: 14) {
-                                if !g.nom.isEmpty {
-                                    let tot = g.articles.reduce(0) { $0 + ($1.prixAffiche ?? 0) }
-                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                        // Groupé par statut : l'icône et la couleur du statut, comme dans le menu de statut.
-                                        if appli.groupe == "statut", let st = Appli.groupesStatut.first(where: { $0.value == g.nom })?.key {
-                                            let c = Libelles.couleursStatut(st)
-                                            Image(systemName: Libelles.symboleStatut(st)).font(.system(size: 13, weight: .bold)).foregroundStyle(c.texte)
-                                                .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 7).fill(c.fond)).alignmentGuide(.firstTextBaseline) { d in d[.bottom] - 6 }
-                                        }
-                                        Text(g.nom).font(.title3.weight(.heavy))
-                                        Text("\(g.articles.count) article\(g.articles.count > 1 ? "s" : "")\(tot > 0 ? " · " + Libelles.prix(tot) : "")").font(.callout).foregroundStyle(.secondary)
-                                    }
+                        // Une seule grille (ou une seule liste) paresseuse, les groupes en sections : avant, chaque groupe avait
+                        // sa propre grille paresseuse DANS une pile paresseuse, et la hauteur estimée des groupes faisait sauter
+                        // le défilement (la page repartait en arrière en faisant défiler).
+                        let gs = appli.grouper(articles)
+                        if appli.affichage == "liste" {
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                ForEach(gs) { g in
+                                    Section { ForEach(g.articles) { a in LigneArticle(appli: appli, article: a, choix: appli.choix) } }
+                                    header: { enteteGroupe(g) }
                                 }
-                                if appli.affichage == "liste" {
-                                    LazyVStack(spacing: 8) { ForEach(g.articles) { a in LigneArticle(appli: appli, article: a) } }
-                                } else {
-                                    LazyVGrid(columns: colonnes, alignment: .leading, spacing: 22) {
-                                        ForEach(g.articles) { a in CarteArticle(appli: appli, article: a) }
-                                    }
+                            }
+                        } else {
+                            LazyVGrid(columns: colonnes, alignment: .leading, spacing: 22) {
+                                ForEach(gs) { g in
+                                    Section { ForEach(g.articles) { a in carte(a) } }
+                                    header: { enteteGroupe(g) }
                                 }
                             }
                         }
@@ -300,16 +295,45 @@ struct Grille: View {
         .onAppear { appli.majIdees() }
         .onChange(of: appli.articles) { _ in appli.majIdees() }
     }
+
+    /// Carte avec ce qu'elle affiche déjà calculé : elle n'observe plus toute l'app, et n'est redessinée que si
+    /// son article, son lot ou la composition d'un lot changent (pas à chaque petit changement ailleurs).
+    private func carte(_ a: Article) -> some View {
+        let m = a.estLot ? appli.membres(a) : []
+        return CarteArticle(appli: appli, article: a, choix: appli.choix, lotsActifs: appli.lotsActifs(a).map(\.titre),
+                            nbMembres: m.count, sommeMembres: m.reduce(0) { $0 + ($1.valeur ?? 0) })
+    }
+    @ViewBuilder private func enteteGroupe(_ g: GroupeArticles) -> some View {
+        if !g.nom.isEmpty {
+            let tot = g.articles.reduce(0) { $0 + ($1.prixAffiche ?? 0) }
+            HStack(alignment: .center, spacing: 10) {
+                // Groupé par statut : l'icône et la couleur du statut, comme dans le menu de statut.
+                if appli.groupe == "statut", let st = Appli.groupesStatut.first(where: { $0.value == g.nom })?.key {
+                    let c = Libelles.couleursStatut(st)
+                    Image(systemName: Libelles.symboleStatut(st)).font(.system(size: 13, weight: .bold)).foregroundStyle(c.texte)
+                        .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 7).fill(c.fond))
+                }
+                Text(g.nom).font(.title3.weight(.heavy))
+                Text("\(g.articles.count) article\(g.articles.count > 1 ? "s" : "")\(tot > 0 ? " · " + Libelles.prix(tot) : "")").font(.callout).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 14).padding(.bottom, 2)
+        }
+    }
 }
 
 /// Carte d'un article ou d'un lot, comme sur le site.
 struct CarteArticle: View {
-    @ObservedObject var appli: Appli
+    let appli: Appli   // pour les actions seulement : la carte n'observe pas l'app (voir Grille.carte)
     let article: Article
+    let choix: [String]?
+    let lotsActifs: [String]       // titres des lots où l'article est proposé
+    let nbMembres: Int
+    let sommeMembres: Double
     @State private var survol = false
 
-    private var choisi: Bool { appli.choix?.contains(article.id) ?? false }
-    private var grise: Bool { appli.choix != nil && !appli.libre(article) }
+    private var choisi: Bool { choix?.contains(article.id) ?? false }
+    private var grise: Bool { choix != nil && !appli.libre(article) }
     private var teinte: (fond: Color, trait: Color)? {
         switch article.statut {
         case "vendu": return (Color.green.opacity(0.14), Color.green.opacity(0.7))
@@ -331,14 +355,14 @@ struct CarteArticle: View {
         // Ombre portée par une simple forme derrière la carte : bien moins coûteuse à dessiner pendant le défilement
         // qu'une ombre calculée sur tout le contenu (photo, étiquettes, textes).
         .background(RoundedRectangle(cornerRadius: 20).fill(Color(nsColor: .controlBackgroundColor))
-            .shadow(color: .black.opacity(survol ? 0.18 : 0.07), radius: survol ? 14 : 5, y: survol ? 8 : 3))
+            .shadow(color: .black.opacity(0.08), radius: 5, y: 3))   // ombre fixe : la recalculer au survol saccadait le défilement
         .scaleEffect(survol && !grise ? 1.015 : 1)
         .opacity(grise ? 0.45 : 1)
         .animation(.spring(response: 0.25, dampingFraction: 0.8), value: survol)
         .contentShape(RoundedRectangle(cornerRadius: 20))
         .onHover { survol = $0 }
         .onTapGesture {
-            if appli.choix != nil { if !article.estLot { appli.basculerChoix(article) } }
+            if choix != nil { if !article.estLot { appli.basculerChoix(article) } }
             else { appli.selection = article.id }
         }
         .contextMenu {
@@ -380,17 +404,17 @@ struct CarteArticle: View {
 
     @ViewBuilder private var etiquetteHaut: some View {
         if article.estLot {
-            Etiquette(texte: "LOT ×\(appli.membres(article).count)", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
-        } else if appli.choix == nil, !appli.lotsActifs(article).isEmpty {
-            let n = appli.lotsActifs(article).count
+            Etiquette(texte: "LOT ×\(nbMembres)", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
+        } else if choix == nil, !lotsActifs.isEmpty {
+            let n = lotsActifs.count
             Etiquette(texte: n > 1 ? "DANS \(n) LOTS" : "AUSSI EN LOT", symbole: "shippingbox", fond: .rrAccent, texteCouleur: .white, pixel: true)
-                .help("Aussi dans " + appli.lotsActifs(article).map { "« \($0.titre) »" }.joined(separator: ", "))
-        } else if appli.choix == nil, appli.petitPrix(article), article.statut == "en_vente" {
+                .help("Aussi dans " + lotsActifs.map { "« \($0) »" }.joined(separator: ", "))
+        } else if choix == nil, appli.petitPrix(article), article.statut == "en_vente" {
             Etiquette(texte: "Idéal en lot", symbole: nil, fond: .white, texteCouleur: .rrAccent, pixel: false)
         }
     }
     @ViewBuilder private var coinHaut: some View {
-        if appli.choix != nil, !article.estLot {
+        if choix != nil, !article.estLot {
             Image(systemName: choisi ? "checkmark.circle.fill" : "circle").font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(choisi ? Color.rrAccent : Color.white).shadow(radius: 3)
         } else if article.vendu {
@@ -403,7 +427,7 @@ struct CarteArticle: View {
 
     private var sousTitre: String {
         if article.estLot {
-            let n = appli.membres(article).count
+            let n = nbMembres
             let th = !article.themeNom.isEmpty && article.themeType != "support" && article.themeType != "petits prix" ? article.themeNom : ""
             return ["\(n) article\(n > 1 ? "s" : "")", article.plateforme, th].filter { !$0.isEmpty }.joined(separator: " · ")
         }
@@ -427,13 +451,13 @@ struct CarteArticle: View {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize()
                     if article.estLot, !article.vendu, let px = article.prixAffiche {
-                        let som = appli.membres(article).reduce(0) { $0 + ($1.valeur ?? 0) }
+                        let som = sommeMembres
                         // Prix barré : seulement s'il tient sans repousser la pastille de statut.
                         if som > px { Text(Libelles.prix(som.rounded())).font(.caption).strikethrough().foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1) }
                     }
                 }
                 Spacer(minLength: 4)
-                if appli.choix == nil { BoutonStatut(appli: appli, article: article) }
+                if choix == nil { BoutonStatut(appli: appli, article: article) }
             }
         }.padding(12)
     }
@@ -448,25 +472,26 @@ struct CarteArticle: View {
 
 /// Un article en liste : petite photo, titre, support, rareté, vues, prix et statut sur une seule ligne.
 struct LigneArticle: View {
-    @ObservedObject var appli: Appli
+    let appli: Appli   // pour les actions seulement : la ligne n'observe pas l'app
     let article: Article
+    let choix: [String]?
     @State private var survol = false
-    private var choisi: Bool { appli.choix?.contains(article.id) ?? false }
-    private var grise: Bool { appli.choix != nil && !appli.libre(article) }
+    private var choisi: Bool { choix?.contains(article.id) ?? false }
+    private var grise: Bool { choix != nil && !appli.libre(article) }
 
     var body: some View {
         HStack(spacing: 14) {
-            if appli.choix != nil, !article.estLot {
+            if choix != nil, !article.estLot {
                 Image(systemName: choisi ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .semibold)).foregroundStyle(choisi ? Color.rrAccent : Color.secondary)
             }
             Color.clear.frame(width: 56, height: 56).overlay { Vignette(article: article) }.clipShape(RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(article.titre).font(.headline).lineLimit(1)
-                    if article.estLot { Text("LOT ×\(appli.membres(article).count)").font(.system(size: 10, weight: .heavy, design: .monospaced)).foregroundStyle(.white).padding(.horizontal, 6).padding(.vertical, 3).background(Capsule().fill(Color.rrAccent)) }
+                    if article.estLot { Text("LOT ×\((article.membres?.count ?? 0))").font(.system(size: 10, weight: .heavy, design: .monospaced)).foregroundStyle(.white).padding(.horizontal, 6).padding(.vertical, 3).background(Capsule().fill(Color.rrAccent)) }
                 }
                 HStack(spacing: 8) {
-                    Text(article.estLot ? "\(appli.membres(article).count) articles" + (article.plateforme.isEmpty ? "" : " · " + article.plateforme) : article.ligne)
+                    Text(article.estLot ? "\((article.membres?.count ?? 0)) articles" + (article.plateforme.isEmpty ? "" : " · " + article.plateforme) : article.ligne)
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     StatsCarte(article: article).lineLimit(1).fixedSize()
                 }
@@ -474,7 +499,7 @@ struct LigneArticle: View {
             Spacer(minLength: 8)
             BadgeRarete(article: article)
             Text(Libelles.prix(article.prixAffiche)).font(.title3.weight(.heavy).monospacedDigit()).lineLimit(1).fixedSize().frame(minWidth: 70, alignment: .trailing)
-            if appli.choix == nil { BoutonStatut(appli: appli, article: article).frame(minWidth: 120, alignment: .trailing) }
+            if choix == nil { BoutonStatut(appli: appli, article: article).frame(minWidth: 120, alignment: .trailing) }
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .controlBackgroundColor)))
@@ -483,7 +508,7 @@ struct LigneArticle: View {
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { survol = $0 }
         .onTapGesture {
-            if appli.choix != nil { if !article.estLot { appli.basculerChoix(article) } }
+            if choix != nil { if !article.estLot { appli.basculerChoix(article) } }
             else { appli.selection = article.id }
         }
         .contextMenu {
