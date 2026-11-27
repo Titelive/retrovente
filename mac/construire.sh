@@ -39,8 +39,14 @@ done
 iconutil -c icns "$SET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$SET"
 
-# Signature « ad hoc » (sans compte Apple) : obligatoire pour lancer l'app sur Apple Silicon.
-codesign --force --deep --sign - "$APP"
+# Signature : « Developer ID » quand SIGNATURE donne l'identité (GitHub, avec le certificat de Titelive), avec le
+# « runtime renforcé » et l'horodatage demandés par la notarisation d'Apple ; sinon « ad hoc » (sans compte Apple),
+# le minimum pour lancer l'app sur Apple Silicon.
+if [ -n "${SIGNATURE:-}" ]; then
+  codesign --force --options runtime --timestamp --sign "$SIGNATURE" "$APP"
+else
+  codesign --force --deep --sign - "$APP"
+fi
 codesign --verify --deep --strict "$APP"
 
 ditto -c -k --keepParent "$APP" "$SORTIE/RetroRevente-mac.zip"
