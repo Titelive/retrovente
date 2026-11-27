@@ -1956,7 +1956,11 @@
       var t = (n.nodeValue || "").replace(/[ \t ]+/g, " ").trim(), e = n.parentElement;
       if (!t || !e || !visible(e) || (hote && hote.contains(e))) continue;
       if (z && (z === e || z.contains(e))) continue;
-      if (e.closest("button, [role=button], form, textarea, [contenteditable]")) continue;
+      if (e.closest("textarea, [contenteditable]")) continue;
+      // Libellé de bouton (« Accepter », « Refuser ») : écarté. Une carte d'offre cliquable, elle, est un vrai message.
+      var bt = e.closest("button, [role=button]"); if (bt && (bt.innerText || "").trim().length < 40) continue;
+      // Formulaire de saisie (petit, autour de la zone de réponse) : écarté ; un formulaire qui englobe le fil, non.
+      var fm = e.closest("form"); if (fm && (!z || fm.contains(z)) && fm.getBoundingClientRect().height < cr.height * 0.4) continue;
       if (sugg.some(function (b) { return b.contains(e); })) continue;
       var b = bulleDe(e, col), r = b.getBoundingClientRect(); if (!r.width) continue;
       var g = r.left - cr.left, d = cr.right - r.right;
@@ -1981,6 +1985,14 @@
       if (ls.length === 1 && norm(ls[0]) === norm(acheteurLu())) return false;
       return true;
     });
+    // Rien trouvé bulle par bulle (mise en page inconnue, carte d'offre seule) : on garde le texte de la conversation,
+    // paragraphe par paragraphe, plutôt qu'un fil vide.
+    if (!out.length) {
+      var brut = texteConversation().split("[Conversation]\n").pop();
+      out = brut.split(/\n{2,}/).map(function (p) { return p.split("\n").map(function (l) { return l.trim(); }).filter(function (l) { return l && !lignesListe[norm(l)] && !DATE_ENTREE.test(l); }).join("\n"); })
+        .filter(function (t) { return t && !FICHE.test(t) && norm(t) !== norm(acheteurLu()); })
+        .map(function (t) { return { cote: "lui", texte: t, meta: "" }; });
+    }
     return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(), bloque: bloque,
              messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
   }
