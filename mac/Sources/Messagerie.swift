@@ -231,7 +231,9 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         }
         if ouverte != nil, let f = r["fil"] as? [String: Any] {
             let n = purger(FilLbc(f))
-            if n.cle == fil.cle, n != fil {
+            // Une relecture vide (page encore en train de charger) n'efface jamais un fil déjà affiché.
+            let vide: (FilLbc) -> Bool = { !$0.messages.contains(where: { $0.genre != .heure }) }
+            if n.cle == fil.cle, n != fil, !(vide(n) && !vide(fil)) {
                 let nouveau = n.messages.count != fil.messages.count
                 fil = n
                 if nouveau && !n.dernierMoi { reponses = []; Task { await proposer() } }
