@@ -79,8 +79,10 @@ jobs:
             mac/build/RetroRevente-mac.zip
             mac/build/capture-*.png
           if-no-files-found: warn
+      # Seulement une app signée Developer ID et notarisée : une compilation « ad hoc » (sans certificat dans les secrets)
+      # n'écrase jamais la version signée publiée depuis le Mac de Titelive (mac/publier-mise-a-jour.sh).
       - name: Publier l'app (GitHub Releases) pour l'installation
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: steps.signature.outputs.identite != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

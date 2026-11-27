@@ -1,5 +1,6 @@
 // La barre du haut : verre neutre, icônes au trait bleues (accent du système), onglet actif en pastille bleue.
 import AppKit
+import QuartzCore
 
 enum Charte {
     static func rvb(_ hex: UInt32, _ a: CGFloat = 1) -> NSColor {
@@ -34,6 +35,10 @@ final class Bouton: NSView {
     private let action: () -> Void
     private let icone = NSImageView()
     private let texte: NSTextField?
+    private var pile: NSStackView!
+    /// Menu du bouton (clic droit, ⌃clic ou clic sur le petit chevron), par ex. Automatique / Clair / Sombre.
+    private var fabriqueMenu: (() -> NSMenu)?
+    private var chevron: NSImageView?
     private var survol = false { didSet { needsDisplay = true } }
     private var appui = false { didSet { needsDisplay = true } }
     var actif = false { didSet { majCouleurs(); needsDisplay = true } }
@@ -48,7 +53,7 @@ final class Bouton: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         icone.image = Charte.symbole(symbole)
         icone.imageScaling = .scaleProportionallyDown
-        let pile = NSStackView(views: [icone] + (texte.map { [$0] } ?? []))
+        pile = NSStackView(views: [icone] + (texte.map { [$0] } ?? []))
         pile.orientation = .horizontal; pile.spacing = 7
         pile.edgeInsets = NSEdgeInsets(top: 0, left: texte == nil ? 7 : 12, bottom: 0, right: texte == nil ? 7 : 14)
         pile.translatesAutoresizingMaskIntoConstraints = false
@@ -103,16 +108,49 @@ final class Bouton: NSView {
         trackingAreas.forEach(removeTrackingArea)
         addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
     }
-    /// Change l'icône (bouton clair / sombre).
-    func changerSymbole(_ nom: String, aide: String) { icone.image = Charte.symbole(nom); toolTip = aide; majCouleurs() }
+    /// Change l'icône (bouton clair / sombre), avec un petit fondu enchaîné du symbole.
+    func changerSymbole(_ nom: String, aide: String) {
+        if icone.image != nil, window != nil, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            icone.wantsLayer = true
+            let t = CATransition(); t.type = .fade; t.duration = 0.25
+            icone.layer?.add(t, forKey: "symbole")
+        }
+        icone.image = Charte.symbole(nom); toolTip = aide; majCouleurs()
+    }
+    /// Ajoute un menu au bouton : petit chevron à droite de l'icône, clic droit ou ⌃clic.
+    func ajouterMenu(_ fabrique: @escaping () -> NSMenu) {
+        fabriqueMenu = fabrique
+        let c = NSImageView()
+        c.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 8, weight: .bold))
+        c.contentTintColor = .secondaryLabelColor
+        c.translatesAutoresizingMaskIntoConstraints = false
+        c.widthAnchor.constraint(equalToConstant: 9).isActive = true
+        pile.spacing = 3
+        pile.addArrangedSubview(c)
+        chevron = c
+    }
+    private func ouvrirMenu() {
+        guard let m = fabriqueMenu?() else { return }
+        _ = m.popUp(positioning: nil, at: NSPoint(x: 0, y: isFlipped ? bounds.maxY + 4 : -4), in: self)
+    }
+    override func rightMouseDown(with event: NSEvent) { if fabriqueMenu != nil { ouvrirMenu() } else { super.rightMouseDown(with: event) } }
+    override func accessibilityPerformShowMenu() -> Bool { if fabriqueMenu != nil { ouvrirMenu(); return true }; return false }
     /// Appelé quand la souris arrive sur le bouton (barre latérale : elle s'aperçoit au survol).
     var auSurvol: (() -> Void)?
     override func mouseEntered(with event: NSEvent) { survol = true; auSurvol?() }
     override func mouseExited(with event: NSEvent) { survol = false; appui = false }
     override func mouseDown(with event: NSEvent) { if disponible { appui = true } }
     override func mouseUp(with event: NSEvent) {
-        let dedans = bounds.contains(convert(event.locationInWindow, from: nil))
-        if appui && dedans { action() }
+        let p = convert(event.locationInWindow, from: nil)
+        let dedans = bounds.contains(p)
+        if appui && dedans {
+            // Le chevron (ou ⌃clic) ouvre le menu ; ailleurs, le clic fait l'action en un geste.
+            if fabriqueMenu != nil, event.modifierFlags.contains(.control) || (chevron.map { p.x >= $0.frame.minX + pile.frame.minX - 3 } ?? false) {
+                appui = false; ouvrirMenu(); return
+            }
+            action()
+        }
         appui = false
     }
     override var mouseDownCanMoveWindow: Bool { false }

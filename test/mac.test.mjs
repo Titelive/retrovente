@@ -37,3 +37,30 @@ test("vues et favoris : l'app embarque stats.js et stats-page.js, valides seuls 
   for (const f of ["stats.js", "stats-page.js"]) assert.match(c, new RegExp("extension/" + f.replace(".", "\\.")), f + " absent de construire.sh");
   assert.match(lire("mac/Sources/Stats.swift"), /Extension\.texte\("stats\.js"\)/);
 });
+
+test("améliorations communes aux apps de Titelive : signature, thème, mises à jour titelive.me, tickets, macOS 27.3", () => {
+  const s = (f) => lire("mac/Sources/" + f);
+  // Signature en verre en bas à gauche, avec la photo de Titelive intégrée au code.
+  assert.match(s("Vues.swift"), /\.titeliveSignature\(appName: "RetroRevente"/);
+  assert.match(s("TiteliveSignature.swift"), /buymeacoffee\.com\/titelive/);
+  assert.match(s("TiteliveAvatar.swift"), /base64 = """/);
+  // Bouton de thème en un clic, avec le menu Automatique / Clair / Sombre et ⇧⌘L.
+  assert.match(s("Fenetre.swift"), /ajouterMenu/);
+  assert.match(s("Fenetre.swift"), /circle\.lefthalf\.filled/);
+  // Mises à jour : titelive.me d'abord, et seulement une app de la même équipe Apple.
+  assert.match(s("MiseAJour.swift"), /"https:\/\/titelive\.me\/retrorevente\/telecharger\/"/);
+  assert.match(s("MiseAJour.swift"), /equipe\(app\) == moi/);
+  assert.match(lire("mac/publier-mise-a-jour.sh"), /retrorevente\/telecharger/);
+  // Signature Developer ID, runtime renforcé, notarisation et droits (Photos).
+  const c = lire("mac/construire.sh"), p = lire("mac/publier-mise-a-jour.sh");
+  assert.match(c, /--options runtime --timestamp --entitlements mac\/RetroRevente\.entitlements/);
+  assert.match(lire("mac/RetroRevente.entitlements"), /photos-library/);
+  assert.match(p, /Developer ID Application: Julien Schouller \(FGXU3MTVF3\)/);
+  assert.match(p, /notarytool submit .*--keychain-profile/);
+  assert.match(p, /stapler staple/);
+  assert.match(p, /spctl -a -vv/);
+  // Tickets sur titelive.me et explication de l'écran d'accès complet de macOS 27.3.
+  assert.match(s("main.swift"), /titelive\.me\/retrorevente\/tickets\//);
+  assert.match(s("Autorisations.swift"), /Allow System & App Protection Override/);
+  assert.match(s("Autorisations.swift"), /clique \*\*Annuler\*\*/);
+});

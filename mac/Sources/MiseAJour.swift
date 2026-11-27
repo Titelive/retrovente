@@ -1,12 +1,16 @@
 // Mises à jour automatiques : l'app regarde au lancement puis toutes les 6 heures si une version plus récente est publiée
-// (GitHub Releases, canal « mac »), la télécharge en arrière-plan, vérifie sa signature, puis propose de redémarrer.
+// sur titelive.me (comme les autres apps de Titelive ; GitHub Releases en secours), la télécharge en arrière-plan,
+// vérifie sa signature Developer ID (même équipe Apple que l'app installée), puis propose de redémarrer.
 // Si tu choisis « Plus tard », elle s'installe quand tu quittes l'app. Plus besoin de la commande dans Terminal.
+// Menu RetroRevente : « Rechercher les mises à jour… », « Rechercher automatiquement », « Installer automatiquement ».
 import AppKit
 
 @MainActor
 final class MiseAJour {
     static let shared = MiseAJour()
-    private static let base = "https://github.com/Titelive/retrovente/releases/download/mac/"
+    /// Où sont publiées les versions : titelive.me d'abord (mac/publier-mise-a-jour.sh), GitHub Releases en secours
+    /// (versions publiées avant le passage à titelive.me). Chaque dossier contient version.txt et RetroRevente-mac.zip.
+    static let sources = ["https://titelive.me/retrorevente/telecharger/", "https://github.com/Titelive/retrovente/releases/download/mac/"]
     private var prete: (version: String, app: URL)?
     private var enCours = false
     private var proposee = ""
@@ -14,10 +18,30 @@ final class MiseAJour {
 
     var versionActuelle: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0" }
 
+    // Réglages (menu RetroRevente), activés par défaut comme dans toutes les apps de Titelive.
+    var rechercheAuto: Bool {
+        get { UserDefaults.standard.object(forKey: "majRechercheAuto") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "majRechercheAuto"); programmer() }
+    }
+    var installationAuto: Bool {
+        get { UserDefaults.standard.object(forKey: "majInstallationAuto") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "majInstallationAuto") }
+    }
+    private(set) var derniereVerification: Date? {
+        get { UserDefaults.standard.object(forKey: "majDerniereVerification") as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: "majDerniereVerification") }
+    }
+
     func demarrer() {
         // Mode démo (captures du build) : pas de mise à jour.
         guard ProcessInfo.processInfo.environment["RR_DEMO"] == nil else { return }
+        programmer()
+        guard rechercheAuto else { return }
         Task { try? await Task.sleep(nanoseconds: 20_000_000_000); await verifier(manuel: false) }
+    }
+    private func programmer() {
+        minuterie?.invalidate(); minuterie = nil
+        guard rechercheAuto else { return }
         minuterie = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in
             Task { @MainActor in await MiseAJour.shared.verifier(manuel: false) }
         }
@@ -33,25 +57,46 @@ final class MiseAJour {
         return false
     }
 
+    /// Dernière version publiée : la première source qui répond (titelive.me, puis GitHub).
+    private func derniereVersion() async throws -> (version: String, base: String) {
+        var derniere: Error = URLError(.badServerResponse)
+        for base in Self.sources {
+            do {
+                var req = URLRequest(url: URL(string: base + "version.txt")!)
+                req.cachePolicy = .reloadIgnoringLocalCacheData
+                let (d, rep) = try await URLSession.shared.data(for: req)
+                let v = String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                if (rep as? HTTPURLResponse)?.statusCode == 200, v.range(of: #"^\d+(\.\d+)*$"#, options: .regularExpression) != nil {
+                    return (v, base)
+                }
+            } catch { derniere = error }
+        }
+        throw derniere
+    }
+
     func verifier(manuel: Bool) async {
         if let p = prete { if manuel { proposer(p.version, forcer: true) }; return }
         guard !enCours else { return }
         enCours = true; defer { enCours = false }
         do {
-            var req = URLRequest(url: URL(string: Self.base + "version.txt")!)
-            req.cachePolicy = .reloadIgnoringLocalCacheData
-            let (d, rep) = try await URLSession.shared.data(for: req)
-            let v = String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard (rep as? HTTPURLResponse)?.statusCode == 200, v.range(of: #"^\d+(\.\d+)*$"#, options: .regularExpression) != nil,
-                  Self.plusRecente(v, que: versionActuelle) else {
+            let (v, base) = try await derniereVersion()
+            derniereVerification = Date()
+            guard Self.plusRecente(v, que: versionActuelle) else {
                 if manuel { informer("RetroRevente est à jour", "Tu as la dernière version (\(versionActuelle)).") }
                 return
+            }
+            // « Installer automatiquement » coupé : on demande avant de télécharger.
+            let demande = !manuel && !installationAuto
+            if demande {
+                guard proposee != v else { return }
+                proposee = v
+                guard demander("RetroRevente \(v) est disponible", "Tu as la version \(versionActuelle). Télécharger et installer la nouvelle version ?", "Installer") else { return }
             }
             let fm = FileManager.default
             let dossier = fm.temporaryDirectory.appendingPathComponent("RetroRevente-maj-\(v)")
             try? fm.removeItem(at: dossier)
             try fm.createDirectory(at: dossier, withIntermediateDirectories: true)
-            let (tmp, rz) = try await URLSession.shared.download(from: URL(string: Self.base + "RetroRevente-mac.zip")!)
+            let (tmp, rz) = try await URLSession.shared.download(from: URL(string: base + "RetroRevente-mac.zip")!)
             guard (rz as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             let zip = dossier.appendingPathComponent("RetroRevente.zip")
             try fm.moveItem(at: tmp, to: zip)
@@ -64,7 +109,7 @@ final class MiseAJour {
                 return
             }
             prete = (v, app)
-            proposer(v, forcer: manuel)
+            proposer(v, forcer: manuel || demande)
         } catch {
             NSLog("RetroRevente mise à jour : %@", String(describing: error))
             if manuel { informer("Mise à jour impossible pour le moment", "Vérifie ta connexion à Internet et réessaie.") }
@@ -139,6 +184,12 @@ final class MiseAJour {
             NSApp.terminate(nil)
         }
         return true
+    }
+
+    private func demander(_ titre: String, _ texte: String, _ bouton: String) -> Bool {
+        let a = NSAlert(); a.messageText = titre; a.informativeText = texte
+        a.addButton(withTitle: bouton); a.addButton(withTitle: "Plus tard")
+        return a.runModal() == .alertFirstButtonReturn
     }
 
     private func informer(_ titre: String, _ texte: String) {

@@ -4,7 +4,7 @@ import AppKit
 import UserNotifications
 
 @MainActor
-final class Delegue: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class Delegue: NSObject, NSApplicationDelegate, NSMenuItemValidation, UNUserNotificationCenterDelegate {
     var fenetre: Fenetre!
 
     func applicationDidFinishLaunching(_ n: Notification) {
@@ -13,10 +13,31 @@ final class Delegue: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         UNUserNotificationCenter.current().delegate = self
         fenetre.montrerFenetre()
         MiseAJour.shared.demarrer()
+        // macOS 27.3 : une fois, l'explication « Autoriser sans tout ouvrir » (cliquer Annuler sur l'écran d'accès complet).
+        Autorisations.montrerUneFoisSiBesoin()
     }
     // Mise à jour téléchargée mais pas encore installée (« Plus tard ») : elle s'installe à la fermeture.
     func applicationWillTerminate(_ n: Notification) { MiseAJour.shared.installer(relancer: false) }
     @objc func chercherMiseAJour(_ s: Any?) { Task { await MiseAJour.shared.verifier(manuel: true) } }
+    @objc func basculerRechercheAuto(_ s: Any?) { MiseAJour.shared.rechercheAuto.toggle() }
+    @objc func basculerInstallationAuto(_ s: Any?) { MiseAJour.shared.installationAuto.toggle() }
+    /// Tickets publics (bugs, idées, questions) sur titelive.me, comme pour les autres apps de Titelive.
+    @objc func ouvrirTickets(_ s: Any?) { NSWorkspace.shared.open(URL(string: "https://titelive.me/retrorevente/tickets/")!) }
+    @objc func ouvrirSiteRetroRevente(_ s: Any?) { NSWorkspace.shared.open(URL(string: "https://retrorevente.fr")!) }
+    @objc func ouvrirTitelive(_ s: Any?) { NSWorkspace.shared.open(URL(string: "https://titelive.me")!) }
+    @objc func montrerAutorisations(_ s: Any?) { Autorisations.montrer() }
+
+    // Coches des réglages de mise à jour dans le menu RetroRevente.
+    @objc func validateMenuItem(_ i: NSMenuItem) -> Bool {
+        switch i.action {
+        case #selector(basculerRechercheAuto(_:))?: i.state = MiseAJour.shared.rechercheAuto ? .on : .off
+        case #selector(basculerInstallationAuto(_:))?:
+            i.state = MiseAJour.shared.installationAuto ? .on : .off
+            return MiseAJour.shared.rechercheAuto
+        default: break
+        }
+        return true
+    }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows: Bool) -> Bool { fenetre.montrerFenetre(); return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
 
@@ -29,7 +50,8 @@ final class Delegue: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     }
 
     @objc func aPropos(_ s: Any?) {
-        let credits = NSAttributedString(string: "L'appli RetroRevente et Le Bon Coin réunis.\nExtension intégrée : version \(Extension.version).",
+        let verif = MiseAJour.shared.derniereVerification.map { "Dernière recherche de mise à jour : " + $0.formatted(date: .abbreviated, time: .shortened) + "." } ?? ""
+        let credits = NSAttributedString(string: "L'appli RetroRevente et Le Bon Coin réunis.\nExtension intégrée : version \(Extension.version).\n\(verif)\nCréé par Titelive · titelive.me",
                                          attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor])
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
         NSApp.activate(ignoringOtherApps: true)
@@ -53,7 +75,9 @@ enum Menus {
         let sep = { NSMenuItem.separator() }
         _ = menu("RetroRevente", [
             item("À propos de RetroRevente", #selector(Delegue.aPropos(_:)), "", [], NSApp.delegate as AnyObject),
-            item("Rechercher les mises à jour…", #selector(Delegue.chercherMiseAJour(_:)), "", [], NSApp.delegate as AnyObject), sep(),
+            item("Rechercher les mises à jour…", #selector(Delegue.chercherMiseAJour(_:)), "", [], NSApp.delegate as AnyObject),
+            item("Rechercher automatiquement les mises à jour", #selector(Delegue.basculerRechercheAuto(_:)), "", [], NSApp.delegate as AnyObject),
+            item("Installer automatiquement les mises à jour", #selector(Delegue.basculerInstallationAuto(_:)), "", [], NSApp.delegate as AnyObject), sep(),
             item("Masquer RetroRevente", #selector(NSApplication.hide(_:)), "h"),
             item("Masquer les autres", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
             item("Tout afficher", #selector(NSApplication.unhideAllApplications(_:))), sep(),
@@ -97,6 +121,13 @@ enum Menus {
             item("RetroRevente", #selector(Fenetre.afficherFenetre(_:)), "0", [.command, .option], f),
         ])
         NSApp.windowsMenu = fen
+        let aide = menu("Aide", [
+            item("Signaler un bug ou proposer une idée…", #selector(Delegue.ouvrirTickets(_:)), "", [], NSApp.delegate as AnyObject),
+            item("Autoriser sans tout ouvrir (macOS 27.3)…", #selector(Delegue.montrerAutorisations(_:)), "", [], NSApp.delegate as AnyObject), sep(),
+            item("Site de RetroRevente", #selector(Delegue.ouvrirSiteRetroRevente(_:)), "", [], NSApp.delegate as AnyObject),
+            item("Les apps de Titelive (titelive.me)", #selector(Delegue.ouvrirTitelive(_:)), "", [], NSApp.delegate as AnyObject),
+        ])
+        NSApp.helpMenu = aide
         return barre
     }
 }
