@@ -15,11 +15,45 @@ concurrency:
 jobs:
   construire:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      # Certificat « Developer ID Application » de Titelive (secrets du dépôt) : importé dans un trousseau jetable.
+      # Sans ces secrets, l'app reste signée « ad hoc » comme avant.
+      - name: Préparer la signature Apple
+        id: signature
+        env:
+          MAC_CERTIFICAT_P12: ${{ secrets.MAC_CERTIFICAT_P12 }}
+          MAC_CERTIFICAT_MDP: ${{ secrets.MAC_CERTIFICAT_MDP }}
+        run: |
+          if [ -z "$MAC_CERTIFICAT_P12" ]; then echo "Pas de certificat : signature ad hoc."; exit 0; fi
+          TR="$RUNNER_TEMP/signature.keychain-db"; MDP=$(openssl rand -hex 16)
+          echo "$MAC_CERTIFICAT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$MDP" "$TR"
+          security set-keychain-settings -lut 3600 "$TR"
+          security unlock-keychain -p "$MDP" "$TR"
+          security import "$RUNNER_TEMP/cert.p12" -k "$TR" -P "$MAC_CERTIFICAT_MDP" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$MDP" "$TR" >/dev/null
+          security list-keychains -d user -s "$TR" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          ID=$(security find-identity -v -p codesigning "$TR" | grep -o '"Developer ID Application:[^"]*"' | head -1 | tr -d '"')
+          [ -n "$ID" ] || { echo "Aucune identité « Developer ID Application » dans le certificat."; exit 1; }
+          echo "identite=$ID" >> "$GITHUB_OUTPUT"
       - name: Fabriquer RetroRevente.app
-        run: BUILD=${{ github.run_number }} sh mac/construire.sh
+        run: BUILD=${{ github.run_number }} SIGNATURE="${{ steps.signature.outputs.identite }}" sh mac/construire.sh
+      # Notarisation par Apple puis « agrafage » du ticket : l'app s'ouvre sans aucun avertissement de macOS.
+      - name: Notariser l'app
+        if: steps.signature.outputs.identite != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_MDP_APP: ${{ secrets.APPLE_MDP_APP }}
+          APPLE_EQUIPE: ${{ secrets.APPLE_EQUIPE }}
+        run: |
+          xcrun notarytool submit mac/build/RetroRevente-mac.zip --apple-id "$APPLE_ID" --password "$APPLE_MDP_APP" --team-id "$APPLE_EQUIPE" --wait --timeout 15m
+          xcrun stapler staple mac/build/RetroRevente.app
+          rm mac/build/RetroRevente-mac.zip
+          ditto -c -k --keepParent mac/build/RetroRevente.app mac/build/RetroRevente-mac.zip
+          spctl --assess --type execute -vv mac/build/RetroRevente.app
       - name: Vérifier l'app
         run: |
           lipo -info mac/build/RetroRevente.app/Contents/MacOS/RetroRevente
@@ -51,7 +85,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$GITHUB_REF" = refs/heads/main ]; then TAG=mac; TITRE="RetroRevente pour Mac"; PRE=""; else TAG=mac-essai; TITRE="RetroRevente pour Mac (essai)"; PRE="--prerelease"; fi
-          NOTES="Installer ou mettre à jour : dans Terminal, curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/mac/installer.sh | sh"
+          NOTES="Installer : dans Terminal, curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/mac/installer.sh | sh"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TITRE" $PRE --target "$GITHUB_SHA" --notes "$NOTES"
           gh release upload "$TAG" mac/build/RetroRevente-mac.zip --clobber
+          # Après l'app : l'app installée lit ce numéro pour savoir qu'une mise à jour l'attend.
+          tr -d ' \n' < mac/VERSION > mac/build/version.txt
+          gh release upload "$TAG" mac/build/version.txt --clobber
           for f in mac/build/capture-*.png; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber; done; true

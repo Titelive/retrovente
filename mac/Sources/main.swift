@@ -12,7 +12,11 @@ final class Delegue: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         NSApp.mainMenu = Menus.principal(cible: fenetre)
         UNUserNotificationCenter.current().delegate = self
         fenetre.montrerFenetre()
+        MiseAJour.shared.demarrer()
     }
+    // Mise à jour téléchargée mais pas encore installée (« Plus tard ») : elle s'installe à la fermeture.
+    func applicationWillTerminate(_ n: Notification) { MiseAJour.shared.installer(relancer: false) }
+    @objc func chercherMiseAJour(_ s: Any?) { Task { await MiseAJour.shared.verifier(manuel: true) } }
     func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows: Bool) -> Bool { fenetre.montrerFenetre(); return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
 
@@ -48,7 +52,8 @@ enum Menus {
         }
         let sep = { NSMenuItem.separator() }
         _ = menu("RetroRevente", [
-            item("À propos de RetroRevente", #selector(Delegue.aPropos(_:)), "", [], NSApp.delegate as AnyObject), sep(),
+            item("À propos de RetroRevente", #selector(Delegue.aPropos(_:)), "", [], NSApp.delegate as AnyObject),
+            item("Rechercher les mises à jour…", #selector(Delegue.chercherMiseAJour(_:)), "", [], NSApp.delegate as AnyObject), sep(),
             item("Masquer RetroRevente", #selector(NSApplication.hide(_:)), "h"),
             item("Masquer les autres", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
             item("Tout afficher", #selector(NSApplication.unhideAllApplications(_:))), sep(),
