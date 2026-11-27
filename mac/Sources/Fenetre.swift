@@ -394,8 +394,34 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
             NSApp.appearance = nouvelle
             NSAnimationContext.runAnimationGroup({ c in c.duration = 0.35; voile.animator().alphaValue = 0 }, completionHandler: { voile.removeFromSuperview() })
         } else { NSApp.appearance = nouvelle }
+        // L'icône dit le choix : soleil (Clair), lune (Sombre), demi-cercle (Automatique, comme macOS).
         let sombre = sombreAffiche
-        boutonApparence?.changerSymbole(sombre ? "sun.max" : "moon", aide: sombre ? "Passer en mode clair (⇧⌘L)" : "Passer en mode sombre (⇧⌘L)")
+        let symbole = choix == "sombre" ? "moon.fill" : choix == "clair" ? "sun.max.fill" : "circle.lefthalf.filled"
+        let etat = choix == "sombre" ? "Sombre" : choix == "clair" ? "Clair" : "Automatique"
+        boutonApparence?.changerSymbole(symbole, aide: "Apparence : \(etat). Clic : passer en mode \(sombre ? "clair" : "sombre") (⇧⌘L) ; clic droit ou chevron : Automatique, Clair, Sombre")
+        boutonApparence?.setAccessibilityLabel("Apparence : \(etat)")
+    }
+    @objc func choisirApparence(_ s: NSMenuItem) {
+        let v = s.representedObject as? String
+        if let v { UserDefaults.standard.set(v, forKey: "apparence") } else { UserDefaults.standard.removeObject(forKey: "apparence") }
+        appliquerApparence()
+    }
+    /// Menu Automatique / Clair / Sombre du bouton de thème (le choix actuel est coché).
+    func menuApparence() -> NSMenu {
+        let m = NSMenu(title: "Apparence")
+        let choix = UserDefaults.standard.string(forKey: "apparence")
+        for (titre, valeur, symbole) in [("Automatique", nil, "circle.lefthalf.filled"), ("Clair", "clair", "sun.max.fill"), ("Sombre", "sombre", "moon.fill")] as [(String, String?, String)] {
+            let i = NSMenuItem(title: titre, action: #selector(choisirApparence(_:)), keyEquivalent: "")
+            i.target = self; i.representedObject = valeur
+            i.image = NSImage(systemSymbolName: symbole, accessibilityDescription: nil)
+            i.state = choix == valeur ? .on : .off
+            m.addItem(i)
+        }
+        m.addItem(.separator())
+        let b = NSMenuItem(title: "Basculer en mode clair / sombre", action: #selector(basculerApparence(_:)), keyEquivalent: "l")
+        b.keyEquivalentModifierMask = [.command, .shift]; b.target = self
+        m.addItem(b)
+        return m
     }
     private var margeFeux: NSLayoutConstraint!
 
@@ -421,7 +447,8 @@ final class Fenetre: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDeleg
         recharger = Bouton(symbole: "arrow.clockwise", titre: nil, aide: "Recharger la page (⌘R)") { [weak self] in self?.rechargerPage(nil) }
         boutonCompte = Bouton(symbole: "person.crop.circle", titre: nil, aide: "Mon compte RetroRevente (⇧⌘K)") { [weak self] in self?.afficherCompte(nil) }
         var rubriques: NSView = pile(boutons, espace: 4)
-        boutonApparence = Bouton(symbole: "moon", titre: nil, aide: "") { [weak self] in self?.basculerApparence(nil) }
+        boutonApparence = Bouton(symbole: "circle.lefthalf.filled", titre: nil, aide: "") { [weak self] in self?.basculerApparence(nil) }
+        boutonApparence.ajouterMenu { [weak self] in self?.menuApparence() ?? NSMenu() }
         appliquerApparence()
         cloche = Cloche(fenetre: self)
         var droite: NSView = pile([cloche.bouton, boutonApparence, precedent, suivant, recharger], espace: 2)

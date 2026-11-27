@@ -194,19 +194,13 @@ struct Accueil: View {
             .listStyle(.sidebar)
             // Fond neutre : la barre latérale de macOS prend sinon la teinte du fond d'écran (beige sur un fond orangé).
             .scrollContentBackground(.hidden)
+            // En bas : la carte du compte, puis la signature en verre (icône, « par Titelive », café),
+            // comme dans toutes les apps de Titelive. La liste s'efface en fondu au-dessus, rien n'est recouvert.
+            .titeliveSignature(appName: "RetroRevente", appSite: URL(string: "https://retrorevente.fr")) {
+                CarteCompte(appli: appli, actif: filtre == "@compte").padding([.horizontal, .top], 10)
+            }
             .background(ZStack { Color.rrFond; Color.rrSurface }.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 200, ideal: 230)
-            .safeAreaInset(edge: .bottom) {
-                VStack(alignment: .leading, spacing: 8) {
-                    CarteCompte(appli: appli, actif: filtre == "@compte")
-                    // Le logo, tout en bas à gauche de la barre latérale, sous le compte.
-                    HStack(spacing: 7) {
-                        Image(nsImage: NSApp.applicationIconImage ?? NSImage()).resizable().frame(width: 22, height: 22)
-                        (Text("Retro") + Text("Revente").foregroundColor(.rrAccent)).font(.system(size: 14, weight: .bold))
-                    }
-                    .padding(.horizontal, 8).accessibilityHidden(true)
-                }.padding(10)
-            }
             .onHover { dedans in
                 // Ouverte au survol : elle se referme quand la souris la quitte.
                 dansPanneau = dedans

@@ -42,12 +42,15 @@ rm -rf "$SET"
 # Signature : « Developer ID » quand SIGNATURE donne l'identité (GitHub, avec le certificat de Titelive), avec le
 # « runtime renforcé » et l'horodatage demandés par la notarisation d'Apple ; sinon « ad hoc » (sans compte Apple),
 # le minimum pour lancer l'app sur Apple Silicon.
+# Droits (mac/RetroRevente.entitlements) : l'accès à Photos, refusé sinon par le runtime renforcé.
 if [ -n "${SIGNATURE:-}" ]; then
-  codesign --force --options runtime --timestamp --sign "$SIGNATURE" "$APP"
+  case "$SIGNATURE" in "Developer ID Application:"*) ;; *) echo "❌ SIGNATURE doit être une identité « Developer ID Application » (reçu : $SIGNATURE)." >&2; exit 1 ;; esac
+  codesign --force --options runtime --timestamp --entitlements mac/RetroRevente.entitlements --sign "$SIGNATURE" "$APP"
 else
   codesign --force --deep --sign - "$APP"
 fi
 codesign --verify --deep --strict "$APP"
+if [ -n "${SIGNATURE:-}" ]; then codesign -dv "$APP" 2>&1 | grep -E "^(Authority=Developer ID Application|TeamIdentifier=)"; fi
 
 ditto -c -k --keepParent "$APP" "$SORTIE/RetroRevente-mac.zip"
 echo "Prêt : $APP (version $VERSION, build $BUILD) et $SORTIE/RetroRevente-mac.zip"

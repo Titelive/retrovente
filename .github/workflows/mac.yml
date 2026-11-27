@@ -64,8 +64,10 @@ jobs:
         continue-on-error: true
         run: |
           APP=mac/build/RetroRevente.app
-          for demo in appli articles tous sansbarre fiche fichelot depot adresse choixdepot messages gestion nouveau trophees bilan compte deposer; do
-            case $demo in trophees|bilan|compte|tous) open --env RR_DEMO=articles --env RR_DEMO_PAGE=$demo "$APP" ;; sansbarre) open --env RR_DEMO=articles --env RR_DEMO_BARRE=cachee "$APP" ;; *) open --env RR_DEMO=$demo "$APP" ;; esac
+          for demo in appli articles sombre tous sansbarre fiche fichelot depot adresse choixdepot messages gestion nouveau trophees bilan compte deposer; do
+            # « sombre » : Mes articles en mode sombre (choix mémorisé de l'app), puis retour à l'apparence automatique.
+            if [ $demo = sombre ]; then defaults write fr.retrorevente.mac apparence sombre; else defaults delete fr.retrorevente.mac apparence 2>/dev/null || true; fi
+            case $demo in trophees|bilan|compte|tous) open --env RR_DEMO=articles --env RR_DEMO_PAGE=$demo "$APP" ;; sansbarre) open --env RR_DEMO=articles --env RR_DEMO_BARRE=cachee "$APP" ;; sombre) open --env RR_DEMO=articles "$APP" ;; *) open --env RR_DEMO=$demo "$APP" ;; esac
             case $demo in appli|deposer) sleep 22 ;; *) sleep 7 ;; esac
             pgrep -x RetroRevente
             screencapture -x mac/build/capture-$demo.png
@@ -79,8 +81,10 @@ jobs:
             mac/build/RetroRevente-mac.zip
             mac/build/capture-*.png
           if-no-files-found: warn
+      # Seulement une app signée Developer ID et notarisée : une compilation « ad hoc » (sans certificat dans les secrets)
+      # n'écrase jamais la version signée publiée depuis le Mac de Titelive (mac/publier-mise-a-jour.sh).
       - name: Publier l'app (GitHub Releases) pour l'installation
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: steps.signature.outputs.identite != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -91,4 +95,12 @@ jobs:
           # Après l'app : l'app installée lit ce numéro pour savoir qu'une mise à jour l'attend.
           tr -d ' \n' < mac/VERSION > mac/build/version.txt
           gh release upload "$TAG" mac/build/version.txt --clobber
+      # Captures (lancement manuel) : publiées même sans signature, pour voir une version en cours sans télécharger l'app.
+      - name: Publier les captures
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then TAG=mac; else TAG=mac-essai; fi
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "RetroRevente pour Mac (essai)" --prerelease --target "$GITHUB_SHA" --notes "Captures et versions d'essai."
           for f in mac/build/capture-*.png; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber; done; true

@@ -3,11 +3,13 @@
 #   curl -fsSL https://raw.githubusercontent.com/Titelive/retrovente/main/mac/installer.sh | sh
 # Version d'essai (celle d'une PR en cours) : … | RR_CANAL=mac-essai sh
 set -eu
+# Version publiée : titelive.me (signée Developer ID et notarisée), GitHub Releases en secours.
 CANAL=${RR_CANAL:-mac}
-URL="https://github.com/Titelive/retrovente/releases/download/$CANAL/RetroRevente-mac.zip"
+GITHUB="https://github.com/Titelive/retrovente/releases/download/$CANAL/RetroRevente-mac.zip"
 TMP=$(mktemp -d)
 echo "Téléchargement de RetroRevente pour Mac…"
-curl -fL --progress-bar "$URL" -o "$TMP/RetroRevente.zip"
+if [ "$CANAL" = mac ] && curl -fL --progress-bar "https://titelive.me/retrorevente/telecharger/RetroRevente-mac.zip" -o "$TMP/RetroRevente.zip"; then :
+else curl -fL --progress-bar "$GITHUB" -o "$TMP/RetroRevente.zip"; fi
 ditto -x -k "$TMP/RetroRevente.zip" "$TMP"
 osascript -e 'tell application "RetroRevente" to quit' >/dev/null 2>&1 || true
 # Attendre que l'ancienne version soit bien fermée (sinon macOS refuse de rouvrir l'app : erreur -600).
