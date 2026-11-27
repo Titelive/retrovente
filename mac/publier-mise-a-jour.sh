@@ -20,10 +20,15 @@ cd "$(dirname "$0")/.."
 IDENTITE="${IDENTITE:-Developer ID Application: Julien Schouller (FGXU3MTVF3)}"
 EQUIPE="FGXU3MTVF3"
 NOTARY_PROFILE="${NOTARY_PROFILE:-titelive-notary}"
-SITE="${SITE:-$HOME/Documents/GitHub/titelive}"
+# Copie du site réservée aux publications (le dossier titelive habituel peut contenir du travail en cours).
+SITE="${SITE:-$HOME/Documents/GitHub/titelive-publication}"
 PUBLIER="${PUBLIER:-1}"
-APP=mac/build/RetroRevente.app
-ZIP=mac/build/RetroRevente-mac.zip
+# Compilation hors du dossier du dépôt : si celui-ci est dans Documents synchronisé par iCloud Drive, ses attributs
+# étendus sur l'app font refuser la signature (« resource fork, Finder information, or similar detritus not allowed »).
+export SORTIE="$(mktemp -d)/build"
+trap 'rm -rf "$(dirname "$SORTIE")"' EXIT
+APP="$SORTIE/RetroRevente.app"
+ZIP="$SORTIE/RetroRevente-mac.zip"
 VERSION=$(tr -d ' \n' < mac/VERSION)
 
 echo "▸ RetroRevente $VERSION"
@@ -52,18 +57,19 @@ spctl -a -vv --type execute "$APP" 2>&1 | tee /dev/stderr | grep -q "source=Nota
 EQUIPE_APP=$(codesign -dv "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')
 [ "$EQUIPE_APP" = "$EQUIPE" ] || { echo "❌ Team ID $EQUIPE_APP au lieu de $EQUIPE : les autorisations ne suivraient pas. Rien n'est publié." >&2; exit 1; }
 xcrun stapler validate "$APP"
-printf '%s\n' "$VERSION" > mac/build/version.txt
+printf '%s\n' "$VERSION" > "$SORTIE/version.txt"
 echo "✓ RetroRevente $VERSION signée, notarisée et agrafée : $ZIP"
 
 [ "$PUBLIER" = 1 ] || { echo "PUBLIER=0 : rien n'est publié."; exit 0; }
 
 # --- titelive.me ---------------------------------------------------------------------------------------------
-[ -d "$SITE/.git" ] || { echo "❌ Dépôt du site introuvable dans $SITE (SITE=… pour en donner un autre)." >&2; exit 1; }
+[ -d "$SITE/.git" ] || git clone -q --depth 50 https://github.com/Titelive/titelive.git "$SITE"
+[ -z "$(git -C "$SITE" status --porcelain)" ] || { echo "❌ $SITE contient des modifications non commitées : rien n'est publié sur le site." >&2; exit 1; }
 BRANCHE="retrorevente-mac-$VERSION-$BUILD"
 git -C "$SITE" fetch -q origin main
 git -C "$SITE" switch -q -c "$BRANCHE" origin/main
 mkdir -p "$SITE/retrorevente/telecharger"
-cp "$ZIP" mac/build/version.txt "$SITE/retrorevente/telecharger/"
+cp "$ZIP" "$SORTIE/version.txt" "$SITE/retrorevente/telecharger/"
 git -C "$SITE" add retrorevente/telecharger/RetroRevente-mac.zip retrorevente/telecharger/version.txt
 git -C "$SITE" commit -q -m "RetroRevente pour Mac $VERSION : mise à jour signée et notarisée"
 git -C "$SITE" push -q -u origin "$BRANCHE"
@@ -79,7 +85,7 @@ git -C "$SITE" switch -q -
 if command -v gh >/dev/null; then
   gh release view mac -R Titelive/retrovente >/dev/null 2>&1 || gh release create mac -R Titelive/retrovente --title "RetroRevente pour Mac" --notes "Installer : curl -fsSL https://raw.githubusercontent.com/Titelive/retrovente/main/mac/installer.sh | sh"
   gh release upload mac -R Titelive/retrovente "$ZIP" --clobber
-  gh release upload mac -R Titelive/retrovente mac/build/version.txt --clobber
+  gh release upload mac -R Titelive/retrovente "$SORTIE/version.txt" --clobber
   echo "✓ Release GitHub « mac » mise à jour."
 else
   echo "⚠︎ gh absent : la release GitHub « mac » n'est pas mise à jour (les apps déjà installées ne la verront pas)."
