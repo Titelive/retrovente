@@ -6,7 +6,7 @@
 # est reprise au prochain build de l'app.
 set -eu
 cd "$(dirname "$0")/.."
-SORTIE=mac/build
+SORTIE=${SORTIE:-mac/build}   # dossier de sortie (publier-mise-a-jour.sh en prend un hors iCloud Drive)
 APP="$SORTIE/RetroRevente.app"
 VERSION=$(tr -d ' \n' < mac/VERSION)
 BUILD=${BUILD:-1}
