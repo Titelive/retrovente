@@ -476,6 +476,9 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
         if let e = r["erreur"] as? String { iaErreur = e; return }
         resume = r["resume"] as? String ?? ""
         reponses = (r["reponses"] as? [[String: Any]] ?? []).map { ReponseIA(approche: $0["approche"] as? String ?? "", titre: $0["titre"] as? String ?? "", texte: $0["texte"] as? String ?? "") }
+        // Message par défaut fixé par le vendeur (acheteur sans avis) : déjà dans la zone de réponse, rien n'est envoyé.
+        if brouillon.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let f = (r["reponses"] as? [[String: Any]])?.first(where: { $0["fixe"] as? Bool == true })?["texte"] as? String { brouillon = f }
     }
 
     /// Seulement sur le clic « Envoyer » : écrit le message dans Le Bon Coin (caché) et clique son bouton d'envoi.

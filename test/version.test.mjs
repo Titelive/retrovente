@@ -86,9 +86,12 @@ test("acheteur sans avis : repéré d'après l'encadré, avec un refus poli tout
   assert.equal(acheteurSansAvis(CONV), true);   // Mathsangor : « Membre depuis août 2021 », aucune note
   assert.equal(acheteurSansAvis("[Annonce concernée]\ncarter054\n5 (4)\nPerfect Dark\n20 €\n\n[Conversation]\nÀ propos de cet acheteur\nMoselle\nMembre depuis novembre 2015\nDispo ?"), false);
   assert.equal(acheteurSansAvis("Kevin : je vous prends Conker"), false);   // sans encadré : on ne sait pas
-  assert.match(refusSansAvis("le jeu")[0].texte, /^Après réflexion, je préfère réserver ce jeu à un acheteur ayant déjà des avis sur Le Bon Coin\. Rien de personnel/);
+  const midi = new Date("2026-11-27T11:00:00Z"), soir = new Date("2026-11-27T18:30:00Z");
+  assert.equal(refusSansAvis("le jeu", midi)[0].texte, "Bonjour, et merci beaucoup pour votre intérêt. 😊\nJe préfère vous le dire en toute transparence : suite à une mauvaise expérience, je ne finalise désormais mes ventes qu'avec des comptes ayant déjà plusieurs avis. Ce n'est vraiment rien de personnel, juste une précaution que j'applique à tout le monde.\nJ'espère que vous comprendrez, et je vous souhaite de trouver votre bonheur !\nBelle journée à vous 🙂");
+  assert.match(refusSansAvis("le jeu", soir)[0].texte, /^Bonsoir, et merci[\s\S]*\nBelle soirée à vous 🙂$/);
+  assert.match(refusSansAvis("le jeu", midi)[1].texte, /^Après réflexion, je préfère réserver ce jeu à un acheteur ayant déjà des avis sur Le Bon Coin\. Rien de personnel/);
   const r = await repondre(CONV, MAJORA, [], { acheteur: "Mathsangor", mesMessages: MIENS.slice(0, 1) });
-  assert.equal(r.acheteur.sansAvis, true); assert.equal(r.reponses.length, 3);
+  assert.equal(r.acheteur.sansAvis, true); assert.equal(r.reponses.length, 4);
   assert.ok(r.reponses.every((x) => x.approche === "couper_court" && /avis/.test(x.texte)));
   // Règle désactivée dans le panneau : réponses normales, l'alerte reste.
   const n = await repondre(CONV, MAJORA, [], { acheteur: "Mathsangor", refuserSansAvis: false });
