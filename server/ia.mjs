@@ -918,10 +918,18 @@ export function acheteurSansAvis(conversation) {
   if (enc.replace(/\[Annonce concernée\]/, "").trim().length < 10 || !apropos) return false;
   return !/^\s*\d(?:[.,]\d)?\s*\(\d+\)\s*$|\b[1-9]\d* avis\b|\b\d(?:[.,]\d)?\s*\/\s*5\b|★/im.test(enc + "\n" + apropos);
 }
-export function refusSansAvis(objet = "le jeu") {
+// Le soir (à partir de 18 h, heure de Paris) : « Bonsoir » et « Belle soirée ».
+export function estLeSoir(d = new Date()) {
+  const h = +new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23" }).format(d);
+  return h >= 18 || h < 4;
+}
+export function refusSansAvis(objet = "le jeu", d = new Date()) {
   const ce = { "le jeu": "ce jeu", "la console": "cette console", "la carte": "cette carte", "le film": "ce film", "l'accessoire": "cet accessoire" }[objet] || "cet article";
+  const soir = estLeSoir(d);
   return [
-    { approche: "couper_court", titre: "Refus poli", texte: `Après réflexion, je préfère réserver ${ce} à un acheteur ayant déjà des avis sur Le Bon Coin. Rien de personnel, c'est une règle que je m'impose pour mes ventes. Je vous souhaite de trouver votre bonheur, bonne soirée ! 🙂`, gras: ["un acheteur ayant déjà des avis"] },
+    // Le message de Titelive, mot pour mot (seuls Bonjour/Bonsoir et journée/soirée suivent l'heure) : proposé en premier.
+    { approche: "couper_court", titre: "Par défaut", fixe: true, texte: `${soir ? "Bonsoir" : "Bonjour"}, et merci beaucoup pour votre intérêt. 😊\nJe préfère vous le dire en toute transparence : suite à une mauvaise expérience, je ne finalise désormais mes ventes qu'avec des comptes ayant déjà plusieurs avis. Ce n'est vraiment rien de personnel, juste une précaution que j'applique à tout le monde.\nJ'espère que vous comprendrez, et je vous souhaite de trouver votre bonheur !\nBelle ${soir ? "soirée" : "journée"} à vous 🙂`, gras: ["comptes ayant déjà plusieurs avis"] },
+    { approche: "couper_court", titre: "Refus poli", texte: `Après réflexion, je préfère réserver ${ce} à un acheteur ayant déjà des avis sur Le Bon Coin. Rien de personnel, c'est une règle que je m'impose pour mes ventes. Je vous souhaite de trouver votre bonheur, ${soir ? "bonne soirée" : "bonne journée"} ! 🙂`, gras: ["un acheteur ayant déjà des avis"] },
     { approche: "couper_court", titre: "Court", texte: `Désolé, je vends uniquement à des acheteurs qui ont déjà des avis sur Le Bon Coin, rien de personnel. Bonne recherche à vous 🙂`, gras: ["déjà des avis"] },
     { approche: "couper_court", titre: "Chaleureux", texte: `Merci pour votre intérêt ! Pour mes ventes, je me suis fixé une règle : seulement des acheteurs avec des avis sur Le Bon Coin. Rien contre vous, je vous souhaite de trouver votre bonheur 🙂`, gras: ["des acheteurs avec des avis"] },
   ];

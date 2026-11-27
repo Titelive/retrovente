@@ -1564,7 +1564,7 @@
     }
     (i.reponses || []).forEach(function (r) {
       var ap = APPROCHES[r.approche];
-      var tx = smiley(personnaliser(r.texte || "", qui));
+      var tx = r.fixe ? (r.texte || "") : smiley(personnaliser(r.texte || "", qui));   // message fixé par le vendeur : mot pour mot
       if (etat.sansNego && TIENT_PRIX[r.approche]) tx = avecSansNego(tx, choisie);
       r = { approche: r.approche, titre: r.titre, texte: tx, gras: (r.gras || []).concat(etat.sansNego && TIENT_PRIX[r.approche] ? ["Pas de négociation possible"] : []) };
       z.appendChild(el("button", { class: "rep fort" + (sensIA(r) ? " s-" + sensIA(r) : ""), type: "button", "aria-label": "Placer dans la zone de message : " + r.texte, onclick: function () { inserer(r.texte); } }, [
@@ -2089,7 +2089,7 @@
         var r = await rrDemander({ type: "reponse", annonce: c.lot ? "" : (c.id || ""), conversation: texteConversation(), lot: lot, offre: offreOfficielle(), acheteur: acheteurLu(), consigne: consigne || "", precedentes: [], mesMessages: mesMessages(), suite: !!consigne && dernierEstMoi(), dernierMoi: !consigne && dernierEstMoi(), refuserSansAvis: etat.refuserSansAvis !== false });
         var qui = acheteurLu();
         return { article: c.titre || "", resume: r.resume || "", offre: r.offre || null, version: r.version || null,
-                 reponses: (r.reponses || []).map(function (x) { return { approche: x.approche || "", titre: x.titre || "", texte: smiley(personnaliser(x.texte || "", qui)) }; }) };
+                 reponses: (r.reponses || []).map(function (x) { return { approche: x.approche || "", titre: x.titre || "", fixe: !!x.fixe, texte: x.fixe ? (x.texte || "") : smiley(personnaliser(x.texte || "", qui)) }; }) };
       } catch (e) { return { erreur: e.message || "Réponse impossible", status: e.status || 0 }; }
     },
     envoyer: async function (texte) {
