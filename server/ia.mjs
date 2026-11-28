@@ -93,6 +93,18 @@ export function neufDe(n, conseille) {
 }
 // Consigne commune : relever le prix neuf le plus bas du moment, chez les grandes enseignes.
 const CONSIGNE_NEUF = `"neuf" (prix NEUF le plus bas en ce moment pour ce modèle exact, chez Amazon, la Fnac, Darty, Boulanger ou Cdiscount, vendu et expédié par l'enseigne, jamais un vendeur tiers ni un reconditionné : objet avec "prix" (en euros), "site", "url" (adresse exacte de la page lue ; n'invente jamais d'adresse), "promo" (l'offre en cours s'il y en a une, ex. « Black Friday, -30 % », "" sinon) et "habituel" (prix neuf habituel hors promotion, si la page le montre) ; null si ce modèle n'est plus vendu neuf ou si tu ne l'as pas trouvé)`;
+/* Surveillance du prix neuf : seulement le prix neuf du moment, pour savoir si la promo est finie. */
+export async function prixNeuf(v = {}) {
+  const titre = txt(v.titre, 160);
+  if (!titre) return null;
+  if (FAKE()) { const p = prix(process.env.IA_FAKE_NEUF); return p != null ? neufDe({ prix: p, site: "Amazon", url: "https://www.amazon.fr/", promo: "" }, v.cote && v.cote.conseille) : null; }
+  const quoi = v.categorie === "films" ? [`film ${titre}`, txt(v.plateforme, 60) && `en ${txt(v.plateforme, 60)}`, txt(v.edition, 80) && `édition ${txt(v.edition, 80)}`].filter(Boolean).join(", ")
+    : [[txt(v.marque, 40), titre].filter(Boolean).join(" "), txt(v.plateforme, 60) && `(${txt(v.plateforme, 60).toLowerCase()})`, txt(v.region, 30) && `coloris ${txt(v.region, 30).toLowerCase()}`].filter(Boolean).join(", ");
+  const o = await claude(`Cherche sur le web le prix NEUF d'aujourd'hui, en France, de : ${quoi}.
+Réponds uniquement par un objet JSON : {${CONSIGNE_NEUF.replace(/ce modèle exact/, v.categorie === "films" ? "ce film dans ce format et cette édition" : "ce modèle exact")}}`, { web: 4, max: 2500, timeout: 60000, effort: "low" });
+  const n = neufVu(o);
+  return n ? neufDe(n, v.cote && v.cote.conseille) : null;
+}
 // Le prix neuf n'est gardé que si sa page est vraiment sortie de la recherche web.
 const neufVu = (o) => (o && o.neuf && (!o._vus || !o._vus.size || o._vus.has(norme(o.neuf.url))) ? o.neuf : null);
 
