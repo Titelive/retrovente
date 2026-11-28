@@ -997,7 +997,8 @@ html:not(.co) .nav-co{display:none!important}
   #fiche .champs>.l2,#fiche .champs>.partic,#fiche .champs>.f:has(select),#fiche .champs>.f:has(textarea){grid-column:1/-1}
   #fiche .champs.mode-film>.f:has(#f_region){grid-column:1/-1}
 }
-.neuf-alerte{margin:12px 0;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,#FFD43B 22%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#F59F00 55%,transparent)}.neuf-alerte p{margin:0 0 8px;color:#FFF3C4}.neuf-alerte b{color:#FFE066;white-space:nowrap}.neuf-alerte a{color:inherit;text-decoration:underline}
+.neuf-alerte{margin:12px 0;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,#FFD43B 22%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#F59F00 55%,transparent)}#fCoteBox .neuf-alerte p{margin:0 0 8px;color:#FFF3C4}.neuf-alerte b{color:#FFE066;white-space:nowrap}.neuf-alerte a{color:inherit;text-decoration:underline}
+#fCoteBox .neuf-ok{margin:12px 0;padding:12px 14px;border-radius:14px;color:#D3F9D8;background:color-mix(in srgb,#2F9E44 28%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#51CF66 60%,transparent)}.neuf-ok b{color:#B2F2BB}
 #fiche .champs.mode-cnt>.f:has(#f_titre){order:-5}#fiche .champs.mode-cnt>.f:has(#f_marque){order:-4}#fiche .champs.mode-cnt>.f:has(#f_region){order:-3}#fiche .champs.mode-cnt>.f:has(#f_typeCnt){order:-2}
 /* ===== Appareil photo ===== */
 .cam{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:manipulation}
@@ -1976,7 +1977,7 @@ function montrer(v,titre){if(typeof fermerStatut==="function")fermerStatut();if(
   window.scrollTo({top:0,left:0,behavior:"instant"})}
 $("fil").addEventListener("click",function(e){var a=e.target.closest("[data-vue]");if(a){e.preventDefault();if(ED!==undefined&&!$("fiche").hidden)fermerFiche();else montrer("accueil")}});
 /* depuisAdresse : au démarrage (et après connexion), on rouvre l'écran décrit par l'adresse (article, onglet, photo…) */
-function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();relireSuivis();RAR_SUIVI=0;suivreRaretes();try{majTrophNav()}catch(e){}
+function charger(depuisAdresse){return api("GET","/api/moi").then(function(m){ME=m;entete();return api("GET","/api/objets")}).then(function(j){OBJ=j.objets||[];dessiner();promosFinies();relireSuivis();RAR_SUIVI=0;suivreRaretes();try{majTrophNav()}catch(e){}
   var q=new URLSearchParams(location.search);
   if(depuisAdresse)return allerA(location.search,true).then(function(){if(q.has("paye")){toast("Merci ! Ta formule est active.","ok");setTimeout(function(){api("GET","/api/moi").then(function(m){ME=m;entete()})},2500)}});
   if(q.has("compte")){compte()}else if(q.has("trophees")){trophees()}else montrer("accueil")})
@@ -2829,11 +2830,18 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     sourcesCote(c.sources||[]);
   e.hidden=false}
+/* Promo finie : le prix neuf est revenu à la normale (vérifié chaque jour par le serveur), dit une fois à l'ouverture */
+function promosFinies(){var vus={};try{vus=JSON.parse(localStorage.getItem("rr-promos-finies")||"{}")}catch(e){}
+  var l=OBJ.filter(function(o){return o.neufRevenu&&!vus[o.id+"|"+o.neufRevenu.date]&&["vendu","envoye","recu"].indexOf(o.statut)<0});if(!l.length)return;
+  l.forEach(function(o){vus[o.id+"|"+o.neufRevenu.date]=1});try{localStorage.setItem("rr-promos-finies",JSON.stringify(vus))}catch(e){}
+  var o=l[0];toast("🔔 Promos finies : le neuf est remonté à "+eur(o.neufRevenu.prix)+" pour «\u00a0"+o.titre+"\u00a0»"+(l.length>1?" (et "+(l.length-1)+" autre"+(l.length>2?"s":"")+")":"")+". C'est le moment de vendre !","ok",["Voir",function(){ouvrirFiche(o)}])}
 /* Prix neuf du moment (Amazon, Fnac…) : en pleine promo, vendre d'occasion n'est pas intéressant */
-function coteNeuf(c){var n=c&&c.neuf;if(!n||!n.prix)return "";
+function coteNeuf(c){var n=c&&c.neuf,rv=ED&&ED.neufRevenu;if(rv&&n&&!n.alerte)return '<p class="neuf-ok" role="status">🔔 <b>Promos finies</b> : le <b>neuf</b> est remonté à <b>'+eur(rv.prix)+'</b>'+(rv.site?' chez '+esc(rv.site):'')+' (vérifié le '+dfr(rv.date)+'). Ton prix d\'occasion est de nouveau <b>bien en dessous</b> : <b>c\'est le moment de vendre</b>.</p>';
+  if(!n||!n.prix)return "";
   var ou=n.site?(n.url?' chez <a href="'+esc(n.url)+'" target="_blank" rel="noopener">'+esc(n.site)+'</a>':' chez '+esc(n.site)):"",pr=n.promo?' ('+esc(n.promo)+')':"";
   if(n.alerte)return '<div class="neuf-alerte" role="status"><p>⏳ <b>Pas le moment de vendre :</b> le <b>neuf</b> est à <b>'+eur(n.prix)+'</b>'+ou+pr+', à peine plus que le prix d\'occasion. Les acheteurs comparent et prendront le neuf.</p>'+
     '<p>'+(n.habituel?'<b>Attends la fin des promos</b> (le neuf revient à <b>'+eur(n.habituel)+'</b>), ou affiche au plus <b>'+eur(n.max)+'</b>.':'Affiche au plus <b>'+eur(n.max)+'</b>, ou attends la fin de l\'offre.')+'</p>'+
+    '<p>🔔 <b>Je surveille le prix neuf chaque jour</b> et je te préviens par e-mail dès que les promos sont finies.</p>'+
     '<div class="rangee"><button class="btn clair petit" type="button" data-px="'+n.max+'">Afficher '+eur(n.max)+'</button></div></div>';
   return '<p class="rl-m">🏷️ <b>Neuf en ce moment :</b> '+eur(n.prix)+ou+pr+'. Ton prix d\'occasion reste <b>nettement en dessous</b> : c\'est un bon moment pour vendre.</p>'}
 $("fCote").onclick=estimer;

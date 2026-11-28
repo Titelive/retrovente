@@ -70,6 +70,9 @@ function nettoyer(v, avant) {
     // Défauts vus par l'IA sur les photos (film du boîtier déchiré, jaquette pliée…) : repris par la cote et l'annonce.
     defauts: ia.lireDefautsFiche(v.defauts),
     cote: ia.coteDe(v.cote),
+    // Promo finie (prix neuf revenu à la normale, voir surveillerNeufs) : gardé tant qu'une nouvelle cote ne voit pas une autre promo.
+    ...(avant && avant.neufVerifie ? { neufVerifie: avant.neufVerifie } : {}),
+    ...(avant && avant.neufRevenu && !(v.cote && v.cote.neuf && v.cote.neuf.alerte && String(v.cote.date || "") > avant.neufRevenu.date) ? { neufRevenu: avant.neufRevenu } : {}),
     // Fiche du jeu : ma note (0 à 5 étoiles, 0 = pas notée) et le jeu IGDB choisi à la main quand la recherche s'est trompée.
     note: Math.max(0, Math.min(5, Math.round(Number(v.note) || 0))),
     jeuRef: /^\d{1,9}$/.test(String(v.jeuRef || "")) ? String(v.jeuRef) : "",
@@ -155,6 +158,37 @@ function rareteSuivante() {
       db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d), t.id, t.uid);
     })().catch((e) => console.error("rareté", e.message)).finally(() => { rareteActifs--; RARETE_EN_COURS.delete(t.k); rareteSuivante(); });
   }
+}
+/* Prix neuf en promo (Black Friday, soldes) : quand la cote a dit « Pas le moment de vendre », le prix neuf est
+   revérifié une fois par jour au plus (30 articles par passage), pendant 60 jours. Dès qu'il est revenu à la normale
+   (le prix conseillé repasse sous 80 % du neuf), la fiche le dit et un e-mail prévient le vendeur, une seule fois. */
+export async function surveillerNeufs(at = Date.now()) {
+  const rows = db.prepare(`SELECT i.id, i.user_id, i.data, u.email FROM items i JOIN users u ON u.id = i.user_id WHERE i.data LIKE '%"alerte":true%'`).all();
+  let n = 0;
+  for (const r of rows) {
+    if (n >= 30) break;
+    const d = JSON.parse(r.data), nf = d.cote && d.cote.neuf;
+    if (!nf || !nf.alerte || VENDU(d.statut) || d.statut === "retire" || d.neufRevenu) continue;
+    if (d.neufVerifie && at - Date.parse(d.neufVerifie) < 20 * 3600e3) continue;
+    if (at - Date.parse(d.cote.date) > 60 * 864e5) continue;
+    n++;
+    const neuf = await ia.prixNeuf(d).catch((e) => { console.error("prix neuf", e.message); return undefined; });
+    const r2 = db.prepare("SELECT data FROM items WHERE id = ? AND user_id = ?").get(r.id, r.user_id);
+    if (!r2) continue;
+    const d2 = JSON.parse(r2.data);
+    d2.neufVerifie = new Date(at).toISOString();
+    const c = neuf && d2.cote ? ia.coteDe({ ...d2.cote, neuf }) : null;
+    if (c && c.neuf) {
+      d2.cote = c;
+      if (!c.neuf.alerte) {
+        d2.neufRevenu = { date: new Date(at).toISOString().slice(0, 10), prix: c.neuf.prix, site: c.neuf.site || "" };
+        const nom = [d2.marque && !String(d2.titre).toLowerCase().includes(String(d2.marque).toLowerCase()) ? d2.marque : "", d2.titre].filter(Boolean).join(" ");
+        sendMail(r.email, `Les promos sont finies : c'est le moment de vendre ${nom}`, `Bonjour,\n\nBonne nouvelle : le prix neuf de ${nom} est remonté à ${c.neuf.prix} €${c.neuf.site ? " chez " + c.neuf.site : ""}. Ton prix d'occasion${c.conseille != null ? ` (${c.conseille} € conseillés)` : ""} est de nouveau bien en dessous du neuf : les acheteurs vont revenir vers l'occasion.\n\nC'est le bon moment pour le mettre en vente : ${SITE()}/app/?article=${r.id}&onglet=prix\n\nRetroRevente · bonjour@retrorevente.fr · ${SITE()}`).catch((e) => console.error("e-mail prix neuf", e.message));
+      }
+    }
+    db.prepare("UPDATE items SET data = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(d2), r.id, r.user_id);   // sans changer la date de modification
+  }
+  return n;
 }
 /* Pour les tests : attend que les estimations en cours soient finies. */
 export async function rareteFinie() { while (RARETE_EN_COURS.size) await new Promise((r) => setTimeout(r, 10)); }

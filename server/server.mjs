@@ -4,7 +4,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleApi, HttpError } from "./api.mjs";
+import { handleApi, HttpError, surveillerNeufs } from "./api.mjs";
 import { IaError } from "./ia.mjs";
 import { indiceConnexion } from "./auth.mjs";
 import { rappelsAnnuels } from "./stripe.mjs";
@@ -99,6 +99,9 @@ const server = http.createServer(async (req, res) => {
 // Rappel avant renouvellement des abonnements annuels (loi Chatel) : vérifié toutes les 6 heures.
 const rappels = () => rappelsAnnuels().catch((e) => console.error("rappels", e.message));
 setTimeout(rappels, 60_000).unref(); setInterval(rappels, 6 * 3600_000).unref();
+// Prix neuf en promo (Black Friday…) : revérifié chaque jour, e-mail quand il est revenu à la normale.
+const neufs = () => surveillerNeufs().catch((e) => console.error("prix neufs", e.message));
+setTimeout(neufs, 5 * 60_000).unref(); setInterval(neufs, 6 * 3600_000).unref();
 
 server.listen(PORT, HOST, () => console.log(`RetroRevente : http://${HOST}:${PORT} (site : ${SITE})`));
 process.on("unhandledRejection", (e) => console.error("promesse non gérée :", e && e.stack || e));

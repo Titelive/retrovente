@@ -610,6 +610,38 @@ test("objets connectés et autres objets : reconnaissance, fiche, cote, annonces
   } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
 });
 
+test("prix neuf en promo : surveillé chaque jour, la fiche et un e-mail préviennent quand il revient à la normale", async () => {
+  const c = await compte("promo" + Date.now() + "@t.fr", true);
+  const { surveillerNeufs } = await import("../server/api.mjs");
+  const cote = (await call("POST", "/api/ia/cote", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "Casque audio", etat: "bon" } }, c)).json.cote;
+  assert.equal(cote.neuf.alerte, true);
+  const f = await call("POST", "/api/objets", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "Casque audio", etat: "bon", prixDemande: cote.conseille, cote } }, c);
+  const id = f.json.objet.id;
+  const lire = async () => (await call("GET", "/api/objets", null, c)).json.objets.find((o) => o.id === id);
+  try {
+    // toujours en promo : vérifié, rien d'annoncé, pas revérifié avant le lendemain
+    process.env.IA_FAKE_NEUF = "319";
+    const t0 = Date.now();
+    assert.ok(await surveillerNeufs(t0) >= 1);
+    let o = await lire();
+    assert.ok(o.neufVerifie); assert.equal(o.neufRevenu, undefined); assert.equal(o.cote.neuf.alerte, true);
+    const avant = o.neufVerifie;
+    await surveillerNeufs(t0 + 3600e3);
+    assert.equal((await lire()).neufVerifie, avant);
+    // le lendemain, le neuf est revenu à 579 € : promo finie, une seule fois
+    process.env.IA_FAKE_NEUF = "579";
+    await surveillerNeufs(t0 + 26 * 3600e3);
+    o = await lire();
+    assert.equal(o.neufRevenu.prix, 579); assert.equal(o.cote.neuf.alerte, false);
+    // la fiche réenregistrée avec l'ancienne cote garde l'information, et ne relance pas la surveillance
+    const re = await call("PUT", "/api/objets/" + id, { objet: { ...o, cote } }, c); assert.equal(re.status, 200, JSON.stringify(re.json));
+    o = await lire();
+    assert.equal(o.neufRevenu.prix, 579);
+    const n = await surveillerNeufs(t0 + 60 * 3600e3);
+    assert.equal((await lire()).neufVerifie, o.neufVerifie);
+  } finally { delete process.env.IA_FAKE_NEUF; }
+});
+
 test("objets connectés : type d'appareil reconnu d'après le texte ou le modèle", async () => {
   const { typeConnecte, batterieTexte } = await import("../server/connectes.mjs");
   assert.equal(typeConnecte("", "AirPods Pro 2 (USB-C)"), "Écouteurs sans fil");
