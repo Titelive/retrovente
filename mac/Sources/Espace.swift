@@ -34,10 +34,10 @@ struct Trophees: View {
         let o = appli.articles.filter { !$0.estLot }, v = o.filter { $0.vendu }
         let lots = appli.articles.filter { $0.estLot && $0.vendu }.count
         let enc = v.reduce(0) { $0 + ($1.prixVente ?? 0) }
-        let plat = Set(o.filter { !["cartes", "films"].contains($0.categorie) }.map { $0.plateforme.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })
+        let plat = Set(o.filter { !$0.sansRarete }.map { $0.plateforme.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty })
         func vide(_ s: String) -> Bool { s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         func motif(_ s: String, _ re: String) -> Bool { s.range(of: re, options: [.regularExpression, .caseInsensitive]) != nil }
-        func jeuPlat(_ re: String) -> Int { o.filter { !["cartes", "films"].contains($0.categorie) && motif($0.plateforme, re) }.count }
+        func jeuPlat(_ re: String) -> Int { o.filter { !$0.sansRarete && motif($0.plateforme, re) }.count }
         func duree(_ a: Article) -> Double? { jours(a.dateMiseEnVente, a.dateVente) }
         let n64 = o.filter { $0.plateforme.contains("64") && motif($0.plateforme + " ", "nintendo|n64") }.count
         let cartes = o.filter { $0.categorie == "cartes" }.count, films = o.filter { $0.categorie == "films" }.count

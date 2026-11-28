@@ -557,6 +557,62 @@ test("films : reconnaissance, fiche, cote, infos, annonce et réponses pour l'ex
   } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
 });
 
+test("objets connectés et autres objets : reconnaissance, fiche, cote, annonces Le Bon Coin et eBay", async () => {
+  const c = await compte("connecte" + Date.now() + "@t.fr", true);
+  process.env.IA_FAKE_OBJET = "connecte";
+  try {
+    const r = await call("POST", "/api/ia/identifier", { photo: PHOTO, indice: "connectes" }, c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const o = r.json.objet;
+    assert.equal(o.categorie, "connectes"); assert.equal(o.marque, "Apple"); assert.equal(o.plateforme, "Écouteurs sans fil"); assert.equal(o.region, "Blanc");
+    assert.equal(o.contenu, ""); assert.equal(o.rareteJeu, undefined); assert.equal(o.jauni, undefined);
+    // cote : des AirPods Max valent plus que des AirPods Pro, et ni l'un ni l'autre ne part « en lot »
+    const pro = await call("POST", "/api/ia/cote", { objet: { ...o } }, c);
+    assert.equal(pro.status, 200, JSON.stringify(pro.json));
+    const max = await call("POST", "/api/ia/cote", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "Casque audio", etat: "bon" } }, c);
+    assert.ok(max.json.cote.conseille > pro.json.cote.conseille); assert.equal(max.json.cote.lot, false);
+    // fiche : type déduit du modèle, batterie mise en forme, année d'achat, ce qui est fourni, réinitialisé ; ni contenu ni rareté
+    const f = await call("POST", "/api/objets", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "casque", region: "Gris sidéral", annee: "2022", edition: "Boîte d'origine, Étui, Facture", batterie: "91", reinit: "oui", contenu: "complet", rareteJeu: "rare", etat: "tres_bon", prixDemande: 320 } }, c);
+    assert.equal(f.status, 200, JSON.stringify(f.json));
+    const it = f.json.objet;
+    assert.equal(it.plateforme, "Casque audio"); assert.equal(it.batterie, "91 %"); assert.equal(it.annee, "2022"); assert.equal(it.reinit, "oui");
+    assert.equal(it.contenu, ""); assert.equal(it.rareteJeu, undefined); assert.equal(it.edition, "Boîte d'origine, Étui, Facture");
+    const sansModele = await call("POST", "/api/objets", { objet: { titre: "", categorie: "connectes" } }, c);
+    assert.equal(sansModele.status, 400); assert.match(sansModele.json.error, /modèle/);
+    const { annonceLbc, annonceEbay } = await import("../server/api.mjs");
+    const a = annonceLbc(it);
+    assert.equal(a.titre, "Apple AirPods Max Gris sidéral avec boîte"); assert.equal(a.marque, "Apple"); assert.equal(a.batterie, "91 %"); assert.equal(a.reinit, true);
+    assert.equal(a.description, "Apple AirPods Max, coloris gris sidéral, acheté en 2022.\nFourni avec : boîte d'origine, étui, facture.\nBatterie : 91 % de capacité.\nRéinitialisé et retiré de mon compte, prêt à être associé au vôtre.\nTrès bon état, testé et fonctionnel.\nRemise en main propre ou envoi.");
+    const e = annonceEbay(it, a);
+    assert.deepEqual(e.caracteristiques.map((x) => x.nom), ["Marque", "Modèle", "Type", "Couleur", "Inclus"]);
+    // un autre objet : générique, sans console, contenu ni rareté
+    const au = await call("POST", "/api/objets", { objet: { titre: "Lampe Luxo", marque: "Pixar", categorie: "autres", plateforme: "Lampe", contenu: "boite", etat: "bon" } }, c);
+    assert.equal(au.json.objet.marque, "Pixar"); assert.equal(au.json.objet.contenu, ""); assert.equal(au.json.objet.batterie, undefined);
+    assert.equal(annonceLbc(au.json.objet).description, "Pixar Lampe Luxo (lampe).\nBon état.\nRemise en main propre ou envoi.");
+    // caractéristiques eBay sûres : marque et modèle repris de la fiche
+    const { specifiquesSurs, changementsSurs } = await import("../server/ia.mjs");
+    assert.deepEqual(specifiquesSurs({ categorie: "connectes", nom: "AirPods Max", marque: "Apple" }, [{ nom: "Marque" }, { nom: "Modèle" }]), { Marque: "Apple", "Modèle": "AirPods Max" });
+    // discussion avec l'IA : batterie et réinitialisation passent
+    assert.deepEqual(changementsSurs({ batterie: "88%", reinit: "oui", marque: "Apple" }), { marque: "Apple", batterie: "88 %", reinit: "oui" });
+    const csv = await call("GET", "/api/export.csv", null, c);
+    assert.match(String(csv.body || ""), /;marque;batterie;reinit;/);
+    // légendes : pas de jaunissement pour un objet récent
+    process.env.IA_FAKE_JAUNI = "net";
+    const lg = await call("POST", "/api/ia/legender", { photos: [PHOTO], objet: { titre: "AirPods Max", categorie: "connectes" } }, c);
+    assert.deepEqual(lg.json.jaunis, ["non"]);
+  } finally { delete process.env.IA_FAKE_OBJET; delete process.env.IA_FAKE_JAUNI; }
+});
+
+test("objets connectés : type d'appareil reconnu d'après le texte ou le modèle", async () => {
+  const { typeConnecte, batterieTexte } = await import("../server/connectes.mjs");
+  assert.equal(typeConnecte("", "AirPods Pro 2 (USB-C)"), "Écouteurs sans fil");
+  assert.equal(typeConnecte("", "AirPods Max"), "Casque audio");
+  assert.equal(typeConnecte("", "iPhone 15 Pro Max"), "Téléphone");
+  assert.equal(typeConnecte("montre", "Apple Watch Series 9"), "Montre connectée");
+  assert.equal(typeConnecte("Liseuse", ""), "Liseuse");
+  assert.equal(batterieTexte("87%"), "87 %"); assert.equal(batterieTexte("bonne autonomie"), "bonne autonomie"); assert.equal(batterieTexte("150"), "150");
+});
+
 test("cartes Pokémon : TCGdex retrouve la bonne carte et sa cote Cardmarket", async () => {
   const { carteTcgdex, numLocal } = await import("../server/cartes.mjs");
   assert.equal(numLocal("004/102"), "4"); assert.equal(numLocal("TG05/TG30"), "TG05");

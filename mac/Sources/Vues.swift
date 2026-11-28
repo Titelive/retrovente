@@ -834,12 +834,12 @@ struct Fiche: View {
                 champ("Titre") { TextField("Nom du jeu, de la console…", text: $article.titre) }
                 HStack {
                     champ("Catégorie") { Picker("", selection: $article.categorie) { ForEach(Libelles.categories, id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
-                    champ("Plateforme") { TextField("Nintendo 64…", text: $article.plateforme) }
-                    champ("Région") { TextField("PAL EUR…", text: $article.region) }
+                    champ(article.estObjet ? "Type" : "Plateforme") { TextField(article.categorie == "connectes" ? "Écouteurs sans fil…" : article.estObjet ? "Livre, figurine…" : "Nintendo 64…", text: $article.plateforme) }
+                    champ(article.categorie == "connectes" ? "Couleur" : "Région") { TextField(article.categorie == "connectes" ? "Blanc…" : "PAL EUR…", text: $article.region) }
                 }
                 HStack {
                     champ("État") { Picker("", selection: $article.etat) { ForEach(Libelles.etats, id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
-                    if !["cartes", "films"].contains(article.categorie) {
+                    if !article.sansRarete {
                         champ("Contenu") { Picker("", selection: $article.contenu) { ForEach(Libelles.contenus(pour: article.plateforme), id: \.0) { Text($0.1).tag($0.0) } }.labelsHidden() }
                             .onAppear { if Libelles.sansNotice(article.plateforme), article.contenu == "boite" { article.contenu = "complet" } }
                             .onChange(of: article.plateforme) { p in if Libelles.sansNotice(p), article.contenu == "boite" { article.contenu = "complet" } }
@@ -1017,10 +1017,10 @@ struct Nouveau: View {
                 Form {
                     TextField("Titre", text: $article.titre)
                     Picker("Catégorie", selection: $article.categorie) { ForEach(Libelles.categories, id: \.0) { Text($0.1).tag($0.0) } }
-                    TextField("Plateforme", text: $article.plateforme)
-                    TextField("Région", text: $article.region)
+                    TextField(article.estObjet ? "Type" : "Plateforme", text: $article.plateforme)
+                    TextField(article.categorie == "connectes" ? "Couleur" : "Région", text: $article.region)
                     Picker("État", selection: $article.etat) { ForEach(Libelles.etats, id: \.0) { Text($0.1).tag($0.0) } }
-                    if !["cartes", "films"].contains(article.categorie) {
+                    if !article.sansRarete {
                         Picker("Contenu", selection: $article.contenu) { ForEach(Libelles.contenus(pour: article.plateforme), id: \.0) { Text($0.1).tag($0.0) } }
                     }
                     TextField("Prix demandé (€)", value: $article.prixDemande, format: .number)

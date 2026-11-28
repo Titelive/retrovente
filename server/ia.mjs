@@ -4,10 +4,13 @@
 import { calculerCote, TYPES as TYPES_RELEVE } from "./prix.mjs";
 import { ETATS_CARTE, LIB_ETAT_CARTE, ETAT_LBC_DE_CARTE, carteTcgdex, lienCardmarket } from "./cartes.mjs";
 import { FORMATS_FILM, EDITIONS_FILM, formatFilm } from "./films.mjs";
+import { TYPES_CONNECTE, FOURNI_CONNECTE, typeConnecte, batterieTexte } from "./connectes.mjs";
 import { normaliserProfil, partPlancher, consignesProfil } from "./profil.mjs";
 import { suggestionsLocales, annonceLotSimple, ligneArticle, valeurArticle, themeDouteux, MIN_LOT, MAX_LOT } from "./lots.mjs";
 export { ETATS_CARTE };
-export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "autres"];
+export const CATEGORIES = ["jeux", "consoles", "accessoires", "cartes", "films", "connectes", "autres"];
+// Objets du quotidien (objets connectés et autres) : ni rareté de jeu, ni boîte et notice, ni plastique jauni.
+export const estObjet = (c) => c === "connectes" || c === "autres";
 export const ETATS = ["neuf", "tres_bon", "bon", "correct", "pieces", ""];
 export const CONTENUS = ["seul", "boite", "complet", "boite_vide", ""];
 // Rareté d'un jeu (ou d'une console, d'un accessoire) : à quel point on le trouve en vente d'occasion. Les cartes Pokémon
@@ -164,15 +167,17 @@ const FAKE = () => process.env.IA_FAKE === "1";
 
 const CARTE_FAKE = { trouve: true, titre: "Dracaufeu", categorie: "cartes", plateforme: "Set de base", region: "Français", numero: "4/102", rarete: "Holo rare", edition: "", gradation: "", etatCarte: "near_mint", remarques: "", particularites: ["Carte mise en sleeve dès l'ouverture du booster"], annonce: "Dracaufeu 4/102 Set de base Holo FR", description: "Carte Pokémon Dracaufeu 4/102, extension Set de base, holo rare, en français.\nCarte authentique en état Near Mint : bords nets, surface holo sans rayure.\nEnvoi soigné sous sleeve et toploader, dans une enveloppe rigide.\nRemise en main propre ou envoi.", cadre: { x: 0.25, y: 0.1, w: 0.5, h: 0.8 } };
 const FILM_FAKE = { trouve: true, titre: "Dune : Deuxième partie", categorie: "films", plateforme: "Blu-Ray 4K UHD + Blu-Ray", region: "VF incluse, toutes zones", annee: "2024", realisateur: "Denis Villeneuve", edition: "Steelbook", etat: "tres_bon", remarques: "", particularites: ["Fourreau inclus", "Disques sans rayure"], annonce: "Dune Deuxième partie 4K UHD + Blu-Ray Steelbook VF", description: "Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD + Blu-Ray, Steelbook.\nVersion française incluse.\nSteelbook en très bon état, disques sans rayure, lus et vérifiés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.08, w: 0.6, h: 0.84 } };
+const CONNECTE_FAKE = { trouve: true, titre: "AirPods Pro 2 (USB-C)", categorie: "connectes", marque: "Apple", plateforme: "Écouteurs sans fil", region: "Blanc", annee: "", edition: "Boîte d'origine, Câble de charge, Embouts de rechange", batterie: "", etat: "tres_bon", remarques: "", particularites: ["Boîtier de charge MagSafe", "Embouts neufs"], annonce: "AirPods Pro 2 USB-C Apple avec boîte", description: "AirPods Pro 2 (USB-C) d'Apple, coloris blanc.\nFournis avec : boîte d'origine, câble de charge, embouts de rechange.\nTrès bon état, testés et fonctionnels : réduction de bruit et mode Transparence parfaits.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.12, w: 0.6, h: 0.76 } };
 export async function identifier(photo, indice) {
+  if (FAKE() && process.env.IA_FAKE_OBJET === "connecte") { checkPhoto(photo); const o = CONNECTE_FAKE; return { ...champsConnecte(o), titre: o.titre, categorie: o.categorie, etat: o.etat, contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE() && process.env.IA_FAKE_OBJET === "film") { checkPhoto(photo); const o = FILM_FAKE; return { ...champsFilm(o), titre: o.titre, categorie: o.categorie, region: o.region, etat: o.etat, contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE() && process.env.IA_FAKE_OBJET === "carte") { checkPhoto(photo); const o = CARTE_FAKE; return { ...champsCarte(o), titre: o.titre, categorie: o.categorie, plateforme: o.plateforme, region: o.region, etat: ETAT_LBC_DE_CARTE[o.etatCarte], contenu: "", remarques: "", particularites: o.particularites, annonce: o.annonce, description: o.description, cadre: o.cadre, rotation: 0 }; }
   if (FAKE()) { checkPhoto(photo); return { titre: "Super Mario 64", categorie: "jeux", plateforme: "Nintendo 64", region: "PAL EUR", etat: "bon", contenu: "complet", rareteJeu: "commun", remarques: "Boîte légèrement frottée sur les coins.", particularites: ["Notice incluse", "Poster inclus"], annonce: "Super Mario 64 Nintendo 64 complet boîte notice PAL", description: "Super Mario 64 sur Nintendo 64, version française (PAL, NUS-NSMP-FRA).\nComplet en boîte (CIB) : boîte, notice et cartouche d'origine, testée et fonctionnelle.\nBon état général, coins de la boîte légèrement frottés.\nRemise en main propre ou envoi.", cadre: { x: 0.2, y: 0.1, w: 0.6, h: 0.8 } }; }
-  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire, une carte Pokémon ou un film en Blu-Ray, Blu-Ray 4K ou DVD). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
+  const consigne = `Cette photo montre un objet qu'un particulier va vendre d'occasion sur Le Bon Coin (le plus souvent un jeu vidéo, une console, un accessoire, une carte Pokémon, un film en Blu-Ray, Blu-Ray 4K ou DVD, ou un objet connecté comme des écouteurs, un casque ou une montre). Identifie-le aussi précisément que possible à partir de ce qui est visible (étiquette, logo, boîte, références comme « NUS-NKXP-EUR »). Lis le texte de la jaquette : si le titre est lisible, considère l'objet comme reconnu même si tu ne connais pas ce jeu (il peut être sorti récemment).
 Réponds uniquement par un objet JSON avec les clés :
 "trouve" (true si tu as reconnu l'objet, sinon false),
 "titre" (nom exact et officiel, avec ses majuscules d'origine, version française ou européenne si c'est elle, ex. « Kirby 64: The Crystal Shards », « Xenoblade Chronicles X: Definitive Edition »),
-"categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, « films » pour un film (Blu-Ray, Blu-Ray 4K UHD, DVD, VHS), ou « autres »),
+"categorie" (« jeux », « consoles », « accessoires », « cartes » pour une carte Pokémon, « films » pour un film (Blu-Ray, Blu-Ray 4K UHD, DVD, VHS), « connectes » pour un objet connecté ou électronique du quotidien (écouteurs, casque, enceinte, montre, téléphone, tablette, liseuse…), ou « autres » pour tout autre objet (livre, figurine, objet de déco, vêtement…)),
 "plateforme" (console ou support, nom courant en français, ex. « Nintendo 64 », « PlayStation 2 » ; "" si sans objet),
 "region" (version précise, déduite de la boîte, de l'étiquette ou du code produit : le suffixe du code donne le pays (-FRA France, -GER ou -NOE Allemagne, -UKV Royaume-Uni, -ITA Italie, -ESP Espagne, -HOL Pays-Bas, -SCN Scandinavie, -EUR Europe, -USA, -JPN), la classification aussi (USK : Allemagne, PEGI : Europe, ESRB : États-Unis, CERO : Japon), et la langue des textes de la jaquette. Écris « PAL FR » pour une version française, « PAL allemande », « PAL UK », « PAL italienne »… pour une version d'un autre pays d'Europe, « PAL EUR » si seul « Europe » est sûr, « NTSC-U » ou « NTSC-J » ; "" si inconnue),
 "langues" (langues du jeu lues sur la boîte, ex. « EN, DE, FR, ES, IT, JA » ; "" si illisibles),
@@ -193,7 +198,9 @@ Remise en main propre ou envoi. »
 Ligne 1 : nom, console, version et référence si elle est lisible sur la photo ; pour une version d'un autre pays que la France, dis-le (« version allemande ») et, si les langues lues sur la boîte comprennent le français, ajoute « entièrement en français » et, pour une console sans zone (Switch, PS4, PS5, Xbox One et Series), « compatible avec toutes les consoles françaises ». Ligne 2 : ce qui est fourni (« Jeu en loose : cartouche seule » ou « disque seul », « En boîte : … sans notice », « Complet en boîte (CIB) : boîte, notice et cartouche ») avec toujours « d'origine, testé(e) et fonctionnel(le) » accordé avec cartouche, disque ou console. ${TESTE_JEU} ${CODE_PHOTO} Ligne 3 : l'état visible et un défaut s'il y en a (dont « plastique légèrement jauni » ou « plastique nettement jauni » si c'est le cas ; ne parle de jaunissement que pour une cartouche, une console ou une manette, jamais pour un boîtier). Ne parle de film plastique, de blister ou de « neuf » que si le blister se voit clairement. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})
 ${consigneCarte()}
 ${consigneFilm()}${indice === "films" ? `
-Le vendeur a précisé que c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD ou VHS) : la catégorie est « films », sauf si la photo montre clairement autre chose.` : ""}`;
+Le vendeur a précisé que c'est un film (Blu-Ray, Blu-Ray 4K UHD, DVD ou VHS) : la catégorie est « films », sauf si la photo montre clairement autre chose.` : ""}
+${consigneConnecte()}${indice === "connectes" ? `
+Le vendeur a précisé que c'est un objet connecté (écouteurs, casque, montre, enceinte, téléphone, tablette…) : la catégorie est « connectes », sauf si la photo montre clairement autre chose.` : ""}`;
   let o = await claude([image(photo), { type: "text", text: consigne }], { max: 1800 });
   // Pas reconnu du premier coup (jeu récent, photo difficile) : on passe la main à un modèle plus fort, qui peut chercher sur le web.
   if (!o || !o.trouve) {
@@ -205,7 +212,7 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
       .catch((e) => { console.error("IA secours", e.message); return null; });
   }
   if (!o || !o.trouve) throw new IaError("Je n'ai pas reconnu le jeu. Essaie une photo plus nette où l'on voit bien l'étiquette ou la boîte.");
-  const carte = o.categorie === "cartes" ? champsCarte(o) : o.categorie === "films" ? champsFilm(o) : {};
+  const carte = o.categorie === "cartes" ? champsCarte(o) : o.categorie === "films" ? champsFilm(o) : o.categorie === "connectes" ? champsConnecte(o) : o.categorie === "autres" ? { marque: txt(o.marque, 40) } : {};
   return {
     ...carte,
     titre: txt(o.titre, 160), categorie: parmi(o.categorie, CATEGORIES, "autres"), plateforme: txt(o.plateforme, 60), region: txt(o.region, 30),
@@ -213,7 +220,8 @@ Un premier essai n'a pas reconnu l'objet. Regarde attentivement la photo (titre,
     ...(sansNotice(o.plateforme) && o.contenu === "boite" ? { contenu: "complet" } : {}),
     ...(o.categorie === "cartes" ? { contenu: "", etat: parmi(o.etat, ETATS, "") || ETAT_LBC_DE_CARTE[carte.etatCarte] || "" } : {}),
     ...(o.categorie === "films" ? { contenu: "", plateforme: carte.plateforme } : {}),
-    ...(o.categorie === "cartes" || o.categorie === "films" ? {} : { rareteJeu: rareteVraisemblable(o.rareteJeu, o), ...jaunissement(o) }),
+    ...(estObjet(o.categorie) ? { contenu: "", ...(carte.plateforme != null ? { plateforme: carte.plateforme, region: carte.region } : {}) } : {}),
+    ...(o.categorie === "cartes" || o.categorie === "films" || estObjet(o.categorie) ? {} : { rareteJeu: rareteVraisemblable(o.rareteJeu, o), ...jaunissement(o) }),
   };
 }
 // Plastique jauni (cartouche, console, manette) : dit honnêtement dans les remarques et les particularités, et l'état ne peut pas être « comme neuf ».
@@ -275,6 +283,30 @@ Version française incluse, toutes zones.
 Steelbook en très bon état, disques sans rayure, lus et vérifiés.
 Remise en main propre ou envoi. »
 Ligne 1 : « Film », titre, année et réalisateur s'ils sont sûrs, format, puis l'édition (« Steelbook », « édition collector »…). Ligne 2 : les langues et la zone si on les lit (sinon, omets cette ligne). Ligne 3 : l'état du boîtier ou du steelbook, de la jaquette et des disques d'après la photo, et ce qui est inclus. Ligne 4 : « Remise en main propre ou envoi. » ${CERTAIN})`;
+
+/* ===== Objets connectés (écouteurs, casques, montres, enceintes, téléphones…) et autres objets ===== */
+const consigneConnecte = () => `
+Si c'est un objet connecté ou électronique du quotidien (règles qui remplacent celles des jeux pour "titre", "plateforme", "region", "contenu", "particularites", "annonce" et "description") :
+"categorie" vaut « connectes » ; "titre" est le modèle exact avec sa génération et sa variante quand on les reconnaît (ex. « AirPods Pro 2 (USB-C) », « AirPods Max », « Apple Watch Series 9 45 mm », « Galaxy Buds2 Pro »), sans la marque si elle n'en fait pas partie ; "plateforme" est le type d'appareil, un parmi ${TYPES_CONNECTE.map((f) => "« " + f + " »").join(", ")} ; "region" est la couleur (ex. « Blanc », « Gris sidéral », « Bleu ciel » ; "" si on ne la voit pas) ; "contenu" vaut "".
+Ajoute les clés :
+"marque" (ex. « Apple », « Samsung », « Sony », « Bose » ; "" si elle ne se voit pas),
+"edition" (ce que la photo montre comme fourni, parmi ${FOURNI_CONNECTE.map((f) => "« " + f + " »").join(", ")}, séparés par des virgules ; "" si on ne voit que l'appareil),
+"batterie" ("" : le vendeur la donnera),
+"etat" (d'après la photo : rayures, traces, coussinets, bracelet ; « neuf » seulement s'il est encore sous blister),
+"particularites" (options courtes à cocher par le vendeur, ex. « Réinitialisé, retiré de mon compte », « Embouts neufs », « Coussinets d'origine », « Sous garantie », « Facture d'achat » ; [] sinon),
+"annonce" (titre Le Bon Coin, 70 caractères au plus : modèle, marque, couleur et « avec boîte » si la boîte se voit ; ex. « AirPods Max Apple gris sidéral avec boîte », « AirPods Pro 2 USB-C Apple »),
+"description" (exactement ce style, 4 lignes courtes, sans prix ni émoji :
+« AirPods Pro 2 (USB-C) d'Apple, coloris blanc.
+Fournis avec : boîte d'origine, câble de charge, embouts de rechange.
+Très bon état, testés et fonctionnels : réduction de bruit et mode Transparence parfaits.
+Remise en main propre ou envoi. »
+Ligne 1 : modèle, marque et couleur. Ligne 2 : ce qui est fourni (omets la ligne si on ne voit que l'appareil). Ligne 3 : l'état visible d'après la photo et « testé(s) et fonctionnel(s) » accordé avec le nom. Ligne 4 : « Remise en main propre ou envoi. » N'écris jamais de numéro de série ni d'IMEI. ${CERTAIN})
+Si c'est un autre objet (ni jeu, ni console, ni carte, ni film, ni objet connecté), "categorie" vaut « autres », "plateforme" est le type d'objet en un ou deux mots (ex. « Livre », « Figurine », « Lampe »), ajoute "marque" ("" si elle ne se voit pas), et la description suit le même style en 3 ou 4 lignes (objet, ce qui est fourni, état, « Remise en main propre ou envoi. »).`;
+
+function champsConnecte(o) {
+  const a = /^20\d{2}$/.test(String(o.annee || "").trim()) ? String(o.annee).trim() : "";
+  return { marque: txt(o.marque, 40), plateforme: typeConnecte(txt(o.plateforme, 60), txt(o.titre, 160)), region: txt(o.region, 30), annee: a, edition: txt(o.edition, 160), batterie: batterieTexte(o.batterie) };
+}
 
 function champsFilm(o) {
   const a = /^(18|19|20)\d{2}$/.test(String(o.annee || "").trim()) ? String(o.annee).trim() : "";
@@ -344,6 +376,7 @@ Réponds uniquement par un objet JSON : {"rarete": "…"}`, { max: 600, timeout:
 export async function estimerCote(v) {
   if (v && v.categorie === "cartes") return estimerCoteCarte(v);
   if (v && v.categorie === "films") return estimerCoteFilm(v);
+  if (v && estObjet(v.categorie)) return estimerCoteObjet(v);
   const titre = txt(v.titre, 160);
   if (!titre) throw new IaError("Indique d'abord le nom du jeu.");
   const cible = { etat: parmi(v.etat, ETATS, ""), contenu: parmi(v.contenu, CONTENUS, "") };
@@ -497,6 +530,36 @@ Réponds uniquement par un objet JSON avec les clés :
   c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
   return { ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
 }
+/* Cote d'un objet connecté (ou d'un autre objet) : ventes conclues eBay, annonces Le Bon Coin, Back Market et Rakuten
+   pour le même modèle, la même génération et le même état. Le prix d'un reconditionné garanti sert de plafond :
+   un particulier vend en dessous. La batterie, la boîte et la facture font varier le prix. */
+export async function estimerCoteObjet(v) {
+  const titre = txt(v.titre, 160), connecte = v.categorie === "connectes";
+  if (!titre) throw new IaError(connecte ? "Indique d'abord le modèle de l'objet." : "Indique d'abord le nom de l'objet.");
+  const marque = txt(v.marque, 40), fourni = txt(v.edition, 160), batterie = batterieTexte(v.batterie);
+  const quoi = [[marque && !titre.toLowerCase().includes(marque.toLowerCase()) ? marque : "", titre].filter(Boolean).join(" "), txt(v.plateforme, 60) && `(${txt(v.plateforme, 60).toLowerCase()})`, connecte && txt(v.region, 30) && `coloris ${txt(v.region, 30).toLowerCase()}`, connecte && fourni && `fourni avec ${fourni.toLowerCase()}`, connecte && batterie && `batterie ${batterie}`, connecte && txt(v.annee, 4) && `acheté en ${txt(v.annee, 4)}`, LIB_ETAT[v.etat], txt(v.particularites, 200)].filter(Boolean).join(", ");
+  const defauts = lireDefautsFiche(v.defauts);
+  if (FAKE()) {
+    const base = /airpods max/i.test(titre) ? 280 : /airpods pro/i.test(titre) ? 120 : /airpods/i.test(titre) ? 70 : connecte ? 60 : 15;
+    const c = coteDe({ bas: Math.round(base * 0.85), haut: Math.round(base * 1.15), conseille: Math.round(base * 1.08), rapide: Math.round(base * 0.92), resume: connecte ? `Ventes eBay conclues autour de ${base} € pour ce modèle en bon état ; le reconditionné garanti se vend plus cher.` : `Ventes conclues autour de ${base} € pour cet objet.`, methode: "Médiane des ventes conclues pour le même modèle et le même état, puis prix affiché un peu au-dessus pour la négociation.", releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: base, date: "2026-11-02", url: "https://www.ebay.fr/" }, ...(connecte ? [{ site: "Back Market", titre: "Reconditionné, état correct", prix: Math.round(base * 1.25), date: "2026-11-10", url: "https://www.backmarket.fr/" }] : [])], sources: ["https://www.ebay.fr/"] });
+    return coteDefauts({ ...c, lot: false }, defauts);
+  }
+  const o = await claude(`Estime la cote d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.${defauts.length ? ` Défauts vus sur les photos : ${defauts.map((d) => d.texte).join(" ; ")}.` : ""}
+${connecte ? `Cherche sur le web les prix réellement pratiqués pour CE modèle, dans CETTE génération et CETTE variante (ex. AirPods Pro 2 USB-C et non Lightning, taille de boîtier d'une montre, capacité de stockage) : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, et le prix d'un reconditionné sur Back Market ou Rakuten comme plafond (un particulier vend en dessous d'un reconditionné garanti). Ne mélange pas les générations ni le neuf avec l'occasion. Une batterie fatiguée (moins de 85 %), l'absence de boîte ou de facture, ou des coussinets abîmés font baisser le prix ; une garantie encore en cours le fait monter.` : `Cherche sur le web les prix réellement pratiqués pour CET objet (même modèle, même taille, même état) : ventes conclues sur eBay France (objets vendus), annonces Le Bon Coin, Vinted ou Rakuten selon l'objet. Ne mélange pas le neuf et l'occasion.`}
+Réponds uniquement par un objet JSON avec les clés :
+"bas" et "haut" (fourchette des prix de vente constatés, en euros),
+"conseille" (prix à afficher sur Le Bon Coin, un peu au-dessus du prix de vente probable pour laisser de la marge à la négociation, arrondi à l'euro),
+"rapide" (prix pour vendre en quelques jours),
+"resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
+"methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
+"releves" (3 à 6 prix précis réellement lus pendant ta recherche, pour le même modèle : objets avec "site" (eBay, Le Bon Coin, Back Market, Rakuten…), "titre" (intitulé de la vente ou de la page), "prix" (en euros), "date" (AAAA-MM-JJ) et "url" (adresse exacte de la page lue ; n'invente jamais d'adresse)),
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
+  const c = coteDe(o);
+  if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
+  if (!c) throw new IaError(connecte ? "Pas assez de prix trouvés pour estimer la cote. Précise le modèle exact (génération, taille, variante)." : "Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la marque de l'objet.");
+  c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
+  return coteDefauts({ ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE }, defauts);
+}
 /* Plusieurs cartes sur une photo (classeur, pile étalée) : le modèle liste chaque carte et son emplacement,
    TCGdex donne la cote Cardmarket de chacune (sans recherche web : rapide et gratuit), et on sépare
    les cartes qui valent le coup d'être vendues seules de celles qui partiront en lot. */
@@ -646,23 +709,25 @@ export async function legender(photos, v = {}, trace = null, progres = () => {})
   if (!l.length) throw new IaError("Ajoute d'abord des photos.");
   l.forEach(checkPhoto);
   if (FAKE()) { for (let i = 0; i < l.length; i++) { progres({ etape: "photo", photo: i + 1, n: l.length }); await new Promise((ok) => setTimeout(ok, +process.env.IA_FAKE_MS || 0)); } const defauts = process.env.IA_FAKE_DEFAUT && l.length > 1 ? [{ photo: 2, texte: process.env.IA_FAKE_DEFAUT, gravite: "marque" }] : [];
-    return { defauts, etatMax: defauts.length ? ETAT_DEFAUT.marque : "", legendes: l.map((_, i) => (defauts.length && i === 1 ? "Détail : " + defauts[0].texte : i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) && v.categorie !== "films" ? process.env.IA_FAKE_JAUNI : "non")) }; }
-  const film = v.categorie === "films", carte = v.categorie === "cartes" || film;   // ni carte ni film n'ont de plastique qui jaunit
-  const quoi = film ? ["le film " + (txt(v.titre, 160) || ""), txt(v.plateforme, 60), txt(v.edition, 80) && "édition " + txt(v.edition, 80)].filter(Boolean).join(", ")
+    return { defauts, etatMax: defauts.length ? ETAT_DEFAUT.marque : "", legendes: l.map((_, i) => (defauts.length && i === 1 ? "Détail : " + defauts[0].texte : i === 0 ? "Vue de face, étiquette en bon état" : "Détail, sans défaut")), jaunis: l.map(() => (process.env.IA_FAKE_JAUNI && !carte0(v) && v.categorie !== "films" && !estObjet(v.categorie) ? process.env.IA_FAKE_JAUNI : "non")) }; }
+  const film = v.categorie === "films", objet = estObjet(v.categorie), carte = v.categorie === "cartes" || film || objet;   // ni carte, ni film, ni objet récent n'ont de plastique qui jaunit
+  const quoi = objet ? [[txt(v.marque, 40), txt(v.titre, 160)].filter(Boolean).join(" ") || "un objet d'occasion", txt(v.plateforme, 60) && txt(v.plateforme, 60).toLowerCase()].filter(Boolean).join(", ")
+    : film ? ["le film " + (txt(v.titre, 160) || ""), txt(v.plateforme, 60), txt(v.edition, 80) && "édition " + txt(v.edition, 80)].filter(Boolean).join(", ")
     : v.categorie === "cartes" ? ["la carte Pokémon " + (txt(v.titre, 160) || ""), txt(v.numero, 20), txt(v.plateforme, 60)].filter(Boolean).join(", ")
     : [txt(v.titre, 160), txt(v.plateforme, 60)].filter(Boolean).join(", ") || "un jeu vidéo d'occasion";
-  const vues = film ? "« Jaquette, face avant », « Dos de la jaquette », « Tranche », « Intérieur du boîtier », « Disque », « Disques », « Steelbook, face avant », « Steelbook, dos », « Fourreau », « Livret », « Contenu du coffret »…"
+  const vues = objet ? "« Vue de face », « Dos », « Boîtier de charge ouvert », « Écouteurs », « Coussinets », « Arceau », « Écran allumé », « Bracelet », « Connecteur de charge », « Numéro de série masqué », « Boîte d'origine », « Contenu de la boîte », « Accessoires »…"
+    : film ? "« Jaquette, face avant », « Dos de la jaquette », « Tranche », « Intérieur du boîtier », « Disque », « Disques », « Steelbook, face avant », « Steelbook, dos », « Fourreau », « Livret », « Contenu du coffret »…"
     : carte ? "« Recto », « Verso », « Coin supérieur gauche », « Bord droit », « Surface holo », « Étiquette de gradation », « Boîtier gradé, dos »…"
     : "pour une cartouche (Nintendo 64, Super Nintendo, Game Boy…) : « Face avant » = côté avec la grande étiquette illustrée, « Dos » = côté opposé, « Connecteur », « Tranche », « Dessus » ; pour un jeu en boîtier (Switch, DS, PlayStation, Xbox, GameCube…) : « Jaquette, face avant », « Jaquette, dos », « Tranche gauche », « Tranche droite », « Tranche du haut », « Tranche du bas », « Intérieur du boîtier », « Cartouche » ou « Disque » ; « Boîte, face avant », « Boîte, dos », « Notice »…";
-  const defauts = film ? "rayure sur le disque, boîtier fendu, jaquette décolorée, steelbook rayé ou cabossé, étiquette de prix…" : carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
+  const defauts = objet ? "rayure sur l'écran ou la coque, trace d'usure, coussinet abîmé ou décollé, bracelet usé, saleté dans les grilles, fissure, bosse…" : film ? "rayure sur le disque, boîtier fendu, jaquette décolorée, steelbook rayé ou cabossé, étiquette de prix…" : carte ? "point blanc sur un bord, coin émoussé, rayure sur l'holo, pli, centrage décalé…" : "rayure, étiquette décollée, coin abîmé, plastique jauni (un gris ou un blanc d'origine qui tire sur le jaune ou le beige, sans que la lumière de la photo l'explique : « plastique légèrement jauni » ou « plastique nettement jauni »)…";
   // Une requête par photo (en parallèle) : la légende ne peut pas être attribuée à une autre photo.
   const une = async (p) => {
     const o = await claude([image(p), { type: "text", text: `Cette photo montre ${quoi}, vendu d'occasion sur Le Bon Coin. Écris une légende courte en français (12 mots au plus) pour CETTE photo : d'abord la vue montrée, à choisir d'après ce qu'on voit réellement (${vues}), puis « : » et l'état de ce qui est montré, ou le défaut s'il y en a un (${defauts}). ${CERTAIN} ${ETAT_SEUL} Pas de point final.
 ${carte ? "" : `
 Regarde aussi la couleur du plastique (cartouche, console, manette) : un gris ou un blanc d'origine qui tire sur le jaune, le beige ou l'orangé a jauni avec le temps ; le gris d'origine de la Nintendo 64, de la Super Nintendo ou de la Game Boy est un gris neutre, presque sans couleur. Une lumière chaude ou le reflet du bois, d'un mur ou de la main donne une teinte crème à un plastique sain : ce n'est pas du jaunissement. Réponds « leger » ou « net » seulement si une zone du plastique est nettement plus jaune qu'une autre zone éclairée pareil ; dans le doute, ou si l'objet n'est pas en plastique, « non ». Ne parle pas de jaunissement dans la légende : réponds-le seulement dans "jauni".`}
-${film ? "" : `
+${film || objet ? "" : `
 Regarde enfin s'il y a sur CETTE photo un code (carte ou papier de code de téléchargement, de DLC ou de bonus) : "code" vaut « intact » si la zone du code est encore cachée, non grattée ou sous blister, « utilise » si elle est grattée ou le code lisible en entier, « aucun » s'il n'y a pas de code ou si tu n'es pas sûr.`}
-Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"${film ? "" : `, "code": "aucun"`}}` : `{"legende": "…", "jauni": "non", "code": "aucun"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
+Réponds uniquement par un objet JSON, sans aucun texte avant ni après : ${carte ? `{"legende": "…"${film || objet ? "" : `, "code": "aucun"`}}` : `{"legende": "…", "jauni": "non", "code": "aucun"}, où "jauni" vaut exactement "non", "leger" ou "net"`}` }], { max: 800, timeout: 45000, brut: true, trace, effort: "low" });
     // Réponse mal formée : on récupère quand même la légende et le jaunissement dans le texte brut
     const brut = (o && o._texte) || "";
     const leg = affirme(txt((o && o.legende) || (/"legende"\s*:\s*"([^"]{2,200})"/.exec(brut) || [])[1], 200)).replace(/\.$/, "");
@@ -975,7 +1040,7 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   if (conv.length < 5) throw new IaError("Je ne trouve pas de message à analyser dans cette conversation.");
   // Ce que le vendeur a déjà écrit dans cette conversation (bulles de droite) : à ne pas répéter.
   const deja = Array.isArray(contexte && contexte.mesMessages) ? contexte.mesMessages.slice(-4).map((x) => "- " + txt(x, 600).replace(/"""/g, "").replace(/\s*\n\s*/g, " ")).filter((x) => x.length > 5).join("\n") : "";
-  const objetDe = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  const objetDe = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire", connectes: "l'appareil", autres: "l'objet" }[a && a.categorie] || "l'article";
   // Règle du vendeur : jamais de vente à un acheteur sans avis sur Le Bon Coin (désactivable dans le panneau).
   const sansAvis = !(contexte && contexte.site === "ebay") && acheteurSansAvis(conversation);
   if (sansAvis && !(contexte && contexte.refuserSansAvis === false) && !consigne && !conclue) return { resume: "Acheteur sans aucun avis sur Le Bon Coin : d'après ta règle, je te propose de décliner poliment.", intention: "sans_avis", reponses: refusSansAvis(objetDe), acheteur: { sansAvis: true } };
@@ -985,12 +1050,13 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
   // Question de langue, de version régionale ou de compatibilité : fait vérifié, ou consigne de ne rien affirmer.
   const version = consigne || conclue ? null : await faitVersion(a, conversation);
   const fiche = [
-    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : a.categorie === "films" ? "Format" : "Console"} : ${txt(a.plateforme, 60)}` : "",
+    a.titre ? `Annonce : ${txt(a.titre, 160)}` : "", a.plateforme ? `${a.categorie === "cartes" ? "Extension" : a.categorie === "films" ? "Format" : estObjet(a.categorie) ? "Type" : "Console"} : ${txt(a.plateforme, 60)}` : "",
+    estObjet(a.categorie) ? [a.marque && `Marque : ${txt(a.marque, 40)}`, a.couleur && `Couleur : ${txt(a.couleur, 30)}`, a.annee && `Acheté en : ${txt(a.annee, 4)}`, a.fourni && `Fourni avec : ${txt(a.fourni, 160)}`, a.batterie && `Batterie : ${txt(a.batterie, 40)}`, a.reinit ? "Réinitialisé et retiré du compte du vendeur : prêt à être associé à celui de l'acheteur" : ""].filter(Boolean).join("\n") : "",
     a.categorie === "films" ? [a.edition && `Édition : ${txt(a.edition, 80)}`, a.annee && `Année : ${txt(a.annee, 4)}`, a.realisateur && `Réalisateur : ${txt(a.realisateur, 80)}`, a.region && `Langues et zone : ${txt(a.region, 30)}`].filter(Boolean).join("\n") : "",
     a.categorie === "cartes" ? [a.numero && `Numéro : ${txt(a.numero, 20)}`, a.region && `Langue : ${txt(a.region, 30)}`, a.gradation ? `Gradée : ${txt(a.gradation, 30)}` : LIB_ETAT_CARTE[a.etatCarte] && `État collectionneur : ${LIB_ETAT_CARTE[a.etatCarte]}`].filter(Boolean).join("\n") : "",
     LIB_ETAT[a.etat] ? `État : ${LIB_ETAT[a.etat]}` : "", LIB_CONTENU[a.contenu] ? `Contenu : ${LIB_CONTENU[a.contenu]}` : "",
     // Rareté donnée par le vendeur : un argument honnête si le jeu est rare, jamais pour un jeu courant.
-    a.categorie !== "cartes" && a.categorie !== "films" && LIB_RARETE_JEU[a.rareteJeu] ? `Rareté : ${LIB_RARETE_JEU[a.rareteJeu].toLowerCase()}${a.rareteJeu === "rare" || a.rareteJeu === "tres_rare" ? " (peu d'exemplaires en vente : argument possible, une seule fois dans la discussion)" : " (ne le présente jamais comme rare)"}` : "",
+    a.categorie !== "cartes" && a.categorie !== "films" && !estObjet(a.categorie) && LIB_RARETE_JEU[a.rareteJeu] ? `Rareté : ${LIB_RARETE_JEU[a.rareteJeu].toLowerCase()}${a.rareteJeu === "rare" || a.rareteJeu === "tres_rare" ? " (peu d'exemplaires en vente : argument possible, une seule fois dans la discussion)" : " (ne le présente jamais comme rare)"}` : "",
     px != null ? `Prix affiché : ${px} € (${ferme ? "le vendeur ne marchande pas : ne propose jamais d'autre prix" : `prix plancher conseillé : ${Math.min(px, rond(px * part, true))} €, ne jamais proposer moins`})` : "",
     a.description ? `Description publiée : ${txt(a.description, 1200)}` : "",
   ].filter(Boolean).join("\n");
@@ -1014,7 +1080,16 @@ export async function repondre(conversation, a = {}, autres = [], contexte = {})
       { approche: "ferme", titre: "Prix ferme", texte: "Bonjour, merci pour votre message ! Le prix est déjà calé sur la cote actuelle, je préfère le garder tel quel 🙂" },
       { approche: "couper_court", titre: "Couper court", texte: "Bonjour, merci pour votre proposition ! Je pense qu'on ne va pas réussir à s'entendre sur ce prix, je préfère en rester là. Bonne recherche à vous 🙂" },
     ] };
-  const carte = a.categorie === "cartes", film = a.categorie === "films";
+  const carte = a.categorie === "cartes", film = a.categorie === "films", connecte = a.categorie === "connectes", unObjet = estObjet(a.categorie);
+  const conseilsConnecte = connecte ? `
+Particularités des objets connectés :
+- batterie : ne donne un pourcentage ou une autonomie que si la fiche le dit ; sinon, propose une capture de l'état de la batterie ;
+- compte : un appareil Apple, Samsung ou Google doit être réinitialisé et retiré du compte du vendeur (Localiser désactivé) pour que l'acheteur puisse l'associer au sien ; si la fiche dit qu'il l'est, rassure l'acheteur, sinon promets de le faire avant l'envoi ;
+- authenticité : beaucoup de contrefaçons circulent (AirPods surtout) ; l'appareil est authentique, propose la facture si la fiche la mentionne, ou de montrer le numéro de série dans les réglages à la remise ; n'écris jamais de numéro de série dans le message ;
+- hygiène : pour des écouteurs ou un casque, dis qu'ils sont nettoyés et désinfectés ; embouts ou coussinets neufs seulement si la fiche le dit ;
+- compatibilité : des AirPods fonctionnent aussi en Bluetooth avec Android, sans certaines fonctions ; ne promets rien d'autre que ce que la fiche dit ;
+- envoi : dans un carton rigide, bien calé, avec suivi ; la remise en main propre permet de tester l'appareil sur place.
+` : "";
   const conseilsFilm = film ? `
 Particularités des films :
 - langues et zone : un Blu-Ray ou un 4K acheté en France lit la version française sur les lecteurs français ; ne promets la VF ou les sous-titres que si la fiche le dit, sinon propose une photo du dos de la jaquette ;
@@ -1033,12 +1108,12 @@ Particularités des cartes Pokémon :
   const profilIA = consignesProfil(pv);
   // Messagerie eBay : mêmes règles, avec le vocabulaire et les usages d'eBay (offres, paiement, envoi).
   const ebay = contexte && contexte.site === "ebay", site = ebay ? "eBay" : "Le Bon Coin";
-  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : "un jeu vidéo"} d'occasion sur ${site} à répondre à un acheteur.${ebay ? `
+  const consigneIA = `Tu aides un particulier qui vend ${carte ? "une carte Pokémon" : film ? "un film (Blu-Ray, 4K UHD ou DVD)" : connecte ? "un objet connecté (écouteurs, casque, montre, enceinte…)" : unObjet ? "un objet" : "un jeu vidéo"} d'occasion sur ${site} à répondre à un acheteur.${ebay ? `
 Particularités d'eBay :
 - l'acheteur paie toujours sur eBay (« Achat immédiat » ou offre acceptée) ; une offre officielle s'accepte, se refuse ou se contre-propose avec les boutons d'eBay (« Accepter », « Faire une contre-offre ») : dans ta réponse, dis ce que tu vas faire ou le prix que tu proposes en contre-offre ;
 - l'envoi est la règle (suivi, emballage soigné) ; la remise en main propre n'existe que si l'annonce la propose : n'en parle que si l'acheteur la demande ;
 - une question « combiner l'envoi » ou « plusieurs objets » : l'acheteur peut ajouter les objets à son panier, tu feras un seul colis et un prix d'ensemble par contre-offre ou par une offre groupée.
-` : ""}${conseilsCarte}${conseilsFilm}
+` : ""}${conseilsCarte}${conseilsFilm}${conseilsConnecte}
 
 Ce que vend le vendeur :
 ${fiche || "(pas de fiche, reste général sur l'objet)"}
@@ -1112,7 +1187,7 @@ LE VENDEUR A ÉCRIT LE DERNIER MESSAGE : il a déjà répondu à la dernière qu
     l.forEach((r) => { r.texte = sansSujet(r.texte); if (r.gras) r.gras = r.gras.filter((g) => r.texte.includes(g)); });
   }
   if (lieux.length) l.forEach((r) => { r.texte = sansLieu(r.texte, lieux); });
-  const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire" }[a && a.categorie] || "l'article";
+  const objet = { jeux: "le jeu", consoles: "la console", cartes: "la carte", films: "le film", accessoires: "l'accessoire", connectes: "l'appareil", autres: "l'objet" }[a && a.categorie] || "l'article";
   l.forEach((r) => { r.texte = sansPrenomInvente(dispoClaire(sansOuIlHabite(r.texte), objet), qui); });
   // Le vendeur a déjà dit que c'est disponible : on ne le répète pas.
   if (/disponible|dispo\b/i.test(deja)) l.forEach((r) => { r.texte = sansDispoRepetee(r.texte); });
@@ -1220,7 +1295,7 @@ export function sansSujet(t) {
 /* ===== Discussion sur une fiche =====
    Le vendeur écrit librement (« le code a déjà été utilisé », « baisse à 25 € », « annonce plus courte ») ;
    le modèle répond et renvoie les champs à modifier. Seuls les champs connus, avec des valeurs valides, passent. */
-const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur"];
+const CHAMPS_DIALOGUE = ["titre", "plateforme", "region", "categorie", "etat", "contenu", "origine", "modif", "particularites", "prixAchat", "prixDemande", "titreAnnonce", "texteAnnonce", "numero", "rarete", "edition", "gradation", "etatCarte", "annee", "realisateur", "marque", "batterie", "reinit"];
 const ORIGINES_D = ["origine", "non_teste", "modifie", "repro", "hs"];
 export function changementsSurs(c) {
   const out = {};
@@ -1234,10 +1309,12 @@ export function changementsSurs(c) {
     else if (k === "contenu") { if (CONTENUS.includes(v)) out[k] = v; }
     else if (k === "origine") { if (ORIGINES_D.includes(v)) out[k] = v; }
     else if (k === "etatCarte") { if (ETATS_CARTE.includes(v)) out[k] = v; }
+    else if (k === "reinit") out[k] = v === "oui" || v === true ? "oui" : "";
+    else if (k === "batterie") out[k] = batterieTexte(v);
     else if (k === "annee") { if (/^(18|19|20)\d{2}$/.test(String(v).trim())) out[k] = String(v).trim(); }
     else if (k === "texteAnnonce") out[k] = testeSurJeu(affirme(txt(v, 4000)));
     else if (k === "titreAnnonce") out[k] = titreSansVersion(txt(v, 100));
-    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 80, gradation: 30, realisateur: 80 }[k]);
+    else out[k] = txt(v, { titre: 160, plateforme: 60, region: 30, modif: 160, particularites: 300, titreAnnonce: 100, numero: 20, rarete: 40, edition: 160, gradation: 30, realisateur: 80, marque: 40 }[k]);
   }
   return out;
 }
@@ -1254,7 +1331,7 @@ export async function dialoguer(messages, fiche = {}) {
     if (/code/i.test(dit)) return { reponse: "Compris : c'est la boîte seule, sans le code. J'ai mis la fiche et l'annonce à jour.", changements: changementsSurs({ contenu: "boite_vide", particularites: "Code de téléchargement déjà utilisé", texteAnnonce: (f.texteAnnonce || "") + "\nCode de téléchargement déjà utilisé." }) };
     return { reponse: "D'accord. Dis-moi ce que tu veux changer sur la fiche.", changements: {} };
   }
-  const prompt = `Tu es l'assistant de RetroRevente. Tu aides un particulier à rédiger la fiche d'un objet (le plus souvent un jeu vidéo rétro) qu'il vend d'occasion sur Le Bon Coin. Il te parle librement : il corrige un détail, te donne une information, te demande un conseil ou un changement de style.
+  const prompt = `Tu es l'assistant de RetroRevente. Tu aides un particulier à rédiger la fiche d'un objet (le plus souvent un jeu vidéo rétro, mais aussi une carte Pokémon, un film, un objet connecté ou un autre objet) qu'il vend d'occasion sur Le Bon Coin. Il te parle librement : il corrige un détail, te donne une information, te demande un conseil ou un changement de style.
 
 Fiche actuelle (JSON) :
 ${JSON.stringify(f, null, 1)}
@@ -1267,6 +1344,8 @@ Signification des champs :
 - prixDemande, prixAchat : en euros ;
 - pour une carte Pokémon (categorie « cartes ») : titre = nom de la carte, plateforme = extension, region = langue, numero (ex. « 4/102 »), rarete, edition (« 1re édition »…), gradation (ex. « PSA 9 »), etatCarte (« mint », « near_mint », « excellent », « good », « light_played », « played » ou « poor ») ; contenu et origine ne servent pas ;
 - pour un film (categorie « films ») : titre = titre français du film, plateforme = format (${FORMATS_FILM.map((f) => "« " + f + " »").join(", ")}), region = langues et zone (ex. « VF incluse, zone B »), edition (ex. « Steelbook », « Édition collector », plusieurs séparées par des virgules), annee (4 chiffres), realisateur ; contenu et origine ne servent pas ;
+- pour un objet connecté (categorie « connectes ») : titre = modèle exact (ex. « AirPods Pro 2 (USB-C) »), marque, plateforme = type d'appareil (${TYPES_CONNECTE.map((f) => "« " + f + " »").join(", ")}), region = couleur, annee = année d'achat (4 chiffres), edition = ce qui est fourni (ex. « Boîte d'origine, Câble de charge, Facture »), batterie (ex. « 92 % » de capacité, ou « bonne autonomie »), reinit = « oui » s'il est réinitialisé et retiré du compte du vendeur ; contenu et origine ne servent pas ;
+- pour un autre objet (categorie « autres ») : titre = nom de l'objet, marque, plateforme = type d'objet (ex. « Livre », « Figurine ») ; contenu et origine ne servent pas ;
 - titreAnnonce : titre Le Bon Coin (100 caractères au plus), sans jamais la version d'un autre pays (« version allemande », « PAL UK », « NTSC-U ») : elle se dit seulement dans texteAnnonce ; texteAnnonce : texte de l'annonce.
 
 Conversation (le dernier message est celui du vendeur) :
@@ -1377,7 +1456,8 @@ export function specifiquesSurs(fiche = {}, champs = []) {
     let v = "";
     if (/^(plateforme|plate forme|platform)/.test(n)) v = fiche.plateforme || "";
     else if (/^(nom du jeu|titre du jeu|game name)/.test(n)) v = lot ? nomLot(fiche) : fiche.nom || "";   // obligatoire chez eBay : pour un lot, « Lot de N jeux », jamais un jeu précis
-    else if (/^(modele|model)$/.test(n) && fiche.categorie === "consoles") v = fiche.nom || "";
+    else if (/^(modele|model)$/.test(n) && (fiche.categorie === "consoles" || estObjet(fiche.categorie))) v = fiche.nom || "";
+    else if (/^(marque|brand)$/.test(n) && fiche.marque) v = fiche.marque;
     else if (/^(code (de )?region|region)/.test(n)) v = /pal/i.test(fiche.region || "") ? "PAL" : /ntsc.?j|japon/i.test(fiche.region || "") ? "NTSC-J" : /ntsc/i.test(fiche.region || "") ? "NTSC-U/C" : "";
     else if (/^(quantite unitaire|unit quantity)/.test(n)) v = lot ? String(fiche.nbArticles || (fiche.contient || []).length) : "";
     else if (/^(unite de mesure|unit type)/.test(n)) v = lot ? "Unité" : "";
@@ -1394,7 +1474,7 @@ export async function specifiquesEbay(fiche = {}, champs = []) {
   // Lot : seulement ce qui vaut pour tout le lot (plateforme, région, quantité). Rien de propre à un jeu
   // (nom, éditeur, genre, année, classification, série…) : on ne demande rien à l'IA.
   if (!reste.length || lot || FAKE()) return sur;
-  const o = await claude(`Tu remplis les caractéristiques d'une annonce eBay France pour un particulier qui vend ${lot ? "un LOT" : "un article"} de jeu vidéo rétro.
+  const o = await claude(`Tu remplis les caractéristiques d'une annonce eBay France pour un particulier qui vend ${lot ? "un LOT" : "un article"} ${fiche.categorie === "connectes" ? "d'électronique (objet connecté)" : fiche.categorie === "autres" ? "d'occasion" : fiche.categorie === "films" ? "de cinéma (film)" : "de jeu vidéo rétro"}.
 Article : ${txt(fiche.titre, 200)}${fiche.plateforme ? ` ; plateforme : ${txt(fiche.plateforme, 60)}` : ""}${fiche.region ? ` ; région : ${txt(fiche.region, 40)}` : ""}${fiche.contenu ? ` ; contenu : ${txt(fiche.contenu, 60)}` : ""}${fiche.annee ? ` ; année : ${txt(fiche.annee, 10)}` : ""}
 ${lot ? `Le lot contient :\n${fiche.contient.slice(0, 40).map((x) => "- " + txt(x, 120)).join("\n")}\n` : ""}${fiche.description ? `Description : ${txt(fiche.description, 1200)}\n` : ""}
 Champs à remplir (libellé ; valeurs que propose eBay entre crochets) :

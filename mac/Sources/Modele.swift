@@ -57,6 +57,7 @@ struct Article: Identifiable, Hashable {
     var cote: Cote? = nil
     // Comme sur le site : rareté, sites, lots, colis, champs des cartes et des films
     var rareteJeu = "", annonceEbay = "", numero = "", gradation = "", edition = "", annee = ""
+    var marque = ""                        // objets connectés et autres objets (Apple, Sony…)
     var membres: [String]? = nil          // lot : ses articles (nil pour un article)
     var lots: [String] = []                // article : les lots qui le contiennent
     var themeNom = "", themeType = ""
@@ -85,7 +86,7 @@ struct Article: Identifiable, Hashable {
         } else if d["photo"] as? Bool == true { photos = [Photo(id: "p0", legende: "")] }
         if d["photo"] as? Bool == false { photos = [] }
         rareteJeu = t("rareteJeu"); annonceEbay = t("annonceEbay"); numero = t("numero"); gradation = t("gradation")
-        edition = t("edition"); annee = t("annee")
+        edition = t("edition"); annee = t("annee"); marque = t("marque")
         membres = d["articles"] as? [String]
         var l = d["lots"] as? [String] ?? []
         if let x = d["lot"] as? String, !x.isEmpty, !l.contains(x) { l.append(x) }
@@ -109,13 +110,18 @@ struct Article: Identifiable, Hashable {
     var prixAffiche: Double? { vendu ? prixVente : prixDemande }
     /// Valeur à l'unité : le prix demandé, sinon le prix conseillé de la cote.
     var valeur: Double? { prixDemande ?? cote?.conseille }
-    var rangRarete: Int { categorie == "cartes" || categorie == "films" || estLot ? 0 : (["commun": 1, "peu_commun": 2, "rare": 3, "tres_rare": 4][rareteJeu] ?? 0) }
+    /// Cartes, films, objets connectés et autres objets : pas de rareté de jeu, ni de boîte et notice.
+    var sansRarete: Bool { ["cartes", "films", "connectes", "autres"].contains(categorie) }
+    var estObjet: Bool { categorie == "connectes" || categorie == "autres" }
+    var rangRarete: Int { sansRarete || estLot ? 0 : (["commun": 1, "peu_commun": 2, "rare": 3, "tres_rare": 4][rareteJeu] ?? 0) }
     /// Ligne sous le titre, comme sur le site.
     var ligne: String {
         let l: [String]
         switch categorie {
         case "cartes": l = [numero, plateforme, gradation]
         case "films": l = [Libelles.formatCourt(plateforme), edition.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? "", annee]
+        case "connectes": l = [marque, plateforme, region]
+        case "autres": l = [marque, plateforme]
         default: l = [plateforme, Libelles.contenuCourt[contenu] ?? ""]
         }
         return l.filter { !$0.isEmpty }.joined(separator: " · ")
@@ -193,14 +199,14 @@ enum Libelles {
     static let rarete = ["commun": "Commun", "peu_commun": "Peu commun", "rare": "Rare", "tres_rare": "Très rare"]
     static let rareteGroupe = ["commun": "Communs", "peu_commun": "Peu communs", "rare": "Rares", "tres_rare": "Très rares"]
     static let contenuCourt = ["seul": "Jeu en loose", "boite": "En boîte", "complet": "Complet (CIB)", "boite_vide": "Boîte seule"]
-    static let nomsCategories = ["jeux": "Jeux vidéo", "consoles": "Consoles", "accessoires": "Accessoires", "cartes": "Cartes Pokémon", "films": "Films", "autres": "Autres"]
+    static let nomsCategories = ["jeux": "Jeux vidéo", "consoles": "Consoles", "accessoires": "Accessoires", "cartes": "Cartes Pokémon", "films": "Films", "connectes": "Objets connectés", "autres": "Autres objets"]
     static let typesTheme = ["licence": "Licence", "série": "Série", "studio": "Studio", "lignée": "Lignée", "univers": "Univers", "genre": "Genre", "petits prix": "Petits prix", "support": "Même console"]
     static func formatCourt(_ f: String) -> String { ["Blu-Ray 4K UHD": "4K UHD", "Blu-Ray 4K UHD + Blu-Ray": "4K UHD + Blu-Ray"][f] ?? f }
     static let categories: [(String, String)] = [("jeux", "Jeu vidéo"), ("consoles", "Console"), ("accessoires", "Accessoire"),
-                                                 ("cartes", "Carte Pokémon"), ("films", "Film"), ("autres", "Autre")]
+                                                 ("cartes", "Carte Pokémon"), ("films", "Film"), ("connectes", "Objet connecté"), ("autres", "Autre objet")]
     static func symboleCategorie(_ c: String) -> String {
         ["jeux": "gamecontroller", "consoles": "tv", "accessoires": "cable.connector", "cartes": "rectangle.portrait.on.rectangle.portrait",
-         "films": "film", "autres": "shippingbox"][c] ?? "gamecontroller"
+         "films": "film", "connectes": "headphones", "autres": "shippingbox"][c] ?? "gamecontroller"
     }
     static let etats: [(String, String)] = [("", "Non précisé"), ("neuf", "Neuf"), ("tres_bon", "Très bon état"), ("bon", "Bon état"),
                                             ("correct", "État correct"), ("pieces", "Pour pièces")]

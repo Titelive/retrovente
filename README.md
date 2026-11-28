@@ -74,6 +74,16 @@ Ce que fait le code pour le droit de la consommation :
 - rappel par e-mail avant chaque échéance annuelle, avec la date limite de non-reconduction encadrée (art. L215-1) ;
 - trace des acceptations, résiliations et rétractations (table `demandes`, 5 ans).
 
+## Objets connectés et autres objets
+
+Catégorie **Objet connecté** (écouteurs, casques, enceintes, montres et bracelets, téléphones, tablettes, liseuses, maison connectée, drones), de la photo à l'annonce, sur le modèle des films (`server/connectes.mjs`) :
+- **Photo** (menu « Nouvel article › Un objet connecté », ou « En photo ») : l'IA reconnaît le modèle exact avec sa génération (« AirPods Pro 2 (USB-C) », « AirPods Max »), la marque, le type d'appareil, la couleur et ce qui est fourni, et rédige l'annonce, sans jamais écrire de numéro de série.
+- **Fiche** : modèle, marque, type d'appareil (liste), couleur, année d'achat, **batterie** (« 92 % » de capacité ou texte libre), « Fourni avec » à cocher (boîte d'origine, câble, chargeur, étui, embouts, bracelet, facture, garantie en cours) et « Réinitialisé, retiré de mon compte » (Localiser désactivé). Champs en base : `plateforme` = type, `region` = couleur, `annee` = année d'achat, `edition` = ce qui est fourni, `marque`, `batterie`, `reinit`.
+- **Prix** : ventes conclues eBay et annonces Le Bon Coin pour le même modèle et la même génération, le reconditionné Back Market ou Rakuten comme plafond ; batterie, boîte, facture et garantie font varier le prix.
+- **Le Bon Coin** : catégorie selon le type (Électronique › Photo, audio & vidéo pour les écouteurs, casques et enceintes ; Téléphones & Objets connectés ; Tablettes & Liseuses). **eBay** : caractéristiques Marque, Modèle, Type, Couleur, Inclus. Extension **1.15.0** : catégorie choisie selon le type, émojis 🎧 ⌚ 🔊 📱, réponses types (batterie, compte réinitialisé, authenticité, hygiène, compatible Android, envoi protégé) et consignes de l'IA de réponse.
+
+La catégorie **Autre objet** n'est plus liée aux jeux vidéo : nom, marque, type d'objet, couleur ou taille ; ni console, ni boîte et notice, ni rareté ; la catégorie Le Bon Coin et eBay est celle que le site propose d'après le titre.
+
 ## Vendre aussi sur eBay
 
 Sur la fiche, le bouton **eBay** (à côté de « Le Bon Coin ») ouvre l'annonce **au format eBay**, un bouton « Copier » par champ dans l'ordre de la mise en vente eBay : titre coupé à **80 caractères** entre deux mots, catégorie eBay, état eBay (Neuf, Très bon état, Bon état, État acceptable, Pour pièces détachées), **caractéristiques** (nom du jeu, plateforme, région, contenu ; pour une carte : extension, numéro, langue, gradation ; pour un film : format, édition, année), description (l'envoi avec suivi remplace « main propre ou envoi »), prix en Achat immédiat avec les offres et un **refus automatique sous 85 %** du prix, et les photos. « Créer l'annonce sur eBay » enregistre la fiche, copie le titre et ouvre le formulaire de mise en vente (`ebay.fr/sl/prelist/suggest`, « Que vendez-vous ? ») ; si l'article a déjà son lien eBay, le bouton devient « Voir l'annonce sur eBay ». Avec l'extension (1.11.0), la page eBay se remplit toute seule : titre et recherche, puis état, caractéristiques, prix, description et photos (voir `extension/README.md`).

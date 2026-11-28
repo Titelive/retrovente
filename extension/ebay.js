@@ -228,8 +228,10 @@
     svg.appendChild(c); svg.appendChild(p); return svg;
   }
   var EMOJIS = [[/mario ?kart/, "🏎️"], [/yoshi/, "🦖"], [/mario|peach/, "🍄"], [/zelda|link/, "🗡️"], [/kirby/, "🌸"], [/pok[eé]mon|pikachu/, "⚡"], [/sonic/, "🦔"], [/donkey|diddy/, "🦍"], [/banjo/, "🐻"], [/goldeneye|007/, "🕵️"], [/metroid/, "🚀"], [/final fantasy/, "🔮"]];
+  function emojiObjet(a) { var t = String(a.plateforme || "").toLowerCase(); return a.categorie === "autres" ? "🛍️" : /couteur|casque/.test(t) ? "🎧" : /montre|bracelet/.test(t) ? "⌚" : /enceinte/.test(t) ? "🔊" : /phone|tablette|liseuse/.test(t) ? "📱" : /drone|cam/.test(t) ? "🚁" : "🔌"; }
   function emoji(a) {
     if (!a) return "🎮"; if (a.lot) return "📦";
+    if (a.categorie === "connectes" || a.categorie === "autres") return emojiObjet(a);
     var k = EMOJIS.filter(function (x) { return x[0].test(norm(a.titre + " " + (a.nom || ""))); })[0]; if (k) return k[1];
     return a.categorie === "consoles" ? "🕹️" : a.categorie === "cartes" ? "🃏" : a.categorie === "films" ? "🎬" : "🎮";
   }
