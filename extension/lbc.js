@@ -1994,7 +1994,48 @@
         .map(function (t) { return { cote: "lui", texte: t, meta: "" }; });
     }
     return { cle: idConversation(), acheteur: acheteurLu(), annonce: enc, dernierMoi: dernierEstMoi(), bloque: bloque,
-             messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-120) };
+             messages: out.map(function (m) { return { cote: m.cote, texte: m.texte.slice(0, 3000), meta: m.meta }; }).slice(-400) };
+  }
+  // Historique complet : Le Bon Coin ne charge que les derniers messages, les plus anciens arrivent en remontant le fil.
+  // On remonte tout en haut jusqu'à ce que plus rien n'arrive, on lit, on redescend, et on recolle les deux lectures
+  // (au cas où la page retirerait les messages sortis de l'écran).
+  function zoneDefilement() {
+    var col = colonneConversation(), z = zoneMessage(), best = null;
+    var defile = function (x) { return x.scrollHeight > x.clientHeight + 40 && /(auto|scroll|overlay)/.test(getComputedStyle(x).overflowY); };
+    [].forEach.call(col.querySelectorAll("div, section, main, ul, ol"), function (x) {
+      if ((hote && hote.contains(x)) || (z && x.contains(z) && x !== col)) return;
+      if (x.scrollHeight > x.clientHeight + 40 && (!best || x.scrollHeight > best.scrollHeight) && defile(x)) best = x;
+    });
+    for (var e = col; !best && e && e !== document.body; e = e.parentElement) if (defile(e)) best = e;
+    return best;
+  }
+  function recoller(a, b) {
+    var cle = function (m) { return m.cote + "|" + m.texte; }, kb = {};
+    b.forEach(function (m) { kb[cle(m)] = 1; });
+    if (a.every(function (m) { return kb[cle(m)]; })) return b;
+    for (var k = Math.min(a.length, b.length); k > 0; k--) {
+      var ok = true;
+      for (var i = 0; i < k && ok; i++) ok = cle(a[a.length - k + i]) === cle(b[i]);
+      if (ok) return a.concat(b.slice(k));
+    }
+    var j = b.length ? a.map(cle).indexOf(cle(b[0])) : -1;
+    return j >= 0 ? a.slice(0, j).concat(b) : a.concat(b);
+  }
+  async function historiqueComplet() {
+    var s = zoneDefilement(); if (!s) return filActuel();
+    var h = -1, stable = 0;
+    for (var i = 0; i < 40 && stable < 3; i++) {
+      s.scrollTop = 0; s.dispatchEvent(new Event("scroll", { bubbles: true }));
+      await attendre(500);
+      if (s.scrollHeight === h) stable++; else stable = 0;
+      h = s.scrollHeight;
+    }
+    var haut = filActuel();
+    s.scrollTop = s.scrollHeight; s.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await attendre(400);
+    var f = filActuel();
+    f.messages = recoller(haut.messages, f.messages).slice(-400);
+    return f;
   }
   // Liste des conversations, ou null quand la page ne montre que la conversation ouverte (mise en page étroite) :
   // l'app garde alors la liste précédente au lieu de prendre les messages pour des conversations.
@@ -2079,6 +2120,7 @@
       // Les messages arrivent parfois après l'en-tête : on attend qu'ils soient là (jusqu'à 4 s) avant de lire le fil.
       var f = null;
       for (var k = 0; k < 10; k++) { await attendre(k ? 400 : 600); f = filActuel(); if (f.messages.length && (!titre || montre())) break; }
+      if (f && f.messages.length) f = await historiqueComplet();
       return f;
     },
     suggestions: async function (consigne) {
