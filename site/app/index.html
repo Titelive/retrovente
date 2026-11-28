@@ -997,6 +997,7 @@ html:not(.co) .nav-co{display:none!important}
   #fiche .champs>.l2,#fiche .champs>.partic,#fiche .champs>.f:has(select),#fiche .champs>.f:has(textarea){grid-column:1/-1}
   #fiche .champs.mode-film>.f:has(#f_region){grid-column:1/-1}
 }
+.neuf-alerte{margin:12px 0;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,#FFD43B 22%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#F59F00 55%,transparent)}.neuf-alerte p{margin:0 0 8px;color:#FFF3C4}.neuf-alerte b{color:#FFE066;white-space:nowrap}.neuf-alerte a{color:inherit;text-decoration:underline}
 #fiche .champs.mode-cnt>.f:has(#f_titre){order:-5}#fiche .champs.mode-cnt>.f:has(#f_marque){order:-4}#fiche .champs.mode-cnt>.f:has(#f_region){order:-3}#fiche .champs.mode-cnt>.f:has(#f_typeCnt){order:-2}
 /* ===== Appareil photo ===== */
 .cam{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:manipulation}
@@ -2823,11 +2824,18 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   var fx=c.bas!=null&&c.haut!=null?(c.bas===c.haut?eur(c.bas):eur(c.bas)+" à "+eur(c.haut)):eur(c.conseille);
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>'+(c.probable!=null?'vente probable <strong>'+eur(c.probable)+'</strong> · ':"")+'prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+coteRarete(c)+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
-    relevesCote(c.releves||[])+
+    coteNeuf(c)+relevesCote(c.releves||[])+
     (c.lot||c.conseille!=null&&c.conseille<5?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':estCarte()?'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).':'à ce prix, l\'article part plus vite dans un lot (les frais d\'envoi coûtent presque autant que lui).')+(ED&&!lotDe(ED)&&!vendu(ED)?' <button class="lien" type="button" data-faire-lot>Faire un lot avec '+(estFilm()?'d\'autres films':estCarte()?'d\'autres cartes':'d\'autres articles')+'</button>':'')+'</p>':"")+
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     sourcesCote(c.sources||[]);
   e.hidden=false}
+/* Prix neuf du moment (Amazon, Fnac…) : en pleine promo, vendre d'occasion n'est pas intéressant */
+function coteNeuf(c){var n=c&&c.neuf;if(!n||!n.prix)return "";
+  var ou=n.site?(n.url?' chez <a href="'+esc(n.url)+'" target="_blank" rel="noopener">'+esc(n.site)+'</a>':' chez '+esc(n.site)):"",pr=n.promo?' ('+esc(n.promo)+')':"";
+  if(n.alerte)return '<div class="neuf-alerte" role="status"><p>⏳ <b>Pas le moment de vendre :</b> le <b>neuf</b> est à <b>'+eur(n.prix)+'</b>'+ou+pr+', à peine plus que le prix d\'occasion. Les acheteurs comparent et prendront le neuf.</p>'+
+    '<p>'+(n.habituel?'<b>Attends la fin des promos</b> (le neuf revient à <b>'+eur(n.habituel)+'</b>), ou affiche au plus <b>'+eur(n.max)+'</b>.':'Affiche au plus <b>'+eur(n.max)+'</b>, ou attends la fin de l\'offre.')+'</p>'+
+    '<div class="rangee"><button class="btn clair petit" type="button" data-px="'+n.max+'">Afficher '+eur(n.max)+'</button></div></div>';
+  return '<p class="rl-m">🏷️ <b>Neuf en ce moment :</b> '+eur(n.prix)+ou+pr+'. Ton prix d\'occasion reste <b>nettement en dessous</b> : c\'est un bon moment pour vendre.</p>'}
 $("fCote").onclick=estimer;
 $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data-px]");if(b){$("f_prixDemande").value=b.dataset.px;toast("Prix : "+eur(+b.dataset.px)+".","ok")}});
 

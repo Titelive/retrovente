@@ -571,6 +571,13 @@ test("objets connectés et autres objets : reconnaissance, fiche, cote, annonces
     assert.equal(pro.status, 200, JSON.stringify(pro.json));
     const max = await call("POST", "/api/ia/cote", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "Casque audio", etat: "bon" } }, c);
     assert.ok(max.json.cote.conseille > pro.json.cote.conseille); assert.equal(max.json.cote.lot, false);
+    // prix neuf du moment : AirPods Max en promo Black Friday, presque au prix d'occasion → alerte ; AirPods Pro : non
+    assert.equal(max.json.cote.neuf.prix, 329); assert.equal(max.json.cote.neuf.alerte, true); assert.equal(max.json.cote.neuf.max, 246); assert.equal(max.json.cote.neuf.habituel, 579);
+    assert.equal(pro.json.cote.neuf.alerte, false);
+    const { neufDe, coteDe } = await import("../server/ia.mjs");
+    assert.equal(neufDe({ prix: "abc" }, 100), null);
+    assert.equal(coteDe({ conseille: 100, neuf: { prix: 120, site: "Fnac", url: "https://www.fnac.com/a" } }).neuf.alerte, true);
+    assert.equal(coteDe({ conseille: 80, neuf: { prix: 120 } }).neuf.alerte, false);
     // fiche : type déduit du modèle, batterie mise en forme, année d'achat, ce qui est fourni, réinitialisé ; ni contenu ni rareté
     const f = await call("POST", "/api/objets", { objet: { titre: "AirPods Max", marque: "Apple", categorie: "connectes", plateforme: "casque", region: "Gris sidéral", annee: "2022", edition: "Boîte d'origine, Étui, Facture", batterie: "91", reinit: "oui", contenu: "complet", rareteJeu: "rare", etat: "tres_bon", prixDemande: 320 } }, c);
     assert.equal(f.status, 200, JSON.stringify(f.json));

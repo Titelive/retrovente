@@ -74,8 +74,27 @@ export function coteDe(c) {
     }).filter((r) => r && r.url && r.prix != null).slice(0, 8) };
   const pb = prix(c.probable); if (pb != null) o.probable = pb;
   if (RARETES_JEU.includes(c.rarete)) o.rarete = c.rarete;
+  const n = neufDe(c.neuf, o.conseille); if (n) o.neuf = n;
   return o.conseille != null || o.bas != null ? o : null;
 }
+
+/* Prix neuf du moment (Amazon, Fnac, Darty, Boulanger…) : en pleine promotion (Black Friday, soldes), le neuf peut
+   coûter presque autant que l'occasion, et personne n'achète d'occasion à ce prix. Au-delà de 80 % du prix neuf,
+   la fiche conseille d'attendre la fin des promos ou d'afficher au plus 75 % du neuf (« max »). */
+export const SEUIL_NEUF = 0.8, PART_MAX_NEUF = 0.75;
+export function neufDe(n, conseille) {
+  if (!n || typeof n !== "object") return null;
+  const p = prix(n.prix); if (p == null || p <= 0) return null;
+  const o = { prix: p, site: txt(n.site, 40), url: lien(n.url), promo: coupe(n.promo, 120), date: jour(n.date) || new Date().toISOString().slice(0, 10) };
+  const h = prix(n.habituel); if (h != null && h > p) o.habituel = h;
+  o.max = Math.max(1, Math.floor(p * PART_MAX_NEUF));
+  o.alerte = conseille != null && conseille > p * SEUIL_NEUF;
+  return o;
+}
+// Consigne commune : relever le prix neuf le plus bas du moment, chez les grandes enseignes.
+const CONSIGNE_NEUF = `"neuf" (prix NEUF le plus bas en ce moment pour ce modèle exact, chez Amazon, la Fnac, Darty, Boulanger ou Cdiscount, vendu et expédié par l'enseigne, jamais un vendeur tiers ni un reconditionné : objet avec "prix" (en euros), "site", "url" (adresse exacte de la page lue ; n'invente jamais d'adresse), "promo" (l'offre en cours s'il y en a une, ex. « Black Friday, -30 % », "" sinon) et "habituel" (prix neuf habituel hors promotion, si la page le montre) ; null si ce modèle n'est plus vendu neuf ou si tu ne l'as pas trouvé)`;
+// Le prix neuf n'est gardé que si sa page est vraiment sortie de la recherche web.
+const neufVu = (o) => (o && o.neuf && (!o._vus || !o._vus.size || o._vus.has(norme(o.neuf.url))) ? o.neuf : null);
 
 // Les modèles récents réfléchissent avant de répondre, et cette réflexion compte dans max_tokens :
 // un petit budget (200, 300, 800) peut être entièrement consommé et la réponse arriver vide.
@@ -523,11 +542,13 @@ Réponds uniquement par un objet JSON avec les clés :
 "resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
 "methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
 "releves" (3 à 6 prix précis réellement lus pendant ta recherche, dans le même format : objets avec "site" (eBay, Le Bon Coin, Rakuten, Momox…), "titre" (intitulé de la vente ou de la page), "prix" (en euros), "date" (AAAA-MM-JJ) et "url" (adresse exacte de la page lue ; n'invente jamais d'adresse)),
-"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
-  const c = coteDe(o);
+${CONSIGNE_NEUF.replace("ce modèle exact", "ce film dans ce format et cette édition")},
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 6, max: 4000, timeout: 80000 });
+  const c = coteDe(o && { ...o, neuf: neufVu(o) });
   if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
   if (!c) throw new IaError("Pas assez de prix trouvés pour estimer la cote. Précise le format ou l'édition du film.");
   c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
+  if (c.neuf) c.neuf = neufDe(c.neuf, c.conseille);
   return { ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE };
 }
 /* Cote d'un objet connecté (ou d'un autre objet) : ventes conclues eBay, annonces Le Bon Coin, Back Market et Rakuten
@@ -541,7 +562,8 @@ export async function estimerCoteObjet(v) {
   const defauts = lireDefautsFiche(v.defauts);
   if (FAKE()) {
     const base = /airpods max/i.test(titre) ? 280 : /airpods pro/i.test(titre) ? 120 : /airpods/i.test(titre) ? 70 : connecte ? 60 : 15;
-    const c = coteDe({ bas: Math.round(base * 0.85), haut: Math.round(base * 1.15), conseille: Math.round(base * 1.08), rapide: Math.round(base * 0.92), resume: connecte ? `Ventes eBay conclues autour de ${base} € pour ce modèle en bon état ; le reconditionné garanti se vend plus cher.` : `Ventes conclues autour de ${base} € pour cet objet.`, methode: "Médiane des ventes conclues pour le même modèle et le même état, puis prix affiché un peu au-dessus pour la négociation.", releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: base, date: "2026-11-02", url: "https://www.ebay.fr/" }, ...(connecte ? [{ site: "Back Market", titre: "Reconditionné, état correct", prix: Math.round(base * 1.25), date: "2026-11-10", url: "https://www.backmarket.fr/" }] : [])], sources: ["https://www.ebay.fr/"] });
+    const c = coteDe({ bas: Math.round(base * 0.85), haut: Math.round(base * 1.15), conseille: Math.round(base * 1.08), rapide: Math.round(base * 0.92), resume: connecte ? `Ventes eBay conclues autour de ${base} € pour ce modèle en bon état ; le reconditionné garanti se vend plus cher.` : `Ventes conclues autour de ${base} € pour cet objet.`, methode: "Médiane des ventes conclues pour le même modèle et le même état, puis prix affiché un peu au-dessus pour la négociation.", releves: [{ site: "eBay", titre: "Exemple de vente conclue", prix: base, date: "2026-11-02", url: "https://www.ebay.fr/" }, ...(connecte ? [{ site: "Back Market", titre: "Reconditionné, état correct", prix: Math.round(base * 1.25), date: "2026-11-10", url: "https://www.backmarket.fr/" }] : [])], sources: ["https://www.ebay.fr/"],
+      neuf: /airpods max/i.test(titre) ? { prix: 329, site: "Amazon", url: "https://www.amazon.fr/", promo: "Black Friday, -40 %", habituel: 579 } : /airpods pro/i.test(titre) ? { prix: 199, site: "Fnac", url: "https://www.fnac.com/", promo: "", habituel: 279 } : null });
     return coteDefauts({ ...c, lot: false }, defauts);
   }
   const o = await claude(`Estime la cote d'occasion en France, aujourd'hui, de cet objet vendu par un particulier : ${quoi}.${defauts.length ? ` Défauts vus sur les photos : ${defauts.map((d) => d.texte).join(" ; ")}.` : ""}
@@ -553,11 +575,13 @@ Réponds uniquement par un objet JSON avec les clés :
 "resume" (une ou deux phrases en français : sur quoi tu t'appuies et ce qui fait varier le prix),
 "methode" (une phrase en français : comment tu as calculé le prix conseillé à partir des relevés),
 "releves" (3 à 6 prix précis réellement lus pendant ta recherche, pour le même modèle : objets avec "site" (eBay, Le Bon Coin, Back Market, Rakuten…), "titre" (intitulé de la vente ou de la page), "prix" (en euros), "date" (AAAA-MM-JJ) et "url" (adresse exacte de la page lue ; n'invente jamais d'adresse)),
-"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 5, max: 3500, timeout: 70000 });
-  const c = coteDe(o);
+${CONSIGNE_NEUF},
+"sources" (2 à 4 adresses web consultées les plus utiles).`, { web: 7, max: 4000, timeout: 80000 });
+  const c = coteDe(o && { ...o, neuf: neufVu(o) });
   if (c && o && o._vus && o._vus.size) { c.releves = c.releves.filter((r) => o._vus.has(norme(r.url))); c.sources = c.sources.filter((u) => o._vus.has(norme(u))); }
   if (!c) throw new IaError(connecte ? "Pas assez de prix trouvés pour estimer la cote. Précise le modèle exact (génération, taille, variante)." : "Pas assez de prix trouvés pour estimer la cote. Précise le nom ou la marque de l'objet.");
   c.conseille = rondCarte(c.conseille); c.rapide = rondCarte(c.rapide);
+  if (c.neuf) c.neuf = neufDe(c.neuf, c.conseille);
   return coteDefauts({ ...c, lot: (c.conseille ?? 99) < PRIX_MINI_SEULE }, defauts);
 }
 /* Plusieurs cartes sur une photo (classeur, pile étalée) : le modèle liste chaque carte et son emplacement,
