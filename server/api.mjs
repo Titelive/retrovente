@@ -11,6 +11,7 @@ import { ESSAI, ouvrirEssai, essaiOuvert, jetable } from "./essai.mjs";
 import { ETAT_LBC_DE_CARTE } from "./cartes.mjs";
 import { infosJeu } from "./jeux.mjs";
 import { infosFilm, formatFilm, formatCourt, editionTexte } from "./films.mjs";
+import { typeConnecte, batterieTexte, phraseConnecte, fourniTexte } from "./connectes.mjs";
 import * as stripe from "./stripe.mjs";
 import { IDS_TRANSPORTEURS, numeroSuivi, devinerTransporteur, suiviAuto, etatLaPoste } from "./colis.mjs";
 import { coteLot, repartir, resumeLot, annonceLotSimple, majPhrasePrix, suggestionsLocales, rondLot, valeurArticle, MIN_LOT, MAX_LOT } from "./lots.mjs";
@@ -32,7 +33,8 @@ const fail = (status, msg, extra) => { throw new HttpError(status, msg, extra); 
 function nettoyer(v, avant) {
   const titre = txt(v.titre, 160);
   const categorie = parmi(v.categorie, ia.CATEGORIES, "jeux"), carte = categorie === "cartes", film = categorie === "films";
-  if (!titre) fail(400, carte ? "Indique le nom de la carte." : film ? "Indique le titre du film." : "Indique le nom du jeu.");
+  const connecte = categorie === "connectes", objet = connecte || categorie === "autres";   // objets du quotidien : ni jeu, ni carte, ni film
+  if (!titre) fail(400, carte ? "Indique le nom de la carte." : film ? "Indique le titre du film." : connecte ? "Indique le modèle de l'objet." : objet ? "Indique le nom de l'objet." : "Indique le nom du jeu.");
   const statut = parmi(v.statut, STATUTS, "en_vente");
   const auj = new Date().toISOString().slice(0, 10);
   const etatCarte = carte ? parmi(v.etatCarte, ia.ETATS_CARTE, "") : "";
@@ -48,10 +50,14 @@ function nettoyer(v, avant) {
     ...(carte ? { numero: txt(v.numero, 20), rarete: txt(v.rarete, 40), edition: txt(v.edition, 40), gradation: txt(v.gradation, 30), etatCarte } : {}),
     // Films : plateforme = format (Blu-Ray 4K UHD, Blu-Ray, DVD…), region = langues et zone, edition = steelbook, collector…
     ...(film ? { annee: /^(18|19|20)\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", realisateur: txt(v.realisateur, 80), edition: txt(v.edition, 80) } : {}),
+    // Objets connectés : plateforme = type d'appareil, region = couleur, annee = année d'achat, edition = ce qui est fourni,
+    // batterie (« 92 % » ou texte libre), reinit = « oui » s'il est réinitialisé et retiré du compte du vendeur. Autres objets : marque.
+    ...(objet ? { marque: txt(v.marque, 40) } : {}),
+    ...(connecte ? { annee: /^20\d{2}$/.test(String(v.annee || "").trim()) ? String(v.annee).trim() : "", edition: txt(v.edition, 160), batterie: batterieTexte(v.batterie), reinit: v.reinit === "oui" || v.reinit === true ? "oui" : "" } : {}),
     // Jeux, consoles, accessoires : rareté sur le marché de l'occasion, établie automatiquement (voir rareteAuto).
-    ...(carte || film ? {} : rareteDe(v, avant, titre)),
-    plateforme: film ? formatFilm(txt(v.plateforme, 60)) : txt(v.plateforme, 60), region: txt(v.region, 30),
-    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film ? "" : parmi(v.contenu, ia.CONTENUS, ""),
+    ...(carte || film || objet ? {} : rareteDe(v, avant, titre)),
+    plateforme: film ? formatFilm(txt(v.plateforme, 60)) : connecte ? typeConnecte(txt(v.plateforme, 60), titre) : txt(v.plateforme, 60), region: txt(v.region, 30),
+    etat: parmi(v.etat, ia.ETATS, "") || (carte ? ETAT_LBC_DE_CARTE[etatCarte] || "" : ""), contenu: carte || film || objet ? "" : parmi(v.contenu, ia.CONTENUS, ""),
     prixAchat: prix(v.prixAchat), prixDemande: prix(v.prixDemande), prixVente: prix(v.prixVente), frais: prix(v.frais),
     statut,
     dateMiseEnVente: jour(v.dateMiseEnVente) || (avant && avant.dateMiseEnVente) || auj,
@@ -124,7 +130,7 @@ function rareteDe(v, avant, titre) {
   r = ia.rareteVraisemblable(r, { ...v, titre });
   return r ? { rareteJeu: r, rareteV: ia.RARETE_V } : { rareteJeu: "" };
 }
-const SANS_RARETE = (it) => it && !estLot(it) && it.categorie !== "cartes" && it.categorie !== "films" && (!it.rareteJeu || it.rareteV !== ia.RARETE_V) && it.titre && it.rareteEssai !== ia.RARETE_V + "|" + cleJeu(it);
+const SANS_RARETE = (it) => it && !estLot(it) && !["cartes", "films", "connectes", "autres"].includes(it.categorie) && (!it.rareteJeu || it.rareteV !== ia.RARETE_V) && it.titre && it.rareteEssai !== ia.RARETE_V + "|" + cleJeu(it);
 const RARETE_FILE = [], RARETE_EN_COURS = new Set();
 let rareteActifs = 0;
 export function rareteAuto(uid, id) {
@@ -494,7 +500,7 @@ function me(u) {
 }
 
 function csv(items) {
-  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "etat", "contenu", "rareteJeu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "transporteur", "suivi", "livreLe", "lot", "annonce", "annonceEbay", "notes"];
+  const cols = ["titre", "categorie", "plateforme", "region", "numero", "rarete", "gradation", "edition", "annee", "realisateur", "marque", "batterie", "reinit", "etat", "contenu", "rareteJeu", "statut", "prixAchat", "prixDemande", "prixVente", "frais", "dateMiseEnVente", "dateVente", "remise", "transporteur", "suivi", "livreLe", "lot", "annonce", "annonceEbay", "notes"];
   const q = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return "﻿" + [cols.join(";"), ...items.map((v) => cols.map((c) => q(typeof v[c] === "number" ? String(v[c]).replace(".", ",") : v[c])).join(";"))].join("\r\n");
 }
@@ -505,9 +511,17 @@ function csv(items) {
 const ETAT_DESC = { neuf: "Neuf.", tres_bon: "Très bon état.", bon: "Bon état.", correct: "État correct.", pieces: "Pour pièces." };
 const CONTENU_DESC = { seul: "Cartouche ou disque seul.", boite: "En boîte, sans notice.", complet: "Complet : boîte et notice.", boite_vide: "Boîte seule, sans le jeu." };
 export function annonceLbc(v) {
-  const film = v.categorie === "films";
-  const nom = film ? [v.titre, formatCourt(v.plateforme), v.edition && v.edition.split(/\s*,\s*/)[0]].filter(Boolean).join(" ") : [v.titre, v.plateforme].filter(Boolean).join(" ");
-  const description = v.texteAnnonce || (film
+  const film = v.categorie === "films", connecte = v.categorie === "connectes", objet = connecte || v.categorie === "autres";
+  const marque = v.marque && !String(v.titre || "").toLowerCase().includes(String(v.marque).toLowerCase()) ? v.marque : "";
+  const nom = film ? [v.titre, formatCourt(v.plateforme), v.edition && v.edition.split(/\s*,\s*/)[0]].filter(Boolean).join(" ")
+    : connecte ? [marque, v.titre, v.region, /bo[iî]te/i.test(v.edition || "") ? "avec boîte" : ""].filter(Boolean).join(" ")
+    : objet ? [marque, v.titre].filter(Boolean).join(" ")
+    : [v.titre, v.plateforme].filter(Boolean).join(" ");
+  const description = v.texteAnnonce || (connecte
+    ? [...phraseConnecte(v), ETAT_DESC[v.etat] ? ETAT_DESC[v.etat].replace(/\.$/, ", testé et fonctionnel.") : "Testé et fonctionnel.", "Remise en main propre ou envoi."]
+    : objet
+    ? [[marque, v.titre].filter(Boolean).join(" ") + (v.plateforme ? ` (${v.plateforme.toLowerCase()})` : "") + ".", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
+    : film
     ? [`Film ${v.titre}${v.annee ? ` (${v.annee})` : ""}${v.realisateur ? " de " + v.realisateur : ""}${v.plateforme ? ", en " + v.plateforme : ""}${v.edition ? ", " + editionTexte(v.edition) : ""}.`, v.region ? v.region.replace(/^./, (c) => c.toUpperCase()) + "." : "", ETAT_DESC[v.etat], "Remise en main propre ou envoi."]
     : v.categorie === "cartes"
     ? [`Carte Pokémon ${[v.titre, v.numero].filter(Boolean).join(" ")}${v.plateforme ? ", extension " + v.plateforme : ""}${v.region ? ", en " + v.region.toLowerCase() : ""}.`, v.gradation ? `Carte gradée ${v.gradation}.` : ETAT_DESC[v.etat], "Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.", "Remise en main propre ou envoi."]
@@ -518,6 +532,8 @@ export function annonceLbc(v) {
     categorie: v.categorie, plateforme: v.plateforme, etat: v.etat, contenu: v.contenu,
     ...(v.categorie === "cartes" ? { numero: v.numero || "", region: v.region || "", rarete: v.rarete || "", gradation: v.gradation || "", etatCarte: v.etatCarte || "" } : {}),
     ...(film ? { edition: v.edition || "", annee: v.annee || "", realisateur: v.realisateur || "", region: v.region || "" } : {}),
+    ...(objet ? { marque: v.marque || "" } : {}),
+    ...(connecte ? { couleur: v.region || "", annee: v.annee || "", fourni: v.edition || "", batterie: v.batterie || "", reinit: v.reinit === "oui" } : {}),
     ...(v.rareteJeu ? { rareteJeu: v.rareteJeu } : {}),
     photo: !!v.photo, photos: photosDe(v).map((x) => x.id), publiee: !!v.annonce, url: v.annonce || "", urlEbay: v.annonceEbay || "", modifie: v.modifie,
   };
@@ -535,8 +551,10 @@ export function titreEbay(t) {
   return (i > 40 ? c.slice(0, i) : c.slice(0, 80)).replace(/[\s,;:–-]+$/, "");
 }
 export function annonceEbay(v, base) {
-  const carte = v.categorie === "cartes", film = v.categorie === "films";
-  const car = (carte ? [["Personnage", v.titre], ["Extension", v.plateforme], ["Numéro", v.numero], ["Rareté", v.rarete], ["Langue", v.region], ["Gradation", v.gradation]]
+  const carte = v.categorie === "cartes", film = v.categorie === "films", connecte = v.categorie === "connectes";
+  const car = (connecte ? [["Marque", v.marque], ["Modèle", v.titre], ["Type", v.plateforme], ["Couleur", v.region], ["Inclus", fourniTexte(v.edition).replace(/^./, (c) => c.toUpperCase())]]
+    : v.categorie === "autres" ? [["Marque", v.marque], ["Modèle", v.titre], ["Type", v.plateforme]]
+    : carte ? [["Personnage", v.titre], ["Extension", v.plateforme], ["Numéro", v.numero], ["Rareté", v.rarete], ["Langue", v.region], ["Gradation", v.gradation]]
     : film ? [["Titre du film", v.titre], ["Format", v.plateforme], ["Édition", v.edition], ["Année", v.annee], ["Réalisateur", v.realisateur], ["Langues et zone", v.region]]
     : [[v.categorie === "consoles" ? "Modèle" : "Nom du jeu", v.titre], ["Plateforme", v.plateforme], ["Région", v.region], ["Contenu", CONTENU_EBAY[v.contenu]]]).filter((x) => x[1]);
   return {
@@ -656,7 +674,7 @@ export async function handleApi(req) {
       const b = body(), it = /^[a-f0-9]{16}$/.test(String(b.annonce || "")) ? getItem(eu.id, b.annonce) : null;
       if (!it) return { status: 404, json: { error: "Article introuvable." }, headers: CORS };
       const a = avecContenu(eu.id, [it])[0];
-      const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
+      const fiche = { titre: a.titre, nom: it.titre, categorie: it.categorie, plateforme: it.plateforme, region: it.region, annee: it.annee, marque: it.marque || "", contenu: CONTENU_EBAY[it.contenu] || "", description: a.description, contient: a.contient,
         jeux: estLot(it) ? it.articles.map((id) => getItem(eu.id, id)).filter((x) => x && x.categorie === "jeux").map((x) => x.titre).filter(Boolean) : [],
         nbArticles: estLot(it) ? it.articles.length : 1 };
       const valeurs = await ia.specifiquesEbay(fiche, b.champs);
@@ -1019,7 +1037,7 @@ function adresseVendeur(t) {
   }
 
   /* --- IA --- */
-  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const b = body(); const o = await ia.identifier(b.photo, b.indice === "films" ? "films" : ""); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
+  if (p === "/api/ia/identifier" && method === "POST") { iaAllowed(u, "identifier", req); const b = body(); const o = await ia.identifier(b.photo, ["films", "connectes"].includes(b.indice) ? b.indice : ""); bump(u.id, "identifier"); return ok({ ok: true, objet: o }); }
   if (p === "/api/ia/legender" && method === "POST") { iaAllowed(u, "legender", req); const b = body(); const tr = [];
     // Avec « flux », l'avancement (photo N/M, jaunissement) est envoyé au fil de l'eau, puis le résultat.
     if (b.flux) return { status: 200, headers: {}, flux: async (envoi) => {

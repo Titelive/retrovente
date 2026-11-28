@@ -76,18 +76,20 @@ extension Appli {
         func cle(_ o: Article) -> String {
             if o.estLot && groupe != "statut" { return groupe == "console" && !o.plateforme.isEmpty ? o.plateforme.trimmingCharacters(in: .whitespaces) : "Lots" }
             switch groupe {
-            case "categorie": return Libelles.nomsCategories[o.categorie] ?? "Autres"
+            case "categorie": return Libelles.nomsCategories[o.categorie] ?? "Autres objets"
             case "statut": return Self.groupesStatut[o.statut] ?? "Autres"   // chaque statut a son groupe : vendu, envoyé et reçu sont différents
-            case "rarete": return o.categorie == "cartes" ? "Cartes Pokémon" : o.categorie == "films" ? "Films" : Libelles.rareteGroupe[o.rareteJeu] ?? "Rareté non indiquée"
+            case "rarete": return o.sansRarete ? Libelles.nomsCategories[o.categorie] ?? "Autres objets" : Libelles.rareteGroupe[o.rareteJeu] ?? "Rareté non indiquée"
             default:
                 if o.categorie == "cartes" { return "Cartes Pokémon" }
+                if o.categorie == "connectes" { return o.plateforme.trimmingCharacters(in: .whitespaces).isEmpty ? "Objets connectés" : o.plateforme.trimmingCharacters(in: .whitespaces) }   // un groupe par type : écouteurs, casques…
+                if o.categorie == "autres" { return "Autres objets" }
                 if o.categorie == "films" { return "Films " + (o.plateforme.range(of: "4K", options: .caseInsensitive) != nil ? "4K UHD" : o.plateforme.isEmpty ? "sans format" : o.plateforme) }
                 return o.plateforme.trimmingCharacters(in: .whitespaces).isEmpty ? "Sans console" : o.plateforme.trimmingCharacters(in: .whitespaces)
             }
         }
         var ordre: [String] = [], par: [String: (String, [Article])] = [:]
         for o in l { let k = cle(o), kk = k.lowercased(); if par[kk] == nil { par[kk] = (k, []); ordre.append(kk) }; par[kk]!.1.append(o) }
-        let fixe: [String]? = groupe == "categorie" ? ["Lots", "Jeux vidéo", "Consoles", "Accessoires", "Cartes Pokémon", "Films", "Autres"]
+        let fixe: [String]? = groupe == "categorie" ? ["Lots", "Jeux vidéo", "Consoles", "Accessoires", "Cartes Pokémon", "Films", "Objets connectés", "Autres objets"]
             : groupe == "statut" ? Libelles.ordreStatuts.compactMap { Self.groupesStatut[$0] }
             : groupe == "rarete" ? ["Lots", "Très rares", "Rares", "Peu communs", "Communs", "Rareté non indiquée", "Cartes Pokémon", "Films"] : nil
         let gs = ordre.map { par[$0]! }

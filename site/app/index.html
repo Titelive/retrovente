@@ -997,6 +997,8 @@ html:not(.co) .nav-co{display:none!important}
   #fiche .champs>.l2,#fiche .champs>.partic,#fiche .champs>.f:has(select),#fiche .champs>.f:has(textarea){grid-column:1/-1}
   #fiche .champs.mode-film>.f:has(#f_region){grid-column:1/-1}
 }
+.neuf-alerte{margin:12px 0;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,#FFD43B 22%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#F59F00 55%,transparent)}.neuf-alerte p{margin:0 0 8px;color:#FFF3C4}.neuf-alerte b{color:#FFE066;white-space:nowrap}.neuf-alerte a{color:inherit;text-decoration:underline}
+#fiche .champs.mode-cnt>.f:has(#f_titre){order:-5}#fiche .champs.mode-cnt>.f:has(#f_marque){order:-4}#fiche .champs.mode-cnt>.f:has(#f_region){order:-3}#fiche .champs.mode-cnt>.f:has(#f_typeCnt){order:-2}
 /* ===== Appareil photo ===== */
 .cam{position:fixed;inset:0;z-index:95;background:#000;color:#fff;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:manipulation}
 .cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -1375,6 +1377,7 @@ html.sans-anim .vt-b.pousse{animation:none}
           <label role="menuitem" for="photoIn"><i>📷</i><span>En photo<small>L'IA remplit la fiche</small></span></label>
           <label role="menuitem" for="cartesIn"><i>🃏</i><span>Plusieurs cartes Pokémon<small>Une photo de classeur ou de cartes étalées</small></span></label>
           <label role="menuitem" for="filmIn"><i>🎬</i><span>Un film<small>Blu-Ray, 4K UHD ou DVD : photo de la jaquette</small></span></label>
+          <label role="menuitem" for="connecteIn"><i>🎧</i><span>Un objet connecté<small>Écouteurs, casque, montre, enceinte…</small></span></label>
           <button role="menuitem" type="button" id="ajoutManuel"><i>✍️</i><span>À la main<small>Sans photo pour l'instant</small></span></button>
         </div>
       </div>
@@ -1424,6 +1427,8 @@ html.sans-anim .vt-b.pousse{animation:none}
       <input type="file" id="cartesIn" accept="image/*" hidden>
       <label class="btn clair" for="filmIn" id="lFilmIn" title="Blu-Ray, Blu-Ray 4K UHD ou DVD : une photo de la jaquette"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg> <span class="pc-seul">Un film</span><span class="mob-seul">Film</span></label>
       <input type="file" id="filmIn" accept="image/*" multiple hidden>
+      <label class="btn clair pc-seul" for="connecteIn" id="lConnecteIn" title="Écouteurs, casque, montre, enceinte… : une photo de l'appareil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/></svg> Un objet connecté</label>
+      <input type="file" id="connecteIn" accept="image/*" multiple hidden>
       <button class="btn clair" id="bManuel" type="button">Saisir à la main</button>
       <a class="btn clair" id="bLbc" target="_blank" rel="noopener" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg> Ma page Le Bon Coin</a>
       <input type="file" id="photoIn" accept="image/*" hidden>
@@ -1535,8 +1540,13 @@ html.sans-anim .vt-b.pousse{animation:none}
           <label class="f noflm"><span id="lPlateforme">Console</span><input type="text" id="f_plateforme" maxlength="60" placeholder="ex. Nintendo 64"></label>
           <label class="f flm" hidden>Format<select id="f_format"><option value="">—</option><option value="Blu-Ray 4K UHD">Blu-Ray 4K UHD</option><option value="Blu-Ray 4K UHD + Blu-Ray">Blu-Ray 4K UHD + Blu-Ray</option><option value="Blu-Ray">Blu-Ray</option><option value="Blu-Ray 3D">Blu-Ray 3D</option><option value="DVD">DVD</option><option value="HD DVD">HD DVD</option><option value="VHS">VHS</option></select></label>
           <label class="f"><span id="lRegion">Région</span><input type="text" id="f_region" maxlength="30" placeholder="ex. PAL EUR"></label>
-          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="cartes">Carte Pokémon</option><option value="films">Film</option><option value="autres">Autre</option></select></label>
-          <label class="f flm" hidden>Année de sortie<input type="text" id="f_annee" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="ex. 2024"></label>
+          <label class="f">Catégorie<select id="f_categorie"><option value="jeux">Jeu vidéo</option><option value="consoles">Console</option><option value="accessoires">Accessoire</option><option value="cartes">Carte Pokémon</option><option value="films">Film</option><option value="connectes">Objet connecté</option><option value="autres">Autre objet</option></select></label>
+          <label class="f obj" hidden>Marque<input type="text" id="f_marque" maxlength="40" placeholder="ex. Apple"></label>
+          <label class="f cnt" hidden>Type d'appareil<select id="f_typeCnt"><option value="">—</option><option value="Écouteurs sans fil">Écouteurs sans fil</option><option value="Casque audio">Casque audio</option><option value="Enceinte connectée">Enceinte connectée</option><option value="Montre connectée">Montre connectée</option><option value="Bracelet connecté">Bracelet connecté</option><option value="Téléphone">Téléphone</option><option value="Tablette">Tablette</option><option value="Liseuse">Liseuse</option><option value="Maison connectée">Maison connectée</option><option value="Drone ou caméra">Drone ou caméra</option><option value="Autre objet connecté">Autre objet connecté</option></select></label>
+          <label class="f flm cnt" hidden><span id="lAnnee">Année de sortie</span><input type="text" id="f_annee" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="ex. 2024"></label>
+          <label class="f cnt" hidden><span>Batterie</span><input type="text" id="f_batterie" maxlength="40" placeholder="ex. 92 %" title="Capacité maximale, dans les réglages de la batterie"></label>
+          <div class="f l2 cnt" hidden><span id="lFourni">Fourni avec <small>(touche pour cocher)</small></span><div class="puces-partic" id="fFourni" role="group" aria-labelledby="lFourni"></div></div>
+          <div class="f l2 cnt" hidden><span id="lReinit">Prêt pour l'acheteur</span><div class="puces-partic" role="group" aria-labelledby="lReinit"><button type="button" id="bReinit" aria-pressed="false">Réinitialisé, retiré de mon compte</button></div><input type="hidden" id="f_reinit"></div>
           <label class="f flm" hidden>Réalisateur<input type="text" id="f_realisateur" maxlength="80" placeholder="ex. Denis Villeneuve"></label>
           <div class="f l2 flm ed-film" hidden><span id="lEdFilm">Édition <small>(touche pour cocher)</small></span><div class="puces-partic" id="fEdFilm" role="group" aria-labelledby="lEdFilm"></div></div>
           <label class="f pkm" hidden>Numéro<input type="text" id="f_numero" maxlength="20" placeholder="ex. 4/102"></label>
@@ -1898,7 +1908,7 @@ function boutonSta(o){return CHOIX?'<span class="st '+o.statut+'">'+STA[o.statut
 function pastilleSta(k){return (k==="en_vente"?"":icoSta(k))+'<span>'+STA[k]+'</span>'+icoSta("chev","chev")}
 var ETA={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État correct",pieces:"Pour pièces"};
 var CON={seul:"Jeu en loose",boite:"En boîte",complet:"Complet (CIB)",boite_vide:"Boîte seule"};
-var F=["titre","plateforme","region","categorie","numero","rarete","rareteJeu","edition","gradation","etatCarte","annee","realisateur","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","transporteur","suivi","livreLe","notes","origine","modif","particularites","note","jeuRef"];
+var F=["titre","plateforme","region","categorie","numero","rarete","rareteJeu","edition","gradation","etatCarte","annee","realisateur","marque","batterie","reinit","contenu","etat","prixAchat","prixDemande","titreAnnonce","texteAnnonce","annonce","annonceEbay","statut","dateMiseEnVente","prixVente","dateVente","frais","remise","transporteur","suivi","livreLe","notes","origine","modif","particularites","note","jeuRef"];
 /* Temps gagné par rapport à la même tâche faite à la main (minutes). */
 /* Temps gagné : minutes qu'une étape prendrait sans RetroRevente, réglables par chacun (gardées sur l'appareil).
    On compte ce qui a vraiment été fait sur chaque article, une seule fois par article, pas les appels à l'IA
@@ -2004,10 +2014,10 @@ function equilibrerOutils(){var g=document.querySelector(".outils-ph");if(!g||!g
   addEventListener("resize",equilibrerOutils)})();
 function trophees(){montrer("trophees");dessinerTrophees()}
 function listeTrophees(){var lots=lotsVendus(),OBJ=articles(),v=OBJ.filter(function(o){return o.statut==="vendu"||o.statut==="envoye"||o.statut==="recu"}),enc=v.reduce(function(a,o){return a+(+o.prixVente||0)},0),
-    plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&o.categorie!=="cartes"&&o.categorie!=="films")plat[p]=1});
+    plat={};OBJ.forEach(function(o){var p=(o.plateforme||"").trim().toLowerCase();if(p&&!sansRarete(o))plat[p]=1});
   /* compte les articles (ou les ventes, avec la liste l) qui passent le test f */
   var nb=function(f,l){return (l||OBJ).filter(f).length},txt=function(x){return String(x||"").trim()},a=function(x){return x!=null&&x!==""&&!isNaN(+x)},
-    jeuPlat=function(re){return nb(function(o){return o.categorie!=="cartes"&&o.categorie!=="films"&&re.test(o.plateforme||"")})},
+    jeuPlat=function(re){return nb(function(o){return !sansRarete(o)&&re.test(o.plateforme||"")})},
     jours=function(a,b){return (new Date(b)-new Date(a))/864e5},
     jj=function(o){return o.dateMiseEnVente&&o.dateVente?jours(String(o.dateMiseEnVente).slice(0,10),String(o.dateVente).slice(0,10)):null};
   var n64=OBJ.filter(function(o){return /64/.test(o.plateforme||"")&&/nintendo|n64/i.test((o.plateforme||"")+" ")}).length,
@@ -2265,7 +2275,7 @@ function dessiner(){try{majTrophNav()}catch(e){}if(typeof dessinerBrouillons==="
     if(estLot(o))return carteLot(o,i);
     var ch=CHOIX?choixEtat(o):null;
     return '<div class="jeu v-'+o.statut+(ch&&!ch.ok?' non':'')+'" style="--i:'+Math.min(i,12)+'" data-id="'+o.id+'"><button type="button" class="jeu-ouvrir" aria-label="'+(CHOIX?'':'Ouvrir ')+esc(o.titre)+'"'+(ch?(ch.ok?' aria-pressed="'+(CHOIX.ids.indexOf(o.id)>=0)+'"':' aria-disabled="true" title="'+esc(ch.pourquoi)+'"'):'')+'></button><div class="im">'+tamponSta(o)+(!CHOIX&&lotsActifs(o).length?'<span class="tag-lot en-lot" title="Aussi dans '+(lotsActifs(o).length>1?'les lots ':'le lot ')+esc(nomsLots(lotsActifs(o)))+'">'+BOX_SVG+(lotsActifs(o).length>1?'Dans '+lotsActifs(o).length+' lots':'Aussi en lot')+'</span>':!CHOIX&&petitPrix(o)&&o.statut==="en_vente"?'<span class="tag-lot">Idéal en lot</span>':'')+(o.photo?imgCarte(o):'<span>Pas de photo</span>')+sitesHtml(o.annonce,o.annonceEbay,!CHOIX)+badgeRarete(o)+'</div>'+
-      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+statsHtml(o)+
+      '<div class="tx"><b>'+esc(o.titre)+'</b><div class="ln"><span>'+esc((o.categorie==="cartes"?[o.numero,o.plateforme,o.gradation]:o.categorie==="films"?[formatCourt(o.plateforme),(o.edition||"").split(/\s*,\s*/)[0],o.annee]:o.categorie==="connectes"?[o.marque,o.plateforme,o.region]:o.categorie==="autres"?[o.marque,o.plateforme]:[o.plateforme,CON[o.contenu]]).filter(Boolean).join(" · "))+'</span></div>'+statsHtml(o)+
       ligneColis(o)+'<div class="ln"><span class="px">'+(px!=null?eur(px):"—")+'</span>'+boutonSta(o)+'</div></div></div>'};
   var gs=grouperArticles(l),n=0;
   $("liste").innerHTML=gs.map(function(g){
@@ -2372,11 +2382,12 @@ function trierArticles(l){
       return TRI==="prix_d"?y-x:x-y}
     var d=String(a.cree||"").localeCompare(String(b.cree||""));
     return TRI==="ancien"?d:-d})}
-var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",films:"Films",autres:"Autres"};
+var CAT_NOM={jeux:"Jeux vidéo",consoles:"Consoles",accessoires:"Accessoires",cartes:"Cartes Pokémon",films:"Films",connectes:"Objets connectés",autres:"Autres objets"};
+function sansRarete(o){return ["cartes","films","connectes","autres"].indexOf(o.categorie)>=0}
 function formatCourt(f){return{"Blu-Ray 4K UHD":"4K UHD","Blu-Ray 4K UHD + Blu-Ray":"4K UHD + Blu-Ray"}[f]||f||""}
 /* Rareté des jeux, consoles et accessoires : badge sur la carte (sauf « commun »), tri et groupes */
 var RAR={commun:"Commun",peu_commun:"Peu commun",rare:"Rare",tres_rare:"Très rare"},RAR_GRP={commun:"Communs",peu_commun:"Peu communs",rare:"Rares",tres_rare:"Très rares"},RAR_N={commun:1,peu_commun:2,rare:3,tres_rare:4};
-function rangRarete(o){return o.categorie==="cartes"||o.categorie==="films"||estLot(o)?0:RAR_N[o.rareteJeu]||0}
+function rangRarete(o){return sansRarete(o)||estLot(o)?0:RAR_N[o.rareteJeu]||0}
 var GEMME='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1 11 6 6 11 1 6z"/></svg>';
 function badgeRarete(o){var n=rangRarete(o);if(n<2)return "";return '<span class="rar r-'+o.rareteJeu+'" title="Rareté : '+RAR[o.rareteJeu]+'">'+new Array(n).join(GEMME)+'<span>'+RAR[o.rareteJeu]+'</span></span>'}
 function pastilleRarete(r){return '<span class="rar r-'+r+'">'+new Array(RAR_N[r]).join(GEMME)+RAR[r]+'</span>'}
@@ -2386,7 +2397,7 @@ function majRarete(){var r=$("f_rareteJeu").value;$("fRar").innerHTML=RAR[r]?pas
 var RAR_SUIVI=0,RAR_T=0;
 /* RAR_V : version du calcul côté serveur ; une rareté plus ancienne est estimée à nouveau, on la reprend aussi */
 var RAR_V=2;
-function rareteAttendue(o){return !estLot(o)&&o.categorie!=="cartes"&&o.categorie!=="films"&&(!o.rareteJeu||o.rareteV!==RAR_V)}
+function rareteAttendue(o){return !estLot(o)&&!sansRarete(o)&&(!o.rareteJeu||o.rareteV!==RAR_V)}
 function suivreRaretes(){clearTimeout(RAR_T);if(!OBJ.some(rareteAttendue)){RAR_SUIVI=0;return}
   if(RAR_SUIVI>=6)return;RAR_T=setTimeout(function(){RAR_SUIVI++;api("GET","/api/objets").then(function(j){var nv={},chg=false;(j.objets||[]).forEach(function(x){nv[x.id]=x});
     OBJ.forEach(function(o){var x=nv[o.id];if(x&&x.rareteV===RAR_V&&(x.rareteJeu!==o.rareteJeu||o.rareteV!==RAR_V)){var avant=o.rareteJeu||"";o.rareteJeu=x.rareteJeu;o.rareteV=RAR_V;chg=true;
@@ -2399,15 +2410,17 @@ function grouperArticles(l){
   if(!GRP)return [{nom:"",l:l}];
   var cle=function(o){
     if(estLot(o)&&GRP!=="statut")return GRP==="console"&&o.plateforme?o.plateforme.trim():"Lots";
-    if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres";
+    if(GRP==="categorie")return CAT_NOM[o.categorie]||"Autres objets";
     if(GRP==="statut")return STA_GRP[o.statut]||"Autres";
-    if(GRP==="rarete")return o.categorie==="cartes"?"Cartes Pokémon":o.categorie==="films"?"Films":RAR_GRP[o.rareteJeu]||"Rareté non indiquée";
+    if(GRP==="rarete")return sansRarete(o)?CAT_NOM[o.categorie]:RAR_GRP[o.rareteJeu]||"Rareté non indiquée";
     if(o.categorie==="cartes")return "Cartes Pokémon";
     if(o.categorie==="films")return "Films "+(/4K/i.test(o.plateforme||"")?"4K UHD":(o.plateforme||"").trim()||"sans format");   // un groupe par format : 4K, Blu-Ray, DVD…
+    if(o.categorie==="connectes")return (o.plateforme||"").trim()||"Objets connectés";   // un groupe par type : écouteurs, casques, montres…
+    if(o.categorie==="autres")return "Autres objets";
     return (o.plateforme||"").trim()||"Sans console"};
   var par={},ordre=[];
   l.forEach(function(o){var k=cle(o),kk=k.toLowerCase();if(!par[kk]){par[kk]={nom:k,l:[]};ordre.push(par[kk])}par[kk].l.push(o)});
-  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Autres"]:GRP==="statut"?["En vente","Réservés","Vendus","Envoyés","Reçus","Retirés"]:GRP==="rarete"?["Lots","Très rares","Rares","Peu communs","Communs","Rareté non indiquée","Cartes Pokémon","Films"]:null;
+  var fixe=GRP==="categorie"?["Lots","Jeux vidéo","Consoles","Accessoires","Cartes Pokémon","Films","Objets connectés","Autres objets"]:GRP==="statut"?["En vente","Réservés","Vendus","Envoyés","Reçus","Retirés"]:GRP==="rarete"?["Lots","Très rares","Rares","Peu communs","Communs","Rareté non indiquée","Cartes Pokémon","Films"]:null;
   return ordre.sort(function(a,b){
     if(fixe)return fixe.indexOf(a.nom)-fixe.indexOf(b.nom);
     var fin=function(g){return g.nom==="Lots"?-1:g.nom==="Sans console"?3:g.nom==="Cartes Pokémon"?2:/^Films /.test(g.nom)?1:0};   // les consoles d'abord, par nombre d'articles, puis les films par format
@@ -2538,21 +2551,27 @@ function zoneModif(){$("fModifZone").hidden=sansOrigine()||$("f_origine").value!
 /* Cartes Pokémon : mêmes champs, autres libellés (extension, langue), champs de collectionneur, pas de contenu ni d'origine */
 function estCarte(){return $("f_categorie").value==="cartes"}
 var ETAT_LBC_CARTE={mint:"neuf",near_mint:"tres_bon",excellent:"tres_bon",good:"bon",light_played:"correct",played:"correct",poor:"pieces"};
-function modeCarte(){var c=estCarte(),fm=estFilm();document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});document.querySelectorAll(".flm").forEach(function(e){e.hidden=!fm});document.querySelectorAll(".noflm").forEach(function(e){e.hidden=fm});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c||fm});
-  var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],films:["Le film","Titre du film","ex. Dune : Deuxième partie"],autres:["L'article","Nom de l'article","ex. Guide officiel Zelda"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
-  $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",films:"Film",autres:"Article"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":"Console";$("lRegion").textContent=c?"Langue":fm?"Langues et zone":"Région";
-  /* icône de l'onglet : manette, carte ou pellicule */
-  [$("oArticle"),document.querySelector('#mOnglets [data-m="article"]')].forEach(function(b){if(b){var sv=b.querySelector("svg");if(sv&&ICO_FILM)sv.innerHTML=fm?ICO_FILM:ICO_JEU}});
-  if(typeof DLIB==="object"){DLIB.plateforme=c?"Extension":fm?"Format":"Console";DLIB.region=c?"Langue":fm?"Langues et zone":"Région"}
-  $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":fm?"ex. VF, zone B":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":fm?"ex. fourreau inclus, disques sans rayure, jamais lu":"ex. code de téléchargement déjà utilisé, poster inclus";
-  if(c||fm)$("f_contenu").value="";zoneModif();$("f_titre").closest(".champs").classList.toggle("mode-film",fm);if(fm){formatDepuisPlateforme();edFilm()}
-  var sug=c?["Near Mint, mise en sleeve","C'est une 1re édition","Quel prix conseilles-tu ?"]:fm?["Disques jamais lus, fourreau inclus","C'est la VF, zone B","Quel prix conseilles-tu ?"]:["Code utilisé, poster inclus","Raccourcis l'annonce","Quel prix conseilles-tu ?"];
+function modeCarte(){var c=estCarte(),fm=estFilm(),cn=estConnecte(),ob=estObjet(),au=ob&&!cn;document.querySelectorAll(".pkm").forEach(function(e){e.hidden=!c});
+  document.querySelectorAll(".flm,.cnt,.obj").forEach(function(e){var l=e.classList;e.hidden=!(fm&&l.contains("flm")||cn&&l.contains("cnt")||ob&&l.contains("obj"))});document.querySelectorAll(".noflm").forEach(function(e){e.hidden=fm||cn});document.querySelectorAll(".nopkm").forEach(function(e){e.hidden=c||fm||ob});
+  var ty={jeux:["Le jeu","Nom du jeu","ex. Super Mario 64"],consoles:["La console","Nom de la console","ex. Nintendo 64 Jungle Green"],accessoires:["L'accessoire","Nom de l'accessoire","ex. Memory Expansion Pak"],cartes:["La carte","Nom de la carte","ex. Dracaufeu"],films:["Le film","Titre du film","ex. Dune : Deuxième partie"],connectes:["L'appareil","Modèle","ex. AirPods Pro 2 (USB-C)"],autres:["L'objet","Nom de l'objet","ex. Lampe Luxo de bureau"]}[$("f_categorie").value]||["Le jeu","Nom du jeu","ex. Super Mario 64"];
+  $("fBlocTitre").textContent=ty[0];$("oArticle").querySelector("span").textContent=ty[0];var mo=document.querySelector('#mOnglets [data-m="article"] span');if(mo)mo.textContent={jeux:"Jeu",consoles:"Console",accessoires:"Accessoire",cartes:"Carte",films:"Film",connectes:"Appareil",autres:"Objet"}[$("f_categorie").value]||"Jeu";$("lTitre").textContent=ty[1];$("lPlateforme").textContent=c?"Extension":au?"Type d'objet":"Console";$("lRegion").textContent=c?"Langue":fm?"Langues et zone":cn?"Couleur":au?"Couleur ou taille":"Région";
+  $("lAnnee").textContent=cn?"Année d'achat":"Année de sortie";$("f_annee").placeholder=cn?"ex. 2023":"ex. 2024";
+  /* icône de l'onglet : manette, pellicule, casque ou carton */
+  [$("oArticle"),document.querySelector('#mOnglets [data-m="article"]')].forEach(function(b){if(b){var sv=b.querySelector("svg");if(sv&&ICO_FILM)sv.innerHTML=fm?ICO_FILM:cn?ICO_CNT:au?ICO_OBJ:ICO_JEU}});
+  if(typeof DLIB==="object"){DLIB.plateforme=c?"Extension":fm?"Format":cn?"Type d'appareil":au?"Type d'objet":"Console";DLIB.region=c?"Langue":fm?"Langues et zone":cn?"Couleur":au?"Couleur ou taille":"Région";DLIB.annee=cn?"Année d'achat":"Année";DLIB.edition=cn?"Fourni avec":"Édition"}
+  $("f_titre").placeholder=ty[2];$("f_plateforme").placeholder=c?"ex. Set de base":au?"ex. Livre, figurine, lampe":"ex. Nintendo 64";$("f_region").placeholder=c?"ex. Français":fm?"ex. VF, zone B":cn?"ex. Gris sidéral":au?"ex. Noir, taille M":"ex. PAL EUR";$("f_particularites").placeholder=c?"ex. mise en sleeve dès l'ouverture du booster, petit point blanc au dos":fm?"ex. fourreau inclus, disques sans rayure, jamais lu":cn?"ex. embouts neufs, nettoyés et désinfectés, sous garantie jusqu'en mars 2027":au?"ex. jamais servi, notice incluse":"ex. code de téléchargement déjà utilisé, poster inclus";
+  if(c||fm||ob)$("f_contenu").value="";zoneModif();var ch=$("f_titre").closest(".champs");ch.classList.toggle("mode-film",fm);ch.classList.toggle("mode-cnt",cn);if(fm){formatDepuisPlateforme();edFilm()}if(cn){typeDepuisPlateforme();fourniCnt();reinitCnt()}
+  var sug=c?["Near Mint, mise en sleeve","C'est une 1re édition","Quel prix conseilles-tu ?"]:fm?["Disques jamais lus, fourreau inclus","C'est la VF, zone B","Quel prix conseilles-tu ?"]:cn?["Batterie à 92 %, avec la facture","Je l'ai réinitialisé","Quel prix conseilles-tu ?"]:au?["Jamais servi, avec sa boîte","Raccourcis l'annonce","Quel prix conseilles-tu ?"]:["Code utilisé, poster inclus","Raccourcis l'annonce","Quel prix conseilles-tu ?"];
   [].forEach.call($("dSug").querySelectorAll("button"),function(b,i){if(sug[i])b.textContent=sug[i]})}
 /* Films : format (liste) écrit dans « plateforme », éditions à cocher (steelbook, collector…) écrites dans « edition » */
 var ICO_JEU='<rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 12h.01M18 11h.01"/>',
-  ICO_FILM='<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>';
+  ICO_FILM='<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  ICO_CNT='<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/>',
+  ICO_OBJ='<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>';
 function estFilm(){return $("f_categorie").value==="films"}
-function sansOrigine(){return estCarte()||estFilm()}
+function estConnecte(){return $("f_categorie").value==="connectes"}
+function estObjet(){var c=$("f_categorie").value;return c==="connectes"||c==="autres"}
+function sansOrigine(){return estCarte()||estFilm()||estObjet()}
 function formatDepuisPlateforme(){var s=$("f_format"),v=$("f_plateforme").value.trim();
   if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}
   if(s.value!==v)s.value=v}
@@ -2565,6 +2584,39 @@ function edFilm(){var cur=editionsFilm(),bas=cur.map(function(x){return x.toLowe
 $("fEdFilm").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var x=b.textContent,l=editionsFilm(),k=l.map(function(y){return y.toLowerCase()}).indexOf(x.toLowerCase());
   if(k>=0)l.splice(k,1);else l.push(x);var f=$("f_edition");f.value=l.join(", ").slice(0,80);f.dispatchEvent(new Event("input",{bubbles:true}));edFilm();ligneFilm()});
 $("f_edition").addEventListener("input",function(){if(estFilm())edFilm()});
+/* Objets connectés : type d'appareil (liste) écrit dans « plateforme », ce qui est fourni (boîte, câble, étui…) à cocher,
+   écrit dans « edition », et « réinitialisé, retiré de mon compte » (Localiser désactivé) dans « reinit » */
+function typeDepuisPlateforme(){var s=$("f_typeCnt"),v=$("f_plateforme").value.trim();
+  if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}
+  if(s.value!==v)s.value=v}
+$("f_typeCnt").addEventListener("change",function(){var p=$("f_plateforme");if(p.value===this.value)return;p.value=this.value;p.dispatchEvent(new Event("input",{bubbles:true}))});
+$("f_plateforme").addEventListener("input",function(){if(estConnecte())typeDepuisPlateforme()});
+var FOURNI_CNT=["Boîte d'origine","Câble de charge","Chargeur","Étui","Embouts de rechange","Bracelet de rechange","Facture","Garantie en cours"];
+function fourniListe(){return $("f_edition").value.split(/\s*,\s*/).filter(Boolean)}
+function fourniCnt(){var cur=fourniListe(),bas=cur.map(function(x){return x.toLowerCase()}),l=FOURNI_CNT.concat(cur.filter(function(x){return!FOURNI_CNT.some(function(y){return y.toLowerCase()===x.toLowerCase()})}));
+  $("fFourni").innerHTML=l.map(function(x){return '<button type="button" aria-pressed="'+(bas.indexOf(x.toLowerCase())>=0)+'">'+esc(x)+'</button>'}).join("")}
+$("fFourni").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var x=b.textContent,l=fourniListe(),k=l.map(function(y){return y.toLowerCase()}).indexOf(x.toLowerCase());
+  if(k>=0)l.splice(k,1);else l.push(x);var f=$("f_edition");f.value=l.join(", ").slice(0,160);f.dispatchEvent(new Event("input",{bubbles:true}));fourniCnt();ligneCnt()});
+$("f_edition").addEventListener("input",function(){if(estConnecte())fourniCnt()});
+function reinitCnt(){$("bReinit").setAttribute("aria-pressed",String($("f_reinit").value==="oui"))}
+$("bReinit").addEventListener("click",function(){var f=$("f_reinit");f.value=f.value==="oui"?"":"oui";f.dispatchEvent(new Event("input",{bubbles:true}));reinitCnt();ligneCnt()});
+/* Description de secours d'un objet connecté, et sa ligne « Fourni avec : … » tenue à jour quand on coche */
+function fourniTexte(e){return String(e||"").split(/\s*,\s*/).filter(Boolean).map(function(x){return x.charAt(0).toLowerCase()+x.slice(1)}).join(", ")}
+function batterieTexte(b){var s=String(b||"").trim(),m=/^(\d{2,3})\s*%?$/.exec(s);return m&&+m[1]<=100?m[1]+" %":s}
+function lignesCnt(){var t=$("f_titre").value.trim(),m=$("f_marque").value.trim(),co=$("f_region").value.trim(),a=$("f_annee").value.trim(),e=$("f_edition").value.trim(),b=batterieTexte($("f_batterie").value);
+  var nom=(m&&t.toLowerCase().indexOf(m.toLowerCase())<0?m+" ":"")+t;
+  return [nom+(co?", coloris "+co.toLowerCase():"")+(/^\d{4}$/.test(a)?", acheté en "+a:"")+".",e?"Fourni avec : "+fourniTexte(e)+".":"",b?"Batterie : "+b+(/%/.test(b)?" de capacité":"")+".":"",$("f_reinit").value==="oui"?"Réinitialisé et retiré de mon compte, prêt à être associé au vôtre.":""].filter(Boolean)}
+function ligneCnt(){if(!estConnecte())return;var ta=$("f_texteAnnonce"),v=ta.value;if(!v)return;var e=$("f_edition").value.trim(),b=batterieTexte($("f_batterie").value),re=/^Fournis? avec : [^\n]*\n?/m,nv;
+  if(re.test(v))nv=e?v.replace(re,function(x){return x.replace(/: [^\n]*/,": "+fourniTexte(e)+".")}):v.replace(re,"");
+  else if(e){var L=v.split("\n");L.splice(1,0,"Fourni avec : "+fourniTexte(e)+".");nv=L.join("\n")}else nv=v;
+  nv=ligneAvantRemise(nv,/^Batterie : [^\n]*\n?/m,b?"Batterie : "+b+(/%/.test(b)?" de capacité":"")+".":"");
+  nv=ligneAvantRemise(nv,/^Réinitialisé et retiré de mon compte[^\n]*\n?/m,$("f_reinit").value==="oui"?"Réinitialisé et retiré de mon compte, prêt à être associé au vôtre.":"");
+  if(nv!==v){ta.value=nv;ta.dispatchEvent(new Event("input",{bubbles:true}))}}
+/* Ligne remplacée si elle existe, sinon ajoutée juste avant « Remise en main propre ou envoi » (ou avant la liste des photos) ; retirée si vide */
+function ligneAvantRemise(v,re,t){if(re.test(v))return t?v.replace(re,function(x){return t+(/\n$/.test(x)?"\n":"")}):v.replace(re,"");if(!t)return v;
+  var L=v.split("\n"),k=L.findIndex(function(x){return /^Remise en main propre/i.test(x)});if(k<0){k=L.findIndex(function(x){return /^Photos :/.test(x)});if(k<0)k=L.length;while(k>0&&L[k-1]==="")k--}
+  L.splice(k,0,t);return L.join("\n")}
+$("f_batterie").addEventListener("change",ligneCnt);
 /* Première ligne de l'annonce d'un film (« Film Dune : Deuxième partie (2024) de Denis Villeneuve, en Blu-Ray 4K UHD, édition Steelbook. »),
    réécrite quand le format, l'édition, l'année ou le réalisateur changent, si elle suit ce modèle. */
 function phraseFilm(){var t=$("f_titre").value.trim(),a=$("f_annee").value.trim(),r=$("f_realisateur").value.trim(),f=$("f_plateforme").value.trim(),e=$("f_edition").value.trim();
@@ -2623,9 +2675,10 @@ function apiFlux(path,body,progres){var h={"content-type":"application/json"};if
     return lire().then(function(){if(fin.error){var e=new Error(fin.error);e.status=fin.statut||500;e.trace=fin.trace;throw e}return fin})})}
 
 function nouveauAvec(fs,indice){if(ME.quota.reste===0){quotaPlein();return}
-  ouvrirFiche(null);ongletMobile("photos");if(indice==="films"){$("f_categorie").value="films";$("f_categorie").dispatchEvent(new Event("change"))}var f=fs.shift();analyser(f,indice).then(function(){return ajouterPhotos(fs.slice(0,11))})}
+  ouvrirFiche(null);ongletMobile("photos");if(indice){$("f_categorie").value=indice;$("f_categorie").dispatchEvent(new Event("change"))}var f=fs.shift();analyser(f,indice).then(function(){return ajouterPhotos(fs.slice(0,11))})}
 $("photoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs)};
 $("filmIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs,"films")};
+$("connecteIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;nouveauAvec(fs,"connectes")};
 $("fPhotoIn").onchange=function(){var fs=[].slice.call(this.files||[]);this.value="";if(!fs.length)return;ajoutAvec(fs)};
 function ajoutAvec(fs){ongletMobile("photos");
   var place=12-GAL.length;if(fs.length>place){toast("12 photos au plus : j'en garde "+place+".","bad");fs=fs.slice(0,place)}
@@ -2640,8 +2693,9 @@ function ajouterPhotos(fs){if(!fs.length)return GAL.length&&GAL.some(function(g)
     .catch(function(e){erreur(e,"Ajout impossible.")}).then(function(){attente(null)})}
 function remplirCarte(o){["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){$("f_"+k).value=o.categorie==="cartes"&&o[k]?o[k]:""});
   /* rareté d'un jeu, d'une console ou d'un accessoire, devinée à la reconnaissance (le vendeur peut la changer) */
-  $("f_rareteJeu").value=o.categorie==="cartes"||o.categorie==="films"?"":o.rareteJeu||"";majRarete()
-  ["annee","realisateur","edition"].forEach(function(k){if(o.categorie==="films")$("f_"+k).value=o[k]||"";else if(k!=="edition")$("f_"+k).value=""});modeCarte()}
+  $("f_rareteJeu").value=["cartes","films","connectes","autres"].indexOf(o.categorie)>=0?"":o.rareteJeu||"";majRarete();
+  ["annee","realisateur","edition"].forEach(function(k){if(o.categorie==="films"||o.categorie==="connectes"&&k!=="realisateur")$("f_"+k).value=o[k]||"";else if(k!=="edition")$("f_"+k).value=""});
+  ["marque","batterie","reinit"].forEach(function(k){$("f_"+k).value=(o.categorie==="connectes"||o.categorie==="autres"&&k==="marque")&&o[k]?o[k]:""});modeCarte()}
 /* Remise à l'endroit : l'IA dit où pointe le haut du texte de l'étiquette ; on ne tourne que si, une fois la photo
    tournée, elle confirme que le texte est à l'endroit (sinon on laisse la photo telle quelle). */
 function tourne(img,deg){var c=document.createElement("canvas"),k=Math.min(1,800/Math.max(img.naturalWidth,img.naturalHeight)),w=Math.round(img.naturalWidth*k),h=Math.round(img.naturalHeight*k),q=deg%180!==0;
@@ -2668,7 +2722,7 @@ function trouverSens0(img){
       return sens(tourne(img,r)).then(function(c){return c.sens==="haut"?r:0})})})}
 var ANALYSE=false;   // « + » (autres photos) affiché seulement une fois la première analyse finie
 function analyser(f,indice){
-  ANALYSE=true;attente(indice==="films"?"Je lis la jaquette pour reconnaître le film…":"Je lis l'étiquette pour reconnaître l'article…");
+  ANALYSE=true;attente(indice==="films"?"Je lis la jaquette pour reconnaître le film…":indice==="connectes"?"Je regarde l'appareil pour reconnaître le modèle…":"Je lis l'étiquette pour reconnaître l'article…");
   return ouvrirImage(f).then(function(img){IMG=img;setPhoto(versData(img,null,2000,1100000));PHOTO_CHANGEE=true;return api("POST","/api/ia/identifier",{photo:versData(img,null,1000),indice:indice||""})})
     .then(function(j){var o=j.objet;IA_FAITE=true;journal("Reconnaissance",o.titre||"rien");
       ROT=0;   // le sens est vérifié à part (trouverSens), pas deviné avec le reste
@@ -2743,8 +2797,9 @@ function jauniVu(l,ja){if(sansOrigine())return;var n=-1,net=false;l.forEach(func
 /* ===== Cote ===== */
 function objetCote(){var o={titre:$("f_titre").value,categorie:$("f_categorie").value,plateforme:$("f_plateforme").value,region:$("f_region").value,etat:$("f_etat").value,contenu:$("f_contenu").value};
   if(estCarte())["numero","rarete","edition","gradation","etatCarte"].forEach(function(k){o[k]=$("f_"+k).value});
-  if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});return o}
-function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
+  if(estFilm())["edition","annee","realisateur","particularites"].forEach(function(k){o[k]=$("f_"+k).value});
+  if(estObjet())(estConnecte()?["marque","edition","annee","batterie","particularites"]:["marque","particularites"]).forEach(function(k){o[k]=$("f_"+k).value});return o}
+function estimer(){var b=$("fCote");if(!$("f_titre").value.trim()){toast(estCarte()?"Indique d'abord le nom de la carte.":estFilm()?"Indique d'abord le titre du film.":estConnecte()?"Indique d'abord le modèle de l'appareil.":estObjet()?"Indique d'abord le nom de l'objet.":"Indique d'abord le nom du jeu.","bad");$("f_titre").focus();return Promise.resolve()}
   busy(b,true,"Recherche des prix (jusqu'à 1 min)…");iaEtat("prix",{ico:"💶",titre:"Je cherche le bon prix",detail:"Je fouille les annonces vendues, sans marchander (jusqu'à 1 min)"});
   // La cote part toujours de la PREMIÈRE photo (la face de l'objet) : l'IA y reconnaît l'édition exacte.
   var g0=GAL[0],ph=g0?chargerImg(g0.data||g0.src).then(function(img){return versData(img,null,1200,450000)},function(){return null}):Promise.resolve(null);
@@ -2769,11 +2824,18 @@ function montrerCote(c){COTE=c||null;var e=$("fCoteBox");if(!c){e.hidden=true;e.
   var fx=c.bas!=null&&c.haut!=null?(c.bas===c.haut?eur(c.bas):eur(c.bas)+" à "+eur(c.haut)):eur(c.conseille);
   e.innerHTML='<div class="h"><b>'+fx+'</b><small>'+(c.probable!=null?'vente probable <strong>'+eur(c.probable)+'</strong> · ':"")+'prix constatés, le '+dfr(c.date)+'</small></div>'+(c.resume?'<p>'+(window.rrGras?rrGras(c.resume):esc(c.resume))+'</p>':"")+coteRarete(c)+
     '<div class="rangee">'+(c.conseille!=null?'<button class="btn jaune petit" type="button" data-px="'+c.conseille+'">Afficher '+eur(c.conseille)+' (conseillé)</button>':"")+(c.rapide!=null&&c.rapide!==c.conseille?'<button class="btn clair petit" type="button" data-px="'+c.rapide+'">'+eur(c.rapide)+' pour vendre vite</button>':"")+'</div>'+
-    relevesCote(c.releves||[])+
+    coteNeuf(c)+relevesCote(c.releves||[])+
     (c.lot||c.conseille!=null&&c.conseille<5?'<p class="rl-m">💡 <b>Astuce :</b> '+(estFilm()?'à ce prix, le film part plus vite dans un lot avec d\'autres films (les frais d\'envoi coûtent presque autant que lui).':estCarte()?'à ce prix, la carte part plus vite dans un lot avec d\'autres cartes (les frais d\'envoi coûtent presque autant qu\'elle).':'à ce prix, l\'article part plus vite dans un lot (les frais d\'envoi coûtent presque autant que lui).')+(ED&&!lotDe(ED)&&!vendu(ED)?' <button class="lien" type="button" data-faire-lot>Faire un lot avec '+(estFilm()?'d\'autres films':estCarte()?'d\'autres cartes':'d\'autres articles')+'</button>':'')+'</p>':"")+
     (c.methode?'<p class="rl-m"><b>Méthode :</b> '+(window.rrGras?rrGras(c.methode):esc(c.methode))+'</p>':"")+
     sourcesCote(c.sources||[]);
   e.hidden=false}
+/* Prix neuf du moment (Amazon, Fnac…) : en pleine promo, vendre d'occasion n'est pas intéressant */
+function coteNeuf(c){var n=c&&c.neuf;if(!n||!n.prix)return "";
+  var ou=n.site?(n.url?' chez <a href="'+esc(n.url)+'" target="_blank" rel="noopener">'+esc(n.site)+'</a>':' chez '+esc(n.site)):"",pr=n.promo?' ('+esc(n.promo)+')':"";
+  if(n.alerte)return '<div class="neuf-alerte" role="status"><p>⏳ <b>Pas le moment de vendre :</b> le <b>neuf</b> est à <b>'+eur(n.prix)+'</b>'+ou+pr+', à peine plus que le prix d\'occasion. Les acheteurs comparent et prendront le neuf.</p>'+
+    '<p>'+(n.habituel?'<b>Attends la fin des promos</b> (le neuf revient à <b>'+eur(n.habituel)+'</b>), ou affiche au plus <b>'+eur(n.max)+'</b>.':'Affiche au plus <b>'+eur(n.max)+'</b>, ou attends la fin de l\'offre.')+'</p>'+
+    '<div class="rangee"><button class="btn clair petit" type="button" data-px="'+n.max+'">Afficher '+eur(n.max)+'</button></div></div>';
+  return '<p class="rl-m">🏷️ <b>Neuf en ce moment :</b> '+eur(n.prix)+ou+pr+'. Ton prix d\'occasion reste <b>nettement en dessous</b> : c\'est un bon moment pour vendre.</p>'}
 $("fCote").onclick=estimer;
 $("fCoteBox").addEventListener("click",function(e){var b=e.target.closest("[data-px]");if(b){$("f_prixDemande").value=b.dataset.px;toast("Prix : "+eur(+b.dataset.px)+".","ok")}});
 
@@ -2803,7 +2865,7 @@ document.addEventListener("click",function(e){var b=e.target.closest(".pub [data
   if(!$("fiche").hidden&&typeof sale==="function"&&sale()){toast("Enregistre d'abord ta fiche.","bad");return}
   if(a==="pass"){payer("pass","mois",b);return}compte()});
 /* ===== Discussion avec l'IA sur la fiche ===== */
-var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte","annee","realisateur"],
+var DIAL=[],DCH=["titre","plateforme","region","categorie","etat","contenu","origine","modif","particularites","prixAchat","prixDemande","titreAnnonce","texteAnnonce","numero","rarete","edition","gradation","etatCarte","annee","realisateur","marque","batterie","reinit"],
   DLIB={titre:"Nom",plateforme:"Console",region:"Région",categorie:"Catégorie",etat:"État",contenu:"Contenu",origine:"Origine",modif:"Modification",particularites:"Particularités",prixAchat:"Prix d'achat",prixDemande:"Prix",titreAnnonce:"Titre de l'annonce",texteAnnonce:"Annonce réécrite",numero:"Numéro",rarete:"Rareté",edition:"Édition",gradation:"Gradation",etatCarte:"État de la carte",annee:"Année",realisateur:"Réalisateur"};
 function ficheDial(){var o={};DCH.forEach(function(k){o[k]=$("f_"+k).value});if(COTE)o.cote=COTE;return o}
 function valLisible(k,v){var e=$("f_"+k);if(e.tagName==="SELECT"){var op=[].filter.call(e.options,function(x){return x.value===String(v)})[0];return op?op.textContent:v}
@@ -2853,16 +2915,21 @@ $("dFil").addEventListener("click",function(e){var b=e.target.closest("[data-ann
 function texteLbc(){var t=$("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" "),d=$("f_texteAnnonce").value.trim(),px=$("f_prixDemande").value;
   if(!d&&estCarte())d=["Carte Pokémon "+[$("f_titre").value.trim(),$("f_numero").value.trim()].filter(Boolean).join(" ")+($("f_plateforme").value.trim()?", extension "+$("f_plateforme").value.trim():"")+($("f_region").value.trim()?", en "+$("f_region").value.trim().toLowerCase():"")+".",$("f_gradation").value.trim()?"Carte gradée "+$("f_gradation").value.trim()+".":ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Envoi soigné sous sleeve et toploader, dans une enveloppe rigide.","Remise en main propre ou envoi."].filter(Boolean).join("\n");
   if(!d&&estFilm())d=[phraseFilm(),$("f_region").value.trim()?$("f_region").value.trim().replace(/^./,function(c){return c.toUpperCase()})+".":"",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
+  if(!d&&estConnecte())d=lignesCnt().concat([ETA[$("f_etat").value]?ETA[$("f_etat").value]+", testé et fonctionnel.":"Testé et fonctionnel.",ligneParticularites(),"Remise en main propre ou envoi."]).filter(Boolean).join("\n");
+  if(!d&&estObjet())d=[[$("f_marque").value.trim(),$("f_titre").value.trim()].filter(Boolean).join(" ")+($("f_plateforme").value.trim()?" ("+$("f_plateforme").value.trim().toLowerCase()+")":"")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   if(!d)d=[[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(", ")+".",ETA[$("f_etat").value]?ETA[$("f_etat").value]+".":"",{seul:"Jeu en loose (cartouche ou disque seul).",boite:"En boîte, sans notice.",complet:"Complet en boîte (CIB) : boîte et notice.",boite_vide:contenuBoite()}[$("f_contenu").value]||"",ligneOrigine(),ligneParticularites(),"Remise en main propre ou envoi."].filter(Boolean).join("\n");
   return t+"\n\n"+d+(px?"\n\nPrix : "+eur(+px):"")}
 function copier(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy")}finally{a.remove()}return Promise.resolve()}
 /* Le Bon Coin demande les champs un par un : un bouton « copier » par champ, dans son ordre. */
 var LBC_ETATS={neuf:"État neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État satisfaisant",pieces:"Pour pièces"};
-var LBC_CAT={cartes:"Loisirs › Collection (cartes à collectionner)",films:"Loisirs › DVD - Films",jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"Consoles & Jeux vidéo"};
+var LBC_CAT={cartes:"Loisirs › Collection (cartes à collectionner)",films:"Loisirs › DVD - Films",jeux:"Consoles & Jeux vidéo › Jeux vidéo",consoles:"Consoles & Jeux vidéo › Consoles",accessoires:"Consoles & Jeux vidéo › Accessoires",autres:"celle que Le Bon Coin propose d'après le titre"};
+/* Objet connecté : la catégorie Le Bon Coin dépend du type (écouteurs et casques dans « Photo, audio & vidéo »…) */
+function lbcCat(){var c=$("f_categorie").value,t=$("f_plateforme").value;if(c!=="connectes")return LBC_CAT[c]||LBC_CAT.jeux;
+  return "Électronique › "+(/couteur|casque|enceinte|drone|cam/i.test(t)?"Photo, audio & vidéo":/tablette|liseuse/i.test(t)?"Tablettes & Liseuses":"Téléphones & Objets connectés")}
 var LBC_FAIT={};
 function champsLbc(){var t=($("f_titreAnnonce").value.trim()||[$("f_titre").value.trim(),$("f_plateforme").value.trim()].filter(Boolean).join(" ")).slice(0,200),
   tx=texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").slice(0,4000),px=$("f_prixDemande").value;
-  return [{k:"titre",l:"Titre",v:t,n:"200 caractères max"},{k:"cat",l:"Catégorie",v:LBC_CAT[$("f_categorie").value]||LBC_CAT.jeux,n:"à choisir dans la liste",info:true},
+  return [{k:"titre",l:"Titre",v:t,n:"200 caractères max"},{k:"cat",l:"Catégorie",v:lbcCat(),n:"à choisir dans la liste",info:true},
     {k:"desc",l:"Description",v:tx,n:"4 000 caractères max"},{k:"etat",l:"État",v:LBC_ETATS[$("f_etat").value]||"",n:"à choisir dans la liste",info:true},
     {k:"prix",l:"Prix",v:px?String(Math.round(+px)):"",n:"en euros, sans centimes"},{k:"photo",l:"Photos",v:GAL.length?(GAL.length>1?GAL.length+" photos numérotées prêtes":"Photo prête"):"",n:MQ.matches?"enregistre-les dans tes photos, puis ajoute-les dans l'appli":"enregistre-les puis glisse-les",photo:true}]}
 function majLbc(){var c=champsLbc(),fait=0;
@@ -2876,7 +2943,9 @@ $("lbcEtapes").addEventListener("click",function(e){var b=e.target.closest("[dat
 ["f_titre","f_titreAnnonce","f_texteAnnonce","f_prixDemande","f_etat","f_categorie","f_contenu","f_plateforme"].forEach(function(id){$(id).addEventListener("input",function(){LBC_FAIT={};majLbc()});$(id).addEventListener("change",majLbc)});
 /* ===== eBay (même principe : l'annonce au format eBay, un bouton « copier » par champ) ===== */
 var EBAY_ETATS={neuf:"Neuf",tres_bon:"Très bon état",bon:"Bon état",correct:"État acceptable",pieces:"Pour pièces détachées ou ne fonctionne pas"};
-var EBAY_CAT={cartes:"Cartes à collectionner › Pokémon › Cartes à l'unité",films:"DVD, cinéma › DVD, Blu-ray",jeux:"Jeux vidéo et consoles › Jeux vidéo",consoles:"Jeux vidéo et consoles › Consoles",accessoires:"Jeux vidéo et consoles › Accessoires",autres:"Jeux vidéo et consoles"};
+var EBAY_CAT={cartes:"Cartes à collectionner › Pokémon › Cartes à l'unité",films:"DVD, cinéma › DVD, Blu-ray",jeux:"Jeux vidéo et consoles › Jeux vidéo",consoles:"Jeux vidéo et consoles › Consoles",accessoires:"Jeux vidéo et consoles › Accessoires",autres:"celle qu'eBay propose d'après le titre"};
+function ebayCat(){var c=$("f_categorie").value,t=$("f_plateforme").value;if(c!=="connectes")return EBAY_CAT[c]||EBAY_CAT.jeux;
+  return /couteur|casque/i.test(t)?"Son, image › Casques, écouteurs":/enceinte/i.test(t)?"Son, image › Enceintes":/montre|bracelet/i.test(t)?"Téléphonie, mobilité › Montres connectées":/phone/i.test(t)?"Téléphonie, mobilité › Téléphones mobiles":/tablette|liseuse/i.test(t)?"Informatique, réseaux › Tablettes et liseuses":/drone|cam/i.test(t)?"Photo, caméscopes › Drones":"celle qu'eBay propose d'après le titre"}
 var EBAY_CONTENU={seul:"Jeu seul (loose)",boite:"Jeu et boîte, sans notice",complet:"Jeu, boîte et notice (complet)",boite_vide:"Boîte seule"};
 var EBAY_FAIT={};
 /* Titre eBay : 80 caractères au plus, coupé entre deux mots. */
@@ -2886,13 +2955,15 @@ function rondEbay(x,haut){var pas=x>=100?10:5;return Math.max(pas,(haut?Math.cei
 function caracEbay(){var v=function(id){return $(id).value.trim()},l=[];
   if(estCarte())l=[["Personnage",v("f_titre")],["Extension",v("f_plateforme")],["Numéro",v("f_numero")],["Rareté",v("f_rarete")],["Langue",v("f_region")],["Gradation",v("f_gradation")]];
   else if(estFilm())l=[["Titre du film",v("f_titre")],["Format",v("f_plateforme")],["Édition",v("f_edition")],["Année",v("f_annee")],["Réalisateur",v("f_realisateur")],["Langues et zone",v("f_region")]];
+  else if(estConnecte())l=[["Marque",v("f_marque")],["Modèle",v("f_titre")],["Type",v("f_plateforme")],["Couleur",v("f_region")],["Inclus",fourniTexte(v("f_edition")).replace(/^./,function(c){return c.toUpperCase()})]];
+  else if(estObjet())l=[["Marque",v("f_marque")],["Modèle",v("f_titre")],["Type",v("f_plateforme")]];
   else l=[[$("f_categorie").value==="consoles"?"Modèle":"Nom du jeu",v("f_titre")],["Plateforme",v("f_plateforme")],["Région",v("f_region")],["Contenu",EBAY_CONTENU[$("f_contenu").value]||""]];
   return l.filter(function(x){return x[1]}).map(function(x){return x[0]+" : "+x[1]}).join("\n")}
 function descEbay(){return texteLbc().split("\n\n").slice(1).join("\n\n").replace(/\n\nPrix : .*$/,"").replace(/Remise en main propre ou envoi\.?/,"Envoi soigné et rapide, avec suivi.").slice(0,4000)}
 function prixEbay(){var px=+$("f_prixDemande").value;if(!px)return"";px=Math.round(px);var pl=rondEbay(px*.85,true);
   return px+" € en Achat immédiat · offres acceptées, refus automatique sous "+Math.min(pl,px)+" €"}
 function champsEbay(){var px=$("f_prixDemande").value;
-  return [{k:"titre",l:"Titre",v:titreEbay(),n:"80 caractères max"},{k:"cat",l:"Catégorie",v:EBAY_CAT[$("f_categorie").value]||EBAY_CAT.jeux,n:"eBay la propose d'après le titre",info:true},
+  return [{k:"titre",l:"Titre",v:titreEbay(),n:"80 caractères max"},{k:"cat",l:"Catégorie",v:ebayCat(),n:"eBay la propose d'après le titre",info:true},
     {k:"etat",l:"État",v:EBAY_ETATS[$("f_etat").value]||"",n:"à choisir dans la liste",info:true},{k:"carac",l:"Caractéristiques",v:caracEbay(),n:"une par case"},
     {k:"desc",l:"Description",v:descEbay(),n:"texte simple"},{k:"prix",l:"Prix et offres",v:prixEbay(),copie:px?String(Math.round(+px)):"",n:"Achat immédiat, en euros"},
     {k:"photo",l:"Photos",v:GAL.length?(GAL.length>1?GAL.length+" photos numérotées prêtes":"Photo prête"):"",n:"jusqu'à 24 sur eBay",photo:true}]}

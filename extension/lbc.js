@@ -23,6 +23,16 @@
   // Catégories Le Bon Coin, la plus probable en premier. Les suggestions s'affichent « Électronique › Jeux vidéo » :
   // on compare le dernier niveau.
   var CATEGORIES_LBC = { cartes: ["Collection", "Cartes à collectionner", "Jeux & Jouets"], films: ["DVD - Films", "DVD / Films", "Films", "DVD"], jeux: ["Jeux vidéo", "Consoles & Jeux vidéo"], consoles: ["Consoles", "Consoles & Jeux vidéo"], accessoires: ["Consoles", "Accessoires informatique", "Accessoires"], autres: [] };
+  // Objets connectés : la catégorie dépend du type d'appareil (écouteurs et casques dans « Photo, audio & vidéo »…).
+  // Autres objets : on laisse Le Bon Coin proposer la catégorie d'après le titre.
+  function categoriesLbc(a) {
+    if (a.categorie !== "connectes") return CATEGORIES_LBC[a.categorie] || [];
+    var t = norm(a.plateforme || "");
+    if (/ecouteur|casque|enceinte|camera|drone/.test(t)) return ["Photo, audio & vidéo", "Accessoires téléphone & Objets connectés", "Audio"];
+    if (/tablette|liseuse/.test(t)) return ["Tablettes & Liseuses"];
+    return ["Téléphones & Objets connectés", "Accessoires téléphone & Objets connectés", "Objets connectés"];
+  }
+  function emojiObjet(a) { var t = String(a.plateforme || "").toLowerCase(); return a.categorie === "autres" ? "🛍️" : /couteur|casque/.test(t) ? "🎧" : /montre|bracelet/.test(t) ? "⌚" : /enceinte/.test(t) ? "🔊" : /phone|tablette|liseuse/.test(t) ? "📱" : /drone|cam/.test(t) ? "🚁" : "🔌"; }
   var ETAT_TXT = { neuf: "Neuf", tres_bon: "Très bon état", bon: "Bon état", correct: "État correct", pieces: "Pour pièces" };
 
   var hote, ombre, etat = { annonces: null, choisie: null, photo: null, compte: {}, auto: true };
@@ -170,7 +180,7 @@
         if ((await ouvrirDeroulantEtat(a, force)) && choisir(ETATS_LBC[a.etat]) === "ok") fait.push("état");
       }
     }
-    if (a.categorie && (CATEGORIES_LBC[a.categorie] || []).length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
+    if (a.categorie && categoriesLbc(a).length && (force || !etat.compte[k("cat")]) && zoneCategorie()) {
       var cat = await choisirCategorie(a, force);
       if (cat) { etat.compte[k("cat")] = true; if (cat === "ok") fait.push("catégorie"); }
     }
@@ -690,7 +700,7 @@
     return "";
   }
   async function choisirCategorie(a, force) {
-    var libs = CATEGORIES_LBC[a.categorie] || [], cibles = libs.map(norm), k = a.id + ":catliste";
+    var libs = categoriesLbc(a), cibles = libs.map(norm), k = a.id + ":catliste";
     var dd = deroulant(CAT_DESC, CAT_LIB);
     if (!force && dd && valeurDe(dd)) return "deja";   // la personne a déjà pris une catégorie dans la liste
     var r = cocherCategorie(cibles, force ? null : groupeDejaChoisi);
@@ -978,6 +988,7 @@
       else if (a.categorie === "consoles") e = "🕹️";
       else if (a.categorie === "cartes") e = "🃏";
       else if (a.categorie === "films") e = "🎬";
+      if (!a.lot && (a.categorie === "connectes" || a.categorie === "autres")) { out[a.id] = emojiObjet(a); return; }
       var k = EMOJIS_JEU.find(function (x) { return x[0].test(n); }); if (k) e = k[1];
       // Sans emoji parlant : la manette (la photo de l'article prend sa place dès qu'elle est chargée).
       out[a.id] = e || "🎮";
@@ -1327,7 +1338,7 @@
     var votre = offre ? "vos " + offre + " €" : "votre proposition";
     // Pour un lot, on parle des jeux qu'il contient (« Conker's Bad Fur Day et Astérix and the Great Rescue »).
     var valeur = a.lot ? "de la valeur " + (a.n === 2 ? "des deux articles" : "des " + (a.n || "") + " articles").replace("  ", " ") + (a.plateforme ? " (" + a.plateforme + ")" : "") + " : le lot est déjà à " + lePrix + ", au prix du marché."
-      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : a.categorie === "films" ? "du film dans cette édition : il se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
+      : "de la valeur " + (a.categorie === "cartes" ? "de la carte : elle se vend" : a.categorie === "films" ? "du film dans cette édition : il se vend" : a.categorie === "connectes" ? "de l'appareil : ce modèle se vend" : a.categorie === "autres" ? "de l'objet : il se vend" : "du jeu : il se vend") + " autour de " + lePrix + " en ce moment.";
     var l = [
       // Disponibilité
       { g: "Disponibilité", t: "Toujours disponible", m: "Bonjour, oui, " + nom + " est toujours disponible ! " + det + "Je peux l'envoyer ou le remettre en main propre, comme vous préférez." },
@@ -1366,7 +1377,45 @@
     ];
     // Profil « Prix ferme, pas de marchandage » : on retire les réponses qui font un geste sur le prix.
     if (pv.prix === "ferme") l = l.filter(function (x) { return !/poire en deux|dernière$|dernier prix|trop basse$/.test(x.t); });
-    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : a.categorie === "films" ? reponsesFilm(l, a, nom) : l;
+    return a.categorie === "cartes" ? reponsesCarte(l, a, nom) : a.categorie === "films" ? reponsesFilm(l, a, nom) : a.categorie === "connectes" ? reponsesConnecte(l, a, nom) : a.categorie === "autres" ? reponsesObjet(l, a, nom) : l;
+  }
+  // Mots du jeu remplacés par ceux de l'objet, dans les réponses gardées (disponibilité, négociation, sécurité).
+  function sansJeu(l, Le, le) {
+    return l.map(function (x) {
+      return { g: x.g, t: x.t.replace(/plusieurs jeux/, "plusieurs articles"), m: x.m.replace(/\bLe jeu\b/g, Le).replace(/\ble jeu\b/g, le).replace(/Bon jeu avec /g, "Profitez bien de ").replace(/ et bon jeu !/g, " !").replace(/mes jeux/g, "mes articles").replace(/quels jeux/g, "quels articles") };
+    });
+  }
+  /* Objets connectés : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
+     par les questions propres aux appareils (batterie, compte réinitialisé, authenticité, hygiène, compatibilité, envoi). */
+  function reponsesConnecte(l, a, nom) {
+    var t = norm(a.plateforme || ""), audio = /ecouteur|casque/.test(t), apple = /apple|airpods|iphone|ipad|watch/i.test((a.marque || "") + " " + nom);
+    var fourni = a.fourni ? String(a.fourni).split(/\s*,\s*/).map(function (x) { return x.charAt(0).toLowerCase() + x.slice(1); }).join(", ") : "";
+    var cnt = [
+      { g: "L'appareil", t: "État et fonctionnement", m: "Bonjour ! " + nom + " fonctionne parfaitement, je l'ai testé avant de le mettre en vente." + (a.etat && ETAT_TXT[a.etat] ? " Il est en " + ETAT_TXT[a.etat].toLowerCase() + "." : "") + (fourni ? " Il est fourni avec : " + fourni + "." : "") + " Je peux vous envoyer d'autres photos si vous voulez." },
+      { g: "L'appareil", t: "État de la batterie", m: "Bonjour ! " + (a.batterie ? "La batterie est à " + a.batterie + (/%/.test(a.batterie) ? " de sa capacité d'origine" : "") + ". " : "") + "Je vous envoie une capture de l'état de la batterie, comme ça vous voyez par vous-même." },
+      { g: "L'appareil", t: "Réinitialisé et dissocié", m: a.reinit ? "Bonjour ! Oui, il est réinitialisé et retiré de mon compte" + (apple ? " (Localiser désactivé)" : "") + " : vous pourrez l'associer au vôtre dès réception." : "Bonjour ! Je le réinitialise et je le retire de mon compte" + (apple ? " (Localiser désactivé)" : "") + " avant l'envoi : vous pourrez l'associer au vôtre dès réception." },
+      { g: "L'appareil", t: "Authentique ?", m: "Bonjour ! Oui, c'est un original" + (/facture/i.test(a.fourni || "") ? ", et je fournis la facture d'achat" : "") + ". En main propre, je vous montre le numéro de série dans les réglages, vous pouvez le vérifier sur le site de la marque." },
+      audio ? { g: "L'appareil", t: "Hygiène", m: "Bonjour ! " + (/casque/.test(t) ? "Le casque est nettoyé et les coussinets désinfectés" : "Les écouteurs sont nettoyés et désinfectés, embouts compris") + " avant l'envoi." } : null,
+      apple && audio ? { g: "L'appareil", t: "Compatible Android ?", m: "Bonjour ! Oui, ils se connectent en Bluetooth à un téléphone Android. Certaines fonctions (bascule automatique, audio spatial personnalisé) sont réservées aux appareils Apple." } : null,
+      { g: "L'appareil", t: "Pourquoi ce prix ?", m: "Bonjour, bonne question ! Je me base sur les ventes réellement conclues ces dernières semaines pour ce modèle d'occasion (eBay, Le Bon Coin), en dessous du prix d'un reconditionné." },
+      { g: "Envoi et remise", t: "Envoi protégé", m: "Je l'envoie avec la livraison Le Bon Coin (paiement sécurisé), bien calé dans un carton rigide. Expédié sous 48 h après la commande." },
+      { g: "Envoi et remise", t: "Remise en main propre", m: "La remise en main propre est possible, et vous pourrez le tester sur place ! Dites-moi quel jour et quel secteur vous arrangent, et on se retrouve dans un lieu public." },
+      { g: "Envoi et remise", t: "Colis envoyé", m: "C'est parti ! Le colis est bien protégé et déposé, vous recevrez le suivi par Le Bon Coin. Merci pour votre achat !" },
+    ].filter(Boolean);
+    var garde = sansJeu(l.filter(function (x) { return x.g !== "Le jeu" && x.g !== "Envoi et remise"; }), "L'appareil", "l'appareil");
+    var i = garde.findIndex(function (x) { return x.g === "Sécurité et suivi"; });
+    return garde.slice(0, i < 0 ? garde.length : i).concat(cnt, i < 0 ? [] : garde.slice(i));
+  }
+  // Autres objets : les réponses générales, sans les questions propres aux jeux.
+  function reponsesObjet(l, a, nom) {
+    var obj = [
+      { g: "L'objet", t: "État", m: "Bonjour ! " + nom + (a.etat && ETAT_TXT[a.etat] ? " est en " + ETAT_TXT[a.etat].toLowerCase() : " est en bon état") + ". Je peux vous envoyer d'autres photos si vous voulez." },
+      { g: "L'objet", t: "Plus de photos", m: "Bien sûr ! Je vous envoie d'autres photos tout de suite, sous tous les angles." },
+      { g: "L'objet", t: "Dimensions", m: "Bonjour ! Je le mesure et je vous envoie les dimensions dans la journée." },
+    ];
+    var garde = sansJeu(l.filter(function (x) { return x.g !== "Le jeu"; }), "L'objet", "l'objet");
+    var i = garde.findIndex(function (x) { return x.g === "Envoi et remise"; });
+    return garde.slice(0, i < 0 ? garde.length : i).concat(obj, i < 0 ? [] : garde.slice(i));
   }
   /* Films : on garde la disponibilité, la négociation et la sécurité, et on remplace « Le jeu » et l'envoi
      par les questions propres aux films (disques, langues et zone, steelbook, envoi protégé). */
