@@ -230,9 +230,16 @@ final class Messagerie: NSObject, ObservableObject, WKNavigationDelegate {
             debut = nil; etat = .pret   // la page dit qu'il n'y a aucune conversation
         }
         if ouverte != nil, let f = r["fil"] as? [String: Any] {
-            let n = purger(FilLbc(f))
+            var n = purger(FilLbc(f))
             // Une relecture vide (page encore en train de charger) n'efface jamais un fil déjà affiché.
             let vide: (FilLbc) -> Bool = { !$0.messages.contains(where: { $0.genre != .heure }) }
+            // La relecture régulière ne voit que les messages encore dans la page : on garde le début déjà chargé.
+            if n.cle == fil.cle, let p = n.messages.first(where: { $0.genre != .heure }),
+               let i = fil.messages.firstIndex(where: { $0.genre == p.genre && $0.cote == p.cote && $0.texte == p.texte }), i > 0 {
+                n.messages = (Array(fil.messages[..<i]) + n.messages).enumerated().map { k, m in
+                    MessageLbc(id: k, cote: m.cote, texte: m.texte, meta: m.meta, genre: m.genre)
+                }
+            }
             if n.cle == fil.cle, n != fil, !(vide(n) && !vide(fil)) {
                 let nouveau = n.messages.count != fil.messages.count
                 fil = n
