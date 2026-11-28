@@ -1997,14 +1997,40 @@
     }
     return e;
   }
+  // Colonne de la liste des conversations (à gauche) : jamais lue comme des messages, jamais défilée pour l'historique.
+  // Repérée sans tenir compte de la colonne de conversation (elle peut l'englober dans certaines mises en page).
+  function paneListe() {
+    var cand = [].filter.call(document.querySelectorAll("a[href], li, [role=link], [role=listitem]"), function (x) {
+      if (!visible(x) || (hote && hote.contains(x)) || x.closest("header, nav, footer")) return false;
+      var r = x.getBoundingClientRect(); if (r.left > innerWidth * 0.5 || r.height < 36 || r.height > 260) return false;
+      var t = x.innerText || ""; if (!(t.length > 3 && t.length < 700 && DATE_ENTREE.test(t))) return false;
+      var a = x.matches("a[href]") ? x : x.querySelector("a[href]");
+      return (a && /messag|conversation/i.test(a.getAttribute("href") || "")) || [].some.call(x.querySelectorAll("img"), function (i) { return i.getBoundingClientRect().width >= 28; });
+    });
+    var es = cand.filter(function (x) { return !cand.some(function (y) { return y !== x && y.contains(x); }); });
+    var cles = {}, cle = function (x) { var r = x.getBoundingClientRect(); return Math.round(r.left / 8) + ":" + Math.round(r.width / 16); };
+    es.forEach(function (x) { var k = cle(x); cles[k] = (cles[k] || 0) + 1; });
+    var m = Object.keys(cles).sort(function (a, b) { return cles[b] - cles[a]; })[0];
+    if (!m || cles[m] < 3) return null;
+    es = es.filter(function (x) { return cle(x) === m; });
+    var p = es[0].parentElement, z = zoneMessage();
+    while (p && !es.every(function (e) { return p.contains(e); })) p = p.parentElement;
+    // Remonter tant que l'ancêtre ne contient que la liste (pas la zone de réponse) : toute la colonne de gauche.
+    // (sans s'élargir : la liste est une colonne étroite, un parent bien plus large englobe aussi la conversation).
+    while (p && p.parentElement && p.parentElement !== document.body && !(z && p.parentElement.contains(z))
+           && p.parentElement.getBoundingClientRect().width <= p.getBoundingClientRect().width * 1.25 + 20) p = p.parentElement;
+    return !p || p === document.body || (z && p.contains(z)) ? null : p;
+  }
   var META = /^(?:\d{1,2}[:h]\d{2}|lu|vu|envoy[ée]|re[çc]u|distribu[ée]|lu à .*|vu à .*|envoy[ée] à .*)$/i;
   function filActuel() {
     var col = colonneConversation(), cr = col.getBoundingClientRect(), z = zoneMessage(), sugg = blocsSuggestions(col), out = [];
+    var pane = paneListe();
     var w = document.createTreeWalker(col, NodeFilter.SHOW_TEXT), n;
     while ((n = w.nextNode())) {
       var t = (n.nodeValue || "").replace(/[ \t ]+/g, " ").trim(), e = n.parentElement;
       if (!t || !e || !visible(e) || (hote && hote.contains(e))) continue;
       if (z && (z === e || z.contains(e))) continue;
+      if (pane && pane.contains(e)) continue;
       if (e.closest("textarea, [contenteditable]")) continue;
       // Libellé de bouton (« Accepter », « Refuser ») : écarté. Une carte d'offre cliquable, elle, est un vrai message.
       var bt = e.closest("button, [role=button]"); if (bt && (bt.innerText || "").trim().length < 40) continue;
@@ -2030,6 +2056,8 @@
     out = out.filter(function (m) {
       var ls = m.texte.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
       if (!ls.length || FICHE.test(ls[0])) return false;
+      // Entrée de liste égarée (« Antoine », « - », « avant-hier ») : jamais un message.
+      if (ls.length <= 4 && ls.indexOf("-") > 0 && DATE_ENTREE.test(ls[ls.length - 1])) return false;
       if (ls.every(function (l) { return lignesListe[norm(l)] || l === "-" || DATE_ENTREE.test(l); })) return false;
       if (ls.length === 1 && norm(ls[0]) === norm(acheteurLu())) return false;
       return true;
@@ -2038,6 +2066,7 @@
     // paragraphe par paragraphe, plutôt qu'un fil vide.
     if (!out.length) {
       var brut = texteConversation().split("[Conversation]\n").pop();
+      if (pane) (pane.innerText || "").split("\n").forEach(function (l) { l = norm(l); if (l) lignesListe[l] = 1; });
       out = brut.split(/\n{2,}/).map(function (p) { return p.split("\n").map(function (l) { return l.trim(); }).filter(function (l) { return l && !lignesListe[norm(l)] && !DATE_ENTREE.test(l); }).join("\n"); })
         .filter(function (t) { return t && !FICHE.test(t) && norm(t) !== norm(acheteurLu()); })
         .map(function (t) { return { cote: "lui", texte: t, meta: "" }; });
@@ -2049,13 +2078,14 @@
   // On remonte tout en haut jusqu'à ce que plus rien n'arrive, on lit, on redescend, et on recolle les deux lectures
   // (au cas où la page retirerait les messages sortis de l'écran).
   function zoneDefilement() {
-    var col = colonneConversation(), z = zoneMessage(), best = null;
+    var col = colonneConversation(), z = zoneMessage(), best = null, pane = paneListe();
     var defile = function (x) { return x.scrollHeight > x.clientHeight + 40 && /(auto|scroll|overlay)/.test(getComputedStyle(x).overflowY); };
     [].forEach.call(col.querySelectorAll("div, section, main, ul, ol"), function (x) {
       if ((hote && hote.contains(x)) || (z && x.contains(z) && x !== col)) return;
+      if (pane && (pane.contains(x) || x.contains(pane))) return;   // jamais la liste des conversations
       if (x.scrollHeight > x.clientHeight + 40 && (!best || x.scrollHeight > best.scrollHeight) && defile(x)) best = x;
     });
-    for (var e = col; !best && e && e !== document.body; e = e.parentElement) if (defile(e)) best = e;
+    for (var e = col; !best && e && e !== document.body; e = e.parentElement) if (defile(e) && !(pane && e.contains(pane))) best = e;
     return best;
   }
   function recoller(a, b) {
